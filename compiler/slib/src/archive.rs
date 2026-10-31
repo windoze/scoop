@@ -1,14 +1,16 @@
 use std::cell::OnceCell;
 use std::fmt;
 use std::ops::Range;
+use std::sync::{Arc, OnceLock};
 
-use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
+use crate::compression::ObjectDecompressor;
+use crate::{SlibMember, SlibMemberId, SlibMemberRecord, SlibMemberRole};
 
 pub(crate) const GLOBAL_MAGIC: &[u8; 8] = b"SCOOPSLB";
 pub(crate) const HEADER_LENGTH: u64 = 16;
 
 mod index;
-pub(crate) use index::{MemberPosition, member_positions};
+pub(crate) use index::{MemberEncoding, MemberPosition, member_positions};
 
 mod write;
 pub use write::{ArchiveWriteError, CanonicalSlibArchive};
@@ -116,16 +118,23 @@ impl<'input> ManifestArchive<'input> {
                 .into_iter()
                 .map(|(id, position)| (id, position, OnceCell::new()))
                 .collect(),
+            object_dictionary: records
+                .iter()
+                .find(|record| matches!(record.role(), SlibMemberRole::ObjectDictionary))
+                .map(SlibMemberRecord::id),
+            object_decoder: Arc::new(OnceLock::new()),
         })
     }
 }
 
 /// Lazily decoded archive members indexed by the manifest directory.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct DecodedArchive<'input> {
     input: &'input [u8],
     manifest: Vec<u8>,
     members: Vec<(SlibMemberId, MemberPosition, OnceCell<MemberPayload>)>,
+    object_dictionary: Option<SlibMemberId>,
+    object_decoder: Arc<OnceLock<Result<ObjectDecompressor, crate::CompressionError>>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -161,12 +170,38 @@ impl<'input> DecodedArchive<'input> {
             .ok_or(ArchiveReadError::TruncatedPayload {
                 member: position.ordinal(),
             })?;
-        let bytes = if position.compressed {
-            MemberPayload::Decoded(decompress_member(payload, position.ordinal())?)
-        } else {
-            MemberPayload::Stored(range)
+        let bytes = match position.encoding {
+            MemberEncoding::Zstd => {
+                MemberPayload::Decoded(decompress_member(payload, position.ordinal())?)
+            }
+            MemberEncoding::Object => {
+                MemberPayload::Decoded(self.decompress_object(payload, position.ordinal())?)
+            }
+            MemberEncoding::Stored => MemberPayload::Stored(range),
         };
         Ok(Some(self.payload_bytes(cached.get_or_init(|| bytes))))
+    }
+
+    fn decompress_object(
+        &self,
+        payload: &[u8],
+        member: ArchiveMemberOrdinal,
+    ) -> Result<Vec<u8>, ArchiveReadError> {
+        let decoder = if let Some(decoder) = self.object_decoder.get() {
+            decoder
+        } else {
+            let dictionary = match self.object_dictionary {
+                Some(id) => self.member(id)?.expect("indexed dictionary member"),
+                None => &[],
+            };
+            self.object_decoder
+                .get_or_init(|| ObjectDecompressor::new(dictionary))
+        };
+        decoder
+            .as_ref()
+            .map_err(Clone::clone)
+            .and_then(|decoder| decoder.decompress(payload))
+            .map_err(|source| ArchiveReadError::Compression { member, source })
     }
 
     fn payload_bytes<'reader>(&'reader self, payload: &'reader MemberPayload) -> &'reader [u8] {

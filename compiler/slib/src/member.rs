@@ -8,7 +8,7 @@ use scoop_wire::{
 
 const MEMBER_ID_DOMAIN: &str = "scoop-slib-member-v1";
 const MEMBER_FINGERPRINT_DOMAIN: &str = "scoop-slib-member-content-v1";
-const LINK_MEMBER_FINGERPRINT_DOMAIN: &str = "scoop-slib-link-member-v1";
+const LINK_MEMBER_FINGERPRINT_DOMAIN: &str = "scoop-slib-link-member-v2";
 const WIRE_SCHEMA: u64 = 1;
 
 macro_rules! typed_digest {
@@ -79,6 +79,7 @@ pub enum MemberStableKey {
     HirMetadata,
     MirMetadata,
     LirMetadata,
+    ObjectDictionary,
     LinkObject {
         verifier_capability: scoop_identity::CapabilityId,
         logical_key: LogicalMemberKey,
@@ -99,6 +100,7 @@ impl WireEncode for MemberStableKey {
             Self::HirMetadata => encode_empty_sum(encoder, 1),
             Self::MirMetadata => encode_empty_sum(encoder, 2),
             Self::LirMetadata => encode_empty_sum(encoder, 3),
+            Self::ObjectDictionary => encode_empty_sum(encoder, 8),
             Self::LinkObject {
                 verifier_capability,
                 logical_key,
@@ -165,6 +167,7 @@ pub enum SlibMemberRole {
     HirMetadata,
     MirMetadata,
     LirMetadata,
+    ObjectDictionary,
     LinkObject,
     DiagnosticAttachment {
         capability: scoop_identity::CapabilityId,
@@ -201,7 +204,9 @@ impl SlibMemberRole {
             Self::LirMetadata => {
                 MemberPurposeSet(MemberPurposeSet::COMPILE.bits() | MemberPurposeSet::LINK.bits())
             }
-            Self::LinkObject | Self::NativeObject { .. } => MemberPurposeSet::LINK,
+            Self::LinkObject | Self::NativeObject { .. } | Self::ObjectDictionary => {
+                MemberPurposeSet::LINK
+            }
             Self::DiagnosticAttachment { .. } => MemberPurposeSet::DIAGNOSTICS,
             Self::ExtensionBlob { requirement, .. } => requirement.purpose_set(),
         }
@@ -215,6 +220,7 @@ impl WireEncode for SlibMemberRole {
             Self::MirMetadata => encode_schema_role(encoder, 2),
             Self::LirMetadata => encode_schema_role(encoder, 3),
             Self::LinkObject => encode_empty_sum(encoder, 4),
+            Self::ObjectDictionary => encode_empty_sum(encoder, 8),
             Self::NativeObject { source } => {
                 encoder.map(2)?;
                 encode_tag(encoder, 7)?;
@@ -242,16 +248,73 @@ impl WireEncode for SlibMemberRole {
     }
 }
 
+/// Logical member content, independent of the object's storage encoding.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SlibMemberRecord {
+pub struct SlibMemberContent {
     id: SlibMemberId,
     role: SlibMemberRole,
-    byte_length: u64,
     sha256: Digest256,
 }
 
-/// A directory record bound to the exact payload from which its length and
-/// content digest were computed.
+impl SlibMemberContent {
+    fn new(
+        cone: ConeIdentity,
+        stable_key: MemberStableKey,
+        role: SlibMemberRole,
+        digest: Digest256,
+    ) -> Result<Self, SlibMemberRecordError> {
+        validate_key_role(&stable_key, &role)?;
+        let id = SlibMemberId::from_stable_key(cone, &stable_key)
+            .map_err(SlibMemberRecordError::Hash)?;
+        Ok(Self {
+            id,
+            role,
+            sha256: digest,
+        })
+    }
+
+    pub const fn id(&self) -> SlibMemberId {
+        self.id
+    }
+    pub const fn role(&self) -> &SlibMemberRole {
+        &self.role
+    }
+    pub const fn sha256(&self) -> Digest256 {
+        self.sha256
+    }
+
+    pub fn as_link_member(&self) -> Option<LinkMemberRecord<'_>> {
+        match self.role {
+            SlibMemberRole::LinkObject
+            | SlibMemberRole::NativeObject { .. }
+            | SlibMemberRole::ExtensionBlob {
+                requirement: ExtensionRequirement::Link,
+                ..
+            } => Some(LinkMemberRecord { content: self }),
+            _ => None,
+        }
+    }
+}
+
+impl WireEncode for SlibMemberContent {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        self.id.encode(encoder)?;
+        encoder.field(3)?;
+        self.role.encode(encoder)?;
+        encoder.field(5)?;
+        self.sha256.encode(encoder)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SlibMemberRecord {
+    content: SlibMemberContent,
+    byte_length: u64,
+}
+
+/// A complete directory record bound to its actual stored payload.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SlibMember {
     record: SlibMemberRecord,
@@ -274,9 +337,23 @@ impl SlibMember {
         } else {
             (payload, None)
         };
-        let record = SlibMemberRecord::new(cone, stable_key, role, &payload)?;
+        let digest = sha256(object_payload.as_deref().unwrap_or(&payload));
+        let content = SlibMemberContent::new(cone, stable_key, role, digest)?;
+        Self::from_encoded(content, payload, object_payload)
+    }
+
+    fn from_encoded(
+        content: SlibMemberContent,
+        payload: Vec<u8>,
+        object_payload: Option<Vec<u8>>,
+    ) -> Result<Self, SlibMemberRecordError> {
+        let byte_length =
+            u64::try_from(payload.len()).map_err(|_| SlibMemberRecordError::LengthOverflow)?;
         Ok(Self {
-            record,
+            record: SlibMemberRecord {
+                content,
+                byte_length,
+            },
             payload,
             object_payload,
         })
@@ -285,50 +362,29 @@ impl SlibMember {
     pub const fn record(&self) -> &SlibMemberRecord {
         &self.record
     }
-
     pub fn payload(&self) -> &[u8] {
         &self.payload
     }
-
     pub(crate) fn into_object_payload(self) -> Option<Vec<u8>> {
         self.object_payload
     }
 }
 
 impl SlibMemberRecord {
-    pub fn new(
-        cone: ConeIdentity,
-        stable_key: MemberStableKey,
-        role: SlibMemberRole,
-        payload: &[u8],
-    ) -> Result<Self, SlibMemberRecordError> {
-        validate_key_role(&stable_key, &role)?;
-        let byte_length =
-            u64::try_from(payload.len()).map_err(|_| SlibMemberRecordError::LengthOverflow)?;
-        let id = SlibMemberId::from_stable_key(cone, &stable_key)
-            .map_err(SlibMemberRecordError::Hash)?;
-        Ok(Self {
-            id,
-            role,
-            byte_length,
-            sha256: sha256(payload),
-        })
+    pub const fn content(&self) -> &SlibMemberContent {
+        &self.content
     }
-
     pub const fn id(&self) -> SlibMemberId {
-        self.id
+        self.content.id()
     }
-
     pub const fn role(&self) -> &SlibMemberRole {
-        &self.role
+        self.content.role()
     }
-
     pub const fn byte_length(&self) -> u64 {
         self.byte_length
     }
-
     pub const fn sha256(&self) -> Digest256 {
-        self.sha256
+        self.content.sha256()
     }
 
     pub fn fingerprint(&self) -> Result<MemberFingerprint, HashError> {
@@ -337,15 +393,7 @@ impl SlibMemberRecord {
     }
 
     pub fn as_link_member(&self) -> Option<LinkMemberRecord<'_>> {
-        match self.role {
-            SlibMemberRole::LinkObject
-            | SlibMemberRole::NativeObject { .. }
-            | SlibMemberRole::ExtensionBlob {
-                requirement: ExtensionRequirement::Link,
-                ..
-            } => Some(LinkMemberRecord { record: self }),
-            _ => None,
-        }
+        self.content.as_link_member()
     }
 }
 
@@ -353,31 +401,31 @@ impl WireEncode for SlibMemberRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
         encoder.field(1)?;
-        self.id.encode(encoder)?;
+        self.id().encode(encoder)?;
         encoder.field(3)?;
-        self.role.encode(encoder)?;
+        self.role().encode(encoder)?;
         encoder.field(4)?;
         encoder.unsigned(self.byte_length)?;
         encoder.field(5)?;
-        self.sha256.encode(encoder)
+        self.sha256().encode(encoder)
     }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct LinkMemberRecord<'record> {
-    record: &'record SlibMemberRecord,
+    content: &'record SlibMemberContent,
 }
 
-impl<'record> LinkMemberRecord<'record> {
+impl LinkMemberRecord<'_> {
     pub fn fingerprint(self) -> Result<LinkMemberFingerprint, HashError> {
-        domain_separated_cbor_hash(LINK_MEMBER_FINGERPRINT_DOMAIN, self.record)
+        domain_separated_cbor_hash(LINK_MEMBER_FINGERPRINT_DOMAIN, self.content)
             .map(|digest| LinkMemberFingerprint(*digest.as_array()))
     }
-
-    pub const fn record(self) -> &'record SlibMemberRecord {
-        self.record
-    }
 }
+
+mod objects;
+pub use objects::UncompressedObjectMember;
+pub(crate) use objects::encode_object_members;
 
 impl SlibMemberId {
     pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
@@ -399,6 +447,7 @@ impl SlibMemberId {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SlibMemberRecordError {
     KeyRoleMismatch,
+    ObjectRoleRequired,
     CapabilityMismatch,
     LengthOverflow,
     Hash(HashError),
@@ -410,6 +459,9 @@ impl fmt::Display for SlibMemberRecordError {
         match self {
             Self::KeyRoleMismatch => {
                 formatter.write_str("member stable key and role variants do not match")
+            }
+            Self::ObjectRoleRequired => {
+                formatter.write_str("object member requires a LinkObject or NativeObject role")
             }
             Self::CapabilityMismatch => {
                 formatter.write_str("member stable key and role capabilities do not match")
@@ -430,7 +482,8 @@ fn validate_key_role(
     match (stable_key, role) {
         (MemberStableKey::HirMetadata, SlibMemberRole::HirMetadata)
         | (MemberStableKey::MirMetadata, SlibMemberRole::MirMetadata)
-        | (MemberStableKey::LirMetadata, SlibMemberRole::LirMetadata) => Ok(()),
+        | (MemberStableKey::LirMetadata, SlibMemberRole::LirMetadata)
+        | (MemberStableKey::ObjectDictionary, SlibMemberRole::ObjectDictionary) => Ok(()),
         (
             MemberStableKey::LinkObject {
                 verifier_capability,

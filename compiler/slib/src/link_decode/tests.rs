@@ -28,7 +28,7 @@ use scoop_lir::CanonicalNativeExternalRequirementSurfaceV1;
 
 pub(crate) mod layout_link_support;
 
-mod archive;
+pub(crate) mod archive;
 mod extension_members;
 mod objects;
 mod production;

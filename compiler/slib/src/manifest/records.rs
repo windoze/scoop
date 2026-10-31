@@ -10,7 +10,7 @@ use super::{
 use crate::{CompatibilityRecord, MemberPurposeSet, SlibMember, SlibMemberId, SlibMemberRecord};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const CURRENT_SCHEMA: u64 = 5;
+const CURRENT_SCHEMA: u64 = 6;
 const ARTIFACT_FINGERPRINT_DOMAIN: &[u8] = b"scoop-artifact-v1";
 const MAX_PRODUCER_BYTES: usize = 255;
 
@@ -634,6 +634,7 @@ pub enum BootstrapManifestError {
     DuplicateDependency { identity: ConeIdentity },
     DuplicateMember { id: SlibMemberId },
     DuplicateMetadata { kind: MetadataKind },
+    DuplicateObjectDictionary,
     MissingMetadata { kind: MetadataKind },
     DuplicateSection { capability: CapabilityId },
     Hash(HashError),
@@ -649,6 +650,9 @@ impl fmt::Display for BootstrapManifestError {
             Self::DuplicateMember { id } => write!(formatter, "duplicate member {id}"),
             Self::DuplicateMetadata { kind } => {
                 write!(formatter, "duplicate {kind} metadata member")
+            }
+            Self::DuplicateObjectDictionary => {
+                formatter.write_str("duplicate object dictionary member")
             }
             Self::MissingMetadata { kind } => write!(formatter, "missing {kind} metadata member"),
             Self::DuplicateSection { capability } => write!(
@@ -782,11 +786,18 @@ fn reject_duplicate_members(members: &[SlibMemberRecord]) -> Result<(), Bootstra
 
 fn require_foundation_metadata(members: &[SlibMemberRecord]) -> Result<(), BootstrapManifestError> {
     let mut present = [false; 3];
+    let mut dictionary_present = false;
     for member in members {
         let (kind, index) = match member.role() {
             crate::SlibMemberRole::HirMetadata => (MetadataKind::Hir, 0),
             crate::SlibMemberRole::MirMetadata => (MetadataKind::Mir, 1),
             crate::SlibMemberRole::LirMetadata => (MetadataKind::Lir, 2),
+            crate::SlibMemberRole::ObjectDictionary => {
+                if std::mem::replace(&mut dictionary_present, true) {
+                    return Err(BootstrapManifestError::DuplicateObjectDictionary);
+                }
+                continue;
+            }
             _ => continue,
         };
         if std::mem::replace(&mut present[index], true) {

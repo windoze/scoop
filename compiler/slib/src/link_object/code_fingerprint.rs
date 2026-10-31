@@ -14,8 +14,8 @@ use super::{
     FinalRuntimeObjectsV1,
 };
 use crate::{
-    CodeFingerprint, LinkMemberFingerprint, SingleConeProductionCodeProjectionV1, SlibMemberId,
-    SlibMemberRecord, SlibMemberRole, VerifiedSingleConeProductionCodeProjectionV1,
+    CodeFingerprint, LinkMemberFingerprint, SingleConeProductionCodeProjectionV1,
+    SlibMemberContent, SlibMemberId, SlibMemberRole, VerifiedSingleConeProductionCodeProjectionV1,
 };
 
 const CODE_FINGERPRINT_DOMAIN: &str = "scoop-code-v1";
@@ -104,21 +104,21 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> FinalCodeObjectSetV1<
 /// Pair final object data with the archive directory used by Code fingerprints.
 pub fn build_code_link_object_members_v1(
     final_objects: FinalRuntimeObjectsV1,
-    directory: &[SlibMemberRecord],
+    directory: &[SlibMemberContent],
 ) -> Result<FinalCodeObjectSetV1, CodeObjectProjectionError> {
     build_code_link_object_members(final_objects, directory)
 }
 
 pub fn build_code_link_object_members_v2(
     final_objects: crate::FinalRuntimeObjectsV2,
-    directory: &[SlibMemberRecord],
+    directory: &[SlibMemberContent],
 ) -> Result<FinalCodeObjectSetV2, CodeObjectProjectionError> {
     build_code_link_object_members(final_objects, directory)
 }
 
 fn build_code_link_object_members<D, C, I>(
     final_objects: FinalRuntimeObjectsV1<D, C, I>,
-    directory: &[SlibMemberRecord],
+    directory: &[SlibMemberContent],
 ) -> Result<FinalCodeObjectSetV1<D, C, I>, CodeObjectProjectionError>
 where
     D: scoop_lir::StrongDescriptorReference,

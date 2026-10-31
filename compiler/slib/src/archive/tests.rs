@@ -38,10 +38,7 @@ fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes
         )
         .unwrap();
         assert_ne!(member.payload(), bytes);
-        assert_eq!(
-            member.record().sha256(),
-            scoop_wire::sha256(member.payload())
-        );
+        assert_eq!(member.record().sha256(), scoop_wire::sha256(bytes));
         expected.insert(member.record().sha256(), bytes);
         records.push(member.record().clone());
         members.push(member);
@@ -201,11 +198,11 @@ fn reader_indexes_the_directory_and_checks_only_requested_payload_ranges() {
     let mut reversed = records.clone();
     reversed.reverse();
     assert_eq!(
-        validate_archive(archive.as_bytes(), &reversed),
-        Err(ArchiveReadError::NonIncreasingDirectory {
+        validate_archive(archive.as_bytes(), &reversed).unwrap_err(),
+        ArchiveReadError::NonIncreasingDirectory {
             first_index: 0,
             second_index: 1
-        })
+        }
     );
     assert_eq!(
         member_positions(&records, u64::MAX),

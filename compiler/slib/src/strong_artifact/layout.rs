@@ -4,7 +4,7 @@ use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, CanonicalSlibArchive,
     CompatibilityRecord, ConeRecord, CrossConeLayoutCodeDataV1, DependencyRecord,
     FingerprintAvailability, LinkIdentityClosureSectionV1, ProducerRecord,
-    SemanticFingerprintRecord, SlibMember,
+    SemanticFingerprintRecord, UncompressedObjectMember,
 };
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
@@ -44,7 +44,7 @@ pub struct CrossConeLayoutArtifactInputV1<'ir> {
     lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
     lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
     layout_code: CrossConeLayoutCodeDataV1,
-    link_objects: Vec<SlibMember>,
+    link_objects: Vec<UncompressedObjectMember>,
     test_directory: Option<crate::TestDirectory>,
     dependencies: Option<&'ir crate::ValidatedCrossConeArtifactClosure>,
 }
@@ -80,7 +80,7 @@ impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
         lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
         lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
         layout_code: CrossConeLayoutCodeDataV1,
-        link_objects: Vec<SlibMember>,
+        link_objects: Vec<UncompressedObjectMember>,
     ) -> Self {
         Self {
             producer,
@@ -154,7 +154,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
                 code.production().projection().odr_members(),
                 dependencies,
             );
-            link_objects.retain(|object| !removed.contains(&object.record().id()));
+            link_objects.retain(|object| !removed.contains(&object.content().id()));
             link_identity_closure.remove_members(&removed);
         }
 
@@ -200,7 +200,10 @@ impl AssembledCrossConeLayoutArtifactV1 {
         members.push(metadata.hir.into_member(identity)?);
         members.push(metadata.mir.into_member(identity)?);
         members.push(metadata.lir.into_member(identity)?);
-        members.extend(link_objects);
+        members.extend(
+            crate::member::encode_object_members(identity, link_objects)
+                .map_err(CrossConeLayoutArtifactWriteError::ObjectMembers)?,
+        );
         let mut manifest_sections = Vec::new();
         if let Some(directory) = &test_directory {
             manifest_sections.push(

@@ -7,7 +7,14 @@ pub(crate) struct MemberPosition {
     pub(crate) ordinal: u32,
     pub(crate) offset: u64,
     pub(crate) length: u64,
-    pub(crate) compressed: bool,
+    pub(crate) encoding: MemberEncoding,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum MemberEncoding {
+    Stored,
+    Zstd,
+    Object,
 }
 
 impl MemberPosition {
@@ -43,7 +50,13 @@ pub(crate) fn member_positions(
                 ordinal: u32::try_from(index).map_err(|_| ArchiveReadError::LengthOverflow)?,
                 offset: cursor,
                 length: record.byte_length(),
-                compressed: record.role().is_compressed(),
+                encoding: if record.role().is_object() {
+                    MemberEncoding::Object
+                } else if record.role().is_compressed() {
+                    MemberEncoding::Zstd
+                } else {
+                    MemberEncoding::Stored
+                },
             },
         ));
         cursor = cursor

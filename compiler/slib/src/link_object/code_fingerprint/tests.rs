@@ -14,7 +14,7 @@ use scoop_lir::{
 use super::*;
 use crate::{
     CrossConeLinkSemanticImportSetV1, ExtensionRequirement, LogicalMemberKey, MemberStableKey,
-    SlibMemberRecord,
+    SlibMember,
 };
 
 #[test]
@@ -104,13 +104,16 @@ fn layout_profile_code_contribution_contains_both_semantic_import_projections() 
 fn link_object_projection_is_canonical_and_ignores_non_code_members() {
     let first = object_record("first", b"first");
     let second = object_record("second", b"second");
-    let metadata = SlibMemberRecord::new(
+    let metadata = SlibMember::new(
         ConeIdentity::CORE,
         MemberStableKey::HirMetadata,
         SlibMemberRole::HirMetadata,
-        b"metadata",
+        b"metadata".to_vec(),
     )
-    .unwrap();
+    .unwrap()
+    .record()
+    .content()
+    .clone();
 
     let actual = project_directory_records(&[second.clone(), metadata, first.clone()]).unwrap();
 
@@ -124,7 +127,7 @@ fn link_object_projection_is_canonical_and_ignores_non_code_members() {
 fn link_object_projection_rejects_unknown_link_extensions() {
     let record = object_record("object", b"final");
     let capability = CapabilityId::new("example.extension", "required", 1).unwrap();
-    let extension = SlibMemberRecord::new(
+    let extension = SlibMember::new(
         ConeIdentity::CORE,
         MemberStableKey::ExtensionBlob {
             capability: capability.clone(),
@@ -134,9 +137,12 @@ fn link_object_projection_rejects_unknown_link_extensions() {
             capability: capability.clone(),
             requirement: ExtensionRequirement::Link,
         },
-        b"extension",
+        b"extension".to_vec(),
     )
-    .unwrap();
+    .unwrap()
+    .record()
+    .content()
+    .clone();
     let member = extension.id();
     assert_eq!(
         project_directory_records(&[record, extension]),
@@ -278,16 +284,19 @@ fn source(seed: u8) -> PersistentSourceNativeExternalContractId {
     .unwrap()
 }
 
-fn object_record(logical_key: &str, payload: &[u8]) -> SlibMemberRecord {
+fn object_record(logical_key: &str, payload: &[u8]) -> SlibMemberContent {
     let capability = crate::scoop_lir_link_object_capability();
-    SlibMemberRecord::new(
+    SlibMember::new(
         ConeIdentity::CORE,
         MemberStableKey::LinkObject {
             verifier_capability: capability.clone(),
             logical_key: LogicalMemberKey::new(logical_key.as_bytes().to_vec()).unwrap(),
         },
         SlibMemberRole::LinkObject,
-        payload,
+        payload.to_vec(),
     )
     .unwrap()
+    .record()
+    .content()
+    .clone()
 }

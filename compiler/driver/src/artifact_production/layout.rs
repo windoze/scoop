@@ -13,7 +13,7 @@ pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
     hir_types: &'ir scoop_hir::CrossConeTypeSemanticsSectionV1,
     mir_types: &'ir scoop_mir::CrossConeMirTypeBridgeSectionV1<'ir>,
     lir_layout: &'ir scoop_lir::CrossConeLayoutAbiSectionV1<'ir>,
-    native_objects: Vec<slib::SlibMember>,
+    native_objects: Vec<slib::UncompressedObjectMember>,
     native_libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
     native_cxx: bool,
     test_directory: Option<slib::TestDirectory>,
@@ -53,7 +53,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         self
     }
 
-    pub fn with_native_objects(mut self, objects: Vec<slib::SlibMember>) -> Self {
+    pub fn with_native_objects(mut self, objects: Vec<slib::UncompressedObjectMember>) -> Self {
         self.native_objects = objects;
         self
     }

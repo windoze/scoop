@@ -19,6 +19,7 @@ pub enum DecodedSlibMemberRole {
         wire_schema: u32,
     },
     LinkObject,
+    ObjectDictionary,
     NativeObject {
         source: String,
     },
@@ -47,6 +48,7 @@ impl DecodedSlibMemberRole {
                 Ok(SlibMemberRole::LirMetadata)
             }
             Self::LinkObject => Ok(SlibMemberRole::LinkObject),
+            Self::ObjectDictionary => Ok(SlibMemberRole::ObjectDictionary),
             Self::NativeObject { source } => Ok(SlibMemberRole::NativeObject {
                 source: NormalizedNativeSourcePath::new(&source)
                     .map_err(SlibMemberRoleValidationError::NativeSource)?,
@@ -87,6 +89,7 @@ impl WireEncode for DecodedSlibMemberRole {
             Self::MirMetadata { wire_schema } => encode_schema_role(encoder, 2, *wire_schema),
             Self::LirMetadata { wire_schema } => encode_schema_role(encoder, 3, *wire_schema),
             Self::LinkObject => encode_empty_sum(encoder, 4),
+            Self::ObjectDictionary => encode_empty_sum(encoder, 8),
             Self::NativeObject { source } => {
                 encoder.map(2)?;
                 encode_tag(encoder, 7)?;
@@ -160,6 +163,10 @@ impl WireDecode for DecodedSlibMemberRole {
                     required_for: decoder.field(2, Decoder::u32)?,
                 })
             }
+            8 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::ObjectDictionary)
+            }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
@@ -192,10 +199,12 @@ pub struct DecodedSlibMemberRecord {
 impl DecodedSlibMemberRecord {
     pub fn validate(self) -> Result<SlibMemberRecord, SlibMemberRoleValidationError> {
         Ok(SlibMemberRecord {
-            id: self.id,
-            role: self.role.validate()?,
+            content: super::SlibMemberContent {
+                id: self.id,
+                role: self.role.validate()?,
+                sha256: self.sha256,
+            },
             byte_length: self.byte_length,
-            sha256: self.sha256,
         })
     }
 }

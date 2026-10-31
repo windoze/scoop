@@ -120,6 +120,42 @@ fn metadata_roles_are_unique_even_for_distinct_member_ids() {
 }
 
 #[test]
+fn object_dictionary_is_optional_and_unique() {
+    let mut members = metadata_members();
+    members.push(
+        SlibMember::new(
+            cone().identity(),
+            MemberStableKey::ObjectDictionary,
+            SlibMemberRole::ObjectDictionary,
+            b"dictionary".to_vec(),
+        )
+        .unwrap(),
+    );
+    assert_eq!(manifest(&members).members().len(), 4);
+    members.push(
+        SlibMember::new(
+            scoop_identity::ConeIdentity::SINGLE_FILE,
+            MemberStableKey::ObjectDictionary,
+            SlibMemberRole::ObjectDictionary,
+            b"another dictionary".to_vec(),
+        )
+        .unwrap(),
+    );
+    assert_eq!(
+        BootstrapManifest::new(
+            ProducerRecord::new("dev").unwrap(),
+            compatibility(),
+            cone(),
+            Vec::new(),
+            &members,
+            fingerprints(0x11),
+            Vec::new(),
+        ),
+        Err(BootstrapManifestError::DuplicateObjectDictionary)
+    );
+}
+
+#[test]
 fn manifest_sorts_the_directory_and_is_byte_reproducible() {
     let mut members = metadata_members();
     let first = manifest(&members);

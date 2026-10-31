@@ -8,7 +8,7 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
         .to_vec()
 }
 
-pub(super) fn complete_artifact_parts() -> (BootstrapManifest, Vec<SlibMember>) {
+pub(crate) fn complete_artifact_parts() -> (BootstrapManifest, Vec<SlibMember>) {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![
@@ -49,9 +49,11 @@ pub(super) fn complete_artifact_parts() -> (BootstrapManifest, Vec<SlibMember>) 
         final_objects.objects()[0].bytes().to_vec(),
     )
     .unwrap();
-    let link_objects =
-        crate::build_code_link_object_members_v1(final_objects, &[link_member.record().clone()])
-            .unwrap();
+    let link_objects = crate::build_code_link_object_members_v1(
+        final_objects,
+        &[link_member.record().content().clone()],
+    )
+    .unwrap();
     let code_projection = crate::verify_single_cone_production_code_projection_v1(
         &cone(),
         strong_production.clone(),

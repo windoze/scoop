@@ -10,7 +10,7 @@ pub(super) fn compile(
     request: &ValidatedSingleConeBuildRequest<'_>,
     cone: ConeIdentity,
     temporary_parent: &Path,
-) -> Result<Vec<scoop_slib::SlibMember>, ToolchainError> {
+) -> Result<Vec<scoop_slib::UncompressedObjectMember>, ToolchainError> {
     let ValidatedCurrentConeInput::Manifest { manifest } = request.current() else {
         if let NativeInputOrigin::Objects(inputs) = &request.request.native_inputs
             && !inputs.is_empty()

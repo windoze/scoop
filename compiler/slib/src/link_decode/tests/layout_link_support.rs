@@ -63,5 +63,6 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObje
         final_objects.objects()[0].bytes().to_vec(),
     )
     .unwrap();
-    crate::build_code_link_object_members_v2(final_objects, &[member.record().clone()]).unwrap()
+    crate::build_code_link_object_members_v2(final_objects, &[member.record().content().clone()])
+        .unwrap()
 }

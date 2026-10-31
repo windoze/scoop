@@ -24,12 +24,22 @@ fn optional_members_round_trip_without_changing_link_objects_or_semantic_fingerp
     );
     let baseline_objects = crate::build_code_link_object_members_v1(
         finalized_link_object_fixture().1,
-        baseline.manifest().members(),
+        &baseline
+            .manifest()
+            .members()
+            .iter()
+            .map(|record| record.content().clone())
+            .collect::<Vec<_>>(),
     )
     .unwrap();
     let extended_objects = crate::build_code_link_object_members_v1(
         finalized_link_object_fixture().1,
-        extended.manifest().members(),
+        &extended
+            .manifest()
+            .members()
+            .iter()
+            .map(|record| record.content().clone())
+            .collect::<Vec<_>>(),
     )
     .unwrap();
     assert_eq!(
@@ -52,7 +62,7 @@ fn link_required_member_is_rejected_after_valid_archive_readback() {
     assert!(matches!(
         crate::build_code_link_object_members_v1(
             finalized_link_object_fixture().1,
-            extended.manifest().members(),
+            &extended.manifest().members().iter().map(|record| record.content().clone()).collect::<Vec<_>>(),
         ),
         Err(crate::CodeObjectProjectionError::UnsupportedLinkExtension {
             member, capability

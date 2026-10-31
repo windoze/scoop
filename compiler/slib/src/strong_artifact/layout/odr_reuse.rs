@@ -7,14 +7,14 @@ use scoop_wire::Digest256;
 
 use crate::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalOdrMemberDirectoryV1, LinkDefinitionOwnerV1,
-    LinkIdentityClosureSectionV1, OdrMemberDirectoryEntryV1, SlibMember, SlibMemberId,
-    ValidatedCrossConeArtifactClosure,
+    LinkIdentityClosureSectionV1, OdrMemberDirectoryEntryV1, SlibMemberId,
+    UncompressedObjectMember, ValidatedCrossConeArtifactClosure,
 };
 
 type OdrBundle = Vec<(OdrGroupId, OdrMemberDirectoryEntryV1)>;
 
 pub(super) fn select(
-    objects: &[SlibMember],
+    objects: &[UncompressedObjectMember],
     link: &LinkIdentityClosureSectionV1,
     odr: &CanonicalOdrMemberDirectoryV1,
     dependencies: &ValidatedCrossConeArtifactClosure,
@@ -22,7 +22,7 @@ pub(super) fn select(
     if dependencies.artifact_count() == 0 {
         return BTreeSet::new();
     }
-    let mut available = BTreeMap::<(u64, Digest256), Vec<OdrBundle>>::new();
+    let mut available = BTreeMap::<Digest256, Vec<OdrBundle>>::new();
     for defined in dependencies.dependency_symbol_owners() {
         let dependency = dependencies
             .link(defined.producer())
@@ -30,9 +30,7 @@ pub(super) fn select(
         let mut bundles = bundles(defined, dependency.definition_data().odr_members());
         for record in dependency.member_records() {
             if let Some(bundle) = bundles.remove(&record.id()) {
-                let candidates = available
-                    .entry((record.byte_length(), record.sha256()))
-                    .or_default();
+                let candidates = available.entry(record.sha256()).or_default();
                 if !candidates.contains(&bundle) {
                     candidates.push(bundle);
                 }
@@ -43,9 +41,9 @@ pub(super) fn select(
     objects
         .iter()
         .filter_map(|object| {
-            let record = object.record();
+            let record = object.content();
             let bundle = bundles.get(&record.id())?;
-            let candidates = available.get(&(record.byte_length(), record.sha256()))?;
+            let candidates = available.get(&record.sha256())?;
             candidates.contains(bundle).then_some(record.id())
         })
         .collect()

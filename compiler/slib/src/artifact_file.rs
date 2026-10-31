@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use scoop_lir::ValidatedLirTargetSelection;
 
-use crate::archive::{MemberPosition, member_positions};
+use crate::archive::{MemberEncoding, MemberPosition, member_positions};
+use crate::compression::ObjectDecompressor;
 use crate::{
     ArchiveReadError, ArtifactManifestSummaryV1, BootstrapManifest, SlibMemberId, SlibReadError,
 };
@@ -27,6 +28,14 @@ pub(crate) struct ArtifactFileDirectory {
     pub(crate) manifest: BootstrapManifest,
     summary: ArtifactManifestSummaryV1,
     members: Vec<(SlibMemberId, MemberPosition, OnceLock<Vec<u8>>)>,
+    object_dictionary: Option<SlibMemberId>,
+    object_decoder: OnceLock<Result<ObjectDecompressor, crate::CompressionError>>,
+}
+
+enum MemberDecoder<'decoder> {
+    Stored,
+    Zstd,
+    Object(&'decoder ObjectDecompressor),
 }
 
 impl ArtifactFile {
@@ -63,10 +72,17 @@ impl ArtifactFile {
             .into_iter()
             .map(|(id, position)| (id, position, OnceLock::new()))
             .collect();
+        let object_dictionary = manifest
+            .members()
+            .iter()
+            .find(|record| matches!(record.role(), crate::SlibMemberRole::ObjectDictionary))
+            .map(crate::SlibMemberRecord::id);
         Ok(self.0.directory.get_or_init(|| ArtifactFileDirectory {
             manifest,
             summary,
             members,
+            object_dictionary,
+            object_decoder: OnceLock::new(),
         }))
     }
 
@@ -85,6 +101,14 @@ impl ArtifactFile {
         if let Some(bytes) = cached.get() {
             return Ok(Some(bytes));
         }
+        // Load the dictionary before taking the file lock used by member I/O.
+        let decoder = match position.encoding {
+            MemberEncoding::Object => {
+                MemberDecoder::Object(self.object_decoder(directory, position.ordinal())?)
+            }
+            MemberEncoding::Zstd => MemberDecoder::Zstd,
+            MemberEncoding::Stored => MemberDecoder::Stored,
+        };
         let mut file = self.lock_file()?;
         if let Some(bytes) = cached.get() {
             return Ok(Some(bytes));
@@ -104,13 +128,46 @@ impl ArtifactFile {
                 "incomplete slib member",
             )));
         }
-        let bytes = if position.compressed {
-            crate::archive::decompress_member(&bytes, position.ordinal())
-                .map_err(SlibReadError::Container)?
-        } else {
-            bytes
+        let bytes = match decoder {
+            MemberDecoder::Zstd => crate::archive::decompress_member(&bytes, position.ordinal())
+                .map_err(SlibReadError::Container)?,
+            MemberDecoder::Object(object_decoder) => {
+                object_decoder.decompress(&bytes).map_err(|source| {
+                    SlibReadError::Container(ArchiveReadError::Compression {
+                        member: position.ordinal(),
+                        source,
+                    })
+                })?
+            }
+            MemberDecoder::Stored => bytes,
         };
         Ok(Some(cached.get_or_init(|| bytes)))
+    }
+
+    fn object_decoder<'input>(
+        &'input self,
+        directory: &'input ArtifactFileDirectory,
+        member: crate::ArchiveMemberOrdinal,
+    ) -> Result<&'input ObjectDecompressor, SlibReadError> {
+        let decoder = if let Some(decoder) = directory.object_decoder.get() {
+            decoder
+        } else {
+            let dictionary = match directory.object_dictionary {
+                Some(id) => self
+                    .member(directory, id)?
+                    .expect("indexed dictionary member"),
+                None => &[],
+            };
+            directory
+                .object_decoder
+                .get_or_init(|| ObjectDecompressor::new(dictionary))
+        };
+        decoder.as_ref().map_err(|source| {
+            SlibReadError::Container(ArchiveReadError::Compression {
+                member,
+                source: source.clone(),
+            })
+        })
     }
 
     fn lock_file(&self) -> Result<std::sync::MutexGuard<'_, File>, SlibReadError> {

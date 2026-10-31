@@ -463,7 +463,8 @@ fn manifest_build_diagnostic(error: &BootstrapManifestError) -> SlibDiagnosticRe
         ),
 
         BootstrapManifestError::MissingMetadata { .. }
-        | BootstrapManifestError::DuplicateMetadata { .. } => (
+        | BootstrapManifestError::DuplicateMetadata { .. }
+        | BootstrapManifestError::DuplicateObjectDictionary => (
             SlibErrorCode::DirectoryMismatch,
             WirePath::root().field(8),
             Some(SlibPrimaryOrigin::Manifest),

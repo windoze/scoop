@@ -2,7 +2,7 @@
 use super::*;
 
 pub(super) fn project_directory_records(
-    directory: &[SlibMemberRecord],
+    directory: &[SlibMemberContent],
 ) -> Result<CodeLinkObjectMemberSetV1, CodeObjectProjectionError> {
     let mut members = Vec::new();
     for record in directory {

@@ -21,16 +21,18 @@ fn validate_member(
 #[test]
 fn member_record_round_trips_through_untrusted_validation() {
     let verifier = capability("object");
-    let record = SlibMemberRecord::new(
+    let record = crate::SlibMember::new(
         ConeIdentity::CORE,
         MemberStableKey::LinkObject {
             verifier_capability: verifier.clone(),
             logical_key: logical_key(b"unit"),
         },
         SlibMemberRole::LinkObject,
-        b"object",
+        b"object".to_vec(),
     )
-    .unwrap();
+    .unwrap()
+    .record()
+    .clone();
     let decoded = decode_canonical::<DecodedSlibMemberRecord>(&encode(&record).unwrap()).unwrap();
 
     assert_eq!(validate_member(decoded), Ok(record));
@@ -41,7 +43,8 @@ fn native_record_preserves_its_normalized_source_without_a_duplicate_key() {
     let source = NormalizedNativeSourcePath::new("../shared/原生.c").unwrap();
     let member =
         crate::native_link_object_member(ConeIdentity::CORE, &source, b"object".to_vec()).unwrap();
-    let record = member.record();
+    let encoded = crate::member::encode_object_members(ConeIdentity::CORE, vec![member]).unwrap();
+    let record = encoded[0].record();
     let decoded = decode_canonical::<DecodedSlibMemberRecord>(&encode(record).unwrap()).unwrap();
     assert_eq!(validate_member(decoded).unwrap(), *record);
     assert_eq!(record.role(), &SlibMemberRole::NativeObject { source });
@@ -111,8 +114,8 @@ fn closed_member_sums_reject_unknown_tags_and_shapes() {
             actual: 0
         }
     );
-    let unknown = decode_canonical::<DecodedSlibMemberRole>(b"\xa1\x00\x08").unwrap_err();
-    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 8 });
+    let unknown = decode_canonical::<DecodedSlibMemberRole>(b"\xa1\x00\x09").unwrap_err();
+    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 9 });
 
     let extra_field =
         decode_canonical::<DecodedSlibMemberRole>(b"\xa3\x00\x01\x01\x01\x02\x00").unwrap_err();

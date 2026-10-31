@@ -24,7 +24,7 @@ use super::{
 use crate::{DecodedSlibMemberRecord, SlibMemberRoleValidationError};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const CURRENT_SCHEMA: u32 = 5;
+const CURRENT_SCHEMA: u32 = 6;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedBootstrapManifest {

@@ -3,8 +3,8 @@
 use scoop_identity::{CapabilityId, ConeIdentity, NormalizedNativeSourcePath};
 
 use crate::{
-    LogicalMemberKey, MemberStableKey, SlibMember, SlibMemberRecord, SlibMemberRecordError,
-    SlibMemberRole,
+    LogicalMemberKey, MemberStableKey, SlibMemberRecord, SlibMemberRecordError, SlibMemberRole,
+    UncompressedObjectMember,
 };
 
 pub fn native_link_object_capability() -> CapabilityId {
@@ -20,8 +20,8 @@ pub fn native_link_object_member(
     cone: ConeIdentity,
     source: &NormalizedNativeSourcePath,
     bytes: Vec<u8>,
-) -> Result<SlibMember, SlibMemberRecordError> {
-    SlibMember::new(
+) -> Result<UncompressedObjectMember, SlibMemberRecordError> {
+    UncompressedObjectMember::new(
         cone,
         MemberStableKey::LinkObject {
             verifier_capability: native_link_object_capability(),

@@ -3,7 +3,7 @@ use super::*;
 pub(crate) struct FinalizedLayoutObjects {
     pub(crate) foundation: ConeLirFoundation,
     pub(crate) projection: slib::VerifiedSingleConeProductionCodeProjectionV2,
-    pub(crate) members: Vec<SlibMember>,
+    pub(crate) members: Vec<UncompressedObjectMember>,
 }
 
 impl PreparedLayoutObjects {
@@ -11,7 +11,7 @@ impl PreparedLayoutObjects {
         self,
         undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
         cone: &ConeRecord,
-        native_objects: Vec<SlibMember>,
+        native_objects: Vec<UncompressedObjectMember>,
     ) -> Result<FinalizedLayoutObjects, BuiltinObjectProductionError> {
         let objects = self.finalize_metadata(undefined)?;
         let mut members = final_members(
@@ -20,10 +20,10 @@ impl PreparedLayoutObjects {
             objects.objects(),
         )?;
         members.extend(native_objects);
-        members.sort_unstable_by_key(|member| member.record().id());
+        members.sort_unstable_by_key(|member| member.content().id());
         let directory = members
             .iter()
-            .map(|member| member.record().clone())
+            .map(|member| member.content().clone())
             .collect::<Vec<_>>();
         let objects = slib::build_code_link_object_members_v2(objects, &directory)
             .map_err(BuiltinObjectProductionError::CodeLinkObjects)?;

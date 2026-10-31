@@ -626,7 +626,7 @@ immortal object 的登记身份与 ODR ABI 直接消费现有登记计划及 can
 
 shape 发射按 typed owner 与 role 查询同一 symbol surface 在构建时已建立的主符号到 definition 映射。唯一性由该表的构建边界检查，后续查询不再次遍历完整 definition 集合；裁剪实际 definition 时同步移除对应索引。查询继续报告缺失引用，计划顺序与产物编码不变。
 
-Code 指纹直接编码已有的定义、undefined requirements、native contracts、imports 与最终成员目录。计算和归档组装不重建这些集合来比较副本，也不再次比对所有组件的 producer／target 或复制的 relocation 闭包。已有结果直接进入 metadata 和内容摘要；当前编码、范围读取及真实链接引用错误正常处理。
+Code 指纹直接编码已有的定义、undefined requirements、native contracts、imports 与最终成员内容记录。计算和归档组装不重建这些集合来比较副本，也不再次比对所有组件的 producer／target 或复制的 relocation 闭包。已有结果直接进入 metadata 和内容摘要；当前编码、范围读取及真实链接引用错误正常处理。
 
 Scoop LIR 与 generated-C 的 external requirements 保留实际对象中的未定义符号、重定位和所需链接库。Scoop 的 current／dependency／ODR 身份、源码 FFI 合同及 runtime／EH 引用按各自已有规则分类，其余普通 native 符号直接交给 program-link，不要求存在 Scoop extern 声明或 target-helper 登记项。不重建 definition／atom 集合、扫描必需调用覆盖或证明机器 relocation 与模板相同；没有对应定义或导入的 Scoop mangled 符号仍是引用错误。
 
@@ -644,7 +644,7 @@ Mach-O／ELF 对象按实际目标格式读取 section、符号及 relocation，
 
 ### 2.6 `.slib` 格式与指纹
 
-`.slib` 是 target-specific、bitwise reproducible 的 self-contained indexed container。容器 schema 与 manifest schema 的格式版本为 5，mangling schema 为 1；persistent identity schema 为 2，HIR／MIR／LIR metadata outer schema 均为 4。函数声明 key 增加规范化条件集合及 companion 存在条件，签名类型增加固定 companion 投影，binder 增加负向接口集合与独立 companion 条件；默认表达式保存依赖 companion 值访问。空集合在 wire 中省略对应字段，解码后仍是完整集合，无条件声明保持原身份。旧产物按格式版本拒绝，重建得到新产物。它不使用外部成员引用或相邻文件 payload。
+`.slib` 是 target-specific、bitwise reproducible 的 self-contained indexed container。容器 schema 与 manifest schema 的格式版本为 6，mangling schema 为 1；persistent identity schema 为 2，HIR／MIR／LIR metadata outer schema 均为 4。函数声明 key 增加规范化条件集合及 companion 存在条件，签名类型增加固定 companion 投影，binder 增加负向接口集合与独立 companion 条件；默认表达式保存依赖 companion 值访问。空集合在 wire 中省略对应字段，解码后仍是完整集合，无条件声明保持原身份。旧产物按格式版本拒绝，重建得到新产物。它不使用外部成员引用或相邻文件 payload。
 
 容器固定头为 16 bytes：前 8 bytes 是 ASCII `SCOOPSLB`，后 8 bytes 是 little-endian u64，保存紧随其后的压缩 manifest 长度。manifest 为 deterministic CBOR 的单个 Zstandard frame；其后按目录中的 SlibMemberId bytes 严格升序连续保存各成员的实际存储 payload。成员起点由 manifest 末尾和此前成员的 stored length checked 累加得到，不再保存物理名称、mtime、uid、gid、mode、第二份长度或对齐 padding。普通 native `.a` 文件仍使用自己的标准 ar 格式。
 
@@ -661,18 +661,25 @@ writer 按上述目录与固定头规则生成容器。普通 reader 根据目�
 | DiagnosticAttachment | 5 | Diagnostics |
 | ExtensionBlob | 6 | 显式声明的 purpose |
 | NativeObject | 7 | Link；字段 1 为规范化源路径 |
+| ObjectDictionary | 8 | Link；本归档对象共用的 Zstandard 字典 |
 
 三种 metadata 各恰有一个成员，目录读取在这一边界检查角色的唯一性；完整生产产物具有非空对象集合。LinkObject 角色为无额外字段的 tag 4，表示由 LIR 物理目录描述的 Scoop／generated-C 对象；NativeObject 保存完整的规范化源路径。对象目标与格式使用 manifest compatibility 已确定的目标契约，不为每个成员重复保存 target、object-format 和已无消费方的 verifier capability。成员由目录身份识别，不由物理名、ordinal 或数量推断 producer。
 
-Manifest、三层 metadata、LinkObject、NativeObject 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；writer 统一使用标准 compression level `3`，不设置压缩开关或按压缩率选择编码。ExtensionBlob 保存原始 bytes。LinkObject／NativeObject 解压后仍是原生可重定位对象，编译依赖发现不读取对象，program-link 仅在实际提取所选对象时解压；对象缓存保存原生 bytes，并使用现有成员存储摘要定位。成员 record 的 byte_length 与 sha256 描述实际存储 bytes；成员身份和三层语义指纹仍由既有逻辑内容确定。依赖发现只解压 manifest；成员首次实际使用时解压并缓存结果，后续请求复用该缓冲区。frame 解码只承担长度、截断和格式等局部正确性检查，不复核成员摘要或重放语义。此前 level `-3` 生成的 frame 仍是相同格式的合法输入；压缩参数调整不递增容器／metadata schema，不要求重建未变化的预编译库。
+Manifest、三层 metadata 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；LinkObject／NativeObject 使用单个带原始长度的 frame，可共用本归档唯一的 ObjectDictionary。writer 继续使用标准 compression level `3`，不引入高压缩等级或压缩线程池。ExtensionBlob 与 ObjectDictionary 保存原始 bytes；字典的 stable key 与 role 均为无附加字段的 tag 8，成员身份由 ConeIdentity 和该 key 生成。目录边界检查至多一个字典成员，字典不作为机器对象或 Code contribution。
 
-容器／manifest 1～4 和旧 profile 不提供兼容读取，必须重建。压缩库是编译器宿主依赖，与 sysroot 中面向目标平台的 Zstandard 库分开。方案、测量依据和最小验证范围见 [存储精简与压缩方案](../slib-storage/DESIGN.md)。
+生产端先完成对象内容摘要、Code 与 ODR 选择，再对保留对象训练一次字典并批量压缩，不先压缩再解压重编码。实现按成员 ID 顺序均匀选取至多 2,048 个样本，每个取前 4 KiB，样本总量不超过 8 MiB；样本不足 64 个或 256 KiB 时使用无字典 frame，训练不适用时同样退回普通 frame。字典上限为 64 KiB，压缩上下文在整批对象间复用。这些阈值只决定本地编码策略，不影响合法程序和格式的接受范围。
+
+成员 record 的 byte_length 总是实际存储长度；LinkObject／NativeObject 的 sha256 是解压后的原生对象 SHA-256，其余角色为实际存储 bytes 的 SHA-256，不另存第二份摘要。对象缓存使用这一原生内容摘要定位，跨字典复用；成员 ID、语言身份和三层语义仍由既有逻辑内容确定。生产端以独立的完整内容记录表示尚未压缩的对象，只有得到实际 frame 后才构造物理目录记录，不能把同一个长度字段先当原生长度再当存储长度。
+
+编译依赖发现只解压 manifest，Compile 读取所需 metadata；两者均不读字典或机器对象。program-link 只在所选对象缓存缺失、确实提取对象时读取字典并初始化解码上下文，后续对象复用该上下文。成员首次实际使用时解码并缓存结果，后续请求复用缓冲区。frame 解码保留单 frame、原始长度、截断和字典匹配等局部格式检查；不复核成员摘要、重放语义或扫描未请求对象。压缩库和参数按当前 profile 配套演进，不保留旧摘要含义的第二条读取路径。
+
+容器／manifest 1～5 和旧 profile 不提供兼容读取，必须重建。压缩库是编译器宿主依赖，与 sysroot 中面向目标平台的 Zstandard 库分开。方案、测量依据和最小验证范围见 [存储精简与压缩方案](../slib-storage/DESIGN.md)。
 
 三层 metadata 的 outer schema 4 均使用字段 `1=magic, 2=schema, 3=sections, 4=id_table`：每个成员的表是按原始 bytes 严格升序、无重复的 32-byte 值连续拼接成的 byte string，同一成员中的 section 共用该表。section 使用四字段记录，字段 1～3 为 capability、purpose 和 payload，字段 `4=storage` 中 `0` 为原始 opaque payload，`1` 为使用该成员 ID 表的 Wire CBOR。writer 将已知 section 中的 32-byte byte-string 字段统一替换为零起始 unsigned 表索引；其他整数、字符串、容器和嵌套 opaque bytes 保持原语义。未知扩展 section 使用 storage 0，不扫描其内容。三层采用同一编码与读取实现，旧 HIR／MIR outer schema 3 按普通格式兼容规则拒绝，配套重建。
 
 该表仅用于磁盘编码，不替换全局 typed ID，不进入 identity key、语义 fingerprint 的逻辑投影或 runtime 编码；格式版本仍按既有 compatibility 合同进入复合 ABI 指纹。reader 在实际读取相应 byte-string 字段时直接取得表内完整值，继续交给原类型化 reader；不展开第二份完整 CBOR，也不另外重放语言语义。表长度与顺序、索引范围及实际消费字段的格式错误在各自边界检查。
 
-对象生产完成范围定位、重定位与 GC／ABI 检查后，发布前删除仅供生产阶段定位结束位置的 `DefinitionBoundaryEnd`（`be`）原生符号，并同步省去 Link defined-owner 目录中的结束边界项。原生 section 内容、重定位目标、调试信息、展开信息和有实际引用的起始边界保持。清理重排的原生符号索引及字符串偏移必须同步更新；若结束边界仍被实际引用则报告对象错误。Code／Artifact 指纹按最终存储 bytes 生成，不对清理后的对象重放已完成的完整生产验证。
+对象生产完成范围定位、重定位与 GC／ABI 检查后，发布前删除仅供生产阶段定位结束位置的 `DefinitionBoundaryEnd`（`be`）原生符号，并同步省去 Link defined-owner 目录中的结束边界项。原生 section 内容、重定位目标、调试信息、展开信息和有实际引用的起始边界保持。清理重排的原生符号索引及字符串偏移必须同步更新；若结束边界仍被实际引用则报告对象错误。Code 指纹按清理后的原生对象内容生成，Artifact 指纹另包含最终存储目录，不对清理后的对象重放已完成的完整生产验证。
 
 所有 wire metadata 使用 RFC 8949 deterministic CBOR 的明确 schema：最短整数与长度编码、定长容器、严格有序且无重复的整数 field tags、声明的封闭 variant、完整 typed 引用。不能序列化 Rust discriminant、arena index 或 hash-map 遍历顺序。消费者按所需 schema 解码，传播解码库自然返回的错误，不增加 canonical 重编码比较、生产语义 replay 或损坏检测合同。
 
@@ -697,7 +704,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 未知 optional capability 按目录跳过，不读取或计算其内容 hash，不进入语义 view。ExtensionBlob.required_for 只允许 0 或 Link bit；未知 Link-required capability 阻止 Link 消费。blob 不成为第二种对象入口，已知 Link contribution 只能表示规范化 native library requirements，不能注入 raw linker argv、脚本或未检查对象。
 
-完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/13`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
+完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/14`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
 
 早期 `single-cone-strong` 与 `cross-cone-semantics-strong` profile 不再是生产或消费入口，不随当前 section 版本维护正向 descriptor／fingerprint 矩阵。旧 profile 按不支持的产物 profile 报错，当前 profile 的 required inventory 和版本兼容检查保留。
 
@@ -768,7 +775,7 @@ ODR 目录中的条目同时表达定义和对已有定义的需求：有本产�
 
 ODR 实现的可用性属于实际编译依赖。生产端将目录中除 RegistrationRecord 以外的 group、member、role 和 shared ABI 与原 LIR 语义摘要共同计算 LIR 指纹，不增加目录副本。新增或移除实现时，消费方沿既有依赖更新规则重新编译；只改变机器字节、调试信息或私有 GC／EH 记录而保持这些实现及 ABI 时，不因此重编译消费方。该投影同时包含由依赖满足的实现需求，使实际定义可沿既有依赖边传递；不读取命中产物、不在缓存判断时扫描对象，也不新增另一套更新机制。
 
-归档组装可省去依赖已有的完整 ODR 对象。选择使用现有目录的 member 集合、role、shared ABI、存储长度与摘要；只复用存储内容相同的完整对象，不读取依赖机器对象或重新计算其摘要。函数正文与私有 GC／EH／注册记录、共享 dispatch 数组及别名必须作为整个物理对象处理。含 Strong、generated-C 或 Cone image 定义的对象继续保留。ODR definition plan 的身份仅由共享 OdrMemberId 与固定 primary role 确定，不包含 producer；导出记录的 provider 表达所选语义／ABI 记录来自哪个 Cone，不为这一共享 definition 指定唯一物理副本。导出的 ODR 定义同样可由实际依赖提供，继续使用原 definition、symbol 与 ABI，无须重写导出、建立转发层或添加目录。
+归档组装可省去依赖已有的完整 ODR 对象。选择使用现有目录的 member 集合、role、shared ABI 与原生对象内容摘要；只复用解压后内容相同的完整对象，不依赖各归档采用的字典或 frame 长度，不读取依赖机器对象或重新计算其摘要。函数正文与私有 GC／EH／注册记录、共享 dispatch 数组及别名必须作为整个物理对象处理。含 Strong、generated-C 或 Cone image 定义的对象继续保留。ODR definition plan 的身份仅由共享 OdrMemberId 与固定 primary role 确定，不包含 producer；导出记录的 provider 表达所选语义／ABI 记录来自哪个 Cone，不为这一共享 definition 指定唯一物理副本。导出的 ODR 定义同样可由实际依赖提供，继续使用原 definition、symbol 与 ABI，无须重写导出、建立转发层或添加目录。
 
 省去副本时，同步移除实际成员目录、defined owners 和来自该成员的 symbol uses；保留其他成员对这些 ODR 符号的使用及其 typed ABI 需求。foundation 中用于这些需求和导出语义的身份不变；本地物理提供关系只由实际 Link 成员及 defined owner 目录表达，不能因 foundation 中有共享 plan 就推断本产物仍提供物理副本。最终链接照常从实际候选构建所选对象与 runtime 注册表。
 
@@ -844,7 +851,7 @@ HIR 语义包括名称候选、签名、默认值、const、模板和完整依�
 
 MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录，包含优化新建的局部值；它们进入 Code 与 Link validation，不作为依赖语义贡献。MIR 的可消费语义由 bootstrap／param-free／type bridge 保存，LIR 的 shared ABI 由对应 layout／param-free section 保存。内联新增局部值不能使同一源码的 debug／release 依赖互相过期；完整 identity、格式、引用与 ABI 校验仍在各自边界执行。
 
-`MemberFingerprint = H("scoop-slib-member-content-v1", member_record)`；`LinkMemberFingerprint = H("scoop-slib-link-member-v1", member_record)`，后者只用于 LinkObject 或 Link-required blob。
+`MemberFingerprint = H("scoop-slib-member-content-v1", member_record)`；`LinkMemberFingerprint = H("scoop-slib-link-member-v2", member_content)`，后者只用于 LinkObject、NativeObject 或 Link-required blob。`member_content` 为三字段 map `{1=id, 3=role, 5=sha256}`，不包含存储长度。Code 指纹使用此内容记录，独立于对象的字典和压缩 frame；Artifact 指纹仍使用完整物理目录及字典成员。
 
 `CodeFingerprint` 使用 `scoop-code-v1`，覆盖按 member ID 排序的 Link fingerprints、已知 Link contributions、generated-C production、native library requirements、defined/undefined symbol 集合、去除诊断位置的 native contracts，以及 section registry 声明的 Code projections。只改变实际合同或符号需求也必须使 Code 改变；diagnostic/unknown optional payload 不进入 Code。
 
@@ -1134,7 +1141,7 @@ program-link 从完整产物闭包合并 C++ 链接和运行库需求；任一 C
 
 musl 闭包出现 C++ requirement 时，在解析 C++ 工具链或调用最终 linker 前报错，指出要求 C++ 的 Cone；不因其源码已预编译而绕过限制。实际使用的 C++ driver、标准库／ABI 运行库、unwind provider 及链接参数进入 final-link 配置和 ResolvedLinkPlan。
 
-首次生产将对象保存在 `objects-v1/<member-content-digest>.o` 稳定缓存位置，后续链接直接传递对象路径；不每次从 slib 解包、改写、哈希或重新物化。文件名使用生成成员时已有的内容摘要，不能为查缓存重新哈希或读取已有对象。归档 writer 保存所写对象的字节范围与摘要，发布时借用同一份归档缓冲区，不另存对象字节副本。scoopc 使用 `SCOOP_CACHE_DIR` 或平台默认缓存位置，parent 把当前构建缓存位置传入 child；独立链接使用自身选中的缓存。缺失所需对象时从本次已有对象字节补产，临时文件写入成功后原子发布；并发已有结果直接采用，不比较内容或同步落盘。显式输入首次缺少独立对象文件时按需生成并记录，后续复用；已有的普通 native 独立对象直接使用原文件路径，归档内选中成员才需要独立缓存文件。供 native 工具使用的对象路径按当前工作目录解析为绝对路径，避免工具切换目录改变相对缓存路径的含义。同一进程按需入口共享已读 section，diagnostic、opaque、unknown optional 成员不是链接对象；无法处理的实际 Link-required 格式仍报告错误。
+首次生产将对象保存在 `objects-v1/<member-content-digest>.o` 稳定缓存位置，后续链接直接传递对象路径；不每次从 slib 解包、改写、哈希或重新物化。文件名使用生成成员时已有的内容摘要，不能为查缓存重新哈希或读取已有对象。归档 writer 保留本次已生成的原生对象 Vec 与内容摘要，直接交给发布缓存；压缩结果另用于归档，不为发布重新解压刚编码的 frame，也不复制原生对象缓冲区。scoopc 使用 `SCOOP_CACHE_DIR` 或平台默认缓存位置，parent 把当前构建缓存位置传入 child；独立链接使用自身选中的缓存。缺失所需对象时从本次已有对象字节补产，临时文件写入成功后原子发布；并发已有结果直接采用，不比较内容或同步落盘。显式输入首次缺少独立对象文件时按需生成并记录，后续复用；已有的普通 native 独立对象直接使用原文件路径，归档内选中成员才需要独立缓存文件。供 native 工具使用的对象路径按当前工作目录解析为绝对路径，避免工具切换目录改变相对缓存路径的含义。同一进程按需入口共享已读 section，diagnostic、opaque、unknown optional 成员不是链接对象；无法处理的实际 Link-required 格式仍报告错误。
 
 Strong 由原 provider 提供。ODR 在普通依赖语义一致后按完整 group/member key 与 shared ABI 合并，物理选择见 2.13、2.19。全部 typed imports 和实际 relocation 必须闭合；metadata-only 查询可以没有机器引用。
 
