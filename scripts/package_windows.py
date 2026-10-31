@@ -41,6 +41,12 @@ def host_environment(args, environment):
     environment["CXX_x86_64_pc_windows_gnullvm"] = str(binary / "clang++.exe")
     environment["AR_x86_64_pc_windows_gnullvm"] = str(binary / "llvm-ar.exe")
     environment["PATH"] = str(binary) + os.pathsep + environment.get("PATH", "")
+    # Build scripts and proc macros still use the MSVC Rust host toolchain.
+    # Git Bash puts its unrelated link.exe ahead of the Visual Studio tools.
+    if vc_tools := environment.get("VCTOOLSINSTALLDIR"):
+        environment["CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER"] = str(
+            Path(vc_tools) / "bin/Hostx64/x64/link.exe"
+        )
 
 
 def compiler(args, target):
