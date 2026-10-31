@@ -25,7 +25,15 @@ const server = path.resolve(
 const sysroot = path.resolve(
   process.env.SCOOP_SYSROOT ?? path.join(repository, "sysroot"),
 );
+const compiler = path.resolve(
+  process.env.SCOOP_TEST_COMPILER ??
+    path.join(
+      path.dirname(server),
+      process.platform === "win32" ? "scoop.exe" : "scoop",
+    ),
+);
 await access(server);
+await access(compiler);
 await access(path.join(sysroot, "lib"));
 const extensionTestsPath = path.join(root, "out/test/integration.cjs");
 await build({
@@ -52,6 +60,7 @@ await writeFile(
   JSON.stringify({
     "scoop.server.enabled": false,
     "scoop.server.path": server,
+    "scoop.debug.compilerPath": compiler,
     "scoop.sysroot": sysroot,
     "scoop.trace.server": "verbose",
   }),

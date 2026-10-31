@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { registerCodeLenses } from "./code-lens.ts";
 import { registerDebugging } from "./debug.ts";
 import { folds } from "./folding.ts";
 import { highlights, tokenModifiers, tokenTypes } from "./highlights.ts";
@@ -13,6 +14,7 @@ export async function activate(
 ): Promise<void> {
   registerDebugging(context);
   const syntax = await ScoopSyntax.load(context.asAbsolutePath("dist/assets"));
+  registerCodeLenses(context, syntax);
   const selector: vscode.DocumentSelector = { language: "scoop" };
   const legend = new vscode.SemanticTokensLegend(
     [...tokenTypes],

@@ -933,6 +933,8 @@ Cone、package、类型、函数 overload 组与源码页在所属 catalog 内�
 
 测试程序发布到 `target/<canonical-target-triple>/<profile>/<group>/<cone-name>/tests/<cone-name>`，`--target-dir` 替换 target 根目录，`--no-run` 完成构建和链接后返回。运行直接使用本次成功构建确定的已有或新生成 executable，不制作 execution copy；失败构建不得运行旧文件。过滤和忽略选择不改变测试编译产物；最终报告需要独立的用例结果通道，不能仅凭进程退出码判定整轮执行完成。
 
+测试可执行文件的 JSON `executable` 构建记录同时保存完整 `test_directory`，包含被忽略用例，保持静态目录的容器与用例顺序，不应用运行过滤；目录中的 `containers` 与 `test-list` 使用相同字段。编辑器用 `test --no-run --message-format json` 本次结果中的源码路径、容器名与方法名定位所点用例，再按完整目录的扁平序号生成语言规范 16.5 的 `--scoop-test-cases` 参数；名称只用于目录选择，不成为语言实体身份。缺少或无法唯一匹配用例时报告错误，不运行全部测试或旧程序。human 模式的 `--no-run` 仍只报告构建结果。
+
 M63统一采用包管理规范3.1的`target/<target>/<profile>/<group>/<name>/`成员输出目录，测试放在该目录的`tests/`内；一次workspace测试分别产生/运行各根的测试程序，不将它们链接到同一进程。
 
 `--list` 完成更新判定后从已保存的测试目录输出容器与用例，不启动测试程序，与 `--no-run` 互斥。human 列表写 stdout，JSON 模式沿用 stderr 的结构化记录流，构建记录之后输出 `test-list` 记录；记录包含嵌套容器、用例位置与忽略原因，以及容器、用例和忽略计数。
@@ -2028,7 +2030,7 @@ LSP 负责协议生命周期、文档版本与取消请求的映射；共享分�
 
 `scoop-analysis` 是与编译 driver 同层的分析宿主，保存本地 SourceId、文本 revision 与共享不可变输入；语法结果按文件按需建立并复用。输入更新使旧分析快照失效，读取时检查取消；快照保留原版本的文本，不混用新输入。工作区加载经配套 PM 的 members 与 metadata --offline 取得成员及精确锁定图，再从已展开配置选择源码与 SourceIdentity；不重新解析包声明、匹配版本或下载依赖。未保存清单经版本 4 overlays 输入同一 PM 展开路径，不写回清单或 lock。缺少锁定输入的成员保留本地语法与符号，其他成员可继续分析，完整边界见包管理规范 7.2。不从本地句柄派生语言身份，也不处理 LSP URI、客户端版本或进程传输。`scoop-lsp` 是独立 stdio 命令，传输线程、文档输入与分析 worker 分离；初版通过 LSP 3.17 的基础协议能力提供同步、诊断与结构查询，只声明实际实现的能力。
 
-VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初始化、文档增量同步、工作区与文件监听、配置更新及退出。服务器依次取显式配置、`~/.scoop/bin/scoop-lsp`、`PATH`；命令不使用 shell 解释。语义配置只传递服务器支持的 target、sysroot、purpose、artifactSearchRoots、packageManager、packageCacheDir、lockfile、configurations 和 activeConfiguration，未指定值沿服务端默认规则。扩展同步 `.scoop` 与打开的 `Cone.toml`，由服务器提供诊断、补全、签名、导航、符号、引用、重命名、选择范围与 quickfix；Tree-sitter 继续提供高亮、折叠和缩进，避免重复注册折叠结果。未找到或启动失败的服务器不影响这些本地语法能力，用户可查看输出并显式重启。受限工作区只启用本地语法能力，信任工作区后启动服务器。扩展不执行编译、sysroot 准备或生成器。
+VS Code 扩展通过标准 LSP 客户端启动 `scoop-lsp --stdio`，管理初始化、文档增量同步、工作区与文件监听、配置更新及退出。服务器依次取显式配置、`~/.scoop/bin/scoop-lsp`、`PATH`；命令不使用 shell 解释。语义配置只传递服务器支持的 target、sysroot、purpose、artifactSearchRoots、packageManager、packageCacheDir、lockfile、configurations 和 activeConfiguration，未指定值沿服务端默认规则。扩展同步 `.scoop` 与打开的 `Cone.toml`，由服务器提供诊断、补全、签名、导航、符号、引用、重命名、选择范围与 quickfix；Tree-sitter 继续提供高亮、折叠和缩进，避免重复注册折叠结果。未找到或启动失败的服务器不影响这些本地语法能力，用户可查看输出并显式重启。受限工作区只启用本地语法能力，信任工作区后启动服务器。编辑态语言服务不执行编译、sysroot 准备或生成器；用户显式运行或调试时按 2.22 调用普通构建入口。
 
 工作区配置明确选取根 Cone、target、Production／Test、sysroot 与产物搜索目录；同一物理源码可属于多份配置，共享文本但分别保存项目语义输入。根 Cone 的 Test 配置使用既有 production／test 源码与依赖选择，源码依赖仍使用 Production。目录、显式源码依赖、显式产物、版本依赖和默认 core 的选择沿普通构建规则；配置错误保留为 manifest 位置诊断，不移除已经加载的源码语法输入，也不隐式执行编译、sysroot 准备或生成器。未归属已选 Cone 的文档仅提供语法服务。
 
@@ -2101,6 +2103,8 @@ generated-C 桥没有用户源码映射，继续使用 `-g0`，通过实际符�
 最终结果缓存同时记录程序及请求的调试结果。请求外置文件时，最终 executable basename 进入结果键并用于内部生成文件名，保证换输出目录可复用、换 basename 时重新生成匹配的 debuglink／dSYM；上游 Cone 不因此重编译。命中只检查输入更新与所需结果存在，不读取／哈希调试文件内容，不启动调试工具或重新准备链接输入。dSYM 目录按普通暂存、复制及 rename 发布；工具失败不发布部分新结果。UUID／debuglink 仅承担平台文件关联。
 
 编辑器复用官方 lldb-dap，scoop-lsp 保持语言服务职责。VS Code 提供源码 breakpoints、构建到 executable 的启动配置、attach、参数／cwd／环境／终端及 sourceMap，按需导入只读 Python formatter。发行包包含匹配平台的 lldb、lldb-dap、LLDB library、Python 支持及实际所需附加文件。Darwin 的开发安装与发行加工完成后重新签名 debugserver，保留其原生调试 entitlements，避免安装时调整加载路径使签名失效。不得把 C 兼容 evaluator、通用异常筛选或硬件 watchpoint 宣称为完整 Scoop 求值、Scoop 异常过滤或 GC 感知数据断点。
+
+VS Code 在顶层普通 `main` 及测试容器直接声明的 `@Test` 方法上提供 Run／Debug CodeLens。标记复用当前文档的 Tree-sitter 语法树，支持限定注解名和 import alias；入口签名与测试合法性仍由普通编译检查。单击时自动创建本次启动配置，无需预先编写 `launch.json`。从源文件向父目录查找最近的 `Cone.toml` 作为构建输入与默认 cwd，没有 manifest 时 `main` 使用单文件模式；测试要求 manifest Cone。保存失败、编译失败、取消或测试目录选择失败均不启动程序。Debug 默认使用 debug profile 和 full 调试信息，成功后把本次 executable 交给 lldb-dap；Run 复用同一构建与启动配置并设置 `noDebug`。测试选择消费上述完整目录，精确运行所点方法及其正常生命周期，显式点击忽略用例也选择该用例，不使用名称子串代替单用例选择。仅提供标记不触发构建，编译缓存继续遵守 2.7、2.8。
 
 Linux 打包时查找实际共享依赖，优先使用选定 LLVM 的 library 目录，并保留构建环境已有的 `LD_LIBRARY_PATH`，以找到配套 Python 等非系统安装的库。收集后的非系统库随包发布，最终加载路径仍改写为相对安装目录，不依赖构建环境路径。
 

@@ -17,14 +17,7 @@ impl Reporter {
             .count();
         match self.0 {
             MessageFormat::Json => {
-                let containers = directory.containers.iter().map(|container| json!({
-                    "name": container.qualified_name,
-                    "location": location(&container.location),
-                    "cases": container.cases.iter().map(|case| json!({
-                        "name": case.name, "display_name": case.display_name,
-                        "location": location(&case.location), "ignore_reason": case.ignore_reason,
-                    })).collect::<Vec<_>>(),
-                })).collect::<Vec<_>>();
+                let containers = containers(directory);
                 write_json(&json!({
                     "schema": 1, "kind": "test-list", "target": target,
                     "containers": containers,
@@ -67,6 +60,23 @@ impl Reporter {
             }
         }
     }
+}
+
+pub(super) fn containers(directory: &TestDirectory) -> Vec<Value> {
+    directory
+        .containers
+        .iter()
+        .map(|container| {
+            json!({
+                "name": container.qualified_name,
+                "location": location(&container.location),
+                "cases": container.cases.iter().map(|case| json!({
+                    "name": case.name, "display_name": case.display_name,
+                    "location": location(&case.location), "ignore_reason": case.ignore_reason,
+                })).collect::<Vec<_>>(),
+            })
+        })
+        .collect()
 }
 
 pub(super) fn location(location: &TestSourceLocation) -> Value {
