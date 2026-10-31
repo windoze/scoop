@@ -1,0 +1,66 @@
+// EXPECT-COMPILE
+
+enum Signal {
+    Ready,
+    Failed
+}
+
+fun consume(value: Signal): Int = 2
+
+fun describe(value: Signal): Int = when (value) {
+    case Ready -> 1
+    case Raedy -> consume(Raedy)
+}
+
+enum Word { Emacs, Vi, Big }
+enum WordEnd { Start, BeforeEnd, AfterEnd }
+enum Movement {
+    ForwardWord(val count: Long, val word: Word, val end: WordEnd),
+    Stay
+}
+enum Command {
+    Move(val movement: Movement),
+    Kill(val movement: Movement),
+    Change(val movement: Movement)
+}
+struct Selection(val end: WordEnd, val movement: Movement)
+
+fun inclusive(movement: Movement): Boolean = when (movement) {
+    case ForwardWord(_, _, end) -> end == WordEnd.BeforeEnd
+    else -> false
+}
+
+fun execute(command: Command): Boolean = when (command) {
+    case Move(movement) -> inclusive(movement)
+    case Kill(movement) -> inclusive(movement)
+    case Change(movement) -> inclusive(movement)
+}
+
+fun selected(selection: Selection): Boolean = when (selection) {
+    case Selection { end, movement } if (end == WordEnd.BeforeEnd) -> inclusive(movement)
+    else -> false
+}
+
+fun tupleEnd(value: (WordEnd, Movement)): Boolean = when (value) {
+    case (end, movement) -> end == WordEnd.BeforeEnd && inclusive(movement)
+}
+
+fun optionalEnd(value: WordEnd?): Boolean = when (value) {
+    case Some(end) -> end == WordEnd.BeforeEnd
+    case None -> false
+}
+
+fun main() {
+    println(describe(Signal.Ready))
+    println(describe(Signal.Failed))
+    val before = Movement.ForwardWord(1L, Word.Emacs, WordEnd.BeforeEnd)
+    val after = Movement.ForwardWord(1L, Word.Emacs, WordEnd.AfterEnd)
+    println(execute(Command.Move(before)))
+    println(execute(Command.Kill(after)))
+    println(execute(Command.Change(Movement.Stay)))
+    println(selected(Selection(WordEnd.BeforeEnd, before)))
+    println(selected(Selection(WordEnd.AfterEnd, before)))
+    println(tupleEnd((WordEnd.BeforeEnd, before)))
+    println(optionalEnd(Some(WordEnd.BeforeEnd)))
+    println(optionalEnd(None))
+}

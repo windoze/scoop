@@ -45,7 +45,7 @@ exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "consumer.diagnostics.json"}
+diagnostics = []
 checks = []
 
 [[steps]]

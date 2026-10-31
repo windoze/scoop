@@ -1,18 +1,18 @@
 use super::*;
 
-const WARNING_SOURCE: &str = include_str!(
-    "../../../../../../tests/fixtures/language/core-library/publication-warning.scoop"
+const BINDING_SOURCE: &str = include_str!(
+    "../../../../../../tests/fixtures/language/core-library/publication-bindings.scoop"
 );
 
 #[test]
-fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries() {
-    let target = resolved_target().expect("publication warning tests require a supported target");
+fn publication_failures_preserve_destinations_and_current_warnings() {
+    let target = resolved_target().expect("publication tests require a supported target");
     let temp = tempfile::tempdir().unwrap();
     copy_trusted_core_sources(temp.path());
     let core_root = temp.path().join("src/scoop.core");
     std::fs::write(
-        core_root.join("src/publication-warning.scoop"),
-        WARNING_SOURCE,
+        core_root.join("src/publication-bindings.scoop"),
+        BINDING_SOURCE,
     )
     .unwrap();
     let core_output = temp.path().join("core.slib");
@@ -30,10 +30,11 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
         )
         .unwrap()
     };
-    assert_publication_warning(core_request(), &core_output, temp.path());
+    let failure = publication_failure(core_request(), &core_output, temp.path());
+    assert!(failure.warnings().unwrap().diagnostics().is_empty());
     std::fs::remove_dir(&core_output).unwrap();
     let core = core_request().build_and_publish().unwrap();
-    assert_eq!(core.warnings().diagnostics().len(), 1);
+    assert!(core.warnings().diagnostics().is_empty());
 
     let ordinary_root = temp.path().join("ordinary");
     write_manifest_cone(
@@ -41,7 +42,7 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
         "test",
         "publication",
         "library",
-        WARNING_SOURCE,
+        BINDING_SOURCE,
     );
     let ordinary_output = temp.path().join("ordinary.slib");
     let ordinary = SingleConeBuildRequest::new(
@@ -50,32 +51,57 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
         )),
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(&core_output).unwrap()),
-        target,
+        target.clone(),
         SlibOutputDestination::new(&ordinary_output).unwrap(),
         DiagnosticOutputPolicy::Human,
         StageDumpPolicy::None,
     )
     .unwrap();
-    assert_publication_warning(ordinary, &ordinary_output, temp.path());
+    let failure = publication_failure(ordinary, &ordinary_output, temp.path());
+    assert!(failure.warnings().unwrap().diagnostics().is_empty());
+
+    let source = temp.path().join("single-file.scoop");
+    std::fs::write(&source, "package test\nfun main() {}\n").unwrap();
+    let standard =
+        super::super::single_file_tests::standard_library(&target, &core_output, temp.path());
+    let single_output = temp.path().join("single-file.slib");
+    let single = SingleConeBuildRequest::new(
+        CurrentConeInput::SingleFile {
+            source: scoop_manifest::SingleFileLocator::from_path(&source).unwrap(),
+        },
+        ExplicitDependencyInputs::new(
+            vec![HostArtifactLocator::new(standard).unwrap()],
+            Vec::new(),
+        ),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(&core_output).unwrap()),
+        target,
+        SlibOutputDestination::new(&single_output).unwrap(),
+        DiagnosticOutputPolicy::Human,
+        StageDumpPolicy::None,
+    )
+    .unwrap();
+    let failure = publication_failure(single, &single_output, temp.path());
+    let warnings = failure.warnings().unwrap();
+    assert_eq!(warnings.diagnostics().len(), 1);
+    let warning = &warnings.diagnostics()[0];
+    assert_eq!(warning.file, 0);
+    assert_eq!(warning.span, Some(scoop_ast::Span::new(0, 12)));
+    assert_eq!(warning.severity, scoop_ast::DiagnosticSeverity::Warning);
+    assert_eq!(
+        warning.message,
+        "package declaration is ignored in single-file mode; using the default root package"
+    );
+    assert!(warnings.render_human().contains(":1:1: warning:"));
 }
 
-fn assert_publication_warning(request: SingleConeBuildRequest, output: &Path, temporary: &Path) {
+fn publication_failure(
+    request: SingleConeBuildRequest,
+    output: &Path,
+    temporary: &Path,
+) -> CurrentConeProductionError {
     let loaded = request.load_preflight().unwrap();
     let validated = loaded.validate().unwrap();
     let parsed = validated.parse_current_sources().unwrap();
-    let file = parsed
-        .sources()
-        .iter()
-        .position(|source| source.text().text().ends_with(WARNING_SOURCE))
-        .unwrap();
-    let source_text = parsed
-        .sources()
-        .iter()
-        .nth(file)
-        .unwrap()
-        .text()
-        .text()
-        .to_owned();
     std::fs::create_dir(output).unwrap();
     let error = parsed
         .build_and_publish(&temporary.join("staging"))
@@ -84,33 +110,7 @@ fn assert_publication_warning(request: SingleConeBuildRequest, output: &Path, te
         matches!(error.cause(), CurrentConeProductionFailure::Publication(_)),
         "unexpected stage failure: {error:?}"
     );
-    let warnings = error.warnings().unwrap();
-    assert_eq!(warnings.diagnostics().len(), 1);
-    let warning = &warnings.diagnostics()[0];
-    let start = source_text.find("Raedy ->").unwrap();
-    assert_eq!(warning.file, file);
-    assert_eq!(
-        warning.span,
-        Some(scoop_ast::Span::new(
-            start.try_into().unwrap(),
-            (start + "Raedy".len()).try_into().unwrap()
-        ))
-    );
-    assert_eq!(warning.severity, scoop_ast::DiagnosticSeverity::Warning);
-    assert_eq!(
-        warning.message,
-        "`Raedy` is a catch-all binding because `Signal` has no variant named `Raedy`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all"
-    );
-    let line = source_text[..start]
-        .bytes()
-        .filter(|byte| *byte == b'\n')
-        .count()
-        + 1;
-    assert!(
-        warnings
-            .render_human()
-            .contains(&format!(":{line}:10: warning:"))
-    );
     assert!(output.is_dir());
     assert_eq!(std::fs::read_dir(output).unwrap().count(), 0);
+    error
 }

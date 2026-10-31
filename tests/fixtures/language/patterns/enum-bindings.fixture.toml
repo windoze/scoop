@@ -1,7 +1,7 @@
 schema = 1
-name = "patterns-suspicious-enum-catch-all"
-root = "suspicious-enum-catch-all.scoop"
-inputs = ["suspicious-enum-catch-all.scoop"]
+name = "patterns-enum-bindings"
+root = "enum-bindings.scoop"
+inputs = ["enum-bindings.scoop"]
 tools = ["scoop", "scoopc"]
 tags = ["single-file", "run", "language"]
 
@@ -12,12 +12,12 @@ exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "suspicious-enum-catch-all.diagnostics.json"}
+diagnostics = []
 checks = []
 
 [[steps]]
 name = "run"
 argv = ["${build.result.output}"]
 exit = 0
-stdout = "1\n2\n"
+stdout = "1\n2\ntrue\nfalse\nfalse\ntrue\nfalse\ntrue\ntrue\nfalse\n"
 stderr = ""

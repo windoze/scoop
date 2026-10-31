@@ -12,7 +12,7 @@ exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "safe-call-semantics.diagnostics.json"}
+diagnostics = []
 checks = []
 
 [[steps]]
