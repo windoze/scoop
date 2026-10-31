@@ -104,6 +104,7 @@ fn saved_uses_include_current_cone_and_external_callable_references() {
         materializations: Vec::new(),
         defined_symbols: defined,
         symbol_uses: uses,
+        odr_members: empty_odr_members(),
     };
     saved.remove_members(&std::collections::BTreeSet::from([
         local.symbols.member(),
@@ -119,4 +120,14 @@ fn saved_uses_include_current_cone_and_external_callable_references() {
         usage.target.symbol(saved.defined_symbols()).unwrap(),
         target
     );
+}
+
+pub(super) fn empty_odr_members() -> CanonicalOdrMemberDirectoryV1 {
+    let decoded =
+        scoop_wire::decode_canonical::<crate::DecodedCanonicalOdrMemberDirectoryV1>(&[0x80])
+            .unwrap();
+    let mut identities = scoop_identity::PendingIdentityValidation::new()
+        .finish()
+        .unwrap();
+    decoded.read(&mut identities).unwrap()
 }

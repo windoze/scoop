@@ -64,8 +64,7 @@ impl ProgramLinkData {
             identities,
             selection.target().contract().native_symbol_normalization(),
         )?;
-        let odr = link
-            .production_manifest_wire()
+        let odr = wire
             .read_odr_members(identities)
             .map_err(|error| error.to_string())?;
         let members = wire

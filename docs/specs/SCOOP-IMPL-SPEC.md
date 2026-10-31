@@ -696,16 +696,16 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 未知 optional capability 按目录跳过，不读取或计算其内容 hash，不进入语义 view。ExtensionBlob.required_for 只允许 0 或 Link bit；未知 Link-required capability 或 LinkObject verifier 阻止 Link 消费。blob 不成为第二种对象入口，已知 Link contribution 只能表示规范化 native library requirements，不能注入 raw linker argv、脚本或未检查对象。
 
-完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/10`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
+完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/11`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
 
 早期 `single-cone-strong` 与 `cross-cone-semantics-strong` profile 不再是生产或消费入口，不随当前 section 版本维护正向 descriptor／fingerprint 矩阵。旧 profile 按不支持的产物 profile 报错，当前 profile 的 required inventory 和版本兼容检查保留。
 
 | 位置 / namespace | section 与 major |
 | --- | --- |
-| Manifest / `org.scoop-lang.manifest` | `single-cone-production/10` |
+| Manifest / `org.scoop-lang.manifest` | 无必需 section；按需保存 `test-directory/1` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/17`、`cross-cone-interface/87`、`cross-cone-type-semantics/31` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/20` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/11`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/18`、`cone-production/16`、`link-identity-closure/20`、`link-support/1` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/11`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/18`、`cone-production/16`、`link-identity-closure/21`、`link-support/1` |
 
 本次合并采用 HIR `cross-cone-interface/87`，同时保存编译期输入与调试信息需要的源码接口。callable intrinsic tag 30 保留 main 的 `ThrowablePrintStackTrace`；`CompileEnv` 使用 tag 34，`IncludeStr`／`IncludeBytes`／`IncludeDir` 保持 31／32／33。旧分支与 main 的不兼容 profile 均按通常版本规则重建；不协商或混用两份同号接口。
 
@@ -731,7 +731,7 @@ production 与 Link metadata 保存消费方实际使用的 body/type/site ID、
 
 `cone-production/16` 仅保存字段 5 registration production、6 image plan、7 entry plan。共用该生产投影的 `strong-production` section 编码为 26；旧 Strong profile 仍不作为消费入口。字段 2 canonical definitions 与 LIR foundation 已保存的 definition plans、atoms 及 typed symbol requests 重复，不再落盘。Compile 直接从已解析的 foundation 投影所需定义；Link 只投影 owner、entity、role 和实际 image trap 符号，不重建完整 codegen symbol surface。该投影只做现有 key 的机械转换，不重放生产阶段的符号、布局或对象校验。registration production 仅保存字段 1 identities、6 static storages、7 initialization units；image plan 仅保存字段 4 symbol、6 support atoms，support atoms 仅保存字段 11 array-bounds message 和 12 array-size-overflow message。其余生产字段没有下游消费者，当前格式不编码也不解码这些副本。
 
-`link-identity-closure/20` 的字段 5 保存全部跨物理 member 符号使用，按目标符号原始 bytes 排序、分组，每组仅有字段 1 target 和 2 按 ID 排序、去重的 source members。target 为封闭和类型：tag 1 保存字段 1 的 defined symbol owner 目录下标，tag 2 保存字段 1 的外部符号原始 bytes。同 Cone 目标直接引用已有目录；跨 Cone 和普通 native 名称每个不同符号只保存一次。生产时直接投影已经解析的实际 relocation，包含同 Cone、跨 Cone callable／shape、ODR、generated-C、runtime 和 native 引用；不能只投影 legacy undefined requirement 子集而遗漏跨 Cone 使用。对象内部已经闭合的引用不重复保存。完整 relocation 和 requirement 继续用于生产阶段的对象处理与 Code 指纹，不作为链接器不消费的副本落盘。
+`link-identity-closure/21` 的字段 5 保存全部跨物理 member 符号使用，按目标符号原始 bytes 排序、分组，每组仅有字段 1 target 和 2 按 ID 排序、去重的 source members。target 为封闭和类型：tag 1 保存字段 1 的 defined symbol owner 目录下标，tag 2 保存字段 1 的外部符号原始 bytes。同 Cone 目标直接引用已有目录；跨 Cone 和普通 native 名称每个不同符号只保存一次。生产时直接投影已经解析的实际 relocation，包含同 Cone、跨 Cone callable／shape、ODR、generated-C、runtime 和 native 引用；不能只投影 legacy undefined requirement 子集而遗漏跨 Cone 使用。对象内部已经闭合的引用不重复保存。完整 relocation 和 requirement 继续用于生产阶段的对象处理与 Code 指纹，不作为链接器不消费的副本落盘。
 
 defined symbol owner 的全部记录仅保存字段 1 member 和 3 owner，删除字段 2 名称。Strong、generated bridge、Cone image 和 atom boundary 的名字由已有 typed owner 确定；ODR 通过 foundation 已有的 member／callable body key 查得实际实体及 role，不能把 OdrMemberId 当作 callable body ID。按目标原生符号规范化恢复原名称；不从名称反推实体身份，不扫描机器对象。定义目录继续按原始符号 bytes 排序，保持全部符号及真实物理归属。使用表的目录下标只复用名字，最终 owner 仍由既有的全程序符号与 ODR 选择规则决定。消费时检查实际目录下标边界，后续共享已解析的名字，不重放生产验证。旧 profile 与 section 按版本规则配套重建；容器、机器对象、源码实体和 runtime ABI 不变，不新增压缩算法。
 
@@ -759,7 +759,9 @@ operator equals 的成员签名、operator 标记、已绑定调用及必要的�
 
 接口方法与实际 metadata 内容的变化按既有 semantic／ABI fingerprints、section profiles 和缓存兼容规则演进。实现迁移时同步更新受影响的格式与 core 产物；M41 删除 core Equality/equalTo，改为普通 Equals/operator equals，旧依赖须按既有失效规则重建。不为库接口迁移增加 runtime 比较 ABI。
 
-`single-cone-production/10` 只保存 field 11 的 ODR member 目录。field 1～10、12～14 不再写入；distribution、output、image owner、typed registration projection、OptimizationMode 副本、重复的 RuntimeImage／Code fingerprint、native contract／library／C++ 和 C bridge production 投影不再作为后续复核材料持久化。RuntimeImage 与 Code fingerprint 使用顶层 manifest 已保存的值，native requirements 使用 LIR foundation，入口使用实际语义与 production 数据。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。删除 production section 的 C bridge 与全量投影重建比较 API；对象生产阶段的实际 Code 输入与指纹公式保留。
+ODR member 目录保存于 `link-identity-closure/21` 的字段 6，与字段 1 的物理成员、字段 4 的 defined owners 和字段 5 的符号使用组成同一四字段记录。目录的 group、member 和 ABI 值直接复用 LIR 成员的 ID 表；逻辑目录及其合并规则不变。Compile／Link 消费该目录时已经读取 LIR，manifest 摘要发现不需要读取它。退役原来只保存该目录的 `single-cone-production` manifest section、独立读写包装与必需清单项，不保留空 section 或另一份目录。旧产物随 profile 与 section 版本重建。
+
+distribution、output、image owner、typed registration projection、OptimizationMode 副本、重复的 RuntimeImage／Code fingerprint、native contract／library／C++ 和 C bridge production 投影不作为后续复核材料持久化。RuntimeImage 与 Code fingerprint 使用顶层 manifest 已保存的值，native requirements 使用 LIR foundation，入口使用实际语义与 production 数据。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。对象生产阶段的实际 Code 输入与指纹公式保留。
 
 ODR 目录中的条目同时表达定义和对已有定义的需求：有本产物 primary defined owner 的条目提供物理候选，没有本地 primary 的条目必须由实际依赖闭包中的候选满足。Compile 与 Link 按依赖先序合并完整 key、role 和 shared ABI；每个需求都必须有真实物理定义，不能由无依赖关系的兄弟产物补足。RegistrationRecord 只登记实际本地定义，不为省去的副本保存独立导入要求；GC／EH 与注册记录随最终选中的完整对象消费，不要求不同优化模式产生相同的私有 safepoint 集合。输出的合并目录总是包含至少一个完整候选，不保存空候选或递归转发条目。
 

@@ -10,8 +10,8 @@ use crate::{
 };
 
 use super::super::{
-    decode_inner, decode_metadata_envelope, decode_production_manifest, member_payload,
-    metadata_member_id, require_strong_profile, required_metadata_section,
+    decode_inner, decode_metadata_envelope, member_payload, metadata_member_id,
+    require_strong_profile, required_metadata_section,
 };
 use super::DecodedCrossConeLayoutLinkSections;
 
@@ -22,12 +22,13 @@ impl<'input> ValidatedGraphArtifact<'input> {
     ) -> Result<super::DecodedCrossConeLayoutLinkOnlySections, SingleConeLinkSectionDecodeError>
     {
         let profile = ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
-        let production_manifest = decode_production_manifest(self, profile)?;
+        profile
+            .validate_link_manifest_inventory(self.envelope.manifest().sections())
+            .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
         profile
             .validate_link_metadata_inventory(MetadataLocation::Lir, lir.sections())
             .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
         Ok(super::DecodedCrossConeLayoutLinkOnlySections {
-            production_manifest,
             link_identity_closure: decode_required(
                 lir,
                 MetadataLocation::Lir,
@@ -51,7 +52,9 @@ impl<'input> ValidatedGraphArtifact<'input> {
         profile
             .validate_compile_manifest_inventory(self.envelope.manifest().sections())
             .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
-        let production_manifest = decode_production_manifest(&self, profile)?;
+        profile
+            .validate_link_manifest_inventory(self.envelope.manifest().sections())
+            .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
 
         let hir_member = metadata_member_id(&self, MetadataLocation::Hir)?;
         let mir_member = metadata_member_id(&self, MetadataLocation::Mir)?;
@@ -141,7 +144,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
 
         Ok(DecodedCrossConeLayoutLinkSections {
             graph: self,
-            production_manifest,
             hir_foundation,
             hir_core_production,
             hir_interface,

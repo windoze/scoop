@@ -27,7 +27,7 @@ impl ArtifactDefinitionData {
             target.target().contract().native_symbol_normalization(),
         )?;
         let odr = link
-            .production_manifest_wire()
+            .link_identity_closure_wire()
             .read_odr_members(identities)
             .map_err(|error| error.to_string())?;
         let directory =

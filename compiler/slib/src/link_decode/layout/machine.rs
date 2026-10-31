@@ -1,7 +1,6 @@
 //! Decode only canonical keys and machine records for program linking.
 use super::super::{
-    decode_metadata_envelope, decode_production_manifest, member_payload, metadata_member_id,
-    require_strong_profile,
+    decode_metadata_envelope, member_payload, metadata_member_id, require_strong_profile,
 };
 use super::decode::{decode_required, validate_inventories};
 use super::*;
@@ -22,7 +21,9 @@ impl<'a> ValidatedGraphArtifact<'a> {
         self,
     ) -> Result<DecodedMachineLinkSections<'a>, SingleConeLinkSectionDecodeError> {
         let profile = require_strong_profile(&self, ArtifactCapabilityProfile::CROSS_CONE_GENERIC)?;
-        let production_manifest = decode_production_manifest(&self, profile)?;
+        profile
+            .validate_link_manifest_inventory(self.envelope.manifest().sections())
+            .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
         let hir_id = metadata_member_id(&self, MetadataLocation::Hir)?;
         let mir_id = metadata_member_id(&self, MetadataLocation::Mir)?;
         let lir_id = metadata_member_id(&self, MetadataLocation::Lir)?;
@@ -70,7 +71,6 @@ impl<'a> ValidatedGraphArtifact<'a> {
                 MetadataLocation::Lir,
                 lir_link_support_capability(),
             )?,
-            production_manifest,
             link_identity_closure: decode_required(
                 &lir,
                 MetadataLocation::Lir,

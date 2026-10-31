@@ -1,34 +1,23 @@
 use super::*;
 
 #[test]
-fn production_manifest_v10_requires_the_definition_and_import_directory() {
-    let current = manifest_single_cone_production_capability();
-    assert_eq!(current.major_version(), 10);
-    let old = CapabilityId::new(current.namespace(), current.name(), 9).unwrap();
-    assert!(CapabilityContractRegistry::contract(&old).is_none());
+fn odr_directory_uses_lir_and_the_retired_required_manifest_is_rejected() {
+    let current = lir_link_identity_closure_capability();
+    assert_eq!(current.major_version(), 21);
     let profile = ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
-
     let descriptor = profile.descriptor();
-    assert_eq!(
-        descriptor.required_manifest(),
-        std::slice::from_ref(&current)
-    );
-    for view in [ArtifactProfileView::Compile, ArtifactProfileView::Link] {
-        for purpose in [MemberPurposeSet::NONE, MemberPurposeSet::LINK] {
-            let sections = [
-                (current.clone(), MemberPurposeSet::LINK),
-                (old.clone(), purpose),
-            ];
-            assert!(matches!(
-                super::super::validate_inventory(
-                    view, SectionLocation::Manifest, descriptor.required_manifest(), &sections,
-                    |section| &section.0, |section| section.1,
-                ),
-                Err(ArtifactProfileInventoryError::ConflictingCapabilityVersion { required, actual, .. })
-                    if *required == current && *actual == old
-            ));
-        }
-    }
+    assert!(descriptor.required_manifest().is_empty());
+    assert!(descriptor.required_lir().contains(&current));
+    let retired =
+        CapabilityId::new("org.scoop-lang.manifest", "single-cone-production", 10).unwrap();
+    assert!(CapabilityContractRegistry::contract(&retired).is_none());
+    let section =
+        crate::ManifestSection::new(retired.clone(), MemberPurposeSet::LINK, Vec::new()).unwrap();
+    assert!(matches!(
+        profile.validate_link_manifest_inventory(&[section]),
+        Err(ArtifactProfileInventoryError::UnsupportedRequiredCapability { capability, .. })
+            if capability == retired
+    ));
 }
 
 #[test]
@@ -43,7 +32,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
             lir_link_identity_closure_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
             &[
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
             ][..],
         ),
         (

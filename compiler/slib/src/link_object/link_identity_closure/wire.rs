@@ -3,7 +3,7 @@
 use crate::SlibMemberId;
 use crate::link_object::{
     CanonicalDefinedLinkSymbolOwnerSetV1, DecodedCanonicalDefinedLinkSymbolOwnerSetV1,
-    DecodedFixedBytesV1,
+    DecodedCanonicalOdrMemberDirectoryV1, DecodedFixedBytesV1,
 };
 use scoop_identity::{DecodedPersistentId, ObjectDefinitionPlanId, PersistentId};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
@@ -81,9 +81,17 @@ pub struct DecodedLinkIdentityClosureSectionV1 {
     materializations: Vec<DecodedLinkObjectMaterializationV1>,
     defined_symbols: DecodedCanonicalDefinedLinkSymbolOwnerSetV1,
     symbol_uses: Vec<SymbolUseGroup>,
+    odr_members: DecodedCanonicalOdrMemberDirectoryV1,
 }
 
 impl DecodedLinkIdentityClosureSectionV1 {
+    pub(crate) fn read_odr_members(
+        &self,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<crate::CanonicalOdrMemberDirectoryV1, scoop_identity::IdentityReferenceError> {
+        self.odr_members.read(identities)
+    }
+
     pub(crate) fn read_defined_symbols(
         &self,
         foundation: &scoop_lir::ConeLirFoundation,
@@ -97,19 +105,21 @@ impl DecodedLinkIdentityClosureSectionV1 {
 
 impl WireEncode for DecodedLinkIdentityClosureSectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         encode_array(encoder, &self.materializations)?;
         encoder.field(4)?;
         self.defined_symbols.encode(encoder)?;
         encoder.field(5)?;
-        encode_array(encoder, &self.symbol_uses)
+        encode_array(encoder, &self.symbol_uses)?;
+        encoder.field(6)?;
+        self.odr_members.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedLinkIdentityClosureSectionV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(4)?;
         Ok(Self {
             materializations: decoder.field(1, |decoder| {
                 decoder
@@ -120,6 +130,7 @@ impl WireDecode for DecodedLinkIdentityClosureSectionV1 {
             symbol_uses: decoder.field(5, |decoder| {
                 decoder.decode_array(|decoder, _| SymbolUseGroup::decode(decoder))
             })?,
+            odr_members: decoder.field(6, DecodedCanonicalOdrMemberDirectoryV1::decode)?,
         })
     }
 }

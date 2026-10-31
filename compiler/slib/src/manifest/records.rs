@@ -334,40 +334,6 @@ impl SemanticFingerprintRecord {
         }
     }
 
-    pub fn from_production_manifest(
-        hir: HirFingerprint,
-        mir: MirFingerprint,
-        lir: LirFingerprint,
-        production: &super::SingleConeProductionManifestV1,
-    ) -> Self {
-        Self {
-            hir,
-            mir,
-            lir,
-            code: FingerprintAvailability::Available(production.code_fingerprint()),
-            runtime_image: FingerprintAvailability::Available(
-                production.runtime_image_fingerprint(),
-            ),
-        }
-    }
-
-    pub fn from_layout_production_manifest(
-        hir: HirFingerprint,
-        mir: MirFingerprint,
-        lir: LirFingerprint,
-        production: &super::CrossConeLayoutProductionManifestV1,
-    ) -> Self {
-        Self {
-            hir,
-            mir,
-            lir,
-            code: FingerprintAvailability::Available(production.code_fingerprint()),
-            runtime_image: FingerprintAvailability::Available(
-                production.runtime_image_fingerprint(),
-            ),
-        }
-    }
-
     pub const fn hir(self) -> HirFingerprint {
         self.hir
     }

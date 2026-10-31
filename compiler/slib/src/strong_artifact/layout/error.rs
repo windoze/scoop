@@ -5,8 +5,8 @@ use scoop_wire::HashError;
 
 use super::super::{StrongArtifactAssemblyError, StrongArtifactSectionV1};
 use crate::{
-    BootstrapManifestError, ManifestSectionError, MetadataEnvelopeError, MetadataLocation,
-    MetadataSectionError, SemanticFingerprintError, SlibMemberRecordError, SlibWriteError,
+    BootstrapManifestError, MetadataEnvelopeError, MetadataLocation, MetadataSectionError,
+    SemanticFingerprintError, SlibMemberRecordError, SlibWriteError,
 };
 
 #[derive(Debug)]
@@ -35,7 +35,6 @@ pub enum CrossConeLayoutArtifactWriteError {
         source: SlibMemberRecordError,
     },
     SemanticFingerprints(SemanticFingerprintError),
-    ManifestSection(ManifestSectionError),
     Manifest(BootstrapManifestError),
     Archive(SlibWriteError),
 }
@@ -82,7 +81,6 @@ impl std::error::Error for CrossConeLayoutArtifactWriteError {
             Self::MetadataEnvelopeEncoding { source, .. } => Some(source),
             Self::MetadataMember { source, .. } => Some(source),
             Self::SemanticFingerprints(source) => Some(source),
-            Self::ManifestSection(source) => Some(source),
             Self::Manifest(source) => Some(source),
             Self::Archive(source) => Some(source),
             Self::TestDirectory(source) => Some(source),

@@ -1,4 +1,4 @@
-//! Shared production-manifest projection for one Cone's final definitions.
+//! Shared Code projection for one Cone's final definitions.
 
 use std::fmt;
 
@@ -12,20 +12,12 @@ use scoop_wire::{Encoder, WireEncode};
 use super::{ConeKind, ConeRecord, ConeSourceForm, RuntimeImageFingerprint};
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalOdrMemberDirectoryV1, CodeFingerprintDataV1, EntryProductionBranchV1,
-    FinalCodeObjectSetV1, ObjectDefinitionFingerprintV1, OdrMemberDirectoryProjectionError,
+    CanonicalOdrMemberDirectoryV1, EntryProductionBranchV1, FinalCodeObjectSetV1,
+    ObjectDefinitionFingerprintV1, OdrMemberDirectoryProjectionError,
 };
 
 mod projection;
 pub(crate) use projection::{ProductionPlanInputs, build_production_code_projection_common};
-
-mod wire;
-pub use wire::DecodedSingleConeProductionManifestV1;
-
-#[cfg(test)]
-pub(crate) fn encoded_library_production_manifest_for_test() -> Vec<u8> {
-    wire::tests::library_manifest_bytes()
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ArtifactDistributionClassV1 {
@@ -188,8 +180,8 @@ impl WireEncode for SingleConeProductionCodeProjectionV1 {
     }
 }
 
-/// Strong LIR metadata and finalized object bytes proven to describe the same
-/// code-sink manifest projection.
+/// Strong LIR metadata and finalized object bytes producing the shared Code
+/// projection.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSingleConeProductionCodeProjectionV1 {
     strong_production: ConeProductionSectionV1,
@@ -213,46 +205,6 @@ impl VerifiedSingleConeProductionCodeProjectionV1 {
 
     pub const fn projection(&self) -> &SingleConeProductionCodeProjectionV1 {
         &self.projection
-    }
-}
-
-/// Production manifest fields derived from the compilation result.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SingleConeProductionManifestV1 {
-    code: CodeFingerprintDataV1,
-}
-
-impl SingleConeProductionManifestV1 {
-    pub const fn from_verified_code(code: CodeFingerprintDataV1) -> Self {
-        Self { code }
-    }
-
-    pub const fn code_proof(&self) -> &CodeFingerprintDataV1 {
-        &self.code
-    }
-
-    pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
-        self.projection().runtime_image_fingerprint()
-    }
-
-    pub const fn odr_members(&self) -> &CanonicalOdrMemberDirectoryV1 {
-        self.projection().odr_members()
-    }
-
-    pub const fn code_fingerprint(&self) -> super::CodeFingerprint {
-        self.code.fingerprint()
-    }
-
-    const fn projection(&self) -> &SingleConeProductionCodeProjectionV1 {
-        self.code.production().projection()
-    }
-}
-
-impl WireEncode for SingleConeProductionManifestV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(1)?;
-        encoder.field(11)?;
-        self.odr_members().encode(encoder)
     }
 }
 

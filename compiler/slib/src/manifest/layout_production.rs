@@ -1,16 +1,14 @@
-//! Production-manifest projection backed by M23-6 Strong V2 semantics.
+//! Code projection backed by the completed layout and native objects.
 
 use scoop_lir::ConeProductionSectionV2;
-use scoop_wire::{Encoder, WireEncode};
 
 use super::{
     ConeRecord, ProductionCodeProjectionError, SingleConeProductionCodeProjectionV1,
     production::{ProductionPlanInputs, build_production_code_projection_common},
 };
 use crate::link_object::FinalCodeObjectSetV2;
-use crate::{CodeFingerprint, CodeFingerprintDataV2, RuntimeImageFingerprint};
 
-/// V2 metadata and final object bytes producing the shared manifest projection.
+/// V2 metadata and final object bytes producing the shared Code projection.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSingleConeProductionCodeProjectionV2 {
     strong_production: ConeProductionSectionV2,
@@ -53,55 +51,4 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
         link_objects,
         projection,
     })
-}
-
-/// The shared production manifest, derived from a Code result
-/// whose production input is V2.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CrossConeLayoutProductionManifestV1 {
-    code: CodeFingerprintDataV2,
-    odr_members: crate::CanonicalOdrMemberDirectoryV1,
-}
-
-impl CrossConeLayoutProductionManifestV1 {
-    pub fn from_verified_code(code: CodeFingerprintDataV2) -> Self {
-        let odr_members = code.production().projection().odr_members().clone();
-        Self { code, odr_members }
-    }
-
-    pub(crate) fn omit_imported_registrations(
-        mut self,
-        defined: &crate::CanonicalDefinedLinkSymbolOwnerSetV1,
-    ) -> Self {
-        self.odr_members.retain_registration_definitions(defined);
-        self
-    }
-
-    pub const fn code_proof(&self) -> &CodeFingerprintDataV2 {
-        &self.code
-    }
-
-    pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
-        self.projection().runtime_image_fingerprint()
-    }
-
-    pub const fn odr_members(&self) -> &crate::CanonicalOdrMemberDirectoryV1 {
-        &self.odr_members
-    }
-
-    pub const fn code_fingerprint(&self) -> CodeFingerprint {
-        self.code.fingerprint()
-    }
-
-    const fn projection(&self) -> &SingleConeProductionCodeProjectionV1 {
-        self.code.production().projection()
-    }
-}
-
-impl WireEncode for CrossConeLayoutProductionManifestV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(1)?;
-        encoder.field(11)?;
-        self.odr_members().encode(encoder)
-    }
 }

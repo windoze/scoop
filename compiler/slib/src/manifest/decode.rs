@@ -277,7 +277,10 @@ impl fmt::Display for BootstrapManifestValidationError {
         match self {
             Self::BadMagic => formatter.write_str("manifest magic must be SCOOPSLIB"),
             Self::UnsupportedSchema { kind, actual } => {
-                write!(formatter, "{kind} schema must be 1, found {actual}")
+                write!(
+                    formatter,
+                    "{kind} schema must be {CURRENT_SCHEMA}, found {actual}"
+                )
             }
             Self::Producer(error) => error.fmt(formatter),
             Self::Compatibility(error) => error.fmt(formatter),

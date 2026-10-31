@@ -12,9 +12,8 @@ use crate::link_object::strong_relocation_closure::tests::verified_member_withou
 use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::{
-    ConeKind, ConeRecord, ConeSourceForm, CrossConeLayoutProductionManifestV1,
-    DecodedSingleConeProductionManifestV1,
-    finalize_layout_partitioned_undefined_symbol_requirements_v1,
+    ConeKind, ConeRecord, ConeSourceForm, DecodedLinkIdentityClosureSectionV1,
+    LinkIdentityClosureSectionV1, finalize_layout_partitioned_undefined_symbol_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_dependency_strong_requirements_v1,
     verify_external_shape_requirements_v1, verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_after_external_shape_v1,
@@ -112,9 +111,9 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
             .canonical_projection(),
         encode(&layout.selected().physical_imports().code_projection()).unwrap()
     );
-    let manifest = CrossConeLayoutProductionManifestV1::from_verified_code(proof.code().clone());
-    let bytes = encode(&manifest).unwrap();
-    let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
+    let closure = LinkIdentityClosureSectionV1::from_verified_layout_code(proof.code());
+    let bytes = encode(&closure).unwrap();
+    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 

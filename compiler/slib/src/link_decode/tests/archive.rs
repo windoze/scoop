@@ -63,7 +63,6 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
     )
     .unwrap();
     let closure = crate::LinkIdentityClosureSectionV1::from_verified_code(&code);
-    let production_manifest = crate::SingleConeProductionManifestV1::from_verified_code(code);
     let hir_sections = vec![
         MetadataSection::new(
             MetadataLocation::Hir,
@@ -130,18 +129,15 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
         &known_sections(&lir_sections),
     )
     .unwrap();
-    let semantic = SemanticFingerprintRecord::from_production_manifest(
+    let semantic = SemanticFingerprintRecord::from_digests(
         foundation_fingerprints.hir(),
         foundation_fingerprints.mir(),
         foundation_fingerprints.lir(),
-        &production_manifest,
+        crate::FingerprintAvailability::Available(code.fingerprint()),
+        crate::FingerprintAvailability::Available(
+            code.production().projection().runtime_image_fingerprint(),
+        ),
     );
-    let manifest_section = ManifestSection::new(
-        manifest_single_cone_production_capability(),
-        MemberPurposeSet::LINK,
-        encode(&production_manifest).unwrap(),
-    )
-    .unwrap();
     let mut members = vec![
         SlibMember::new(
             cone().identity(),
@@ -173,7 +169,7 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
         dependencies,
         &members,
         semantic,
-        vec![manifest_section],
+        Vec::new(),
     )
     .unwrap();
     CanonicalSlibArchive::write_bootstrap(&manifest, std::mem::take(&mut members))

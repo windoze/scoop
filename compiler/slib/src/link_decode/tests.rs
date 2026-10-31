@@ -16,14 +16,13 @@ use scoop_wire::encode;
 
 use crate::{
     ArtifactCapabilityProfile, BootstrapManifest, CanonicalSlibArchive, CompatibilityRecord,
-    ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, HirFingerprint, ManifestSection,
-    MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataLocation, MetadataSection,
+    ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, HirFingerprint, MemberPurposeSet,
+    MemberStableKey, MetadataEnvelope, MetadataLocation, MetadataSection,
     PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ProducerRecord,
     SemanticFingerprintRecord, SlibMember, SlibMemberRole, hir_core_bootstrap_interface_capability,
     hir_identity_foundation_capability, lir_identity_foundation_capability,
     lir_link_identity_closure_capability, lir_strong_production_capability,
-    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_identity_foundation_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
 use scoop_lir::CanonicalNativeExternalRequirementSurfaceV1;
 

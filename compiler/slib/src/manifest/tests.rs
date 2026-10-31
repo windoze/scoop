@@ -244,16 +244,16 @@ fn producer_cone_and_section_boundaries_are_closed() {
     ));
     assert!(
         ManifestSection::new(
-            crate::manifest_single_cone_production_capability(),
-            MemberPurposeSet::LINK,
+            crate::manifest_test_directory_capability(),
+            MemberPurposeSet::NONE,
             Vec::new(),
         )
         .is_ok()
     );
     assert!(matches!(
         ManifestSection::new(
-            crate::manifest_single_cone_production_capability(),
-            MemberPurposeSet::NONE,
+            crate::manifest_test_directory_capability(),
+            MemberPurposeSet::LINK,
             Vec::new(),
         ),
         Err(ManifestSectionError::KnownCapabilityWrongPurpose { .. })

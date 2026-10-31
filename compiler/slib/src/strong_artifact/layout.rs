@@ -1,5 +1,11 @@
 //! Deterministic archive assembly for the cross-Cone layout strong profile.
 
+use crate::{
+    ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, CanonicalSlibArchive,
+    CompatibilityRecord, ConeRecord, CrossConeLayoutCodeDataV1, DependencyRecord,
+    FingerprintAvailability, LinkIdentityClosureSectionV1, ProducerRecord,
+    SemanticFingerprintRecord, SlibMember,
+};
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
     CrossConeTypeSemanticsSectionV1,
@@ -10,16 +16,6 @@ use scoop_lir::{
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirTypeBridgeSectionV1,
-};
-use scoop_wire::encode;
-
-use super::StrongArtifactSectionV1;
-use crate::{
-    ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, CanonicalSlibArchive,
-    CompatibilityRecord, ConeRecord, CrossConeLayoutCodeDataV1,
-    CrossConeLayoutProductionManifestV1, DependencyRecord, LinkIdentityClosureSectionV1,
-    ManifestSection, MemberPurposeSet, ProducerRecord, SemanticFingerprintRecord, SlibMember,
-    manifest_single_cone_production_capability,
 };
 
 mod error;
@@ -179,8 +175,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
             link_support: &link_support,
         })?;
 
-        let production_manifest = CrossConeLayoutProductionManifestV1::from_verified_code(code)
-            .omit_imported_registrations(link_identity_closure.defined_symbols());
         let foundation_fingerprints = SemanticFingerprintRecord::from_metadata_sections(
             &compatibility,
             &direct_dependencies,
@@ -189,33 +183,25 @@ impl AssembledCrossConeLayoutArtifactV1 {
             &metadata.lir.sections,
         )
         .and_then(|fingerprints| {
-            fingerprints.with_odr_implementations(production_manifest.odr_members())
+            fingerprints.with_odr_implementations(link_identity_closure.odr_members())
         })
         .map_err(CrossConeLayoutArtifactWriteError::SemanticFingerprints)?;
-        let semantic_fingerprints = SemanticFingerprintRecord::from_layout_production_manifest(
+        let semantic_fingerprints = SemanticFingerprintRecord::from_digests(
             foundation_fingerprints.hir(),
             foundation_fingerprints.mir(),
             foundation_fingerprints.lir(),
-            &production_manifest,
+            FingerprintAvailability::Available(code.fingerprint()),
+            FingerprintAvailability::Available(
+                code.production().projection().runtime_image_fingerprint(),
+            ),
         );
-        let manifest_section = ManifestSection::new(
-            manifest_single_cone_production_capability(),
-            MemberPurposeSet::LINK,
-            encode(&production_manifest).map_err(|source| {
-                CrossConeLayoutArtifactWriteError::Encoding {
-                    section: StrongArtifactSectionV1::ProductionManifest,
-                    source,
-                }
-            })?,
-        )
-        .map_err(CrossConeLayoutArtifactWriteError::ManifestSection)?;
 
         let mut members = Vec::with_capacity(3 + link_objects.len());
         members.push(metadata.hir.into_member(identity)?);
         members.push(metadata.mir.into_member(identity)?);
         members.push(metadata.lir.into_member(identity)?);
         members.extend(link_objects);
-        let mut manifest_sections = vec![manifest_section];
+        let mut manifest_sections = Vec::new();
         if let Some(directory) = &test_directory {
             manifest_sections.push(
                 directory

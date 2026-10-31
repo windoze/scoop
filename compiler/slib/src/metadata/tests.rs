@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
     lir_identity_foundation_capability, lir_strong_production_capability,
-    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
+    manifest_test_directory_capability, mir_core_bootstrap_bridge_capability,
     mir_identity_foundation_capability,
 };
 
@@ -156,8 +156,8 @@ fn purpose_and_known_location_contracts_are_closed() {
     assert!(matches!(
         MetadataSection::new(
             MetadataLocation::Lir,
-            manifest_single_cone_production_capability(),
-            MemberPurposeSet::LINK,
+            manifest_test_directory_capability(),
+            MemberPurposeSet::NONE,
             Vec::new(),
         ),
         Err(MetadataSectionError::KnownCapabilityWrongLocation { .. })
