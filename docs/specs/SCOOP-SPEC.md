@@ -1552,6 +1552,8 @@ local、parameter、capture、global、普通成员或扩展属性，以及 obje
 
 为保留8.1.3已确定的词法遮蔽，最近词法作用域中同名的函数类型binding，或静态类型具有至少一个可见`invoke`operator的binding，先形成唯一local property-like层并遮蔽同名函数声明；其调用形态/类型不匹配时针对该binding诊断。普通不可调用binding不参与callable层。其他层仍遵守8.6的“第一个含可应用候选的分区”，不能因存在同名但不可应用的property无条件阻断后续函数。
 
+所有候选分区均不可应用时，若已成功解析被调用的值且没有更具体的候选失败原因，诊断应指出该值的实际类型不可调用，而不是将其报告为未知函数或方法。该规则统一适用于普通表达式、局部变量、参数、捕获、顶层值、成员及扩展属性，也适用于依赖声明。例如`val x = 1; x(100)`报告`Int`值不可调用，`text.charLength()`报告`Long`值不可调用；合法的函数值或`operator invoke`调用仍按普通参数及类型规则检查。
+
 #### 9.3.5 `infix`
 
 `infix`函数必须是成员或extension函数，且恰好有一个required、非`vararg`的显式普通参数；可以同时是generic、suspend及`operator`。不满足声明形态、用于top-level非extension或local非extension函数都是声明处错误。`infix`标志与`operator`一样属于override contract。

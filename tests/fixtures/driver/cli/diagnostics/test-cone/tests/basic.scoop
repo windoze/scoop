@@ -1,0 +1,12 @@
+package org.`scoop-lang`
+
+import scoop.test.*
+
+@Test
+private class BasicTests {
+    @Test
+    fun `greeting is ready`() {
+        val x=greeting().charLength()
+        assertEquals(13L, x)
+    }
+}

@@ -10,6 +10,7 @@
 mod basics;
 mod builders;
 mod core;
+mod initializer_diagnostics;
 mod interpolation;
 mod m10;
 mod m11;

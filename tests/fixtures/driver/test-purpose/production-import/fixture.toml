@@ -11,6 +11,10 @@ argv = ["${scoop}", "build", "--release", {each = "${compile_args}"}, "${fixture
 exit = 1
 stdout = ""
 stderr = """
-${fixture}/program/src/api.scoop:2:8: error[SCOOPC_HIR_ERROR]: import target is not available in the current compilation unit
+error[SCOOPC_HIR_ERROR]: import target is not available in the current compilation unit
+ --> ${fixture}/program/src/api.scoop:2:8
+  |
+2 | import scoop.test.Test
+  |        ^^^^^^^^^^^^^^^
 """
 checks = [{file = "${work}/tests.slib", exists = false}]

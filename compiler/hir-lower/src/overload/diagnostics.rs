@@ -33,7 +33,7 @@ impl Lowerer {
         prepared: &[Candidate],
         failures: &mut [CandidateProbeFailure],
         context: CandidateFailureContext<'_, '_>,
-    ) {
+    ) -> bool {
         let CandidateFailureContext {
             arguments,
             extension_receiver,
@@ -41,6 +41,14 @@ impl Lowerer {
             span,
         } = context;
         debug_assert_eq!(failures.len(), prepared.len());
+        if failures.iter().any(|failure| {
+            matches!(failure.kind, CandidateProbeFailureKind::Expression { .. })
+                && failure.state(self).diagnostics.len() == self.diagnostics.len()
+        }) {
+            // An argument depends on an already rejected declaration. Keep
+            // that original error instead of inventing an overload failure.
+            return false;
+        }
         failures.sort_by_key(|failure| failure.candidate);
         if failures
             .iter()
@@ -80,7 +88,7 @@ impl Lowerer {
             });
             if same_diagnostics && independent_of_context {
                 self.diagnostics.extend(diagnostics);
-                return;
+                return true;
             }
         }
         let diagnostic_span = common_failure_span(
@@ -110,6 +118,7 @@ impl Lowerer {
                 traces.join("\n")
             ),
         );
+        true
     }
 
     pub(super) fn ambiguity_diagnostic(

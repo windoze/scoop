@@ -8,7 +8,7 @@ tags = ["driver", "check", "generator", "diagnostics", "cache"]
 
 [vars]
 options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--generator", "test.peer=generator"]
-expected = "generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:3:5: warning[SCOOPC_COMPILER_WARNING]: fragment warning\n${root}:3:29: note: implementation requested here\nchecked scoop:single-file:0.0.0 (production)\n"
+expected = "warning[SCOOPC_COMPILER_WARNING]: fragment warning\n --> generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:3:5\n  |\n3 |     return 42\n  |     ^^^^^^\nnote: implementation requested here\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nchecked scoop:single-file:0.0.0 (production)\n"
 
 [[steps]]
 name = "peer"

@@ -41,6 +41,11 @@ impl Lowerer {
             }
             Err(_) => None,
         };
+        // Keep the resolved property's type for a final diagnostic, without
+        // preventing a later function or invoke partition from succeeding.
+        let mut property_type = property
+            .as_ref()
+            .map(|property| property.state.type_name(property.expression.ty));
         let mut members = self.methods_by_name(receiver.ty, &name.text);
         members.retain(|candidate| {
             self.function_matches_required_modifiers(candidate.function, direct_required)
@@ -319,6 +324,9 @@ impl Lowerer {
                     &mut extension_property_sink,
                 ) {
                     crate::properties::ExtensionPropertyCandidateOutcome::Resolved(property) => {
+                        property_type.get_or_insert_with(|| {
+                            extension_property_state.type_name(property.read.ty)
+                        });
                         if let Some(origin) = extension_property_layers
                             .iter()
                             .find(|origin| origin.kind.call_rank() == rank)
@@ -468,6 +476,8 @@ impl Lowerer {
 
         if let Some(failure) = first_failure {
             self.commit_layer_diagnostics(&failure);
+        } else if let Some(property_type) = property_type {
+            self.not_callable(name.span, &property_type);
         } else if let Some(message) = self.inaccessible_method_message(receiver.ty, &name.text) {
             self.error(name.span, message);
         } else {

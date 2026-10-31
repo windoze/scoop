@@ -22,6 +22,9 @@ impl Lowerer {
                 .contextual_backing_field(name.span)
                 .map(|(read, _)| read);
         }
+        if self.scopes.is_rejected(&name.text) {
+            return None;
+        }
         let Some(local) = self.scopes.lookup(&name.text) else {
             if self.release_has_field_name(&name.text) {
                 return self.release_field_read(name);

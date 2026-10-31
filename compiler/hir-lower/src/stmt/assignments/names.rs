@@ -39,6 +39,9 @@ impl Lowerer {
             out.extend(sink);
             return Some(hir::StatementKind::Assign { target, value });
         }
+        if self.scopes.is_rejected(&name.text) {
+            return None;
+        }
         let Some(local) = self.scopes.lookup(&name.text) else {
             if self.constructor_params_in_scope.contains_key(&name.text) {
                 self.error(

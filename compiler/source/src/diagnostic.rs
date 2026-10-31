@@ -1,6 +1,8 @@
 use crate::{SourceText, Span};
 use scoop_identity::SourceIdentity;
 
+mod render;
+
 /// Severity of one compiler diagnostic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticSeverity {
@@ -9,10 +11,10 @@ pub enum DiagnosticSeverity {
 }
 
 impl DiagnosticSeverity {
-    fn label(self) -> &'static str {
+    fn level(self) -> annotate_snippets::Level<'static> {
         match self {
-            Self::Error => "error",
-            Self::Warning => "warning",
+            Self::Error => annotate_snippets::Level::ERROR,
+            Self::Warning => annotate_snippets::Level::WARNING,
         }
     }
 }
@@ -124,32 +126,33 @@ impl Diagnostic {
         }
     }
 
-    /// Render as `<file>:<line>:<col>: <severity>: <message>`.
+    /// Render a plain diagnostic with its source range underlined.
     pub fn render(&self, file_name: &str, source: &str) -> String {
-        self.render_position(file_name, |offset| line_col(source, offset))
+        self.render_with_code(file_name, source, None, false)
     }
 
-    /// Reuse the index shared by all diagnostics for this immutable source.
+    /// Render from the immutable source shared by this diagnostic batch.
     pub fn render_with_source(&self, file_name: &str, source: &SourceText) -> String {
-        self.render_position(file_name, |offset| source.diagnostic_position(offset))
+        self.render(file_name, source.as_str())
     }
 
-    fn render_position(
+    /// Attach the CLI's diagnostic code and optionally style terminal output.
+    pub fn render_with_code(
         &self,
         file_name: &str,
-        position: impl FnOnce(u32) -> (usize, usize),
+        source: &str,
+        code: Option<&str>,
+        color: bool,
     ) -> String {
-        match self.span {
-            Some(span) => {
-                let (line, col) = position(span.start);
-                format!(
-                    "{file_name}:{line}:{col}: {}: {}",
-                    self.severity.label(),
-                    self.message
-                )
-            }
-            None => format!("{file_name}: {}: {}", self.severity.label(), self.message),
-        }
+        render::render(
+            self.severity.level(),
+            code,
+            &self.message,
+            file_name,
+            source,
+            self.span,
+            color,
+        )
     }
 }
 
@@ -163,33 +166,26 @@ impl DiagnosticNote {
         }
     }
 
-    /// Render as `<file>:<line>:<col>: note: <message>`.
+    /// Render a related diagnostic with its own source range.
     pub fn render(&self, file_name: &str, source: &str) -> String {
-        let (line, col) = line_col(source, self.span.start);
-        format!("{file_name}:{line}:{col}: note: {}", self.message)
+        self.render_with_color(file_name, source, false)
     }
 
     pub fn render_with_source(&self, file_name: &str, source: &SourceText) -> String {
-        let (line, col) = source.diagnostic_position(self.span.start);
-        format!("{file_name}:{line}:{col}: note: {}", self.message)
+        self.render(file_name, source.as_str())
     }
-}
 
-fn line_col(source: &str, offset: u32) -> (usize, usize) {
-    let mut line = 1;
-    let mut col = 1;
-    for (i, ch) in source.char_indices() {
-        if i as u32 >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            col = 1;
-        } else {
-            col += 1;
-        }
+    pub fn render_with_color(&self, file_name: &str, source: &str, color: bool) -> String {
+        render::render(
+            annotate_snippets::Level::NOTE,
+            None,
+            &self.message,
+            file_name,
+            source,
+            Some(self.span),
+            color,
+        )
     }
-    (line, col)
 }
 
 #[cfg(test)]
@@ -199,16 +195,19 @@ mod tests {
     #[test]
     fn diagnostic_render_uses_typed_severity_with_and_without_a_span() {
         let error = Diagnostic::at(Span::new(6, 10), "bad value");
-        assert_eq!(
-            error.render("main.scoop", "first\nvalue"),
-            "main.scoop:2:1: error: bad value"
-        );
+        let rendered = error.render("main.scoop", "first\nvalue");
+        assert!(rendered.starts_with("error: bad value\n"), "{rendered}");
+        assert!(rendered.contains("--> main.scoop:2:1"), "{rendered}");
+        assert!(rendered.contains("2 | value\n  | ^^^^"), "{rendered}");
 
         let warning = Diagnostic::warning_at(Span::new(6, 10), "suspicious value");
-        assert_eq!(
-            warning.render("main.scoop", "first\nvalue"),
-            "main.scoop:2:1: warning: suspicious value"
+        let rendered = warning.render("main.scoop", "first\nvalue");
+        assert!(
+            rendered.starts_with("warning: suspicious value\n"),
+            "{rendered}"
         );
+        assert!(rendered.contains("--> main.scoop:2:1"), "{rendered}");
+        assert!(rendered.contains("2 | value\n  | ^^^^"), "{rendered}");
 
         let no_span = Diagnostic {
             severity: DiagnosticSeverity::Warning,
@@ -220,7 +219,7 @@ mod tests {
         };
         assert_eq!(
             no_span.render("main.scoop", ""),
-            "main.scoop: warning: link warning"
+            "warning: link warning\n --> main.scoop"
         );
     }
 
@@ -230,10 +229,10 @@ mod tests {
         let diagnostic = Diagnostic::at(Span::new(0, 3), "cannot access").with_note(note.clone());
 
         assert_eq!(diagnostic.notes, vec![note.clone()]);
-        assert_eq!(
-            note.render("library.scoop", "first\nsecond\nthird"),
-            "library.scoop:3:1: note: declared here"
-        );
+        let rendered = note.render("library.scoop", "first\nsecond\nthird");
+        assert!(rendered.starts_with("note: declared here\n"), "{rendered}");
+        assert!(rendered.contains("--> library.scoop:3:1"), "{rendered}");
+        assert!(rendered.contains("3 | third\n  | ^^^^"), "{rendered}");
     }
 
     #[test]

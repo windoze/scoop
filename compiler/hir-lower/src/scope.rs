@@ -11,10 +11,17 @@ use scoop_hir::{LocalFunctionId, LocalId};
 /// the same name.
 #[derive(Debug, Clone)]
 pub(crate) struct Scopes {
-    stack: Vec<imbl::HashMap<String, LocalId>>,
+    stack: Vec<imbl::HashMap<String, ScopedLocal>>,
     aliases: Vec<imbl::HashMap<String, crate::aliases::SourceTypeAliasId>>,
     nominals: Vec<imbl::HashMap<String, crate::NominalTarget>>,
     imports: Vec<std::sync::Arc<crate::imports::FrozenFileImports>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ScopedLocal {
+    Resolved(LocalId),
+    /// The initializer failed; no untyped local is added to HIR.
+    Rejected,
 }
 
 /// Lexical candidate layers for block-local named functions. Each block is a
@@ -119,12 +126,31 @@ impl Scopes {
         self.stack
             .last_mut()
             .expect("declarations only happen inside a scope")
-            .insert(name, id);
+            .insert(name, ScopedLocal::Resolved(id));
+    }
+
+    pub(crate) fn reject(&mut self, name: String) {
+        self.stack
+            .last_mut()
+            .expect("declarations only happen inside a scope")
+            .entry(name)
+            .or_insert(ScopedLocal::Rejected);
+    }
+
+    pub(crate) fn is_rejected(&self, name: &str) -> bool {
+        matches!(self.lookup_binding(name), Some(ScopedLocal::Rejected))
     }
 
     /// Resolve `name`, innermost scope first (so inner locals shadow
     /// outer ones).
     pub(crate) fn lookup(&self, name: &str) -> Option<LocalId> {
+        match self.lookup_binding(name)? {
+            ScopedLocal::Resolved(local) => Some(local),
+            ScopedLocal::Rejected => None,
+        }
+    }
+
+    fn lookup_binding(&self, name: &str) -> Option<ScopedLocal> {
         self.stack
             .iter()
             .rev()
@@ -135,18 +161,37 @@ impl Scopes {
     /// replace outer bindings with the same name. Capture analysis consumes
     /// this snapshot before entering a nested callable body.
     pub(crate) fn visible(&self) -> HashMap<String, LocalId> {
-        let mut visible = HashMap::new();
-        for scope in &self.stack {
-            visible.extend(scope.iter().map(|(name, local)| (name.clone(), *local)));
-        }
-        visible
+        self.visible_bindings()
+            .into_iter()
+            .filter_map(|(name, binding)| match binding {
+                ScopedLocal::Resolved(local) => Some((name, local)),
+                ScopedLocal::Rejected => None,
+            })
+            .collect()
+    }
+
+    fn visible_bindings(&self) -> HashMap<String, ScopedLocal> {
+        self.stack
+            .iter()
+            .flat_map(|scope| scope.iter().map(|(name, binding)| (name.clone(), *binding)))
+            .collect()
     }
 }
 
 impl Scopes {
     pub(crate) fn nested_callable(&self) -> Self {
+        let mut stack = vec![imbl::HashMap::new(); self.stack.len()];
+        if let Some(scope) = stack.last_mut() {
+            // Typed locals become captures; rejected names still block outer
+            // values without creating captures that have no type.
+            scope.extend(
+                self.visible_bindings()
+                    .into_iter()
+                    .filter(|(_, binding)| matches!(binding, ScopedLocal::Rejected)),
+            );
+        }
         Self {
-            stack: vec![imbl::HashMap::new(); self.stack.len()],
+            stack,
             aliases: self.aliases.clone(),
             nominals: self.nominals.clone(),
             imports: self.imports.clone(),

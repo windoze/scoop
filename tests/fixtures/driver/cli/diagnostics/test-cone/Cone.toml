@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = "org.scoop-lang"
+name = "scoop-ex1"
+version = "0.1.0"
+kind = "executable"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

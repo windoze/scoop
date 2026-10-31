@@ -339,7 +339,7 @@ impl Lowerer {
 
         let winner = match applicable.len() {
             0 => {
-                self.candidate_failures_diagnostic(
+                let reported = self.candidate_failures_diagnostic(
                     name,
                     &prepared,
                     &mut failures,
@@ -350,6 +350,9 @@ impl Lowerer {
                         span,
                     },
                 );
+                if !reported {
+                    return OverloadResolutionOutcome::Blocked;
+                }
                 return if suppressed {
                     OverloadResolutionOutcome::Failed
                 } else {
