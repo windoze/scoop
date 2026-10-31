@@ -19,7 +19,7 @@ workspace/symbol 搜索已加载项目的顶层声明与名义类型成员，支
 
 每个请求读取固定分析版本，未变化文件复用语法树；输入更新使旧计算失效并重新安排尚需响应的请求。传输循环在解析期间继续处理修改和取消，取消请求仍收到响应。诊断携带当前客户端版本，修复后发布空列表清除原诊断。
 
-工作区通过配套 `scoop-pm members` 与 `metadata --offline` 取得成员和锁定依赖图。先显式运行 `scoop pm resolve` 或普通 build/run 准备 `Cone.lock`，缺少本地依赖时运行 `scoop pm fetch`。服务器不联网、不选择新版本、不改写 lock；缺少适用 lock 的成员仍有语法诊断和符号查询，不影响其他成员的语义服务。workspace 根会加载全部成员，包括不在 default-members 中的成员；单独打开成员目录只选择该成员。
+工作区先通过配套 `scoop-pm members` 确认成员和 workspace 根。实际 `Cone.lock`（或配置的 `lockfile`）不存在时，服务器自动调用 PM 的 resolve 流程，按已保存的清单解析并准备依赖、生成 lock，再通过 `metadata --offline` 加载语义信息，无需先 build；首次解析可按声明获取 Git／registry 来源。已有 lock 时保持离线读取和锁定选择，缺少本地依赖时提示 `scoop pm fetch`，缺少适用记录或声明已变化时提示 `scoop pm resolve`。解析失败的成员仍有语法诊断和符号查询，不影响其他成员的语义服务。workspace 根会加载全部成员，包括不在 default-members 中的成员；单独打开成员目录只选择该成员。首次初始化覆盖本次加载的各成员及 target／purpose 配置，未保存的清单文本不会写入 lock。
 
 工作区复用普通 Cone.toml 与源码条件。workspaceFolders 或 rootUri 可指向 Cone 根；较大的仓库目录在打开文件时选择其最近的 Cone 根，同时加载声明的源码依赖。未归属项目的文件继续提供语法服务。打开的 Cone.toml 也覆盖磁盘；错误 manifest、缺失依赖与无效目标以 `SCOOP_PROJECT` 诊断发布。服务器响应 workspace/didChangeConfiguration、workspace/didChangeWorkspaceFolders 和文件变更通知；客户端支持动态文件监听注册时，服务器请求监听 manifest、Cone.lock、Scoop 源码与 slib。
 

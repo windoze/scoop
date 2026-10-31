@@ -56,23 +56,40 @@ impl<'a> PackageInputs<'a> {
     }
 
     pub fn members(&self, root: &Path) -> Result<PackageMembersV1, LoadError> {
-        let result: PackageMembersV1 = self.invoke(self.command("members", root))?;
+        let result: PackageMembersV1 =
+            self.invoke(self.command("members", root), Some(&self.overlays))?;
         result
             .validate()
             .map_err(|error| LoadError::new(root, error))?;
         Ok(result)
     }
 
-    pub fn metadata(
+    pub fn load_member(
         &self,
         root: &Path,
         member: &ConeCoordinate,
+        initialize_lockfile: bool,
     ) -> Result<PreparedWorkspaceV1, LoadError> {
-        let mut command = self.command("metadata", root);
+        if initialize_lockfile {
+            self.invoke::<serde_json::Value>(
+                self.dependency_command("resolve", root, member),
+                None,
+            )?;
+        }
+        let mut command = self.dependency_command("metadata", root, member);
+        command.arg("--offline");
+        let result: PreparedWorkspaceV1 = self.invoke(command, Some(&self.overlays))?;
+        result
+            .validate()
+            .map_err(|error| LoadError::new(root, error))?;
+        Ok(result)
+    }
+
+    fn dependency_command(&self, action: &str, root: &Path, member: &ConeCoordinate) -> Command {
+        let mut command = self.command(action, root);
         command
             .arg("-p")
             .arg(format!("{}:{}", member.group(), member.name()))
-            .arg("--offline")
             .arg("--purpose")
             .arg(match self.configuration.purpose {
                 CompilationPurpose::Production => "production",
@@ -97,28 +114,26 @@ impl<'a> PackageInputs<'a> {
         if let Some(path) = &self.configuration.lockfile {
             command.arg("--lockfile").arg(path);
         }
-        let result: PreparedWorkspaceV1 = self.invoke(command)?;
-        result
-            .validate()
-            .map_err(|error| LoadError::new(root, error))?;
-        Ok(result)
+        command
     }
 
     fn command(&self, action: &str, root: &Path) -> Command {
         let mut command = Command::new(&self.configuration.package_manager);
         command.arg(action).arg(root).arg("--json");
-        if !self.overlays.manifests.is_empty() {
-            command.arg("--overlays-stdin");
-        }
         command
     }
 
-    fn invoke<T: DeserializeOwned>(&self, mut command: Command) -> Result<T, LoadError> {
+    fn invoke<T: DeserializeOwned>(
+        &self,
+        mut command: Command,
+        overlays: Option<&ManifestOverlaysV1>,
+    ) -> Result<T, LoadError> {
         let path = &self.configuration.root;
-        let bytes = if self.overlays.manifests.is_empty() {
-            None
+        let bytes = if let Some(overlays) = overlays.filter(|value| !value.manifests.is_empty()) {
+            command.arg("--overlays-stdin");
+            Some(serde_json::to_vec(overlays).map_err(|error| LoadError::new(path, error))?)
         } else {
-            Some(serde_json::to_vec(&self.overlays).map_err(|error| LoadError::new(path, error))?)
+            None
         };
         let mut child = command
             .stdin(Stdio::piped())
@@ -161,7 +176,7 @@ impl<'a> PackageInputs<'a> {
             return Err(LoadError::new(
                 path,
                 format!(
-                    "package inspection failed ({}): {}",
+                    "package manager failed ({}): {}",
                     output.status,
                     String::from_utf8_lossy(&output.stderr).trim()
                 ),

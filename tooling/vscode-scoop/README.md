@@ -58,7 +58,7 @@ code --install-extension "$HOME"/.scoop/tooling/scoop-language-support-*.vsix
 
 分析配置改变后通知现有服务器。空 configurations 使用工作区目录与打开文件最近的
 `Cone.toml` 发现项目；支持多根工作区、未保存的 Scoop／Cone.toml 文本，以及磁盘上
-源码、manifest、Cone.lock 和 slib 的变更。依赖由用户显式 resolve/fetch 或 build/run 准备；LSP 离线消费锁定图，不自动下载或改写 lock。workspace 根加载全部成员，缺少锁定输入的成员仍保留语法服务。使用测试或多目标配置的完整例子见
+源码、manifest、Cone.lock 和 slib 的变更。缺少 Cone.lock 时，LSP 自动调用配套 PM，按已保存的清单解析并准备依赖、生成锁文件，无需先 build；已有锁文件时离线消费锁定图，依赖更新或补充缺失来源仍通过显式 resolve/fetch 或 build/run 完成。workspace 根加载全部成员，解析失败或缺少锁定输入的成员仍保留语法服务。使用测试或多目标配置的完整例子见
 [服务器说明](../../compiler/lsp/README.md)。
 
 命令面板提供 `Scoop: Restart Language Server` 和 `Scoop: Show Language Server Output`。

@@ -306,11 +306,11 @@ single-file build/run 和 artifact-only `scoop link` 保持现有精确输入方
 
 需要分开编译和链接时使用 `scoop build --emit-slib`：仍经 PM/lock 准备完整图和正常单 Cone 编译，但将根 `.slib` 作为输出，不准备 runtime、不执行最终链接。`-o` 指定产物位置，默认成员输出名为 `<name>.slib`；单文件使用源文件 stem。JSON 成功结果的 `kind` 为 `artifact`，保留 root/dependencies 与编译观察，不含 runtime/link 字段。`--tests` 只与 `--emit-slib` 一起使用，选择 Test 锁定图和测试入口产物，默认仍为 Production；普通测试继续使用 `scoop test`。该输出选择不进入编译缓存键，后续普通 build 可直接复用 `.slib` 后链接。
 
-LSP使用同一已展开数据模型；已有本地准备结果可直接消费，缺少结果时可执行PM的`metadata --offline`读取，不修改lock。缺少锁定源码提示fetch，缺少适用lock则提示resolve；仍可展示本地members和语法诊断。文档编辑或补全不自动触发网络。formatter只需本地成员发现和源码清单展开，使用PM的members输出，不要求先成功求解依赖。
+LSP 使用同一已展开数据模型。加载项目时，先通过 PM 的 members 确认 workspace 根，再检查显式 `lockfile` 或 workspace 根的 `Cone.lock` 是否存在；缺失时，为本次选中的成员、target 和 purpose 调用配套 PM 的普通 resolve 流程，按磁盘清单解析并准备依赖、生成 lock，成功后继续通过 `metadata --offline` 读取语义输入，无需先 build。自动 resolve 可按依赖声明获取所需来源，但不编译项目、准备 sysroot 或执行 native 构建。已有 lock 时继续离线读取并复用本地准备结果，不自动更新依赖选择；缺少锁定源码提示 fetch，缺少适用记录或声明已变化则提示 resolve。普通文档编辑和补全不触发依赖更新。formatter 只需本地成员发现和源码清单展开，使用 PM 的 members 输出，不要求先成功求解依赖。
 
 `members --overlays-stdin` 与 `metadata --offline --overlays-stdin` 为编辑器接收未保存的清单文本。stdin 是版本 4 JSON：`version` 与 `manifests` 数组，每项含无损绝对 host `path` 及 UTF-8 `text`；路径必须指向 `Cone.toml` 且不重复。PM 对这些本地 workspace/path/Git 清单使用同一解析、继承和锁定匹配规则，关闭 buffer 后恢复磁盘输入。覆盖文本不写回清单、lock、共享源码或持久准备记录；未覆盖的输入继续复用既有缓存。metadata 的此模式强制离线，只接受现有锁定选择；新增或改变依赖导致 lock 不适用时提示保存后 resolve。成员发现仍可在无 lock 时工作，新增但未保存的成员清单沿普通本地路径参与发现。原路径与覆盖文本保留给诊断，不生成临时源码树。
 
-LSP 在 workspace 根打开时发现全部成员，并为各成员独立取得所选 target/purpose 的锁定图；显式成员目录只选择该成员。一个成员缺少适用 lock 或本地依赖时，仅该成员的依赖语义不可用，本地源码、语法诊断和 workspace 符号仍可使用，不能以猜测的版本或空依赖图冒充已解析项目。已安装系统库的源码导航也使用 members 提供的源码选择，不为导航解析依赖。`Cone.lock` 与清单、源码和产物共同参与文件监听；依赖准备只由用户显式 resolve/fetch/build 触发。LSP 的 `packageManager` 默认取实际 scoop-lsp 同目录的 scoop-pm，`packageCacheDir` 与 `lockfile` 可显式配置，均沿配置根解析相对路径。
+LSP 在 workspace 根打开时发现全部成员，并为各成员独立取得所选 target/purpose 的锁定图；显式成员目录只选择该成员。同一次加载发现 lock 缺失时，共用该 lock 的各成员和配置都执行上述初始化，不因第一个成员创建了文件而漏掉其余记录。某成员解析失败、缺少适用记录或本地依赖时，仅该成员的依赖语义不可用，本地源码、语法诊断和 workspace 符号仍可使用，不能以猜测的版本或空依赖图冒充已解析项目。首次 lock 只依据磁盘清单生成；未保存文本继续仅作为随后 members/metadata 的覆盖输入，不写入 lock。已安装系统库的源码导航也使用 members 提供的源码选择，不为导航解析依赖。`Cone.lock` 与清单、源码和产物共同参与文件监听；已有 lock 的依赖准备仍由用户显式 resolve/fetch/build 触发。LSP 的 `packageManager` 默认取实际 scoop-lsp 同目录的 scoop-pm，`packageCacheDir` 与 `lockfile` 可显式配置，均沿配置根解析相对路径。
 
 `members --json` 的格式 4 同样由 `scoop-protocol` 定义：返回 workspace root、所有成员的 coordinate/kind/相对路径/本地目录/清单路径、selected 标记及生产/测试 SourceSelection；本地路径使用无损 host path 载体。formatter 消费所选成员的源码集合，clean 使用 workspace root 定位统一 target；两者不调用 prepare，不创建或读取 lock。JSON 失败使用与 prepare 相同的结构化诊断记录。`fmt` 支持 `--workspace` 和可重复 `-p`，成员选择只接受一个 workspace 输入；多个显式文件仍可合并格式化。显式 `.scoop` 文件模式独立于 PM。
 

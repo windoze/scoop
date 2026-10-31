@@ -10,6 +10,12 @@ pub fn write(root: &Path, name: &str, text: &str) -> PathBuf {
 }
 
 pub fn setup(root: &Path) -> ProjectConfiguration {
+    let configuration = setup_without_lock(root);
+    resolve(&configuration);
+    configuration
+}
+
+pub fn setup_without_lock(root: &Path) -> ProjectConfiguration {
     write(
         root,
         "core/Cone.toml",
@@ -30,7 +36,7 @@ pub fn setup(root: &Path) -> ProjectConfiguration {
         "app/src/value.scoop",
         "package test.app\nfun value(): Int = 42\n",
     );
-    let configuration = ProjectConfiguration {
+    ProjectConfiguration {
         name: "app".into(),
         root: root.join("app"),
         target: scoop_toolchain::select_target("aarch64-apple-darwin").unwrap(),
@@ -46,9 +52,7 @@ pub fn setup(root: &Path) -> ProjectConfiguration {
             .join(format!("scoop-pm{}", std::env::consts::EXE_SUFFIX)),
         package_cache: Some(root.join("pm-cache")),
         lockfile: None,
-    };
-    resolve(&configuration);
-    configuration
+    }
 }
 
 pub fn resolve(configuration: &ProjectConfiguration) {
