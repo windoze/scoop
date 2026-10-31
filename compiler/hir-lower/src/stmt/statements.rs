@@ -227,34 +227,10 @@ impl Lowerer {
     /// Only irrefutable patterns are allowed here — `lower_pattern`
     /// with `in_when: false` rejects enum variants and literals.
     fn lower_val_decl(&mut self, decl: &ast::ValDecl, out: &mut Vec<hir::Statement>) -> Option<()> {
-        let annotation = match &decl.ty {
-            Some(ty_ref) => Some(self.resolve_type_ref(ty_ref)?),
-            None => None,
-        };
         let mut sink = Vec::new();
-        let init = self.lower_expr(&decl.init, &mut sink, annotation)?;
-        let (init, ty) = match annotation {
-            Some(expected) => {
-                if !self.is_subtype(init.ty, expected) {
-                    let expected_name = self.type_name(expected);
-                    let found = self.type_name(init.ty);
-                    let message = self.with_nominal_invariance_detail(
-                        format!(
-                            "initializer of `{}` must be of type {expected_name}, found {found}",
-                            ast::dump_pattern(&decl.target)
-                        ),
-                        init.ty,
-                        expected,
-                    );
-                    self.error(decl.init.span(), message);
-                    return None;
-                }
-                (self.adapt_to(init, expected), expected)
-            }
-            None => {
-                let ty = init.ty;
-                (init, ty)
-            }
+        let Some((init, ty)) = self.lower_val_initializer(decl, &mut sink) else {
+            self.reject_initializer_bindings(&decl.target);
+            return None;
         };
         // A trivial named declaration needs no separate subject/projection
         // schedule. Composite and wildcard targets use the shared binding
@@ -282,6 +258,54 @@ impl Lowerer {
             out.extend(plan);
         }
         Some(())
+    }
+
+    fn lower_val_initializer(
+        &mut self,
+        decl: &ast::ValDecl,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<(hir::Expr, TypeId)> {
+        let annotation = match &decl.ty {
+            Some(ty_ref) => Some(self.resolve_type_ref(ty_ref)?),
+            None => None,
+        };
+        let init = self.lower_expr(&decl.init, sink, annotation)?;
+        let Some(expected) = annotation else {
+            let ty = init.ty;
+            return Some((init, ty));
+        };
+        if !self.is_subtype(init.ty, expected) {
+            let expected_name = self.type_name(expected);
+            let found = self.type_name(init.ty);
+            let message = self.with_nominal_invariance_detail(
+                format!(
+                    "initializer of `{}` must be of type {expected_name}, found {found}",
+                    ast::dump_pattern(&decl.target)
+                ),
+                init.ty,
+                expected,
+            );
+            self.error(decl.init.span(), message);
+            return None;
+        }
+        Some((self.adapt_to(init, expected), expected))
+    }
+
+    fn reject_initializer_bindings(&mut self, pattern: &ast::Pattern) {
+        match pattern {
+            ast::Pattern::Binding(name) => self.scopes.reject(name.text.clone()),
+            ast::Pattern::Tuple { elements, .. } | ast::Pattern::Positional { elements, .. } => {
+                for element in elements {
+                    self.reject_initializer_bindings(element);
+                }
+            }
+            ast::Pattern::Named { fields, .. } => {
+                for field in fields {
+                    self.reject_initializer_bindings(&field.subpattern);
+                }
+            }
+            ast::Pattern::Wildcard { .. } | ast::Pattern::Literal { .. } => {}
+        }
     }
 
     /// `if` / `while` conditions must be `Boolean`.

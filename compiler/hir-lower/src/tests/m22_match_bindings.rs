@@ -9,8 +9,7 @@ fn signal_decl() -> Decl {
 }
 
 #[test]
-fn unknown_bare_enum_pattern_is_a_non_fatal_warning() {
-    let typo_span = Span::new(41, 47);
+fn unknown_bare_enum_pattern_binds_without_a_warning() {
     let output = lower_user_output(file(vec![
         signal_decl(),
         fun(
@@ -21,24 +20,16 @@ fn unknown_bare_enum_pattern_is_a_non_fatal_warning() {
                     var("signal"),
                     vec![
                         arm(pat_bind("Ready"), None, vec![]),
-                        arm(pat_bind_at("Raedy", typo_span), None, vec![]),
+                        arm(pat_bind("Raedy"), None, vec![val("matched", var("Raedy"))]),
                     ],
                     None,
                 ),
             ],
         ),
     ]))
-    .expect("a catch-all warning must not prevent HIR output");
+    .expect("an unknown bare enum name introduces a usable binding");
 
-    assert_eq!(output.warnings.len(), 1);
-    let warning = &output.warnings[0];
-    assert_eq!(warning.severity, ast::DiagnosticSeverity::Warning);
-    assert_eq!(warning.file, 1);
-    assert_eq!(warning.span, Some(typo_span));
-    assert_eq!(
-        warning.message,
-        "`Raedy` is a catch-all binding because `Signal` has no variant named `Raedy`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all"
-    );
+    assert!(output.warnings.is_empty());
 }
 
 #[test]
@@ -72,14 +63,13 @@ fn resolved_variant_wildcard_non_enum_and_non_when_bindings_do_not_warn() {
             ],
         ),
     ]))
-    .expect("none of the patterns is a suspicious enum catch-all binding");
+    .expect("variant, wildcard and binding patterns remain valid");
 
     assert!(output.warnings.is_empty());
 }
 
 #[test]
-fn committed_warning_survives_a_later_error_without_changing_failure() {
-    let typo_span = Span::new(70, 76);
+fn enum_binding_does_not_add_a_warning_to_a_later_error() {
     let diagnostics = lower_user_output(file(vec![
         signal_decl(),
         fun(
@@ -88,31 +78,26 @@ fn committed_warning_survives_a_later_error_without_changing_failure() {
                 val("signal", field(var("Signal"), "Ready")),
                 when_stmt(
                     var("signal"),
-                    vec![arm(pat_bind_at("Raedy", typo_span), None, vec![])],
+                    vec![arm(pat_bind("Raedy"), None, vec![])],
                     None,
                 ),
                 val("broken", var("missing")),
             ],
         ),
     ]))
-    .expect_err("a warning must not turn a later semantic error into success");
+    .expect_err("a valid enum binding must not hide a later semantic error");
 
-    assert_eq!(diagnostics.len(), 2);
+    assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0].severity, ast::DiagnosticSeverity::Error);
     assert!(
         diagnostics[0]
             .message
             .contains("unknown variable `missing`")
     );
-    assert_eq!(diagnostics[1].severity, ast::DiagnosticSeverity::Warning);
-    assert_eq!(diagnostics[1].span, Some(typo_span));
-    assert!(diagnostics[1].message.contains("catch-all binding"));
 }
 
 #[test]
-fn recursive_enum_columns_warn_once_for_each_binding_in_source_order() {
-    let first_span = Span::new(20, 25);
-    let second_span = Span::new(30, 36);
+fn recursive_enum_payloads_bind_without_warnings() {
     let output = lower_user_output(file(vec![
         signal_decl(),
         enum_decl(
@@ -139,16 +124,9 @@ fn recursive_enum_columns_warn_once_for_each_binding_in_source_order() {
                 when_stmt(
                     var("pair"),
                     vec![arm(
-                        pat_pos(
-                            &["Wrap"],
-                            vec![
-                                pat_bind_at("first", first_span),
-                                pat_bind_at("second", second_span),
-                            ],
-                            None,
-                        ),
+                        pat_pos(&["Wrap"], vec![pat_bind("first"), pat_bind("second")], None),
                         None,
-                        vec![],
+                        vec![val("pair", tuple_lit(vec![var("first"), var("second")]))],
                     )],
                     None,
                 ),
@@ -157,20 +135,11 @@ fn recursive_enum_columns_warn_once_for_each_binding_in_source_order() {
     ]))
     .expect("recursive catch-all bindings remain valid patterns");
 
-    assert_eq!(output.warnings.len(), 2);
-    assert_eq!(output.warnings[0].span, Some(first_span));
-    assert_eq!(output.warnings[1].span, Some(second_span));
-    assert!(
-        output
-            .warnings
-            .iter()
-            .all(|warning| warning.severity == ast::DiagnosticSeverity::Warning)
-    );
+    assert!(output.warnings.is_empty());
 }
 
 #[test]
-fn value_arm_classification_probe_does_not_duplicate_a_warning() {
-    let typo_span = Span::new(50, 56);
+fn contextual_value_arm_preserves_enum_bindings_without_warnings() {
     let output = lower_user_output(file(vec![
         enum_decl(
             "Input",
@@ -200,7 +169,7 @@ fn value_arm_classification_probe_does_not_duplicate_a_warning() {
                                 vec![stmt(field(var("Outcome"), "Done"))],
                             ),
                             arm(
-                                pat_bind_at("Firts", typo_span),
+                                pat_bind("Firts"),
                                 None,
                                 vec![stmt(call("consume", vec![var("Firts")])), stmt(var("Done"))],
                             ),
@@ -214,12 +183,11 @@ fn value_arm_classification_probe_does_not_duplicate_a_warning() {
     ]))
     .expect("the qualified arm fixes the contextual result type");
 
-    assert_eq!(output.warnings.len(), 1);
-    assert_eq!(output.warnings[0].span, Some(typo_span));
+    assert!(output.warnings.is_empty());
 }
 
 #[test]
-fn failed_single_nominal_constructor_probe_does_not_leak_a_warning() {
+fn invalid_constructor_argument_reports_only_its_type_error() {
     let errors = lower_user_output(file(vec![
         signal_decl(),
         struct_decl("Box", vec![("value", ty_named("Int"))]),
@@ -234,7 +202,7 @@ fn failed_single_nominal_constructor_probe_does_not_leak_a_warning() {
                         vec![Expr::When(Box::new(ast::When {
                             subject: ast::WhenSubject::Expression(var("signal")),
                             arms: vec![arm(
-                                pat_bind_at("Raedy", Span::new(60, 66)),
+                                pat_bind("Raedy"),
                                 None,
                                 vec![stmt(str_lit("not an Int"))],
                             )],
@@ -253,11 +221,6 @@ fn failed_single_nominal_constructor_probe_does_not_leak_a_warning() {
         errors
             .iter()
             .all(|diagnostic| diagnostic.severity == ast::DiagnosticSeverity::Error)
-    );
-    assert!(
-        errors
-            .iter()
-            .all(|diagnostic| !diagnostic.message.contains("catch-all binding"))
     );
 }
 

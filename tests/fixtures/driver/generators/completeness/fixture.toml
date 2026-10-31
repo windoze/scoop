@@ -11,7 +11,7 @@ name = "unregistered"
 argv = ["${scoopc}", "build", "${root}", "--profile", "release", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--out-slib", "${work}/unregistered.slib"]
 exit = 1
 stdout = ""
-stderr = "error: current Cone HIR lowering failed with 3 diagnostic(s)\n${root}:3:29: error: no host program is registered for generator `test.peer`\n${root}:4:1: error: class `Partial` does not implement interface method `Values.value`\n${root}:4:1: error: class `Partial` does not implement interface method `Values.label`\n"
+stderr = "error: current Cone HIR lowering failed with 3 diagnostic(s)\nerror: no host program is registered for generator `test.peer`\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Values\"])\n  |                             ^^^^^^^^\nerror: class `Partial` does not implement interface method `Values.value`\n --> ${root}:4:1\n  |\n4 | class Partial : Values\n  | ^^^^^^^^^^^^^^^^^^^^^^\nerror: class `Partial` does not implement interface method `Values.label`\n --> ${root}:4:1\n  |\n4 | class Partial : Values\n  | ^^^^^^^^^^^^^^^^^^^^^^\n"
 checks = [{file = "${work}/unregistered.slib", exists = false}]
 
 [[steps]]
@@ -27,5 +27,5 @@ name = "partial"
 argv = ["${scoopc}", "build", "${root}", "--profile", "release", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--generator", "test.peer=generator", "--out-slib", "${work}/partial.slib"]
 exit = 1
 stdout = ""
-stderr = "error: current Cone HIR lowering failed with 1 diagnostic(s)\n${root}:4:1: error: class `Partial` does not implement interface method `Values.label`\n"
+stderr = "error: current Cone HIR lowering failed with 1 diagnostic(s)\nerror: class `Partial` does not implement interface method `Values.label`\n --> ${root}:4:1\n  |\n4 | class Partial : Values\n  | ^^^^^^^^^^^^^^^^^^^^^^\n"
 checks = [{file = "${work}/partial.slib", exists = false}]

@@ -8,11 +8,11 @@ tags = ["driver", "check", "generator", "diagnostics"]
 
 [[variants]]
 name = "syntax"
-vars = { mode = "syntax", expected = "generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:14: error[SCOOPC_HIR_ERROR]: expected expression, found `)`\n${root}:3:29: note: implementation requested here\n${root}:4:1: error[SCOOPC_HIR_ERROR]: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "syntax", expected = "error[SCOOPC_HIR_ERROR]: expected expression, found `)`\n --> generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:14\n  |\n2 |     val 中文 = )\n  |                ^\nnote: implementation requested here\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror[SCOOPC_HIR_ERROR]: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "type"
-vars = { mode = "type", expected = "generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:12: error[SCOOPC_HIR_ERROR]: `return` value of `value` must be of type Int, found String\n${root}:3:29: note: implementation requested here\n" }
+vars = { mode = "type", expected = "error[SCOOPC_HIR_ERROR]: `return` value of `value` must be of type Int, found String\n --> generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:12\n  |\n2 |     return \"中文\"\n  |            ^^^^^^\nnote: implementation requested here\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\n" }
 
 [[steps]]
 name = "peer"

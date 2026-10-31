@@ -62,6 +62,9 @@ impl Lowerer {
         expected: Option<TypeId>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if receiver.is_none() && self.scopes.is_rejected(&name.text) {
+            return None;
+        }
         if let Some(target) = expected
             && let Type::Function(function) = self.types[target]
             && self.function_types[function].receiver.is_some()

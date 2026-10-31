@@ -7,6 +7,8 @@ use scoop_source::SourceText;
 
 use super::*;
 
+mod human;
+
 type SourceContents = BTreeMap<PathBuf, Option<SourceText>>;
 
 impl Reporter {
@@ -56,23 +58,17 @@ impl Reporter {
                     }))?;
                 }
                 MessageFormat::Human => {
+                    use std::io::IsTerminal;
+
+                    let color = io::stderr().is_terminal()
+                        && std::env::var_os("NO_COLOR").is_none_or(|value| value.is_empty())
+                        && std::env::var_os("TERM").is_none_or(|value| value != "dumb");
                     let mut stderr = io::stderr().lock();
                     writeln!(
                         stderr,
-                        "{}{}[{}]: {}",
-                        location(diagnostic.origin(), sources, contents),
-                        severity,
-                        diagnostic.code(),
-                        diagnostic.message()
+                        "{}",
+                        human::render(diagnostic, sources, contents, color)
                     )?;
-                    for note in diagnostic.notes() {
-                        writeln!(
-                            stderr,
-                            "{}note: {}",
-                            location(note.origin(), sources, contents),
-                            note.message()
-                        )?;
-                    }
                 }
             }
         }

@@ -30,6 +30,7 @@ impl Lowerer {
             _ => false,
         };
         (name == "field" && self.backing_field_context.is_some())
+            || self.scopes.is_rejected(name)
             || self.scopes.lookup(name).is_some()
             || !self.local_function_scopes.lookup(name).is_empty()
             || self.available_capture(name).is_some()

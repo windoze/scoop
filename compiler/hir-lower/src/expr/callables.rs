@@ -45,7 +45,7 @@ impl Lowerer {
             .any(|view| self.type_exposes_invoke(view.ty, require_infix))
         {
             let found = self.type_name(callee.ty);
-            self.error(call.span, format!("value of type {found} is not callable"));
+            self.not_callable(call.span, &found);
             return None;
         }
         let name = ast::Ident {
@@ -64,6 +64,10 @@ impl Lowerer {
                 ..Default::default()
             },
         )
+    }
+
+    pub(in crate::expr) fn not_callable(&mut self, span: Span, found: &str) {
+        self.error(span, format!("value of type {found} is not callable"));
     }
 
     pub(super) fn type_exposes_invoke(&mut self, ty: TypeId, require_infix: bool) -> bool {
@@ -124,6 +128,9 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if self.scopes.is_rejected(&call.callee.text) {
+            return None;
+        }
         if let Some(ty) = self.named_callable_value_type(&call.callee.text) {
             let callee = self.lower_var(&call.callee, sink, Some(ty))?;
             return self.lower_value_invoke(

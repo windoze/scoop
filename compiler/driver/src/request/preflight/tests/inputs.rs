@@ -183,10 +183,16 @@ fn single_file_parse_uses_the_reserved_source_identity() {
     )
     .unwrap();
     assert_eq!(warnings.diagnostics().len(), 1);
-    assert_eq!(
-        warnings.render_human(),
-        format!("{}:1:5: warning: entry warning", path.display())
+    let rendered = warnings.render_human();
+    assert!(
+        rendered.starts_with("warning: entry warning\n"),
+        "{rendered}"
     );
+    assert!(
+        rendered.contains(&format!("--> {}:1:5", path.display())),
+        "{rendered}"
+    );
+    assert!(rendered.contains('^'), "{rendered}");
 }
 
 #[test]

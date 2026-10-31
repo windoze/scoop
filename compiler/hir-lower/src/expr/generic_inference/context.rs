@@ -81,7 +81,8 @@ impl Lowerer {
     }
 
     fn bare_value_requires_expected(&self, name: &ast::Ident) -> bool {
-        if self.scopes.lookup(&name.text).is_some()
+        if self.scopes.is_rejected(&name.text)
+            || self.scopes.lookup(&name.text).is_some()
             || self.available_capture(&name.text).is_some()
             || self.constructor_params_in_scope.contains_key(&name.text)
             || self.host_has_property(&name.text)
@@ -113,7 +114,7 @@ impl Lowerer {
 
     fn bare_call_context_requirement(&self, call: &ast::CallExpr) -> ExpressionContextRequirement {
         use ExpressionContextRequirement::{Independent, Unresolved};
-        if call.callee.text.contains('.') {
+        if call.callee.text.contains('.') || self.scopes.is_rejected(&call.callee.text) {
             return Independent;
         }
         if let Some(local) = self.scopes.lookup(&call.callee.text) {

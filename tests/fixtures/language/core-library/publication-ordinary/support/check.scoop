@@ -1,2 +1,2 @@
 package test
-public fun checkPublicationWarning(): Int = describe(Signal.Ready) + describe(Signal.Failed)
+public fun checkPublicationBindings(): Int = describe(Signal.Ready) + describe(Signal.Failed)

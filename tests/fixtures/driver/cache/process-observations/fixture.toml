@@ -1,6 +1,6 @@
 schema = 1
 name = "cli-process-source-observations"
-inputs = ["dependency", "root", "runner", "warning.scoop", "broken.scoop"]
+inputs = ["dependency", "root", "runner", "bindings.scoop", "broken.scoop"]
 tools = ["scoop", "scoopc"]
 when = { os = ["darwin", "linux"] }
 tags = ["cli", "cache", "diagnostics", "process-cache", "driver"]
@@ -159,7 +159,7 @@ stderr = ""
 [[steps]]
 name = "change_sources"
 files = [
-  {"copy" = {"from" = "${fixture}/warning.scoop", "to" = "${work}/dependency/src/warning.scoop"}},
+  {"copy" = {"from" = "${fixture}/bindings.scoop", "to" = "${work}/dependency/src/bindings.scoop"}},
   {"copy" = {"from" = "${fixture}/broken.scoop", "to" = "${work}/root/src/main.scoop"}},
 ]
 
@@ -172,8 +172,8 @@ stderr = ""
 json = "stderr"
 diagnostics = {"file" = "diagnostics.json"}
 checks = [
-  {"actual" = "${failed.diagnostics.length}", "equals" = 2},
-  {"actual" = "${failed.records.length}", "equals" = 2},
+  {"actual" = "${failed.diagnostics.length}", "equals" = 1},
+  {"actual" = "${failed.records.length}", "equals" = 1},
   {"file" = "${work}/library.slib", "same_as" = "${work}/artifacts/test/root/1.0.0/cone.slib"},
   {"glob" = "${work}/cache/compile-v2/.staging/*", "equals" = []},
 ]
@@ -187,8 +187,8 @@ stderr = ""
 json = "stderr"
 diagnostics = {"file" = "diagnostics.json"}
 checks = [
-  {"actual" = "${failed_warm.diagnostics.length}", "equals" = 2},
-  {"actual" = "${failed_warm.records.length}", "equals" = 2},
+  {"actual" = "${failed_warm.diagnostics.length}", "equals" = 1},
+  {"actual" = "${failed_warm.records.length}", "equals" = 1},
   {"file" = "${work}/library.slib", "same_as" = "${work}/artifacts/test/root/1.0.0/cone.slib"},
   {"glob" = "${work}/cache/compile-v2/.staging/*", "equals" = []},
   {"actual" = "${failed_warm.diagnostics}", "equals" = "${failed.diagnostics}"},

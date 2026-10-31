@@ -1,8 +1,8 @@
 package dev.example
-import test.checkPublicationWarning
+import test.checkPublicationBindings
 
 fun main() {
-    if (checkPublicationWarning() != 3) {
+    if (checkPublicationBindings() != 3) {
         throw IllegalStateException()
     }
 }
