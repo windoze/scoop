@@ -1,5 +1,8 @@
-"""Check the DLL layout used by Windows host commands."""
+"""Check host dependency discovery and the relocated installation layout."""
 
+import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -9,6 +12,86 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import package_native
+
+
+@unittest.skipUnless(sys.platform == "linux", "ELF loader and patchelf")
+class LinuxDependenciesTests(unittest.TestCase):
+    def test_environment_libraries_are_relocated_with_selected_llvm_dependencies(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            work = Path(temporary).resolve()
+            root, llvm, external = (work / name for name in ("installation", "llvm", "python"))
+            for directory in (root / "bin", llvm, external):
+                directory.mkdir(parents=True)
+            compiler = os.environ.get("CC", "cc")
+            support = work / "support.c"
+            # LLVM's selected library must win over another copy on the inherited path.
+            for directory, value in ((llvm, 42), (external, 99)):
+                support.write_text(f"int support_value(void) {{ return {value}; }}\n")
+                subprocess.run(
+                    [
+                        compiler,
+                        "-shared",
+                        "-fPIC",
+                        str(support),
+                        "-Wl,-soname,librelease_support.so.1",
+                        "-o",
+                        str(directory / "librelease_support.so.1"),
+                    ],
+                    check=True,
+                )
+            (llvm / "librelease_support.so").symlink_to("librelease_support.so.1")
+            library = external / "librelease_python.so.1"
+            source = work / "python.c"
+            source.write_text(
+                "int support_value(void); int python_value(void) { return support_value(); }\n"
+            )
+            subprocess.run(
+                [
+                    compiler,
+                    "-shared",
+                    "-fPIC",
+                    str(source),
+                    "-L" + str(llvm),
+                    "-lrelease_support",
+                    "-Wl,-soname," + library.name,
+                    "-o",
+                    str(library),
+                ],
+                check=True,
+            )
+            (external / "librelease_python.so").symlink_to(library.name)
+            source = work / "main.c"
+            source.write_text(
+                "#include <stdio.h>\nint python_value(void);\n"
+                'int main(void) { printf("%d\\n", python_value()); return 0; }\n'
+            )
+            app = work / "program"
+            subprocess.run(
+                [
+                    compiler,
+                    str(source),
+                    "-L" + str(external),
+                    "-lrelease_python",
+                    "-Wl,-rpath-link," + str(llvm),
+                    "-o",
+                    str(app),
+                ],
+                check=True,
+            )
+            shutil.copy2(app, root / "bin/program")
+            with patch.dict(os.environ, LD_LIBRARY_PATH=str(external)):
+                libraries = package_native.linux(root, [app], llvm)
+            self.assertEqual(set(libraries), {library, llvm / "librelease_support.so.1"})
+            moved = work / "moved installation"
+            root.rename(moved)
+            result = subprocess.check_output(
+                [moved / "bin/program"],
+                text=True,
+                env=dict(os.environ, LD_LIBRARY_PATH=""),
+            )
+            self.assertEqual(result, "42\n")
+            self.assertTrue(library.is_file())
+            self.assertTrue(app.is_file())
 
 
 class WindowsDependenciesTests(unittest.TestCase):

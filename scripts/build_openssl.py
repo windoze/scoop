@@ -51,6 +51,27 @@ OPTIONS = [
 ]
 
 
+def compiler_flags(target):
+    config, _, host = TARGETS[target]
+    release = tomllib.loads(RELEASE_CONFIG.read_text())["targets"][target]
+    flags = [] if host == "Windows" else ["-fPIC"]
+    if host == "Darwin":
+        baseline = release["minimum_os"]
+        flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
+        architecture = native_configuration(target)["arch"]
+        # Apple's default CPU includes the AES/SHA features used by OpenSSL's
+        # assembly. Scoop's generic backend CPU would disable those features.
+        if architecture != "aarch64" or release["cpu"] != "generic":
+            flags.append(cpu_flag(architecture, release["cpu"]))
+    elif config == "VC-WIN64A":
+        flags.extend(("/MD", "/D_WIN32_WINNT=0x0a00"))
+    else:
+        flags.append("-march=" + release["cpu"])
+        if config == "mingw64":
+            flags.append("-D_WIN32_WINNT=0x0a00")
+    return flags
+
+
 def install_msvc(source, objects, prefix):
     headers = prefix / "include/openssl"
     files = [
@@ -130,18 +151,6 @@ def prepare(args):
             if path is None:
                 raise ValueError(f"OpenSSL preparation requires {name}: {inputs[name]}")
             tools[name] = Path(path).absolute().as_posix()
-    release = tomllib.loads(RELEASE_CONFIG.read_text())["targets"][args.target]
-    flags = [] if host == "Windows" else ["-fPIC"]
-    if host == "Darwin":
-        baseline = release["minimum_os"]
-        flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
-        flags.append(cpu_flag(native_configuration(args.target)["arch"], release["cpu"]))
-    elif msvc:
-        flags.extend(("/MD", "/D_WIN32_WINNT=0x0a00"))
-    else:
-        flags.append("-march=" + release["cpu"])
-        if mingw:
-            flags.append("-D_WIN32_WINNT=0x0a00")
     scratch = build / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     environment = dict(
@@ -193,7 +202,7 @@ def prepare(args):
         f"--prefix={configure_prefix}",
         "--libdir=lib",
         *OPTIONS,
-        *flags,
+        *compiler_flags(args.target),
     ]
     subprocess.run(command, cwd=objects, env=environment, check=True)
     subprocess.run(
