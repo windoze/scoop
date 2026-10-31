@@ -1,0 +1,7 @@
+package org.`scoop-lang`
+
+fun main() {
+    println(greeting())
+}
+
+fun greeting(): String = "Hello, Scoop!"

@@ -71,6 +71,17 @@ impl Lowerer {
             self.commit_layer_diagnostics(&failure);
             return None;
         }
+        if (self.scopes.lookup(name).is_some()
+            || self.available_capture(name).is_some()
+            || self.constructor_params_in_scope.contains_key(name))
+            && let Ok(mut value) =
+                self.probe_expr_layer(|state, sink| state.lower_var(&call.callee, sink, None))
+        {
+            let found = value.state.type_name(value.expression.ty);
+            value.state.not_callable(call.callee.span, &found);
+            self.commit_layer_diagnostics(&value.state);
+            return None;
+        }
         if let Some(enumeration) = self.exact_expected_enum(expected) {
             self.error(
                 call.callee.span,
@@ -151,7 +162,7 @@ impl Lowerer {
             sink,
         ) {
             crate::overload::OverloadResolutionOutcome::NoApplicable => return Ok(None),
-            crate::overload::OverloadResolutionOutcome::Blocked => return Ok(None),
+            crate::overload::OverloadResolutionOutcome::Blocked => return Err(()),
             crate::overload::OverloadResolutionOutcome::Failed => return Err(()),
             crate::overload::OverloadResolutionOutcome::Resolved(resolved) => *resolved,
         };

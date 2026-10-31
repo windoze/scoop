@@ -102,6 +102,8 @@ fn unavailable_dependency_text_renders_bytes_without_invented_line_numbers() {
         ],
     };
     let text = set.render_human();
-    assert!(text.starts_with("src/main.scoop:1:1: warning: ambiguous value\n"));
+    assert!(text.starts_with("warning: ambiguous value\n"));
+    assert!(text.contains("--> src/main.scoop:1:1"));
+    assert!(text.contains("1 | value\n  |"));
     assert!(text.ends_with("/api/value.scoop:bytes 40..45: note: candidate declared here"));
 }

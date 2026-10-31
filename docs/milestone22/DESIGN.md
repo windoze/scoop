@@ -388,7 +388,7 @@ qualified `E.V(...)`始终按普通variant constructor解析；显式/default st
 
 `scoop.core.Option.*`通过prelude的typed default-import条目工作；编译器不再写`Some`/`None`短名称特判。未来M23只需把同一候选层换成真实import metadata。
 
-match pattern位variant仍由subject exact enum type解析。未解析为该enum variant的裸标识符保持catch-all binding；为防拼写错误，M22补上spec既有的非致命warning，并在诊断中建议variant全限定名或显式`_`/binding命名。该variant-first规则不进入4.1定义的binding上下文。
+match pattern位variant仍由subject exact enum type解析。未解析为该enum variant的裸标识符保持合法catch-all binding，在任意嵌套深度均不因未命中variant名而产生warning。需要明确匹配variant时可使用全限定名，未知的限定variant仍是编译错误。该variant-first规则不进入4.1定义的binding上下文。
 
 ### 4.4 递归pattern matrix
 
@@ -524,7 +524,7 @@ M22修改`scoop.core`源码与core contract，但不新增必须由C runtime实�
 - for/lambda/val中的literal/显式variant shape等refutable pattern；componentN缺失/歧义、ordinary上下文的suspend component，以及字段/rest/重复binding错误；裸variant同名标识符本身不是binding位置的refutable pattern；
 - copy update空列表、non-struct base（包括任何enum）、未知/重复struct字段与字段type mismatch；enum在字段候选或RHS lowering之前按统一非法base诊断拒绝，不存在variant候选或运行期mismatch路径；
 - 裸variant无expected enum、错误expected type、import/context候选歧义及constructor argument失败；
-- 不穷尽`when`显示稳定missing witness；guard不计覆盖时明确提示；疑似拼错的enum variant catch-all binding产生非致命warning；
+- 不穷尽`when`显示稳定missing witness；guard不计覆盖时明确提示；未知的限定enum variant产生错误，合法catch-all binding不产生warning；
 - `Ptr`的非GC-free concrete pointee/未能传播并证明的generic predicate/`ULong`常量零构造、`FunPtr`任意constructor、访问不存在的Ptr/FunPtr raw field、对二者做解构/copy update、非函数FunPtr type argument及非法地址来源分别给出稳定诊断；不得回退成普通零字段struct构造；
 
 parser按当前literal、字段列表、pattern、for header与statement同步，不让一个缺失逗号吞掉后续arm/statement。HIR的alias/literal/operator/variant/iterator/copy-update候选都采用事务式probe；存在error时不输出残缺Export/LocalConcrete module。warning不阻止输出，但必须进入fixture snapshot且拥有稳定severity/span。

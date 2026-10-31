@@ -150,6 +150,8 @@ when 的 AST 明确区分无 subject、表达式 subject 与 val subject 声明�
 
 M47 与语言服务共享既有语义查询的数据和实现。编辑态查询可以返回明确的不可用原因，但不能向成功 ExportHir／LocalConcreteHir 写入缺失类型或正文；查询与完整编译输出的边界见 2.20。
 
+局部`val`／`var`的初始化表达式或类型检查失败时，在实际词法作用域中保留其绑定名称的失败状态；后续读取、调用或写入这些名称沿已有错误停止，不再产生未知变量或重载无匹配的级联诊断。失败状态遵守遮蔽和作用域边界，也适用于嵌套callable中的捕获；不依赖失败绑定的语句仍正常检查。该状态只用于HIR lowering的错误恢复，不构造缺少类型的local、表达式或成功HIR，也不改变合法程序的声明与调用规则。
+
 文档请求仍完成正常声明、函数体、默认值、泛型、效果与可见性检查，再返回附加的源码 API 视图。视图通过现有 typed 声明及实际参数／binder 关联原 AST 节点，保留原声明作用域、源码签名片段与已完成的推断类型；不以 LocalConcrete 实例或机器符号恢复 API。主构造 val／var 的直接文档属于实际字段／property，构造参数是独立目标。getter／setter、variant payload、context 参数与类型参数沿真实 owner 和语义位置关联；内部 helper 不成为源码 API。
 
 待绑定的文档引用在原定义处使用正常名称查询的作用域、层级、访问域与 direct dependency 集合解析。普通 Markdown URL 不参与语言查询；源码注解的文档效果按实际 core identity 识别。文档输出区分已解析引用和已诊断的无效引用，类型信息始终完整；文档 warning 单独保存并绑定 SourceIdentity，不改变普通编译 warning，也不导致跳过正文错误。该视图只用于当前请求和工具本地文档输入，不写入 `.slib`，不改变普通机器生产的输出格式。
@@ -1087,7 +1089,9 @@ generator 的 stderr 沿 driver 日志目标输出。scoop 在取得合法的 ch
 
 所有 profile 可显式请求 symbols，未请求时不收集或渲染该映射。它不进入 `.slib`、语言身份、ABI、Code 或优化输入，不改变机器代码、GC roots 或程序行为；仅请求缺失的 symbols 时沿 observation-only 路径停在 LIR，已有机器产物和最终链接继续复用。缓存命中仅复制已有观察。文档模式只允许 AST／HIR 的约定保持。
 
-诊断具有明确 Error/Warning severity，primary 与 notes 保存实际 Cone、logical source 和 byte span。源码读取等文件级错误仅有实际 host path、没有字节区间时，使用独立的 HostPath origin（wire tag 5），不得丢失路径或伪造区间；已有 HostPathSpan 编码保持。产物错误保存 container/manifest/member/section 与 wire field path，I/O 错误不伪装成源码位置。human 与逐行 JSON 使用同一结构化记录，写 stderr；stdout 留给被执行程序。缓存中的 warning 在本次显示时附加 locator，不丢失原位置。显示源码诊断时仅按需读取涉及的文件以计算行列，同一轮显示共享读取结果；此读取不参与缓存更新判定。
+诊断具有明确 Error/Warning severity，primary 与 notes 保存实际 Cone、logical source 和 byte span。源码读取等文件级错误仅有实际 host path、没有字节区间时，使用独立的 HostPath origin（wire tag 5），不得丢失路径或伪造区间；已有 HostPathSpan 编码保持。产物错误保存 container/manifest/member/section 与 wire field path，I/O 错误不伪装成源码位置。human 与逐行 JSON 使用同一结构化记录，写 stderr；stdout 留给被执行程序。缓存中的 warning 在本次显示时附加 locator，不丢失原位置。显示源码诊断时仅按需读取涉及的文件以计算行列和提取片段，同一轮显示共享读取结果；此读取不参与缓存更新判定。
+
+human 诊断采用源码片段展示：先输出 severity、可用的错误代码和说明，再显示文件、行列、带行号的源码及标记实际 byte span 的下划线；related notes 显示各自的来源。UTF-8 字符、制表符、跨行范围及文件末尾的零宽位置应正确对齐；长片段可以折叠。终端可使用颜色，重定向输出不包含终端控制序列。源码不可读或无有效范围时仍保留原错误及可用的路径／字节位置，不猜测源码。JSON 继续输出结构化字段，不混入终端排版。
 
 工具中断停止后续构建并回收正在运行的 child。Unix 向 child 传递原信号并保留真实 signal；Windows 处理 Ctrl+C／Ctrl+Break／console close，以持有的 process handle 终止尚在运行的 child，使用 `STATUS_CONTROL_C_EXIT`，不将它解释为 POSIX signal。Windows 外部程序的普通退出保留完整 32-bit 状态。某节点失败后停止派发新节点，不启动 dependent 或 program-link，并等待已启动的 child 收尾；失败节点不发布结果，已经成功的节点继续遵循普通缓存规则。已收集失败按 canonical 顺序选择报告，不能因为完成时间不同而重排同一组诊断。
 

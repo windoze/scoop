@@ -10,6 +10,7 @@
 mod basics;
 mod builders;
 mod core;
+mod initializer_diagnostics;
 mod interpolation;
 mod m10;
 mod m11;
@@ -42,7 +43,7 @@ mod m22_integers;
 mod m22_iteration;
 mod m22_joint_integer_inference;
 mod m22_loop_targets;
-mod m22_pattern_warnings;
+mod m22_match_bindings;
 mod m22_ranges;
 mod m22_recursive_named_fields;
 mod m23_address_of_globals;

@@ -46,5 +46,5 @@ name = "warning"
 argv = ["${scoopc}", "build", "${root}", "--profile", "release", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--generator", "test.peer=generator", "--out-slib", "${work}/warning.slib"]
 exit = 0
 stdout = ""
-stderr = "${root}:6:29: warning: peer diagnostic\n"
+stderr = "warning: peer diagnostic\n --> ${root}:6:29\n  |\n6 | @GenerateWith(\"test.peer\", [\"Sum\", \"OtherSum\", \"Label\"])\n  |                             ^^^^^\n"
 checks = [{file = "${work}/warning.slib", exists = true}]

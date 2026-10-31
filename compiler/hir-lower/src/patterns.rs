@@ -101,30 +101,13 @@ impl Lowerer {
                 // identifier introduces a new local, even when the subject
                 // enum has a variant with the same name. `Unit` / `()` reach
                 // this stage as literal patterns and remain rejected below.
-                let unmatched_enum = if ctx.in_when {
-                    if matches!(self.types[matched_ty], Type::Enum(_)) {
-                        if let Some(application) = self.named_enum_variant(matched_ty, &name.text) {
-                            return self.bare_variant_pattern(name, application, ctx);
-                        }
-                        Some(self.type_name(matched_ty))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-                let local = self.bind_local(name, matched_ty, ctx.mutable)?;
                 if ctx.in_when
-                    && let Some(enum_name) = unmatched_enum
+                    && matches!(self.types[matched_ty], Type::Enum(_))
+                    && let Some(application) = self.named_enum_variant(matched_ty, &name.text)
                 {
-                    self.warning(
-                        name.span,
-                        format!(
-                            "`{}` is a catch-all binding because `{enum_name}` has no variant named `{}`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
-                            name.text, name.text
-                        ),
-                    );
+                    return self.bare_variant_pattern(name, application, ctx);
                 }
+                let local = self.bind_local(name, matched_ty, ctx.mutable)?;
                 Some(hir::Pattern::Binding { local })
             }
             ast::Pattern::Wildcard { .. } => Some(hir::Pattern::Wildcard),

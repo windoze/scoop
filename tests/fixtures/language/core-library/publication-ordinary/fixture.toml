@@ -1,6 +1,6 @@
 schema = 1
 name = "core-library-publication-ordinary"
-inputs = ["../publication-warning.scoop", "../../imported-classes/support/stage3_test.scoop", "program", "consumer", "support"]
+inputs = ["../publication-bindings.scoop", "../../imported-classes/support/stage3_test.scoop", "program", "consumer", "support"]
 tools = ["scoop", "scoopc"]
 tags = ["core-publication", "core-library", "language"]
 [[steps]]
@@ -15,7 +15,7 @@ name = "prepare_core"
 files = [
   {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
-  {"copy" = {"from" = "${fixture}/../publication-warning.scoop", "to" = "${work}/core-source/src/publication-warning.scoop"}},
+  {"copy" = {"from" = "${fixture}/../publication-bindings.scoop", "to" = "${work}/core-source/src/publication-bindings.scoop"}},
   {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/src/scoop.core"}},
   {"mkdir" = {"path" = "${work}/blocked.slib"}},
 ]
@@ -27,7 +27,7 @@ exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "core-warning.json"}
+diagnostics = []
 checks = []
 
 [[steps]]
@@ -38,7 +38,7 @@ files = [{copy = {from = "${core.result.root.path}", to = "${work}/sysroot/lib/$
 name = "prepare_consumer"
 files = [
   {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
-  {"copy" = {"from" = "${fixture}/../publication-warning.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
+  {"copy" = {"from" = "${fixture}/../publication-bindings.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
 ]
 
 [[steps]]
@@ -48,7 +48,7 @@ exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "ordinary-warning.json"}
+diagnostics = []
 checks = []
 
 [[steps]]
@@ -77,7 +77,7 @@ exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "ordinary-warning.json"}
+diagnostics = []
 checks = []
 
 [[steps]]

@@ -412,6 +412,16 @@ impl Lowerer {
                 return None;
             }
         }
+        if first_failure.is_none()
+            && let Some(value) = implicit_properties
+                .first()
+                .or_else(|| pending_values.first())
+        {
+            let mut failure = value.read.state.clone();
+            let found = failure.type_name(value.read.expression.ty);
+            failure.not_callable(call.callee.span, &found);
+            first_failure = Some(failure);
+        }
         self.finish_named_call_fallback(
             call,
             sink,

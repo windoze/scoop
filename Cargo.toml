@@ -44,6 +44,8 @@ rustc_apfloat = "=0.2.3"
 inkwell = { version = "0.10", default-features = false, features = ["llvm22-1-prefer-dynamic", "target-aarch64", "target-x86"] }
 llvm-sys = "221"
 clap = { version = "4", features = ["derive"] }
+# 0.12.17 requires Rust 1.88; keep the workspace's Rust 1.85 minimum.
+annotate-snippets = "=0.12.16"
 insta = { version = "1" }
 la-arena = { version = "0.3" }
 imbl = "7.0.2"

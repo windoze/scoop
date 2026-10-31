@@ -55,7 +55,7 @@
 
 - binding 上下文中的普通裸标识符恒建立新 binding，不查询 subject enum、import 或既有 value；`val None = value` 合法。
 - `Unit` / `()`仍是内建 literal，在 binding 位置拒绝。字段 shorthand 精确等价于 `field: field`，所以 `{ Unit }` 也拒绝，显式 `{ Unit: value }` 可绑定。
-- match 上下文保持 variant-first：bare unit variant 成为 variant pattern；bare payload variant 缺 shape 时诊断；名称未命中才成为带 warning 的 catch-all binding。
+- match 上下文保持 variant-first：bare unit variant 成为 variant pattern；bare payload variant 缺 shape 时诊断；名称未命中时成为合法 catch-all binding，不产生 warning。
 - 整个递归 pattern 在 `Lowerer` clone 上构造；成功且无新增 `Error` 才提交（包括该成功路径产生的 warning），失败只传播该路径新增的 `Error`，并回滚 local、scope、arena、warning、counter 和 sink。
 - 旧 class tuple 特判在迁入共享 planner 前也由外围事务包住，避免后一个 component / leaf 失败时泄漏前面的状态。
 - 测试覆盖 val、嵌套 struct + tuple、lambda、显式 enum shape、Unit shorthand、match variant-first、bare payload 错误，以及失败后后续引用仍为 unknown variable。

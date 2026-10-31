@@ -300,10 +300,4 @@ impl Lowerer {
         diagnostic.file = self.current_text_file();
         self.diagnostics.push(diagnostic);
     }
-
-    pub(crate) fn warning(&mut self, span: Span, message: String) {
-        let mut diagnostic = Diagnostic::warning_at(span, message);
-        diagnostic.file = self.current_text_file();
-        self.warnings.push(diagnostic);
-    }
 }

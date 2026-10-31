@@ -6,7 +6,7 @@ impl Lowerer {
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedPlacePlan> {
-        if self.reject_release_field_write(name) {
+        if self.scopes.is_rejected(&name.text) || self.reject_release_field_write(name) {
             return None;
         }
         if name.text == "field" && self.backing_field_context.is_some() {

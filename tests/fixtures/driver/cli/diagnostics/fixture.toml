@@ -1,0 +1,154 @@
+schema = 1
+name = "cli-diagnostics-source-snippets"
+root = "test-cone"
+inputs = ["value-call.scoop", "unicode-call.scoop", "multiline-call.scoop", "parser-eof.scoop", "warning.scoop", "test-cone"]
+tools = ["scoop", "scoopc"]
+tags = ["cli", "diagnostics", "negative"]
+requires_target_execution = false
+
+[[steps]]
+name = "value-call-human"
+argv = ["${scoop}", "check", "--release", "${fixture}/value-call.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "human"]
+exit = 1
+stdout = ""
+stderr = '''
+error[SCOOPC_HIR_ERROR]: value of type Int is not callable
+ --> ${fixture}/value-call.scoop:3:5
+  |
+3 |     x(100)
+  |     ^
+'''
+
+[[steps]]
+name = "value-call-json"
+argv = ["${scoop}", "check", "--release", "${fixture}/value-call.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = { file = "value-call.diagnostics.json" }
+checks = [
+  { actual = "${value-call-json.records.0.display.line}", equals = 3 },
+  { actual = "${value-call-json.records.0.display.column}", equals = 5 },
+]
+
+[[steps]]
+name = "unicode-call-human"
+argv = ["${scoop}", "check", "--release", "${fixture}/unicode-call.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "human"]
+exit = 1
+stdout = ""
+stderr = '''
+error[SCOOPC_HIR_ERROR]: value of type Int is not callable
+ --> ${fixture}/unicode-call.scoop:3:2
+  |
+3 |     数量(100)
+  |     ^^^^
+'''
+
+[[steps]]
+name = "unicode-call-json"
+argv = ["${scoop}", "check", "--release", "${fixture}/unicode-call.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = { file = "unicode-call.diagnostics.json" }
+checks = [
+  { actual = "${unicode-call-json.records.0.display.line}", equals = 3 },
+  { actual = "${unicode-call-json.records.0.display.column}", equals = 2 },
+]
+
+[[steps]]
+name = "multiline-call-human"
+argv = ["${scoop}", "check", "--release", "${fixture}/multiline-call.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "human"]
+exit = 1
+stdout = ""
+stderr = '''
+error[SCOOPC_HIR_ERROR]: value of type Int is not callable
+ --> ${fixture}/multiline-call.scoop:2:6
+  |
+2 |       (if (true) 1 else 2)(
+  |  ______^
+3 | |         100
+4 | |     )
+  | |_____^
+'''
+
+[[steps]]
+name = "multiline-call-json"
+argv = ["${scoop}", "check", "--release", "${fixture}/multiline-call.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = { file = "multiline-call.diagnostics.json" }
+checks = [
+  { actual = "${multiline-call-json.records.0.display.line}", equals = 2 },
+  { actual = "${multiline-call-json.records.0.display.column}", equals = 6 },
+]
+
+[[steps]]
+name = "parser-eof-human"
+argv = ["${scoop}", "check", "--release", "${fixture}/parser-eof.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "human"]
+exit = 1
+stdout = ""
+stderr = '''
+error[SCOOPC_PARSE_ERROR]: expected `}`, found end of file
+ --> ${fixture}/parser-eof.scoop:2:1
+  |
+2 |
+  | ^
+'''
+
+[[steps]]
+name = "parser-eof-json"
+argv = ["${scoop}", "check", "--release", "${fixture}/parser-eof.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = { file = "parser-eof.diagnostics.json" }
+checks = [
+  { actual = "${parser-eof-json.records.0.display.line}", equals = 2 },
+  { actual = "${parser-eof-json.records.0.display.column}", equals = 1 },
+]
+
+[[steps]]
+name = "warning-human"
+argv = ["${scoop}", "check", "--release", "${fixture}/warning.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "human"]
+exit = 0
+stdout = ""
+stderr = '''
+warning[SCOOPC_COMPILER_WARNING]: package declaration is ignored in single-file mode; using the default root package
+ --> ${fixture}/warning.scoop:1:1
+  |
+1 | package example
+  | ^^^^^^^^^^^^^^^
+checked scoop:single-file:0.0.0 (production)
+'''
+
+[[steps]]
+name = "warning-json"
+argv = ["${scoop}", "check", "--release", "${fixture}/warning.scoop", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = { file = "warning.diagnostics.json" }
+checks = [
+  { actual = "${warning-json.records.0.display.line}", equals = 1 },
+  { actual = "${warning-json.records.0.display.column}", equals = 1 },
+]
+
+[[steps]]
+name = "initializer-json"
+argv = ["${scoop}", "check", "--release", "--tests", "${root}", "--target", "${target}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = { file = "initializer.diagnostics.json" }
+checks = [
+  { actual = "${initializer-json.records.0.display.line}", equals = 9 },
+  { actual = "${initializer-json.records.0.display.column}", equals = 26 },
+]

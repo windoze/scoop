@@ -21,7 +21,7 @@ fn source_equality_is_independent_of_cached_indices() {
 }
 
 #[test]
-fn shared_diagnostic_index_preserves_cli_columns_and_related_locations() {
+fn shared_source_renders_the_same_ranges_and_related_locations() {
     let text = SourceText::new("one\r\n中😀\rnext\nlast".to_owned());
     for offset in 0..text.len() as u32 + 3 {
         let span = Span::new(offset, offset);
@@ -36,10 +36,10 @@ fn shared_diagnostic_index_preserves_cli_columns_and_related_locations() {
             note.render("main.scoop", text.as_str())
         );
     }
-    assert_eq!(
-        Diagnostic::at(Span::new(14, 15), "bad value").render_with_source("main.scoop", &text),
-        "main.scoop:2:5: error: bad value"
-    );
+    let rendered =
+        Diagnostic::at(Span::new(14, 15), "bad value").render_with_source("main.scoop", &text);
+    assert!(rendered.contains("main.scoop:2:5"), "{rendered}");
+    assert!(rendered.contains('^'), "{rendered}");
 }
 
 #[test]

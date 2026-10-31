@@ -8,71 +8,71 @@ tags = ["driver", "generator", "protocol", "errors"]
 
 [[variants]]
 name = "empty"
-vars = { mode = "empty", expected = "error: current Cone HIR lowering failed with 1 diagnostic(s)\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "empty", expected = "error: current Cone HIR lowering failed with 1 diagnostic(s)\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "eof"
-vars = { mode = "eof", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator `test.peer` failed: protocol output ended before the generated result\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "eof", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator `test.peer` failed: protocol output ended before the generated result\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "truncated"
-vars = { mode = "truncated", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator `test.peer` failed: failed to fill whole buffer\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "truncated", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator `test.peer` failed: failed to fill whole buffer\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "bad-json"
-vars = { mode = "bad-json", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator `test.peer` failed: malformed LSP payload `Error(\"EOF while parsing an object\", line: 1, column: 1)`: \"{\"\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "bad-json", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator `test.peer` failed: malformed LSP payload `Error(\"EOF while parsing an object\", line: 1, column: 1)`: \"{\"\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "version"
-vars = { mode = "version", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator `test.peer` failed: JSON-RPC error -32602: unsupported generator protocol version\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "version", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator `test.peer` failed: JSON-RPC error -32602: unsupported generator protocol version\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "duplicate"
-vars = { mode = "duplicate", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator returned the same method more than once\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "duplicate", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator returned the same method more than once\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "foreign"
-vars = { mode = "foreign", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator returned a method outside its pending batch\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "foreign", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator returned a method outside its pending batch\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "syntax"
-vars = { mode = "syntax", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\ngenerated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:14: error: expected expression, found `)`\n${root}:3:29: note: implementation requested here\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "syntax", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: expected expression, found `)`\n --> generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:14\n  |\n2 |     val 中文 = )\n  |                ^\nnote: implementation requested here\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "trailing"
-vars = { mode = "trailing", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\ngenerated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:1: error: expected end of function body, found `fun`\n${root}:3:29: note: implementation requested here\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "trailing", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: expected end of function body, found `fun`\n --> generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:1\n  |\n2 | fun injected(): Int = 1\n  | ^^^\nnote: implementation requested here\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "type"
-vars = { mode = "type", expected = "error: current Cone HIR lowering failed with 1 diagnostic(s)\ngenerated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:12: error: `return` value of `value` must be of type Int, found String\n${root}:3:29: note: implementation requested here\n" }
+vars = { mode = "type", expected = "error: current Cone HIR lowering failed with 1 diagnostic(s)\nerror: `return` value of `value` must be of type Int, found String\n --> generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:12\n  |\n2 |     return \"中文\"\n  |            ^^^^^^\nnote: implementation requested here\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\n" }
 
 [[variants]]
 name = "unknown-name"
-vars = { mode = "unknown-name", expected = "error: current Cone HIR lowering failed with 1 diagnostic(s)\ngenerated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:12: error: unknown variable `missingName`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation\n${root}:3:29: note: implementation requested here\n" }
+vars = { mode = "unknown-name", expected = "error: current Cone HIR lowering failed with 1 diagnostic(s)\nerror: unknown variable `missingName`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation\n --> generated/function/6c06a95bf001818dfa22cbd05cc3fdc59e433b60d92dbd9303ce5ff1f5865595.scoop:2:12\n  |\n2 |     return missingName\n  |            ^^^^^^^^^^^\nnote: implementation requested here\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\n" }
 
 [[variants]]
 name = "error"
-vars = { mode = "error", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: peer diagnostic\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "error", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: peer diagnostic\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "wrong-id"
-vars = { mode = "wrong-id", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator `test.peer` failed: response id does not match generator/generate\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "wrong-id", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator `test.peer` failed: response id does not match generator/generate\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "located-error"
-vars = { mode = "located-error", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:1:1: error: peer diagnostic\n${root}:3:29: note: peer note\n${root}:3:29: note: implementation requested here\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "located-error", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: peer diagnostic\n --> ${root}:1:1\n  |\n1 | interface Value { fun value(): Int }\n  | ^^^^^^^^^\nnote: peer note\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nnote: implementation requested here\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "invalid-range"
-vars = { mode = "invalid-range", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: invalid generator diagnostic: source range ends before it starts\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "invalid-range", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: invalid generator diagnostic: source range ends before it starts\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "extra"
-vars = { mode = "extra", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator `test.peer` failed: extra protocol output follows the final result\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "extra", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator `test.peer` failed: extra protocol output follows the final result\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[variants]]
 name = "exit-failure"
-vars = { mode = "exit-failure", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\n${root}:3:29: error: generator `test.peer` failed: process exited with exit status: 7\n${root}:4:1: error: class `GeneratedValue` does not implement interface method `Value.value`\n" }
+vars = { mode = "exit-failure", expected = "error: current Cone HIR lowering failed with 2 diagnostic(s)\nerror: generator `test.peer` failed: process exited with exit status: 7\n --> ${root}:3:29\n  |\n3 | @GenerateWith(\"test.peer\", [\"Value\"])\n  |                             ^^^^^^^\nerror: class `GeneratedValue` does not implement interface method `Value.value`\n --> ${root}:4:1\n  |\n4 | class GeneratedValue : Value\n  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" }
 
 [[steps]]
 name = "peer"
