@@ -5,6 +5,8 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/PassRegistry.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
@@ -12,6 +14,9 @@
 extern "C" LLVMMemoryBufferRef
 scoop_emit_metadata_object(LLVMTargetMachineRef target, LLVMModuleRef module) {
   auto &machine = *reinterpret_cast<llvm::TargetMachine *>(target);
+  // Metadata may be emitted before any complete code-generation pipeline
+  // exists.
+  llvm::initializeCodeGen(*llvm::PassRegistry::getPassRegistry());
   llvm::SmallVector<char, 0> bytes;
   llvm::raw_svector_ostream output(bytes);
   llvm::legacy::PassManager passes;

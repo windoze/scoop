@@ -35,8 +35,10 @@ Linux 在 `nuc12` 的独立目录 `~/repos/scoop-compiler-speed-20261101` 使用
 
 ## 后续优先级
 
-1. 复用函数对象发射的 LLVM pass manager。采样确认逐对象建立完整流水线仍占主要成本；LLVM 的 AsmPrinter、MCStreamer 和 MachineModuleInfo 已有逐模块收尾／清空逻辑。先用不同模块连续发射的独立对照验证状态隔离，再决定落地，保持每个函数的原优化与物理分区。
+1. 共享对象压缩字典。使用原始对象 bytes、Zstd level 3 和每库 64 KiB 字典的离线投影，标准库对象存储 4,328,545 → 2,466,108 bytes，HTTP 客户端 35,465,193 → 21,513,353 bytes，已经计入字典自身；对应完整归档估算减少 15.45%／16.33%。逐对象解压后与原 bytes 全部一致。下一步落实归档、按需 reader 和对象缓存契约并测量实际产物，不能将投影视为已落地收益。
 2. 减少真实依赖闭包内重复的 ODR 物化与持久化记录。现有 29 库对象存储中，约 38.19 MiB 的对象 bytes 在多个库重复；这是全库集合的离线上限，尚未扣除不存在实际依赖关系的重复，不能直接宣称可全部删除。需沿当前 typed 导入、ABI、可达性和发布职责量化可复用部分。
 3. 继续从对象和 LIR 的实际大项评估内容精简与存储方式。普通 LIR 字符串表投影仅使 core／std／HTTP client 的 LIR 成员减少约 0.22／0.04／2.08 MiB，占完整归档更低，暂不为它增加格式变更。已有 HIR 来源索引的收益也较小；在更大方案完成前不优先实施。
+
+已排除直接复用 LLVM 22.1 的对象发射 pass manager：即使 AsmPrinter／MCStreamer／MachineModuleInfo 有逐模块收尾，带 GC statepoint 与异常展开的第二个函数模块仍残留前一模块的栈映射记录；仅数据流水线在 COFF debug → 无 debug 切换时也残留字符串表空间。独立的连续模块字节对照发现两者，实验实现均已撤下，未进入生产。本轮仅补齐数据发射入口自身的 LLVM pass 注册，并将测试顺序调整为先调用数据入口，避免测试依赖完整代码生成的先行初始化。格式检查、workspace all-targets Clippy 和七目标两配置的数据对象对照通过；不为撤下的实验记录性能收益。
 
 本机原始命令、采样、逐轮计时和验收日志保留在仓库外的 `/Volumes/Data/home/chenxu/scoop-performance-results/compiler-20261101`；Linux 日志在 `~/repos/scoop-work/compiler-20261101`。工作缓存与对照二进制暂放本仓库 `tmp/compile-speed-20261101`，只保留下一轮实际需要的内容。

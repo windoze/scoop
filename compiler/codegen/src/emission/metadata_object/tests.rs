@@ -43,11 +43,12 @@ fn data_emission_matches_full_pipeline_on_every_target() {
             module.set_triple(&machine.get_triple());
             module.set_data_layout(&machine.get_target_data().get_data_layout());
             module.verify().unwrap();
+            let path = directory.path().join("metadata.o");
+            // Exercise the data path before the C API initializes codegen passes.
+            write(&machine, &module, &path).unwrap();
             let full = machine
                 .write_to_memory_buffer(&module.clone(), FileType::Object)
                 .unwrap();
-            let path = directory.path().join("metadata.o");
-            write(&machine, &module, &path).unwrap();
             assert_eq!(
                 std::fs::read(path).unwrap(),
                 full.as_slice(),
