@@ -77,13 +77,19 @@ impl WindowsCEnvironment {
         if let Some(versions) = tool.path().ancestors().nth(5) {
             inputs.push(versions.to_owned());
         }
-        for (name, value) in tool.env() {
+        // find-msvc-tools reuses an initialized developer shell without
+        // returning overrides. Capture its effective environment before the
+        // compiler command clears inherited variables.
+        let inherited = ["INCLUDE", "LIB", "PATH"]
+            .into_iter()
+            .filter_map(|name| std::env::var_os(name).map(|value| (OsString::from(name), value)));
+        for (name, value) in inherited.chain(tool.env().into_iter().cloned()) {
             if name.eq_ignore_ascii_case("INCLUDE") {
-                self.includes = search_directories(value)?;
+                self.includes = search_directories(&value)?;
             } else if name.eq_ignore_ascii_case("LIB") {
-                self.libraries = search_directories(value)?;
+                self.libraries = search_directories(&value)?;
             } else if name.eq_ignore_ascii_case("PATH") {
-                self.search_path = value.clone();
+                self.search_path = value;
             }
         }
         for include in &self.includes {

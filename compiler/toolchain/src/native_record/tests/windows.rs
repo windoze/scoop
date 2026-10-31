@@ -1,4 +1,5 @@
 use object::{Object, ObjectSection, ObjectSymbol};
+use scoop_process::CommandExt;
 
 use super::*;
 
@@ -96,9 +97,9 @@ fn windows_c_explicit_microsoft_resources_compile_without_discovery_defaults() {
         .env()
         .into_iter()
         .find(|(name, _)| name.eq_ignore_ascii_case("INCLUDE"))
-        .unwrap()
-        .1
-        .clone();
+        .map(|(_, value)| value.clone())
+        .or_else(|| std::env::var_os("INCLUDE"))
+        .unwrap();
     let tools = tool.path().ancestors().nth(4).unwrap();
     let ucrt = std::env::split_paths(&includes)
         .find(|path| {
@@ -146,5 +147,46 @@ fn windows_c_explicit_microsoft_resources_compile_without_discovery_defaults() {
             .any(|path| path
                 .to_string_lossy()
                 .eq_ignore_ascii_case(&ucrt.to_string_lossy()))
+    );
+}
+
+#[test]
+fn windows_c_discovery_accepts_an_initialized_developer_environment() {
+    const CHILD: &str = "SCOOP_TEST_DEVELOPER_ENV_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        let cl = find_msvc_tools::find_tool("x86_64-pc-windows-msvc", "cl.exe").unwrap();
+        assert!(
+            cl.env().into_iter().next().is_none(),
+            "expected the inherited developer environment"
+        );
+        let invocation = crate::resolve_windows_c_toolchain(
+            scoop_target_data::WINDOWS_X86_64_MSVC_UCRT,
+            &tool("SCOOP_TEST_CLANG"),
+            None,
+        )
+        .unwrap();
+        let environment = invocation.windows_environment().unwrap();
+        assert!(!environment.includes.is_empty());
+        assert!(!environment.libraries.is_empty());
+        return;
+    }
+    let cl = find_msvc_tools::find_tool("x86_64-pc-windows-msvc", "cl.exe").unwrap();
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+    child
+        .args([
+            "--exact",
+            "native_record::tests::windows::windows_c_discovery_accepts_an_initialized_developer_environment",
+            "--nocapture",
+        ])
+        .envs(cl.env().into_iter().cloned())
+        .env(CHILD, "1")
+        .env("VCINSTALLDIR", cl.path().ancestors().nth(7).unwrap())
+        .env("VSCMD_ARG_TGT_ARCH", "x64");
+    let output = child.scoop_output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
 }
