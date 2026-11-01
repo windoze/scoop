@@ -193,7 +193,7 @@ private class TextLayoutTest {
     }
 
     @Test
-    fun `rich runs and line height draw with their own colors`() {
+    fun `rich spans and line height draw with their own colors`() {
         testFonts().use {
             fonts ->
             val red =
@@ -203,8 +203,15 @@ private class TextLayoutTest {
                     Color(1.0, 0.0, 0.0),
                     features = [FontFeature("liga", 0)]
                 )
-            val green = TextStyle(["Test Sans"], 32.0, Color(0.0, 1.0, 0.0), lineHeight = Some(2.0))
-            Paragraph(fonts, [TextRun("HH", red), TextRun("HH", green)]).use {
+            val green =
+                SpanStyle(
+                    fontSize = Some(32.0),
+                    color = Some(Color(0.0, 1.0, 0.0)),
+                    lineHeight = Some(Some(2.0))
+                )
+            val content =
+                StyledText([TextSpan.text("HH"), TextSpan.span(green, [TextSpan.text("HH")])], red)
+            Paragraph(fonts, content).use {
                 paragraph -> paragraph.layout(180.0).use {
                     layout ->
                     assertTrue(layout.size.height >= 60.0)

@@ -1,10 +1,10 @@
 # scoop.graphics.text：富文本排版与行内对象设计
 
-日期：2026-11-01。状态：进入 macOS 分批实施，已迁移基础字体和段落源码，行内对象尚未交付，进展见 [UI 实施记录](../../ui/PROGRESS.md)。目标合同见 [文本排版规范](../../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)，UI 对接见 [UI 规范第 7.5 节](../../specs/SCOOP-UI-SPEC.md#75-公共文本接入)，整体分层见 [UI 设计](../../ui/DESIGN.md)。
+日期：2026-11-01。状态：进入 macOS 分批实施，已交付独立字体和段落、StyledText／TextSpan／SpanStyle，行内对象尚未交付，进展见 [UI 实施记录](../../ui/PROGRESS.md)。目标合同见 [文本排版规范](../../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)，UI 对接见 [UI 规范第 7.5 节](../../specs/SCOOP-UI-SPEC.md#75-公共文本接入)，整体分层见 [UI 设计](../../ui/DESIGN.md)。
 
 ## 1. 从现有能力演进
 
-已有的 FontCollection、多样式 TextRun、Paragraph／TextLayout、行与基线、UTF 索引、caret／selection 和命中查询已迁入 `scoop.graphics.text`。该库经公开的 `Canvas.withSkiaCanvas` 同步借用绘图目标，独立持有和释放字体／段落，不再包含 graphics 的私有 native 头文件。
+已有的 FontCollection、Paragraph／TextLayout、行与基线、UTF 索引、caret／selection 和命中查询已迁入 `scoop.graphics.text`。内容输入已由公开 TextRun 数组演进为 StyledText／TextSpan／SpanStyle，统一表达嵌套样式继承。该库经公开的 `Canvas.withSkiaCanvas` 同步借用绘图目标，独立持有和释放字体／段落，不再包含 graphics 的私有 native 头文件。
 
 新增需求是把字体、字号和样式混排提升为公共内容描述，并让图片及任意自绘控件参与段落断行与行高计算。TextLayout 作为排版结果保留；内容、样式继承和行内 metrics 是其上游输入，控件挂载及绘制是其下游使用者。
 
@@ -27,7 +27,7 @@ Skia 固定版本 `f326a1e25fc736704063922b9ce76b527b1c5efe` 已提供 addPlaceh
 
 ## 3. 描述与排版结果
 
-作者层采用不可变 class 的 StyledText／TextSpan，使用普通函数构造内容。SpanStyle 只覆盖指定属性，解析后成为完整 TextStyle；已有 TextRun 可作为内部展开结果。片段不包含 native owner，描述复用不要求重复复制整段文字。
+作者层采用不可变 class 的 StyledText／TextSpan，使用普通函数构造内容。SpanStyle 只覆盖指定属性，解析后成为完整 TextStyle；TextRun 仅作为内部展开结果。片段不包含 native owner，描述复用不要求重复复制整段文字。
 
 例如下面表达文字、局部样式、图片和控件的位置；行内对象的实际资源另外提供：
 

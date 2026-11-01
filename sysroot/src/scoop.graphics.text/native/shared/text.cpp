@@ -124,13 +124,16 @@ int32_t scoop_graphics_text_style_feature(void *pointer, const char *tag,
     return 0;
   }
 }
-void *scoop_graphics_text_paragraph_begin(void *pointer, int32_t alignment,
-                                          int32_t direction, int64_t max_lines,
+void *scoop_graphics_text_paragraph_begin(void *pointer, void *style_pointer,
+                                          int32_t alignment, int32_t direction,
+                                          int64_t max_lines,
                                           const char *ellipsis,
                                           int64_t length) {
   try {
     auto result = std::make_unique<STParagraphBuilder>(
         static_cast<STFonts *>(pointer)->snapshot());
+    result->style.setTextStyle(
+        static_cast<STTextStyle *>(style_pointer)->style);
     result->style.setTextAlign((sgt::TextAlign)alignment);
     result->style.setTextDirection((sgt::TextDirection)direction);
     result->style.setApplyRoundingHack(false);
@@ -148,8 +151,6 @@ int32_t scoop_graphics_text_paragraph_run(void *pointer, void *style_pointer,
   try {
     auto builder = static_cast<STParagraphBuilder *>(pointer);
     auto &style = static_cast<STTextStyle *>(style_pointer)->style;
-    if (builder->runs.empty())
-      builder->style.setTextStyle(style);
     if ((uint64_t)length + builder->text.size() > INT32_MAX)
       return -1;
     builder->text.append(text, (size_t)length);

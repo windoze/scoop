@@ -1,0 +1,35 @@
+package scoop.graphics.text
+
+import scoop.graphics.Color
+
+/** Unspecified fields inherit; specified arrays replace the entire parent value. */
+public class SpanStyle public constructor(
+    public val families: Array<String>? = None,
+    public val fontSize: Double? = None,
+    public val color: Color? = None,
+    public val weight: Int? = None,
+    public val width: Int? = None,
+    public val slant: FontSlant? = None,
+    public val locale: String? = None,
+    public val letterSpacing: Double? = None,
+    public val wordSpacing: Double? = None,
+    public val lineHeight: Option<Option<Double>> = None,
+    public val features: Array<FontFeature>? = None,
+    public val variations: Array<FontVariation>? = None
+) {
+    internal fun resolve(parent: TextStyle): TextStyle =
+        TextStyle(
+            families = families ?: parent.families,
+            fontSize = fontSize ?: parent.fontSize,
+            color = color ?: parent.color,
+            weight = weight ?: parent.weight,
+            width = width ?: parent.width,
+            slant = slant ?: parent.slant,
+            locale = locale ?: parent.locale,
+            letterSpacing = letterSpacing ?: parent.letterSpacing,
+            wordSpacing = wordSpacing ?: parent.wordSpacing,
+            lineHeight = lineHeight ?: parent.lineHeight,
+            features = features ?: parent.features,
+            variations = variations ?: parent.variations
+        )
+}

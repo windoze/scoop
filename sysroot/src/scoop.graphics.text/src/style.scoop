@@ -96,8 +96,6 @@ public class ParagraphStyle public constructor(
     public val ellipsis: String = "…"
 )
 
-public struct TextRun(val text: String, val style: TextStyle = TextStyle())
-
 private fun makeTextStyle(value: NativeTextStyleData): TextResource {
     @Unsafe
     {

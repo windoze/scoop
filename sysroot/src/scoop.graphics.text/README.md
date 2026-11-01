@@ -31,7 +31,16 @@ FontCollection().use { fonts ->
 
 FontCollection 默认使用系统 fallback，也可以通过 `FontCollection(false)` 关闭并用 `register(bytes, family)` 登记自有字体。只读 `revision` 从 0 开始，每次成功登记增加一次，失败不改变版本。Paragraph 在构造时保存文字、样式和字体来源快照；`layout(width)` 与 `layoutUnwrapped()` 每次产生独立结果，后续登记字体、关闭来源或重新布局不改变旧结果。
 
-当前内容输入为 String／TextStyle 或 `Array<TextRun>`。TextStyle 支持 family 顺序、字号、颜色、weight／width／slant、locale、字距、词距、行高及 OpenType feature／variation；ParagraphStyle 指定方向、对齐、maxLines 和 ellipsis。下一批按[文本排版设计](../../../docs/graphics/text/DESIGN.md)加入 StyledText／SpanStyle 和行内对象，届时由统一内容描述替换 run 作者接口；这些新类型目前尚未提供。
+内容输入为 StyledText，或 String／TextStyle 的便利构造。TextSpan.text 创建文字，TextSpan.span 组合局部 SpanStyle 和子片段；未指定属性继承父样式，数组属性整体替换，`lineHeight = Some(None)` 恢复自然行高。TextStyle 支持 family 顺序、字号、颜色、weight／width／slant、locale、字距、词距、行高及 OpenType feature／variation；ParagraphStyle 指定方向、对齐、maxLines 和 ellipsis。TextRun 仅为内部展开结果。
+
+```scoop
+val content = StyledText([
+    TextSpan.text("Hello, "),
+    TextSpan.span(SpanStyle(fontSize = Some(28.0)), [TextSpan.text("世界")])
+], TextStyle(fontSize = 20.0))
+```
+
+Paragraph／TextLayout 的 `content` 保留同一描述。`content.toPlainText()` 导出全文，也可以传入 UTF-8 标量边界的 TextRange。行内对象描述、尺寸与位置将在下一批按[文本排版设计](../../../docs/graphics/text/DESIGN.md)加入，目前尚未提供。
 
 TextRange 和 TextPosition 使用 **UTF-8 字节偏移**，与 String 的标量索引不同。selection 的端点必须是标量边界，caret 的端点必须是 `graphemeBoundaries` 中的位置。hitTest 返回可见内容的 grapheme 边界；affinity 区分软换行和双向 run 的两侧。被截断的位置没有 caret；selection 可以返回多个带方向的矩形。各行保存 range、contentRange、visibleRange、baseline 与尺寸，查询结果相对布局原点。
 

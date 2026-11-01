@@ -1,6 +1,6 @@
 # Scoop 文本排版库规范
 
-日期：2026-11-01。状态：分批实施。字体、样式 run、Paragraph／TextLayout 已迁入独立 `scoop.graphics.text`，基础拆分的验证及后续批次见 [UI 实施记录](../ui/PROGRESS.md)。StyledText／SpanStyle 和行内对象扩展尚未交付。本文件同时规定其目标合同；取舍、迁移和调研依据见 [文本排版设计](../graphics/text/DESIGN.md)。UI 接入见 [UI 规范第 7.5 节](SCOOP-UI-SPEC.md#75-公共文本接入)。
+日期：2026-11-01。状态：分批实施。独立 `scoop.graphics.text` 已交付字体、StyledText／TextSpan／SpanStyle、Paragraph／TextLayout 和文字绘制查询，验证及后续批次见 [UI 实施记录](../ui/PROGRESS.md)。行内对象扩展尚未交付。本文件同时规定其目标合同；取舍、迁移和调研依据见 [文本排版设计](../graphics/text/DESIGN.md)。UI 接入见 [UI 规范第 7.5 节](SCOOP-UI-SPEC.md#75-公共文本接入)。
 
 ## 1. 定位与依赖
 
@@ -43,6 +43,8 @@ TextStyle 是完整样式，沿用当前的 family 顺序、字号、颜色、we
 局部覆盖必须区分继承、显式设置与清除可选值。例如 TextStyle.lineHeight 为 Option<Double>，SpanStyle 对应字段为 Option<Option<Double>>：None 继承，Some(None) 恢复字体自然行高，Some(Some(value)) 设置行高。空 feature／variation 数组可以显式清除继承设置。基础 TextStyle 的默认值不能冒充 SpanStyle 的未指定值。
 
 进入段落引擎前，将描述展开为最终样式的文字 run 和行内对象记录。相邻等样式文字允许合并，空 Span 不插入额外字符。原始描述可以复用；不要求它是 struct、不强制深复制数组，也不为每个片段分配 native 资源。解析后的 TextRun 是排版输入的内部正常形态，不再另设一套平行的公开富文本模型。
+
+纯空内容或仅含空片段时，段落的默认字体、行高与起始 caret 来自 StyledText.style；空的局部样式片段不制造一行或改变无文字段落的样式。段落构造使用基础样式设置默认文本属性，非空片段使用各自解析后的完整样式。
 
 StyledText 公开规范化的 text，以及 `inlineObjects: Array<InlineObject>`；InlineObject 保存 key、range、alternateText，按逻辑顺序排列，供直接绘图和 UI 适配建立对应。内容规范化在本对象内计算并复用，不依赖字体或 shaping；调用方无需重新遍历文本、猜测编码位置或访问 internal 数据。
 
@@ -132,7 +134,7 @@ FontCollection、Paragraph 和 TextLayout 在创建线程串行使用与关闭�
 
 ## 8. 实施与验收
 
-基础拆分已包含独立 Cone、字体和段落资源所有权、公开 Canvas 借用、测试和 Surface 示例迁移，不保留旧 package 别名。当前可用的 Paragraph 输入仍为 String／TextStyle 或 Array<TextRun>；下一批由 StyledText／SpanStyle 和行内对象替换 run 作者接口，不长期维护两套内容模型。第 2 至 6 节中的这些新增类型、metrics 与 placement 尚未交付，具体验证范围以实施记录为准。
+基础拆分已包含独立 Cone、字体和段落资源所有权、公开 Canvas 借用、测试和 Surface 示例迁移，不保留旧 package 别名。Paragraph 的内容输入已统一为 StyledText，保留 String／TextStyle 的便利构造；TextSpan.text／span 和 SpanStyle 已实现，TextRun 仅作为内部展开结果，不保留公开 run 作者接口。Paragraph／TextLayout 公开同一内容快照，toPlainText 支持 UTF-8 标量边界范围。第 3 至 6 节中的行内对象描述、metrics、placement 和相关查询仍待下一批交付，具体验证范围以实施记录为准。
 
 普通行为测试使用所属 Cone 的 scoop.test，至少覆盖：
 

@@ -5,11 +5,11 @@ import scoop.graphics.*
 /** Owns UTF-8 text, run settings and font sources. Each layout is an independent result. */
 public class Paragraph public constructor(
     fonts: FontCollection,
-    runs: Array<TextRun>,
+    public val content: StyledText,
     settings: ParagraphStyle = ParagraphStyle()
 ): Closeable {
-    public val text: String = joinRuns(runs)
-    private val resource = makeParagraph(fonts, runs, settings)
+    public val text: String get() = content.text
+    private val resource = makeParagraph(fonts, content, settings)
     public val isClosed: Boolean get() = resource.isClosed
 
     public constructor(
@@ -18,7 +18,7 @@ public class Paragraph public constructor(
         style: TextStyle = TextStyle(),
         settings: ParagraphStyle = ParagraphStyle()
     )
-    : this(fonts, [TextRun(text, style)], settings) {}
+    : this(fonts, StyledText([TextSpan.text(text)], style), settings) {}
 
     /** Lays out in finite logical width, preserving prior results. */
     public fun layout(width: Double): TextLayout {
@@ -33,7 +33,7 @@ public class Paragraph public constructor(
         {
             val native = ownedText(textLayout(resource.get(), width, wrap), "layout paragraph")
             try {
-                return TextLayout(native, text)
+                return TextLayout(native, content)
             }
             catch (error: Throwable) {
                 native.close();
@@ -46,23 +46,9 @@ public class Paragraph public constructor(
     }
 }
 
-private fun joinRuns(runs: Array<TextRun>): String {
-    val result = StringBuilder()
-    var length = 0L
-    for (run in runs) {
-        requireText(
-            run.text.byteLength <= 2147483647L - length,
-            "paragraph exceeds native text index range"
-        )
-        length += run.text.byteLength
-        result.append(run.text)
-    }
-    return result.toString()
-}
-
 private fun makeParagraph(
     fonts: FontCollection,
-    runs: Array<TextRun>,
+    content: StyledText,
     settings: ParagraphStyle
 ): TextResource {
     val maxLines = settings.maxLines ?: -1L
@@ -88,11 +74,21 @@ private fun makeParagraph(
         else
             0
     val source = fonts.resource.get()
-    val builder = beginParagraph(source, alignment, direction, maxLines, settings.ellipsis)
+    val builder =
+        content.style.withNative {
+            style -> beginParagraph(
+                source,
+                style,
+                alignment,
+                direction,
+                maxLines,
+                settings.ellipsis
+            )
+        }
     return builder.use {
         current ->
         val pointer = current.get()
-        for (run in runs) {
+        for (run in content.runs) {
             run.style.withNative {
                 style -> @Unsafe
                 {
@@ -118,6 +114,7 @@ private fun makeParagraph(
 
 private fun beginParagraph(
     fonts: Ptr<Unit>,
+    style: Ptr<Unit>,
     alignment: Int,
     direction: Int,
     maxLines: Long,
@@ -130,7 +127,7 @@ private fun beginParagraph(
             count -> @Unsafe
             {
                 return@withUtf8Bytes ownedText(
-                    paragraphBegin(fonts, alignment, direction, maxLines, bytes, count),
+                    paragraphBegin(fonts, style, alignment, direction, maxLines, bytes, count),
                     "create paragraph builder"
                 )
             }
@@ -141,6 +138,7 @@ private fun beginParagraph(
 @Extern(name = "scoop_graphics_text_paragraph_begin")
 private fun paragraphBegin(
     fonts: Ptr<Unit>,
+    style: Ptr<Unit>,
     alignment: Int,
     direction: Int,
     maxLines: Long,

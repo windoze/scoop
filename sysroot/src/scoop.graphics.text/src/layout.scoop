@@ -28,8 +28,9 @@ public struct TextLine(
 /** One immutable layout snapshot; all geometry is local logical coordinates. */
 public class TextLayout internal constructor(
     internal val resource: TextResource,
-    public val text: String
+    public val content: StyledText
 ): Closeable {
+    public val text: String get() = content.text
     private val info = readLayoutInfo(resource.get())
     public val size: Size = Size(info.width, info.height)
     public val minIntrinsicWidth: Double = info.minimum

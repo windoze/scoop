@@ -7,7 +7,7 @@
 | 批次 | 状态 | 交付范围 |
 | --- | --- | --- |
 | 0. 已确认设计与平台范围 | 已记录 | 自绘分层、State／Context／Binding、资源所有权、静止停帧、macOS 首期与后续增强 |
-| 1. 文本公共能力 | 基础拆分完成，富文本待实施 | 已独立 graphics.text 与公开 Canvas 借用；下一步实现 StyledText／SpanStyle、行内 metrics 与布局结果 |
+| 1. 文本公共能力 | 样式描述完成，行内对象待实施 | 已独立 graphics.text 与公开 Canvas 借用，完成 StyledText／SpanStyle；下一步实现行内 metrics 与布局结果 |
 | 2. 独立自绘闭环 | 待实施 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入及 UiHost |
 | 3. 公共文本适配与简单控件 | 待实施 | ParagraphHost／InlineView、Label／Button／Checkbox |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
@@ -29,7 +29,7 @@
 
 字体、TextStyle／TextRun、Paragraph／TextLayout 及其 native 实现、固定测试字体迁入 scoop.graphics.text。该 Cone 自己释放字体与段落资源，Canvas.drawText 通过 graphics 的公开 Unsafe `Canvas.withSkiaCanvas` 同步绘制；正常返回和异常退出都恢复原生坐标、clip 和保存层级。文本库不包含 graphics 的私有 native 头文件，graphics 不反向引用文本类型。FontCollection 新增只在成功登记后递增的 revision。
 
-Surface 主体仍只接收 Rect caret；使用文本的示例和焦点测试已改为直接依赖 graphics.text。已有 DirectWrite 工厂随文件归属一起移动，没有新增 Windows 行为或进行 Windows 验收。StyledText、样式继承及行内对象仍属下一步。
+Surface 主体仍只接收 Rect caret；使用文本的示例和焦点测试已改为直接依赖 graphics.text。已有 DirectWrite 工厂随文件归属一起移动，没有新增 Windows 行为或进行 Windows 验收。后续样式描述的交付见第 3.2 节。
 
 本轮在 macOS aarch64 使用当前源码的工具链及显式准备的开发 sysroot，先完成 Scoop／C++ 格式检查、C++ 编译告警检查和两库测试源码的类型检查，再运行以下 release scoop.test：
 
@@ -41,3 +41,19 @@ Surface 主体仍只接收 Rect caret；使用文本的示例和焦点测试已�
 | Surface basics 示例 | 4／4 | 文本编辑、布局缓存和拖动收尾 |
 
 画布恢复测试初次对 SkPath 的恰好边界点作了半开矩形的假设；改为检查明确位于 clip 外的点后，几何和实际像素断言均通过。本轮未修改编译器、core／std／test，未新增 fixture 或运行全量测试。x86_64 留待本期功能完成后补验。
+
+### 3.2 内容描述与样式继承
+
+StyledText／TextSpan.text／TextSpan.span 与 SpanStyle 已实现。嵌套片段在内容创建时展开并复用，未指定属性继承父样式，数组属性整体替换；lineHeight 区分继承、显式设置和清除。Paragraph 以基础 TextStyle 初始化默认属性，使空内容仍有正确的行高和起始 caret。公开 TextRun 输入已移除，Paragraph／TextLayout 保存同一不可变内容快照，String 便利构造继续可用。
+
+toPlainText 支持完整导出及以 UTF-8 字节表示的标量边界范围；行内对象与替代文字将在下一批扩展。片段不拥有 native 资源，调用方无需逐片段 use。
+
+macOS aarch64 的 Scoop 格式／类型检查和 C++ 格式／告警检查通过，release scoop.test 结果如下：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| scoop.graphics.text | 17／17 | 原文本／Metal，加嵌套字号与颜色、family 替换、行高清除、kerning／可变字体清除、空片段与 ligature、UTF-8 范围 |
+| Surface caret 接入 | 1／1 | 排版 caret 的区域几何与所有权 |
+| basics 的 DemoEditorTest | 2／2 | grapheme 编辑、组合输入与排版复用 |
+
+本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试；行内对象尚未交付，x86_64 统一补验仍在全部 aarch64 功能之后。

@@ -1,0 +1,91 @@
+package scoop.graphics.text
+
+/** A reusable immutable text description, without native resources or UI ownership. */
+public class TextSpan private constructor(internal val content: SpanContent) {
+    public companion object {
+        public fun text(text: String): TextSpan = TextSpan(SpanContent.Plain(text))
+        public fun span(style: SpanStyle, children: Array<TextSpan>): TextSpan =
+            TextSpan(SpanContent.Styled(style, children))
+    }
+}
+
+internal enum SpanContent {
+    Plain(String), Styled(SpanStyle, Array<TextSpan>)
+}
+
+/** Resolves inherited styles once; every Paragraph can reuse the same content. */
+public class StyledText public constructor(
+    public val spans: Array<TextSpan>,
+    public val style: TextStyle = TextStyle()
+) {
+    internal val runs: Array<TextRun> = flattenSpans(spans, style)
+    public val text: String = joinRuns(runs)
+
+    public fun toPlainText(): String = text
+    public fun toPlainText(range: TextRange): String = sliceText(text, range)
+}
+
+internal struct TextRun(val text: String, val style: TextStyle)
+
+private fun flattenSpans(spans: Array<TextSpan>, style: TextStyle): Array<TextRun> {
+    val result = ArrayList<TextRun>()
+    appendSpans(spans, style, result)
+    return result.toArray()
+}
+
+private fun appendSpans(spans: Array<TextSpan>, style: TextStyle, output: ArrayList<TextRun>) {
+    for (span in spans) {
+        when (span.content) {
+            case Plain(value) -> {
+                if (value.byteLength > 0L)
+                    output.add(TextRun(value, style))
+            }
+            case Styled(overrides, children) -> appendSpans(
+                children,
+                overrides.resolve(style),
+                output
+            )
+        }
+    }
+}
+
+private fun joinRuns(runs: Array<TextRun>): String {
+    val result = StringBuilder()
+    var length = 0L
+    for (run in runs) {
+        requireText(
+            run.text.byteLength <= 2147483647L - length,
+            "paragraph exceeds native text index range"
+        )
+        length += run.text.byteLength
+        result.append(run.text)
+    }
+    return result.toString()
+}
+
+internal fun sliceText(text: String, range: TextRange): String {
+    requireText(
+        range.start >= 0L && range.start <= range.end && range.end <= text.byteLength,
+        "invalid UTF-8 text range"
+    )
+    if (range.start == 0L && range.end == text.byteLength)
+        return text
+    @Unsafe
+    {
+        return text.withUtf8Bytes {
+            bytes,
+            length -> @Unsafe
+            {
+                requireText(
+                    (range.start == length || bytes.load(range.start).toInt().and(192) != 128) &&
+                        (range.end == length || bytes.load(range.end).toInt().and(192) != 128),
+                    "text range must use UTF-8 scalar boundaries"
+                )
+                return@withUtf8Bytes if (range.start == range.end)
+                    ""
+                else
+                    String.fromUtf8(bytes + range.start, range.end - range.start)
+            }
+        }
+    }
+}

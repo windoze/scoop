@@ -24,6 +24,8 @@ when = { os = ["darwin", "windows"] }
 [[test.sources]]
 path = "tests/text.scoop"
 [[test.sources]]
+path = "tests/styled.scoop"
+[[test.sources]]
 path = "tests/metal.scoop"
 when = { os = "darwin" }
 
