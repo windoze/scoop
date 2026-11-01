@@ -1,12 +1,10 @@
 use super::*;
 
-/// The unique normal SysV/GNU archive byte stream admitted by the `.slib`
-/// container schema. Semantic validity of the manifest is established by
-/// the manifest layer, not by this physical writer.
+/// The deterministic indexed byte stream admitted by the `.slib` container
+/// schema. Semantic validity of the manifest belongs to the manifest layer.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalSlibArchive {
     bytes: Vec<u8>,
-    objects: Vec<(scoop_wire::Digest256, Vec<u8>)>,
 }
 
 impl CanonicalSlibArchive {
@@ -25,21 +23,14 @@ impl CanonicalSlibArchive {
             }
         }
 
-        let mut archive_length =
-            u64::try_from(GLOBAL_MAGIC.len()).map_err(|_| ArchiveWriteError::LengthOverflow)?;
-        archive_length = archive_length
-            .checked_add(
-                encoded_member_length(manifest_length).ok_or(ArchiveWriteError::LengthOverflow)?,
-            )
+        let mut archive_length = HEADER_LENGTH
+            .checked_add(manifest_length)
             .ok_or(ArchiveWriteError::LengthOverflow)?;
         for member in &members {
             let payload_length = u64::try_from(member.payload().len())
                 .map_err(|_| ArchiveWriteError::LengthOverflow)?;
             archive_length = archive_length
-                .checked_add(
-                    encoded_member_length(payload_length)
-                        .ok_or(ArchiveWriteError::LengthOverflow)?,
-                )
+                .checked_add(payload_length)
                 .ok_or(ArchiveWriteError::LengthOverflow)?;
         }
 
@@ -50,21 +41,13 @@ impl CanonicalSlibArchive {
             .try_reserve_exact(capacity)
             .map_err(|_| ArchiveWriteError::Allocation)?;
         output.extend_from_slice(GLOBAL_MAGIC);
-        write_member(&mut output, MANIFEST_NAME, &manifest)?;
-        let mut objects = Vec::new();
-        for (ordinal, member) in members.into_iter().enumerate() {
-            let name = member_name(ordinal).ok_or(ArchiveWriteError::HeaderFieldOverflow)?;
-            write_member(&mut output, &name, member.payload())?;
-            let digest = member.record().sha256();
-            if let Some(bytes) = member.into_object_payload() {
-                objects.push((digest, bytes));
-            }
+        output.extend_from_slice(&manifest_length.to_le_bytes());
+        output.extend_from_slice(&manifest);
+        for member in members {
+            output.extend_from_slice(member.payload());
         }
         debug_assert_eq!(output.len(), capacity);
-        Ok(Self {
-            bytes: output,
-            objects,
-        })
+        Ok(Self { bytes: output })
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -74,12 +57,6 @@ impl CanonicalSlibArchive {
     pub fn into_bytes(self) -> Vec<u8> {
         self.bytes
     }
-
-    pub fn object_payloads(&self) -> impl Iterator<Item = (scoop_wire::Digest256, &[u8])> {
-        self.objects
-            .iter()
-            .map(|(digest, bytes)| (*digest, bytes.as_slice()))
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -88,7 +65,6 @@ pub enum ArchiveWriteError {
 
     DuplicateMemberId { id: SlibMemberId },
 
-    HeaderFieldOverflow,
     Allocation,
     Compression(crate::CompressionError),
 }
@@ -100,9 +76,6 @@ impl fmt::Display for ArchiveWriteError {
 
             Self::DuplicateMemberId { id } => write!(formatter, "duplicate archive member id {id}"),
 
-            Self::HeaderFieldOverflow => {
-                formatter.write_str("archive header field exceeds its fixed width")
-            }
             Self::Allocation => formatter.write_str("failed to allocate canonical archive bytes"),
             Self::Compression(error) => error.fmt(formatter),
         }
@@ -110,47 +83,3 @@ impl fmt::Display for ArchiveWriteError {
 }
 
 impl std::error::Error for ArchiveWriteError {}
-
-fn write_member(
-    output: &mut Vec<u8>,
-    name: &[u8],
-    payload: &[u8],
-) -> Result<(), ArchiveWriteError> {
-    let header_start = output.len();
-    write_archive_name_field(output, name)?;
-    write_field(output, b"0", 12)?;
-    write_field(output, b"0", 6)?;
-    write_field(output, b"0", 6)?;
-    write_field(output, b"100644", 8)?;
-    write_field(output, payload.len().to_string().as_bytes(), 10)?;
-    output.extend_from_slice(b"`\n");
-    debug_assert_eq!(output.len() - header_start, HEADER_LENGTH as usize);
-    output.extend_from_slice(payload);
-    if payload.len() & 1 == 1 {
-        output.push(b'\n');
-    }
-    Ok(())
-}
-
-fn write_archive_name_field(output: &mut Vec<u8>, name: &[u8]) -> Result<(), ArchiveWriteError> {
-    let length = name
-        .len()
-        .checked_add(1)
-        .ok_or(ArchiveWriteError::LengthOverflow)?;
-    if length > 16 {
-        return Err(ArchiveWriteError::HeaderFieldOverflow);
-    }
-    output.extend_from_slice(name);
-    output.push(b'/');
-    output.resize(output.len() + 16 - length, b' ');
-    Ok(())
-}
-
-fn write_field(output: &mut Vec<u8>, value: &[u8], width: usize) -> Result<(), ArchiveWriteError> {
-    let padding = width
-        .checked_sub(value.len())
-        .ok_or(ArchiveWriteError::HeaderFieldOverflow)?;
-    output.extend_from_slice(value);
-    output.extend(std::iter::repeat_n(b' ', padding));
-    Ok(())
-}

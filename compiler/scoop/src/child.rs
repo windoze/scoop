@@ -21,6 +21,7 @@ pub(crate) struct ProductionSingleConeCompilerRunner;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ChildIoPlan {
     temporary_root: PathBuf,
+    pub(crate) jobs: std::num::NonZeroUsize,
     compiler_environment: Vec<(&'static str, std::ffi::OsString)>,
 }
 
@@ -28,6 +29,7 @@ impl ChildIoPlan {
     pub(crate) fn new(temporary_root: PathBuf) -> Self {
         Self {
             temporary_root,
+            jobs: std::num::NonZeroUsize::MIN,
             compiler_environment: Vec::new(),
         }
     }
@@ -78,8 +80,8 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         let mut child = command
             .arg("__child-protocol")
             .arg(tool.protocol().protocol_version().to_string())
-            .arg("--object-cache-dir")
-            .arg(&io.temporary_root)
+            .arg("--jobs")
+            .arg(io.jobs.to_string())
             .envs(
                 std::env::vars_os()
                     .filter(|(name, _)| name.as_encoded_bytes().starts_with(b"SCOOP_")),

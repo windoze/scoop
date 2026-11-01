@@ -18,10 +18,6 @@ impl DecodedCrossConeLayoutLinkSections<'_> {
         self.graph.artifact_fingerprint()
     }
 
-    pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
-        &self.production_manifest
-    }
-
     pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {
         &self.hir_foundation
     }

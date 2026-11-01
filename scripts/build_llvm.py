@@ -42,6 +42,7 @@ SOURCE_PARTS = ("llvm", "clang", "lld", "cmake", "third-party")
 TOOLS = (
     "dsymutil",
     "llvm-config",
+    "llc",
     "clang",
     "clang++",
     "clang-cl",
@@ -99,6 +100,7 @@ def configure(source, build, prefix, cc, cxx, host, release):
         "CMAKE_C_FLAGS": cpu,
         "CMAKE_CXX_FLAGS": cpu,
         "LLVM_TARGETS_TO_BUILD": "AArch64;X86",
+        "LLVM_APPEND_VC_REV": "OFF",
         "LLVM_BUILD_LLVM_DYLIB": "ON",
         "LLVM_LINK_LLVM_DYLIB": "ON",
         "CLANG_LINK_CLANG_DYLIB": "ON",

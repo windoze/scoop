@@ -19,6 +19,7 @@ use crate::{
 
 mod archive;
 mod fetch;
+mod http;
 mod index;
 mod manifest;
 

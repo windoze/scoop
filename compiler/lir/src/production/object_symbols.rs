@@ -6,16 +6,15 @@ mod read;
 use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::{
-    DecodedPersistentId, DecodedPersistentSymbolRequest, DecodedStrongDefinitionEntity,
-    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-};
 pub use scoop_identity::{
     DefinitionAtomRole, PersistentDispatchTableId, PersistentLayoutId, StrongDefinitionEntity,
     StrongDefinitionEntityKind, StrongDefinitionRole,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_identity::{
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
+    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+};
+use scoop_wire::{Encoder, WireEncode};
 
 use crate::{ConeLirFoundation, ObjectDefinitionPlanBuildError, ObjectDefinitionPlanSurfaceV1};
 
@@ -273,103 +272,6 @@ fn atom_boundary_indices(
 impl WireEncode for ObjectSymbolSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_array(encoder, &self.plans)
-    }
-}
-
-#[derive(Debug)]
-struct DecodedAtomBoundarySymbolsV1 {
-    atom: DecodedPersistentId<ObjectDefinitionAtomId>,
-    atom_role: DefinitionAtomRole,
-    start: DecodedPersistentSymbolRequest,
-    end: DecodedPersistentSymbolRequest,
-}
-
-impl WireEncode for DecodedAtomBoundarySymbolsV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.atom.encode(encoder)?;
-        encoder.field(2)?;
-        self.atom_role.encode(encoder)?;
-        encoder.field(3)?;
-        self.start.encode(encoder)?;
-        encoder.field(4)?;
-        self.end.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedAtomBoundarySymbolsV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
-        Ok(Self {
-            atom: decoder.field(1, DecodedPersistentId::decode)?,
-            atom_role: decoder.field(2, DefinitionAtomRole::decode)?,
-            start: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
-            end: decoder.field(4, DecodedPersistentSymbolRequest::decode)?,
-        })
-    }
-}
-
-#[derive(Debug)]
-struct DecodedDefinitionSymbolPlanV1 {
-    definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
-    owner: DecodedStrongDefinitionEntity,
-    definition_role: StrongDefinitionRole,
-    primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
-    primary_symbol: DecodedPersistentSymbolRequest,
-    atom_boundaries: Vec<DecodedAtomBoundarySymbolsV1>,
-}
-
-impl WireEncode for DecodedDefinitionSymbolPlanV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
-        encoder.field(1)?;
-        self.definition_plan.encode(encoder)?;
-        encoder.field(2)?;
-        self.owner.encode(encoder)?;
-        encoder.field(3)?;
-        self.definition_role.encode(encoder)?;
-        encoder.field(4)?;
-        self.primary_atom.encode(encoder)?;
-        encoder.field(5)?;
-        self.primary_symbol.encode(encoder)?;
-        encoder.field(6)?;
-        encode_array(encoder, &self.atom_boundaries)
-    }
-}
-
-impl WireDecode for DecodedDefinitionSymbolPlanV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
-        Ok(Self {
-            definition_plan: decoder.field(1, DecodedPersistentId::decode)?,
-            owner: decoder.field(2, DecodedStrongDefinitionEntity::decode)?,
-            definition_role: decoder.field(3, StrongDefinitionRole::decode)?,
-            primary_atom: decoder.field(4, DecodedPersistentId::decode)?,
-            primary_symbol: decoder.field(5, DecodedPersistentSymbolRequest::decode)?,
-            atom_boundaries: decoder.field(6, |decoder| {
-                decoder.decode_array(|decoder, _| DecodedAtomBoundarySymbolsV1::decode(decoder))
-            })?,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct DecodedObjectSymbolSurfaceV1 {
-    plans: Vec<DecodedDefinitionSymbolPlanV1>,
-}
-
-impl WireEncode for DecodedObjectSymbolSurfaceV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encode_array(encoder, &self.plans)
-    }
-}
-
-impl WireDecode for DecodedObjectSymbolSurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder
-            .decode_array(|decoder, _| DecodedDefinitionSymbolPlanV1::decode(decoder))
-            .map(|plans| Self { plans })
     }
 }
 

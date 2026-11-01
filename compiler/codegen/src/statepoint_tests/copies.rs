@@ -62,7 +62,7 @@ fn byval_forwarding_preserves_the_value_before_an_intervening_write() {
             let site = (effect == GcEffect::Managed)
                 .then_some((7, ExpectedStatepoint::Relocating(Vec::new().into())));
             let mut expected = manifest(site);
-            Rc::make_mut(&mut expected.functions).insert("f".into(), effect);
+            Arc::make_mut(&mut expected.functions).insert("f".into(), effect);
             let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
             llvm.verify().unwrap();
             let ir = llvm.print_to_string().to_string();

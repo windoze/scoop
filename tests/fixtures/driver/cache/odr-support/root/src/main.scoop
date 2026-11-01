@@ -1,0 +1,7 @@
+package test.odr.cache.root
+
+import test.odr.cache.middle.consume
+
+fun main() {
+    println(consume(7))
+}

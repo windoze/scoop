@@ -1,4 +1,4 @@
-use scoop_identity::{CapabilityId, ConeIdentity, ObjectFormatId, TargetProfileWireId};
+use scoop_identity::{CapabilityId, ConeIdentity};
 
 use super::*;
 
@@ -30,20 +30,20 @@ fn key_role_matrix_rejects_variant_and_capability_mismatches() {
     };
 
     assert_eq!(
-        SlibMemberRecord::new(
+        SlibMember::new(
             ConeIdentity::CORE,
             key.clone(),
             SlibMemberRole::HirMetadata,
-            b"payload",
+            b"payload".to_vec(),
         ),
         Err(SlibMemberRecordError::KeyRoleMismatch)
     );
     assert_eq!(
-        SlibMemberRecord::new(
+        SlibMember::new(
             ConeIdentity::CORE,
             key,
             SlibMemberRole::DiagnosticAttachment { capability: other },
-            b"payload",
+            b"payload".to_vec(),
         ),
         Err(SlibMemberRecordError::CapabilityMismatch)
     );
@@ -51,17 +51,19 @@ fn key_role_matrix_rejects_variant_and_capability_mismatches() {
 
 #[test]
 fn metadata_record_has_fixed_wire_id_and_fingerprint() {
-    let record = SlibMemberRecord::new(
+    let record = SlibMember::new(
         ConeIdentity::CORE,
         MemberStableKey::HirMetadata,
         SlibMemberRole::HirMetadata,
-        b"hir",
+        b"hir".to_vec(),
     )
-    .unwrap();
+    .unwrap()
+    .record()
+    .clone();
 
     assert_eq!(
         hex(&scoop_wire::encode(&record).unwrap()),
-        "a5015820d2be1585afd5800d1d66522762f35b9d89eaa15cc43dcf9e0e299503e6d292b802a1000103a20001010104030558205e308bbe57debf9cc46cf2588f41a55fd820d26f1bf98c7a8c0dcf17b8e9262f"
+        "a4015820d2be1585afd5800d1d66522762f35b9d89eaa15cc43dcf9e0e299503e6d292b803a200010101040c0558205febd6c21b3c6bd69dfe95d1ccc3642ee63e7f9faebb0bde10f5b37af1f199f6"
     );
     assert_eq!(
         record.id().to_string(),
@@ -69,31 +71,32 @@ fn metadata_record_has_fixed_wire_id_and_fingerprint() {
     );
     assert_eq!(
         record.fingerprint().unwrap().to_string(),
-        "ff5ae48ebf8612348229d20cdca9084c45d477daaff04cc5b23ca2e9ac83b3f3"
+        "81e09433e25f702d5c2b32f37ee54d27d215e6f7a4cb971ddee7bd12af245c12"
     );
-    assert_eq!(record.byte_length(), 3);
-    assert_eq!(record.sha256(), scoop_wire::sha256(b"hir"));
+    assert_eq!(record.byte_length(), 12);
+    assert_eq!(
+        hex(record.sha256().as_array()),
+        "5febd6c21b3c6bd69dfe95d1ccc3642ee63e7f9faebb0bde10f5b37af1f199f6"
+    );
     assert!(record.as_link_member().is_none());
 }
 
 #[test]
 fn only_link_inputs_can_form_link_fingerprints() {
     let verifier = capability("object");
-    let link = SlibMemberRecord::new(
+    let link = SlibMember::new(
         ConeIdentity::CORE,
         MemberStableKey::LinkObject {
             verifier_capability: verifier.clone(),
             logical_key: logical_key(b"unit"),
         },
-        SlibMemberRole::LinkObject {
-            target_profile: TargetProfileWireId::new(scoop_target_data::DARWIN_AARCH64_ID),
-            object_format: ObjectFormatId::macho_relocatable(),
-            verifier_capability: verifier,
-        },
-        b"object",
+        SlibMemberRole::LinkObject,
+        b"object".to_vec(),
     )
-    .unwrap();
-    let optional = SlibMemberRecord::new(
+    .unwrap()
+    .record()
+    .clone();
+    let optional = SlibMember::new(
         ConeIdentity::CORE,
         MemberStableKey::ExtensionBlob {
             capability: capability("optional"),
@@ -103,10 +106,12 @@ fn only_link_inputs_can_form_link_fingerprints() {
             capability: capability("optional"),
             requirement: ExtensionRequirement::Optional,
         },
-        b"optional",
+        b"optional".to_vec(),
     )
-    .unwrap();
-    let required = SlibMemberRecord::new(
+    .unwrap()
+    .record()
+    .clone();
+    let required = SlibMember::new(
         ConeIdentity::CORE,
         MemberStableKey::ExtensionBlob {
             capability: capability("required"),
@@ -116,9 +121,11 @@ fn only_link_inputs_can_form_link_fingerprints() {
             capability: capability("required"),
             requirement: ExtensionRequirement::Link,
         },
-        b"required",
+        b"required".to_vec(),
     )
-    .unwrap();
+    .unwrap()
+    .record()
+    .clone();
 
     assert_eq!(
         link.as_link_member()
@@ -126,7 +133,7 @@ fn only_link_inputs_can_form_link_fingerprints() {
             .fingerprint()
             .unwrap()
             .to_string(),
-        "e5d1dcce52fcffc04dfd840fcef111454a7820509c5f04b8ed3f52ba3b31a502"
+        "d29223da4529c43eaf9a59d39d5bb361e91686122ccf3cad3c6085da63cc2669"
     );
     assert_eq!(
         required
@@ -135,7 +142,7 @@ fn only_link_inputs_can_form_link_fingerprints() {
             .fingerprint()
             .unwrap()
             .to_string(),
-        "427bde8532ebf7f4aec5abae2dbce525e394655342b78d52686de016c5850de0"
+        "f509a5fcabb56118b17ba92c28fa6acd256a7b1644387fa2cacce8d92dc0a0cd"
     );
     assert!(optional.as_link_member().is_none());
     assert!(required.as_link_member().is_some());

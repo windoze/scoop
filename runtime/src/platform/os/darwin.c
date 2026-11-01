@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <mach/mach.h>
+#include <mach/mach_vm.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -74,10 +75,15 @@ static bool darwin_release_mapping(void *base, size_t size, ScoopPlatformError *
 }
 
 static bool darwin_discard_pages(void *base, size_t size, ScoopPlatformError *error) {
+    size_t page_size = darwin_page_size();
     if (error == NULL) {
         return false;
     }
-    if (base == NULL || size == 0 || madvise(base, size, MADV_DONTNEED) != 0) {
+    // Rosetta can lose SA_RESETHAND handlers while emulating madvise.
+    // Preserve madvise's alignment check before Mach rounds the address down.
+    if (base == NULL || page_size == 0 || size == 0 || (uintptr_t)base % page_size != 0 ||
+        mach_vm_behavior_set(mach_task_self(), (mach_vm_address_t)(uintptr_t)base, size,
+                             VM_BEHAVIOR_DONTNEED) != KERN_SUCCESS) {
         error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
         return false;
     }

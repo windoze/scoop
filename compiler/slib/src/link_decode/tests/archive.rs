@@ -1,6 +1,14 @@
 use super::*;
 
 pub(in super::super) fn complete_artifact() -> Vec<u8> {
+    let (manifest, members) = complete_artifact_parts();
+    CanonicalSlibArchive::write_bootstrap(&manifest, members)
+        .unwrap()
+        .as_bytes()
+        .to_vec()
+}
+
+pub(crate) fn complete_artifact_parts() -> (BootstrapManifest, Vec<SlibMember>) {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![
@@ -37,13 +45,15 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
     let link_member = SlibMember::new(
         cone().identity(),
         member_plan.stable_key().clone(),
-        member_plan.role().clone(),
+        crate::SlibMemberRole::LinkObject,
         final_objects.objects()[0].bytes().to_vec(),
     )
     .unwrap();
-    let link_objects =
-        crate::build_code_link_object_members_v1(final_objects, &[link_member.record().clone()])
-            .unwrap();
+    let link_objects = crate::build_code_link_object_members_v1(
+        final_objects,
+        &[link_member.record().content().clone()],
+    )
+    .unwrap();
     let code_projection = crate::verify_single_cone_production_code_projection_v1(
         &cone(),
         strong_production.clone(),
@@ -63,7 +73,6 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
     )
     .unwrap();
     let closure = crate::LinkIdentityClosureSectionV1::from_verified_code(&code);
-    let production_manifest = crate::SingleConeProductionManifestV1::from_verified_code(code);
     let hir_sections = vec![
         MetadataSection::new(
             MetadataLocation::Hir,
@@ -130,19 +139,16 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
         &known_sections(&lir_sections),
     )
     .unwrap();
-    let semantic = SemanticFingerprintRecord::from_production_manifest(
+    let semantic = SemanticFingerprintRecord::from_digests(
         foundation_fingerprints.hir(),
         foundation_fingerprints.mir(),
         foundation_fingerprints.lir(),
-        &production_manifest,
+        crate::FingerprintAvailability::Available(code.fingerprint()),
+        crate::FingerprintAvailability::Available(
+            code.production().projection().runtime_image_fingerprint(),
+        ),
     );
-    let manifest_section = ManifestSection::new(
-        manifest_single_cone_production_capability(),
-        MemberPurposeSet::LINK,
-        encode(&production_manifest).unwrap(),
-    )
-    .unwrap();
-    let mut members = vec![
+    let members = vec![
         SlibMember::new(
             cone().identity(),
             MemberStableKey::HirMetadata,
@@ -173,13 +179,10 @@ pub(in super::super) fn complete_artifact() -> Vec<u8> {
         dependencies,
         &members,
         semantic,
-        vec![manifest_section],
+        Vec::new(),
     )
     .unwrap();
-    CanonicalSlibArchive::write_bootstrap(&manifest, std::mem::take(&mut members))
-        .unwrap()
-        .as_bytes()
-        .to_vec()
+    (manifest, members)
 }
 
 fn known_sections(sections: &[MetadataSection]) -> Vec<MetadataSection> {

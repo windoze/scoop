@@ -29,7 +29,6 @@ fn layout_link_front_decodes_the_complete_profile_atomically() {
     );
     let _ = sections.artifact_fingerprint();
 
-    let _ = sections.production_manifest_wire();
     let _ = sections.hir_foundation_wire();
     let _ = sections.hir_core_production_wire();
     let _ = sections.hir_interface_wire();

@@ -107,7 +107,7 @@ pub struct SingleConeBuildRequest {
     purpose: CompilationPurpose,
     native_inputs: NativeInputOrigin,
     generators: scoop_toolchain::GeneratorPrograms,
-    object_cache_root: Option<PathBuf>,
+    jobs: std::num::NonZeroUsize,
 }
 
 #[derive(Debug)]
@@ -163,7 +163,7 @@ impl SingleConeBuildRequest {
             purpose: CompilationPurpose::Production,
             native_inputs: NativeInputOrigin::Source { sysroot: None },
             generators: scoop_toolchain::GeneratorPrograms::default(),
-            object_cache_root: None,
+            jobs: std::num::NonZeroUsize::MIN,
         })
     }
 
@@ -172,8 +172,8 @@ impl SingleConeBuildRequest {
         self
     }
 
-    pub fn with_object_cache_root(mut self, root: Option<PathBuf>) -> Self {
-        self.object_cache_root = root;
+    pub fn with_jobs(mut self, jobs: std::num::NonZeroUsize) -> Self {
+        self.jobs = jobs;
         self
     }
 

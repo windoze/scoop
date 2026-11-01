@@ -163,11 +163,11 @@ pub(super) fn verify(
 pub(super) fn check(
     emitted: &scoop_codegen::EmittedConeObjectSetV2,
 ) -> BTreeMap<PersistentCallableBodyId, Vec<u8>> {
-    let production = emitted.production();
+    let production = &emitted.production;
     let normalization = emitted.target().contract().native_symbol_normalization();
     let mut bodies = BTreeMap::new();
-    for member in emitted.members() {
-        let bytes = std::fs::read(member.path()).unwrap();
+    for member in &emitted.members {
+        let bytes = member.bytes.clone();
         let object = object::File::parse(bytes.as_slice()).unwrap();
         let envelope =
             scoop_slib::validate_scoop_lir_llvm_22_1_object_envelope_v1(emitted.target(), &bytes)
@@ -188,7 +188,7 @@ pub(super) fn check(
             };
             assert_eq!(symbol.kind(), expected, "{name}");
         };
-        for definition in member.units().definition_plans() {
+        for definition in member.units.definition_plans() {
             let plan = production
                 .canonical_definitions()
                 .plan(*definition)

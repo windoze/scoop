@@ -19,7 +19,7 @@ fn only_typed_no_gc_release_loops_are_vectorized() {
                 llvm.set_triple(&machine.get_triple());
                 llvm.set_data_layout(&machine.get_target_data().get_data_layout());
                 let mut expected = manifest(None);
-                Rc::make_mut(&mut expected.functions).insert("f".into(), effect);
+                Arc::make_mut(&mut expected.functions).insert("f".into(), effect);
                 let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
                 llvm.verify().unwrap();
                 assert_eq!(plan.site_count(), 0);

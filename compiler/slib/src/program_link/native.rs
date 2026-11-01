@@ -1,30 +1,35 @@
 use super::*;
-use crate::{MemberStableKey, NativeLinkObject, SlibMemberRole, ValidatedGraphArtifact};
+use crate::{NativeLinkObject, SlibMemberRole, ValidatedGraphArtifact};
 
 pub(super) fn read(
     graph: &mut ValidatedGraphArtifact<'_>,
-    target: lir::LirTargetProfile,
 ) -> Result<Vec<NativeLinkObject>, ProgramLinkReadError> {
     let records: Vec<_> = graph
         .envelope
         .manifest()
         .members()
         .iter()
-        .filter(|record| crate::is_native_link_object(record))
-        .cloned()
+        .filter_map(|record| match record.role() {
+            SlibMemberRole::NativeObject { source } => {
+                Some((record.id(), source.clone(), record.sha256()))
+            }
+            _ => None,
+        })
         .collect();
-    records.into_iter().map(|record| {
-        if !matches!(record.role(), SlibMemberRole::LinkObject { target_profile, object_format, .. }
-            if *target_profile == target.wire_id() && *object_format == target.native_object_format().wire_id()) {
-            return Err(error(format!("native object {} has a different target", record.id())));
-        }
-        let MemberStableKey::LinkObject { logical_key, .. } = record.stable_key() else {
-            return Err(error("native object has an invalid member key"));
-        };
-        let source = std::str::from_utf8(logical_key.as_bytes()).map_err(error)?;
-        let source = scoop_identity::NormalizedNativeSourcePath::new(source).map_err(error)?;
-        let bytes = graph.envelope.member(record.id()).map_err(error)?
-            .ok_or_else(|| error(format!("missing native object {}", record.id())))?;
-        Ok(NativeLinkObject { member: record.id(), source, bytes: bytes.into(), digest: record.sha256() })
-    }).collect()
+    records
+        .into_iter()
+        .map(|(member, source, digest)| {
+            let bytes = graph
+                .envelope
+                .member(member)
+                .map_err(error)?
+                .ok_or_else(|| error(format!("missing native object {member}")))?;
+            Ok(NativeLinkObject {
+                member,
+                source,
+                bytes: bytes.into(),
+                digest,
+            })
+        })
+        .collect()
 }

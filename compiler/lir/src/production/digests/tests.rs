@@ -49,6 +49,70 @@ fn digest_plan_requires_its_runtime_image() {
     );
 }
 
+#[test]
+fn lookup_uses_typed_keys_without_changing_canonical_node_order() {
+    let mut layouts = Vec::new();
+    for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
+        let exact =
+            PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(builtin.identity_record().id()))
+                .unwrap();
+        for target in [
+            crate::target_fixtures::DARWIN_AARCH64_ID,
+            crate::target_fixtures::LINUX_X86_64_GNU_ID,
+            crate::target_fixtures::LINUX_X86_64_MUSL_ID,
+        ] {
+            layouts.push(
+                CborIdentityRecord::from_key(LayoutKey::new(
+                    exact,
+                    scoop_identity::TargetProfileWireId::new(target),
+                    RepresentationRole::ManagedValue,
+                ))
+                .unwrap(),
+            );
+        }
+    }
+    let mut nodes = layouts
+        .iter()
+        .map(|layout| DigestNodeV1::new(DigestNodeKey::layout(layout.id()), Vec::new()).unwrap())
+        .collect::<Vec<_>>();
+    nodes.push(image_node(
+        nodes.iter().map(DigestInputRefV1::from_node).collect(),
+    ));
+    let expected = nodes.clone();
+    let mut canonical = CanonicalLirFoundation::empty();
+    canonical.set_layouts(layouts).unwrap();
+    let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let plan = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
+
+    assert!(plan.nodes().windows(2).all(|pair| {
+        (pair[0].kind().tag(), pair[0].id()) < (pair[1].kind().tag(), pair[1].id())
+    }));
+    assert!(
+        plan.nodes()
+            .windows(2)
+            .any(|pair| pair[0].key() > pair[1].key())
+    );
+    for node in &expected {
+        assert_eq!(plan.node(node.key()), Some(node));
+    }
+    assert_eq!(
+        plan.node(&DigestNodeKey::runtime_image(ConeIdentity::CORE)),
+        None
+    );
+}
+
+#[test]
+fn duplicate_nodes_are_rejected_before_building_the_lookup() {
+    let image = image_node(Vec::new());
+    let id = image.id();
+    assert_eq!(
+        DigestFinalizationPlanV1::new(vec![image.clone(), image], &empty_foundation()),
+        Err(DigestPlanBuildError::Plan(DigestPlanError::DuplicateNode(
+            id
+        )))
+    );
+}
+
 fn empty_foundation() -> ConeLirFoundation {
     ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty()).unwrap()
 }

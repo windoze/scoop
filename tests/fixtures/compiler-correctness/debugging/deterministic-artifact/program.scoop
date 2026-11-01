@@ -1,0 +1,15 @@
+fun combine(left: String, middle: String, right: String): String {
+    val first = left + middle
+    val second = middle + right
+    val third = right + left
+    val fourth = first + right
+    val fifth = second + left
+    val sixth = third + middle
+    val seventh = fourth + fifth
+    val eighth = sixth + seventh
+    return first + second + third + fourth + fifth + sixth + seventh + eighth
+}
+
+fun main() {
+    println(combine("left", "middle", "right"))
+}

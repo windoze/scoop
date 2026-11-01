@@ -101,7 +101,7 @@ struct Fixture {
 }
 
 #[test]
-fn builtin_member_roles_preserve_the_selected_target_and_object_format() {
+fn member_plan_shares_one_target_without_changing_member_identities() {
     let fixture = fixture(true);
     let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let mut ids = None;
@@ -118,29 +118,16 @@ fn builtin_member_roles_preserve_the_selected_target_and_object_format() {
         )
         .unwrap();
         assert_eq!(plan.target(), target);
-        let members = plan
+        let actual_ids = plan
             .scoop_lir_members()
             .iter()
-            .map(|m| (m.member_id(), m.role()))
+            .map(|member| member.member_id())
             .chain(
                 plan.generated_bridge_members()
                     .iter()
-                    .map(|m| (m.member_id(), m.role())),
+                    .map(|member| member.member_id()),
             )
             .collect::<Vec<_>>();
-        for (_, role) in &members {
-            let crate::SlibMemberRole::LinkObject {
-                target_profile,
-                object_format,
-                ..
-            } = role
-            else {
-                panic!("builtin object role");
-            };
-            assert_eq!(*target_profile, target.wire_id());
-            assert_eq!(*object_format, target.native_object_format().wire_id());
-        }
-        let actual_ids = members.iter().map(|(id, _)| *id).collect::<Vec<_>>();
         if let Some(ids) = &ids {
             assert_eq!(&actual_ids, ids);
         }

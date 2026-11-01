@@ -199,14 +199,6 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             else {
                 return Ok(ControlFlow::Break(()));
             };
-            let cache = scoop_toolchain::configured_cache_root(
-                self.request.request.object_cache_root.clone(),
-            )
-            .map_err(CurrentConeProductionFailure::ObjectOutput)?;
-            for (digest, bytes) in artifact.object_payloads() {
-                scoop_toolchain::store_object(&cache, digest, bytes)
-                    .map_err(CurrentConeProductionFailure::ObjectOutput)?;
-            }
             artifact
                 .publish(
                     self.request

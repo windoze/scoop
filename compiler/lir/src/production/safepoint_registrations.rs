@@ -244,9 +244,7 @@ fn require_digest_node(
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongSafepointRegistrationPlanBuildError> {
     digests
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &key)
+        .node(&key)
         .ok_or(StrongSafepointRegistrationPlanBuildError::MissingDigestNode(key))
 }
 

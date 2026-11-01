@@ -87,10 +87,3 @@ argv = ["${program.result.output}"]
 exit = 0
 stdout = ""
 stderr = ""
-
-[[steps]]
-name = "provider_members"
-argv = ["${ar}", "t", "${work}/artifacts/dev.example/support/0.1.0/cone.slib"]
-exit = 0
-stdout = {snapshot = "provider_members.${target}.txt"}
-stderr = ""

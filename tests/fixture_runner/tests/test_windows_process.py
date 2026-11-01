@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 import time
@@ -16,6 +17,28 @@ from fixture_runner.process import Process
 
 @unittest.skipUnless(os.name == "nt", "Windows process APIs")
 class WindowsProcessTests(unittest.TestCase):
+    def test_absolute_executable_path_longer_than_max_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            nested = Path(directory).joinpath(*["nested-" + "x" * 72] * 4)
+            nested.mkdir(parents=True)
+            executable = nested / "fixture-cmd.exe"
+            shutil.copyfile(os.environ["COMSPEC"], executable)
+            executable = str(executable.resolve())
+            self.assertGreater(len(executable), 260)
+            process = Process(
+                {"name": "long-executable", "argv": [executable, "/d", "/c", "exit", "37"]},
+                {"work": directory},
+                Path(directory),
+                dict(os.environ),
+            )
+            try:
+                result = process.finish()
+            finally:
+                process.cleanup()
+            self.assertEqual(result["returncode"], 37)
+            self.assertEqual(result["stdout"], b"")
+            self.assertEqual(result["stderr"], b"")
+
     def test_utf16_arguments_binary_streams_and_full_exit_code(self):
         arguments = ["雪 🧪", "", '"\\', "\ud800"]
         code = (

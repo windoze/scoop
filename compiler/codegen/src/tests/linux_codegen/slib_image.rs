@@ -20,7 +20,7 @@ fn elf_cone_image_emits_the_runtime_record() {
             let fixture = SlibObjects::new(module, directory.path());
             let builtins = fixture.builtins(&fixture.objects);
             let image =
-                bind_cone_image_v1(&builtins, fixture.emitted.production().image_plan().clone())
+                bind_cone_image_v1(&builtins, fixture.emitted.production.image_plan().clone())
                     .unwrap();
             let bytes = &fixture
                 .objects

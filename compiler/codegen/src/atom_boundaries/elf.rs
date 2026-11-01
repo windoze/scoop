@@ -3,15 +3,14 @@
 use object::{ObjectSymbol, SectionIndex};
 
 use super::*;
-use crate::elf_object::{ElfObject, error};
+use crate::elf_object::ElfObject;
 
 pub(super) fn materialize(
-    path: &std::path::Path,
+    bytes: &mut Vec<u8>,
     surface: &ObjectSymbolSurfaceV1,
     definitions: &[scoop_lir::ObjectDefinitionPlanId],
 ) -> Result<(), CodegenError> {
-    let bytes = std::fs::read(path).map_err(error)?;
-    let mut output = ElfObject::read(&bytes)?;
+    let mut output = ElfObject::read(bytes)?;
     for definition in definitions {
         let plan = surface
             .plan(*definition)
@@ -21,7 +20,8 @@ pub(super) fn materialize(
         }
     }
     output.relocatable_metadata()?;
-    std::fs::write(path, output.finish()?).map_err(error)
+    *bytes = output.finish()?;
+    Ok(())
 }
 
 pub(crate) fn existing_pair(

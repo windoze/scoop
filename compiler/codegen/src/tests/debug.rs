@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 mod globals;
 mod managed;
+mod records;
 mod variables;
 
 #[test]

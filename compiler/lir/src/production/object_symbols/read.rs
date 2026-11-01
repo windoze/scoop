@@ -1,58 +1,49 @@
+//! Project consumer definitions from the identity records already read for this Cone.
+
 use super::*;
 use crate::{LinkDataError, link_data::link_error};
-use scoop_identity::{PersistentIdResolver, ValidatedIdentityGraph};
 
-impl DecodedObjectSymbolSurfaceV1 {
-    pub(crate) fn read(
-        self,
-        foundation: &ConeLirFoundation,
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<ObjectSymbolSurfaceV1, LinkDataError> {
-        if self
-            .plans
-            .windows(2)
-            .any(|pair| pair[0].definition_plan.as_array() >= pair[1].definition_plan.as_array())
-        {
-            return Err(link_error("noncanonical definition symbol order"));
-        }
-        let plans = self
-            .plans
-            .into_iter()
-            .map(|plan| {
-                let definition_plan = identities
-                    .resolve(plan.definition_plan)
+impl ObjectSymbolSurfaceV1 {
+    pub(crate) fn read_foundation(foundation: &ConeLirFoundation) -> Result<Self, LinkDataError> {
+        let plans = foundation
+            .definition_plans()
+            .iter()
+            .map(|record| {
+                let definition_plan = record.id();
+                let (owner, definition_role) =
+                    foundation.definition_subject(record).ok_or_else(|| {
+                        link_error(format!("missing definition subject {definition_plan}"))
+                    })?;
+                let definition_owner = record.key().owner();
+                let linkage = definition_linkage(definition_owner);
+                let primary_symbol = PersistentSymbolRequest::new(
+                    owner.primary_symbol_key(definition_role).ok_or_else(|| {
+                        link_error(format!("invalid definition subject {definition_plan}"))
+                    })?,
+                    linkage,
+                )
+                .map_err(link_error)?;
+                let (_, primary_atom) = foundation
+                    .resolve_definition_atom(definition_plan, DefinitionAtomRole::Primary)
                     .map_err(link_error)?;
-                let definition_owner = foundation
-                    .definition_plan(definition_plan)
-                    .ok_or_else(|| link_error(format!("missing definition {definition_plan}")))?
-                    .key()
-                    .owner();
+                let atom_boundaries = foundation
+                    .definition_atoms_for_plan(definition_plan)
+                    .map(|atom| {
+                        boundary_symbols(atom.id(), atom.key().role(), linkage).map_err(link_error)
+                    })
+                    .collect::<Result<_, _>>()?;
                 Ok(DefinitionSymbolPlanV1 {
                     definition_plan,
                     definition_owner,
-                    owner: plan.owner.resolve(identities).map_err(link_error)?,
-                    definition_role: plan.definition_role,
-                    primary_atom: identities.resolve(plan.primary_atom).map_err(link_error)?,
-                    primary_symbol: plan
-                        .primary_symbol
-                        .resolve(identities)
-                        .map_err(link_error)?,
-                    atom_boundaries: plan
-                        .atom_boundaries
-                        .into_iter()
-                        .map(|atom| {
-                            Ok(AtomBoundarySymbolsV1 {
-                                atom: identities.resolve(atom.atom).map_err(link_error)?,
-                                atom_role: atom.atom_role,
-                                start: atom.start.resolve(identities).map_err(link_error)?,
-                                end: atom.end.resolve(identities).map_err(link_error)?,
-                            })
-                        })
-                        .collect::<Result<_, LinkDataError>>()?,
+                    owner,
+                    definition_role,
+                    primary_atom,
+                    primary_symbol,
+                    atom_boundaries,
                 })
             })
             .collect::<Result<Vec<_>, LinkDataError>>()?;
-        Ok(ObjectSymbolSurfaceV1 {
+        Ok(Self {
             symbol_owners: plans
                 .iter()
                 .map(|plan| (plan.primary_symbol.key(), plan.definition_plan))
@@ -60,5 +51,12 @@ impl DecodedObjectSymbolSurfaceV1 {
             atom_boundary_indices: atom_boundary_indices(&plans),
             plans,
         })
+    }
+}
+
+pub(super) fn definition_linkage(owner: ObjectDefinitionPlanOwner) -> LinkageClass {
+    match owner {
+        ObjectDefinitionPlanOwner::Strong { .. } => LinkageClass::ConeStrong,
+        ObjectDefinitionPlanOwner::Odr { .. } => LinkageClass::OdrWeak,
     }
 }

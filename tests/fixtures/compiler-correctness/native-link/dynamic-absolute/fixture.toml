@@ -47,7 +47,7 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "link", "--emit-debug-file", "--enable-stack-trace=true", "--keep-symbols", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan", "--cache-dir", "${cache}"]
+argv = ["${scoop}", "link", "--emit-debug-file", "--enable-stack-trace=true", "--keep-symbols", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -69,7 +69,7 @@ checks = []
 
 [[steps]]
 name = "stub_link"
-argv = ["${scoop}", "link", "--emit-debug-file", "--enable-stack-trace=true", "--keep-symbols", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/stubs", "--dump-plan", "--cache-dir", "${cache}"]
+argv = ["${scoop}", "link", "--emit-debug-file", "--enable-stack-trace=true", "--keep-symbols", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/stubs", "--dump-plan", "--cache-dir", "${cache}"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -91,7 +91,7 @@ checks = []
 
 [[steps]]
 name = "ambiguous"
-argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--library-path", "${work}/stubs", "--cache-dir", "${cache}"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--library-path", "${work}/stubs", "--cache-dir", "${cache}"]
 exit = 1
 stdout = ""
 stderr = ""

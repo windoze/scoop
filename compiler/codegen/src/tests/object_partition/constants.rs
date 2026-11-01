@@ -77,7 +77,6 @@ pub(super) fn lookup_module() -> Module {
 
 #[test]
 fn machine_lookup_tables_are_owned_and_absent_tables_are_pruned() {
-    let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::DARWIN_AARCH64_ID,
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -97,22 +96,20 @@ fn machine_lookup_tables_are_owned_and_absent_tables_are_pruned() {
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
-                directory.path(),
                 profile,
+                std::num::NonZeroUsize::MIN,
             )
             .unwrap();
             let member = emitted
-                .members()
+                .members
                 .iter()
-                .find(|member| {
-                    matches!(member.units().kind(), ScoopLirObjectKindV1::CallableBody(_))
-                })
+                .find(|member| matches!(member.units.kind(), ScoopLirObjectKindV1::CallableBody(_)))
                 .unwrap();
             let plan = member
-                .units()
+                .units
                 .definition_plans()
                 .iter()
-                .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+                .filter_map(|id| emitted.production.canonical_definitions().plan(*id))
                 .find(|plan| {
                     plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
                 })
@@ -124,7 +121,7 @@ fn machine_lookup_tables_are_owned_and_absent_tables_are_pruned() {
                 .atom_boundaries()
                 .iter()
                 .find(|boundary| boundary.atom() == atom);
-            let bytes = std::fs::read(member.path()).unwrap();
+            let bytes = member.bytes.clone();
             let file = object::File::parse(bytes.as_slice()).unwrap();
             assert_eq!(
                 boundary.is_some(),

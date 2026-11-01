@@ -1,0 +1,114 @@
+schema = 1
+name = "cli-odr-support-cache"
+inputs = ["provider", "middle", "root"]
+tools = ["scoop", "scoopc"]
+tags = ["cli", "cache", "odr", "compiler-correctness"]
+variants = [
+  {name = "release", vars = {profile = "release"}},
+  {name = "debug", vars = {profile = "debug"}},
+]
+
+[vars]
+options = ["--debug-info", "none", "--cone-path", "${work}/artifacts", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/sources/provider"}},
+  {copy = {from = "${fixture}/middle", to = "${work}/sources/middle"}},
+  {copy = {from = "${fixture}/root", to = "${work}/sources/root"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${work}/sources/provider", {each = "${options}"}, "-o", "${work}/artifacts/test.odr.cache/provider/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "middle"
+argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${work}/sources/middle", {each = "${options}"}, "-o", "${work}/artifacts/test.odr.cache/middle/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "--profile", "${profile}", {each = "${link_args}"}, "${work}/sources/root", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${cold.result.dependencies.length}", equals = 3},
+  {actual = "${cold.result.dependencies.1.coordinate.name}", equals = "provider"},
+  {actual = "${cold.result.dependencies.2.coordinate.name}", equals = "middle"},
+  {actual = "${cold.result.observations.child_invocations}", equals = ["${cold.result.root.identity}"]},
+]
+
+[[steps]]
+name = "run_cold"
+argv = ["${cold.result.output}"]
+exit = 0
+stdout = "7\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "--profile", "${profile}", {each = "${link_args}"}, "${work}/sources/root", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations}", equals = []}]
+
+[[steps]]
+name = "replace_provider_profile"
+argv = ["${scoop}", "build", "--profile", "debug", {each = "${link_args}"}, "${work}/sources/provider", {each = "${options}"}, "-o", "${work}/artifacts/test.odr.cache/provider/1.0.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${replace_provider_profile.result.root.artifact_fingerprint}", not_equals = "${provider.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "--profile", "${profile}", {each = "${link_args}"}, "${work}/sources/root", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${changed.result.observations.child_invocations}", equals = ["${changed.result.root.identity}"]},
+  {actual = "${changed.result.dependencies.2.artifact_fingerprint}", equals = "${cold.result.dependencies.2.artifact_fingerprint}"},
+  {actual = "${changed.result.observations.nodes.3.cache_key}", not_equals = "${cold.result.observations.nodes.3.cache_key}"},
+]
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+exit = 0
+stdout = "7\n"
+stderr = ""
+
+[[steps]]
+name = "changed_warm"
+argv = ["${scoop}", "build", "--profile", "${profile}", {each = "${link_args}"}, "${work}/sources/root", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${changed_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${changed_warm.result.root.artifact_fingerprint}", equals = "${changed.result.root.artifact_fingerprint}"},
+]

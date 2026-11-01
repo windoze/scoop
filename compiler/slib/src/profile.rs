@@ -37,7 +37,7 @@ impl ArtifactCapabilityProfile {
     pub fn descriptor(self) -> ArtifactCapabilityProfileDescriptor {
         let mut descriptor = ArtifactCapabilityProfileDescriptor {
             id: self.id(),
-            required_manifest: vec![manifest_single_cone_production_capability()],
+            required_manifest: Vec::new(),
             required_hir: vec![
                 hir_core_bootstrap_interface_capability(),
                 hir_cross_cone_interface_capability(),

@@ -28,7 +28,7 @@ impl ProgramLinkMember {
 
 pub struct ProgramLinkRequirement {
     member: SlibMemberId,
-    symbol: Vec<u8>,
+    symbol: std::sync::Arc<[u8]>,
 }
 
 impl ProgramLinkRequirement {
@@ -60,24 +60,25 @@ impl ProgramLinkData {
     ) -> Result<Self, String> {
         let wire = link.link_identity_closure_wire();
         let defined = wire.read_defined_symbols(
-            manifest.cone().identity(),
+            foundation,
             identities,
             selection.target().contract().native_symbol_normalization(),
         )?;
-        let odr = link
-            .production_manifest_wire()
+        let odr = wire
             .read_odr_members(identities)
             .map_err(|error| error.to_string())?;
         let members = wire
             .read_members(identities)
             .map_err(|error| error.to_string())?;
-        let requirements = wire
-            .symbol_uses()
-            .map(|(member, symbol)| ProgramLinkRequirement {
-                member,
-                symbol: symbol.to_vec(),
-            })
-            .collect();
+        let mut requirements = Vec::new();
+        for group in wire.symbol_uses(&defined) {
+            let (members, symbol) = group?;
+            let symbol: std::sync::Arc<[u8]> = symbol.into();
+            requirements.extend(members.iter().map(|member| ProgramLinkRequirement {
+                member: *member,
+                symbol: symbol.clone(),
+            }));
+        }
         let support = link
             .link_support_wire()
             .read_link(identities)

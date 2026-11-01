@@ -1,4 +1,4 @@
-//! LIR storage indices share one table across the member's known sections.
+//! Metadata storage indices share one table across the member's known sections.
 
 use super::*;
 use scoop_wire::cbor::{Byte32Index, EncodeError};
@@ -7,9 +7,8 @@ pub(super) fn encode(
     envelope: &MetadataEnvelope,
     encoder: &mut Encoder,
 ) -> Result<(), EncodeError> {
-    let lir = envelope.location == MetadataLocation::Lir;
     let indexed = |section: &&MetadataSection| {
-        lir && CapabilityContractRegistry::contract(section.capability()).is_some()
+        CapabilityContractRegistry::contract(section.capability()).is_some()
     };
     let index = Byte32Index::from_payloads(
         envelope
@@ -18,7 +17,7 @@ pub(super) fn encode(
             .filter(indexed)
             .map(MetadataSection::payload),
     )?;
-    encoder.map(if lir { 4 } else { 3 })?;
+    encoder.map(4)?;
     encoder.field(1)?;
     encoder.bytes(envelope.location.magic())?;
     encoder.field(2)?;
@@ -26,10 +25,6 @@ pub(super) fn encode(
     encoder.field(3)?;
     encoder.array(envelope.sections.len() as u64)?;
     for section in &envelope.sections {
-        if !lir {
-            section.encode(encoder)?;
-            continue;
-        }
         let use_index = indexed(&section);
         encoder.map(4)?;
         encoder.field(1)?;
@@ -45,9 +40,6 @@ pub(super) fn encode(
         encoder.field(4)?;
         encoder.unsigned(u64::from(use_index))?;
     }
-    if lir {
-        encoder.field(4)?;
-        encoder.bytes(index.table())?;
-    }
-    Ok(())
+    encoder.field(4)?;
+    encoder.bytes(index.table())
 }

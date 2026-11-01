@@ -18,14 +18,8 @@ pub(super) fn check(
                 let current = physical.artifact(original.identity()).unwrap();
                 let link = current.link_sections().unwrap();
                 assert_eq!(
-                    [
-                        encode(link.production_manifest_wire()).unwrap(),
-                        encode(link.link_identity_closure_wire()).unwrap(),
-                    ],
-                    [
-                        encode(original.production_manifest_wire()).unwrap(),
-                        encode(original.link_identity_closure_wire()).unwrap(),
-                    ]
+                    encode(link.link_identity_closure_wire()).unwrap(),
+                    encode(original.link_identity_closure_wire()).unwrap(),
                 );
             }
             let current = physical.artifact(layout.provider()).unwrap();

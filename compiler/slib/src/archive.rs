@@ -1,17 +1,16 @@
+use std::cell::OnceCell;
 use std::fmt;
 use std::ops::Range;
+use std::sync::{Arc, OnceLock};
 
-use scoop_wire::WireError;
-use std::cell::OnceCell;
+use crate::compression::ObjectDecompressor;
+use crate::{SlibMember, SlibMemberId, SlibMemberRecord, SlibMemberRole};
 
-use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
-
-pub(crate) const GLOBAL_MAGIC: &[u8; 8] = b"!<arch>\n";
-pub(crate) const HEADER_LENGTH: u64 = 60;
-pub(crate) const MANIFEST_NAME: &[u8] = b"manifest.zst";
+pub(crate) const GLOBAL_MAGIC: &[u8; 8] = b"SCOOPSLB";
+pub(crate) const HEADER_LENGTH: u64 = 16;
 
 mod index;
-pub(crate) use index::{MemberPosition, member_positions};
+pub(crate) use index::{MemberEncoding, MemberPosition, member_positions};
 
 mod write;
 pub use write::{ArchiveWriteError, CanonicalSlibArchive};
@@ -37,31 +36,14 @@ pub enum ArchiveReadError {
     TruncatedHeader {
         member: ArchiveMemberOrdinal,
     },
-    NonCanonicalHeader {
-        member: ArchiveMemberOrdinal,
-    },
-    InvalidSize {
-        member: ArchiveMemberOrdinal,
-    },
-
     TruncatedPayload {
         member: ArchiveMemberOrdinal,
     },
-    InvalidPadding {
-        member: ArchiveMemberOrdinal,
-    },
-
     NonIncreasingDirectory {
         first_index: usize,
         second_index: usize,
     },
-    MemberLengthMismatch {
-        member: ArchiveMemberOrdinal,
-        declared: u64,
-        actual: u64,
-    },
     LengthOverflow,
-    Allocation(WireError),
     Compression {
         member: ArchiveMemberOrdinal,
         source: crate::CompressionError,
@@ -75,20 +57,9 @@ impl fmt::Display for ArchiveReadError {
             Self::TruncatedHeader { member } => {
                 write!(formatter, "{member} has a truncated archive header")
             }
-            Self::NonCanonicalHeader { member } => {
-                write!(formatter, "{member} archive header is not canonical")
-            }
-            Self::InvalidSize { member } => {
-                write!(formatter, "{member} archive size field is invalid")
-            }
-
             Self::TruncatedPayload { member } => {
                 write!(formatter, "{member} payload is truncated")
             }
-            Self::InvalidPadding { member } => {
-                write!(formatter, "{member} archive padding is not canonical")
-            }
-
             Self::NonIncreasingDirectory {
                 first_index,
                 second_index,
@@ -96,16 +67,7 @@ impl fmt::Display for ArchiveReadError {
                 formatter,
                 "directory member ids {first_index} and {second_index} are not strictly increasing"
             ),
-            Self::MemberLengthMismatch {
-                member,
-                declared,
-                actual,
-            } => write!(
-                formatter,
-                "{member} header length {actual} does not match directory length {declared}"
-            ),
             Self::LengthOverflow => formatter.write_str("archive length arithmetic overflowed"),
-            Self::Allocation(error) => error.fmt(formatter),
             Self::Compression { member, source } => write!(formatter, "{member}: {source}"),
         }
     }
@@ -113,29 +75,30 @@ impl fmt::Display for ArchiveReadError {
 
 impl std::error::Error for ArchiveReadError {}
 
-/// The first manifest member and the start of the saved directory.
+/// The manifest frame and the start of the indexed member payloads.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ManifestArchive<'input> {
     input: &'input [u8],
     manifest: Vec<u8>,
-    next_header: usize,
+    next_payload: usize,
 }
 
 impl<'input> ManifestArchive<'input> {
     pub fn open(input: &'input [u8]) -> Result<Self, ArchiveReadError> {
-        if input.get(..GLOBAL_MAGIC.len()) != Some(GLOBAL_MAGIC) {
-            return Err(ArchiveReadError::BadMagic);
-        }
-
         let ordinal = ArchiveMemberOrdinal::Manifest;
-        let (manifest, next_header) =
-            read_member(input, GLOBAL_MAGIC.len(), MANIFEST_NAME, ordinal)?;
-        let manifest = decompress_member(&input[manifest], ordinal)?;
+        let length = read_manifest_header(input)?;
+        let next_payload = (HEADER_LENGTH as usize)
+            .checked_add(length)
+            .ok_or(ArchiveReadError::LengthOverflow)?;
+        let manifest = input
+            .get(HEADER_LENGTH as usize..next_payload)
+            .ok_or(ArchiveReadError::TruncatedPayload { member: ordinal })?;
+        let manifest = decompress_member(manifest, ordinal)?;
 
         Ok(Self {
             input,
             manifest,
-            next_header,
+            next_payload,
         })
     }
 
@@ -147,7 +110,7 @@ impl<'input> ManifestArchive<'input> {
         self,
         records: &[SlibMemberRecord],
     ) -> Result<DecodedArchive<'input>, ArchiveReadError> {
-        let positions = member_positions(records, self.next_header as u64)?;
+        let positions = member_positions(records, self.next_payload as u64)?;
         Ok(DecodedArchive {
             input: self.input,
             manifest: self.manifest,
@@ -155,16 +118,23 @@ impl<'input> ManifestArchive<'input> {
                 .into_iter()
                 .map(|(id, position)| (id, position, OnceCell::new()))
                 .collect(),
+            object_dictionary: records
+                .iter()
+                .find(|record| matches!(record.role(), SlibMemberRole::ObjectDictionary))
+                .map(SlibMemberRecord::id),
+            object_decoder: Arc::new(OnceLock::new()),
         })
     }
 }
 
 /// Lazily decoded archive members indexed by the manifest directory.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct DecodedArchive<'input> {
     input: &'input [u8],
     manifest: Vec<u8>,
     members: Vec<(SlibMemberId, MemberPosition, OnceCell<MemberPayload>)>,
+    object_dictionary: Option<SlibMemberId>,
+    object_decoder: Arc<OnceLock<Result<ObjectDecompressor, crate::CompressionError>>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -193,16 +163,45 @@ impl<'input> DecodedArchive<'input> {
         if let Some(bytes) = cached.get() {
             return Ok(Some(self.payload_bytes(bytes)));
         }
-        let header =
-            usize::try_from(position.header).map_err(|_| ArchiveReadError::LengthOverflow)?;
-        let (range, _) = read_member(self.input, header, &position.name()?, position.ordinal())?;
-        position.check_length(range.len())?;
-        let bytes = if position.compressed {
-            MemberPayload::Decoded(decompress_member(&self.input[range], position.ordinal())?)
-        } else {
-            MemberPayload::Stored(range)
+        let range = position.range()?;
+        let payload = self
+            .input
+            .get(range.clone())
+            .ok_or(ArchiveReadError::TruncatedPayload {
+                member: position.ordinal(),
+            })?;
+        let bytes = match position.encoding {
+            MemberEncoding::Zstd => {
+                MemberPayload::Decoded(decompress_member(payload, position.ordinal())?)
+            }
+            MemberEncoding::Object => {
+                MemberPayload::Decoded(self.decompress_object(payload, position.ordinal())?)
+            }
+            MemberEncoding::Stored => MemberPayload::Stored(range),
         };
         Ok(Some(self.payload_bytes(cached.get_or_init(|| bytes))))
+    }
+
+    fn decompress_object(
+        &self,
+        payload: &[u8],
+        member: ArchiveMemberOrdinal,
+    ) -> Result<Vec<u8>, ArchiveReadError> {
+        let decoder = if let Some(decoder) = self.object_decoder.get() {
+            decoder
+        } else {
+            let dictionary = match self.object_dictionary {
+                Some(id) => self.member(id)?.expect("indexed dictionary member"),
+                None => &[],
+            };
+            self.object_decoder
+                .get_or_init(|| ObjectDecompressor::new(dictionary))
+        };
+        decoder
+            .as_ref()
+            .map_err(Clone::clone)
+            .and_then(|decoder| decoder.decompress(payload))
+            .map_err(|source| ArchiveReadError::Compression { member, source })
     }
 
     fn payload_bytes<'reader>(&'reader self, payload: &'reader MemberPayload) -> &'reader [u8] {
@@ -221,115 +220,17 @@ pub(crate) fn decompress_member(
         .map_err(|source| ArchiveReadError::Compression { member, source })
 }
 
-fn read_member(
-    input: &[u8],
-    header_start: usize,
-    expected_name: &[u8],
-    member: ArchiveMemberOrdinal,
-) -> Result<(Range<usize>, usize), ArchiveReadError> {
-    let header_length =
-        usize::try_from(HEADER_LENGTH).map_err(|_| ArchiveReadError::LengthOverflow)?;
-    let header_end = header_start
-        .checked_add(header_length)
-        .ok_or(ArchiveReadError::LengthOverflow)?;
-    let header = input
-        .get(header_start..header_end)
-        .ok_or(ArchiveReadError::TruncatedHeader { member })?;
-
-    let payload_length_usize = read_member_header(header, expected_name, member)?;
-    let payload_end = header_end
-        .checked_add(payload_length_usize)
-        .ok_or(ArchiveReadError::LengthOverflow)?;
-    if input.get(header_end..payload_end).is_none() {
-        return Err(ArchiveReadError::TruncatedPayload { member });
+pub(crate) fn read_manifest_header(input: &[u8]) -> Result<usize, ArchiveReadError> {
+    if input.get(..GLOBAL_MAGIC.len()) != Some(GLOBAL_MAGIC) {
+        return Err(ArchiveReadError::BadMagic);
     }
-    let next_header = if payload_length_usize & 1 == 1 {
-        let padding_end = payload_end
-            .checked_add(1)
-            .ok_or(ArchiveReadError::LengthOverflow)?;
-        if input.get(payload_end..padding_end) != Some(b"\n") {
-            return Err(ArchiveReadError::InvalidPadding { member });
-        }
-        padding_end
-    } else {
-        payload_end
-    };
-    Ok((header_end..payload_end, next_header))
-}
-
-pub(crate) fn read_member_header(
-    header: &[u8],
-    expected_name: &[u8],
-    member: ArchiveMemberOrdinal,
-) -> Result<usize, ArchiveReadError> {
-    if header.len() != HEADER_LENGTH as usize {
-        return Err(ArchiveReadError::TruncatedHeader { member });
-    }
-    if !is_canonical_archive_name(&header[0..16], expected_name)
-        || !is_canonical_field(&header[16..28], b"0")
-        || !is_canonical_field(&header[28..34], b"0")
-        || !is_canonical_field(&header[34..40], b"0")
-        || !is_canonical_field(&header[40..48], b"100644")
-        || &header[58..60] != b"`\n"
-    {
-        return Err(ArchiveReadError::NonCanonicalHeader { member });
-    }
-    let payload_length =
-        parse_size(&header[48..58]).ok_or(ArchiveReadError::InvalidSize { member })?;
-    usize::try_from(payload_length).map_err(|_| ArchiveReadError::LengthOverflow)
-}
-
-fn is_canonical_field(field: &[u8], value: &[u8]) -> bool {
-    field.get(..value.len()) == Some(value)
-        && field
-            .get(value.len()..)
-            .is_some_and(|padding| padding.iter().all(|byte| *byte == b' '))
-}
-
-fn is_canonical_archive_name(field: &[u8], name: &[u8]) -> bool {
-    let Some(slash_index) = name.len().checked_add(1) else {
-        return false;
-    };
-    name.len() < field.len()
-        && field.get(..name.len()) == Some(name)
-        && field.get(name.len()) == Some(&b'/')
-        && field
-            .get(slash_index..)
-            .is_some_and(|padding| padding.iter().all(|byte| *byte == b' '))
-}
-
-fn parse_size(field: &[u8]) -> Option<u64> {
-    let value_length = field
-        .iter()
-        .position(|byte| *byte == b' ')
-        .unwrap_or(field.len());
-    let (value, padding) = field.split_at(value_length);
-    if value.is_empty()
-        || !padding.iter().all(|byte| *byte == b' ')
-        || (value.len() > 1 && value[0] == b'0')
-        || !value.iter().all(u8::is_ascii_digit)
-    {
-        return None;
-    }
-    value.iter().try_fold(0u64, |number, byte| {
-        number.checked_mul(10)?.checked_add(u64::from(*byte - b'0'))
-    })
-}
-
-fn encoded_member_length(payload_length: u64) -> Option<u64> {
-    HEADER_LENGTH
-        .checked_add(payload_length)
-        .and_then(|length| length.checked_add(payload_length & 1))
-}
-
-fn member_name(ordinal: usize) -> Option<[u8; 9]> {
-    let mut name = *b"m00000000";
-    let mut value = ordinal;
-    for digit in name[1..].iter_mut().rev() {
-        *digit = b'0' + (value % 10) as u8;
-        value /= 10;
-    }
-    (value == 0).then_some(name)
+    let length = input
+        .get(GLOBAL_MAGIC.len()..HEADER_LENGTH as usize)
+        .ok_or(ArchiveReadError::TruncatedHeader {
+            member: ArchiveMemberOrdinal::Manifest,
+        })?;
+    let length = u64::from_le_bytes(length.try_into().expect("eight-byte manifest length"));
+    usize::try_from(length).map_err(|_| ArchiveReadError::LengthOverflow)
 }
 
 #[cfg(test)]

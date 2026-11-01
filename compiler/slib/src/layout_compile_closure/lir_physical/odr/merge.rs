@@ -6,13 +6,14 @@ use crate::{
 };
 use scoop_identity::ValidatedIdentityGraph;
 
-/// Merge saved definition owners and compare shared keys and ABIs across artifacts.
+/// Merge dependency-first definitions and resolve ODR imports against their actual dependencies.
 pub fn merge_cross_cone_odr_definitions<'a>(
     artifacts: impl IntoIterator<
         Item = (
             &'a ValidatedIdentityGraph,
             &'a CanonicalDefinedLinkSymbolOwnerSetV1,
             &'a CanonicalOdrMemberDirectoryV1,
+            &'a [crate::DependencyRecord],
         ),
     >,
 ) -> Result<MergedOdrDefinitions, OdrDefinitionMergeError> {
@@ -21,11 +22,19 @@ pub fn merge_cross_cone_odr_definitions<'a>(
     let mut keys = BTreeMap::<OdrMemberId, (Arc<OdrMemberKey>, ConeIdentity)>::new();
     let mut symbol_owners = BTreeMap::new();
     let mut providers = BTreeSet::new();
+    let mut reachable = BTreeMap::<ConeIdentity, BTreeSet<ConeIdentity>>::new();
 
-    for (identities, defined, odr) in artifacts {
+    for (identities, defined, odr, dependencies) in artifacts {
         let provider = defined.producer();
         if !providers.insert(provider) {
             return Err(OdrDefinitionMergeError::DuplicateArtifact(provider));
+        }
+        let mut visible = BTreeSet::new();
+        for dependency in dependencies {
+            visible.insert(dependency.identity());
+            if let Some(transitive) = reachable.get(&dependency.identity()) {
+                visible.extend(transitive);
+            }
         }
         let mut primary = BTreeMap::new();
         for definition in defined.owners() {
@@ -90,23 +99,24 @@ pub fn merge_cross_cone_odr_definitions<'a>(
                         }
                     }
                 }
-                let definition = primary.get(&entry.member()).ok_or(
-                    OdrDefinitionMergeError::MissingPhysicalDefinition {
-                        provider,
-                        member: entry.member(),
-                    },
-                )?;
-                let candidate = OdrDefinitionCandidate {
+                let missing = || OdrDefinitionMergeError::MissingPhysicalDefinition {
                     provider,
-                    definition: (*definition).clone(),
+                    member: entry.member(),
                 };
+                let candidate =
+                    primary
+                        .get(&entry.member())
+                        .map(|definition| OdrDefinitionCandidate {
+                            provider,
+                            definition: (*definition).clone(),
+                        });
                 match members.entry((group.group(), entry.member())) {
                     Entry::Vacant(slot) => {
                         slot.insert(MergedOdrMemberDefinition {
                             group_key: Arc::clone(&group_key),
                             key,
                             entry,
-                            first: candidate,
+                            first: candidate.ok_or_else(missing)?,
                             additional: Vec::new(),
                         });
                     }
@@ -116,11 +126,19 @@ pub fn merge_cross_cone_odr_definitions<'a>(
                         if previous.entry.abi() != entry.abi() {
                             return Err(conflict(first, OdrDefinitionDifference::Abi));
                         }
-                        previous.additional.push(candidate);
+                        if let Some(candidate) = candidate {
+                            previous.additional.push(candidate);
+                        } else if !previous
+                            .candidates()
+                            .any(|candidate| visible.contains(&candidate.provider))
+                        {
+                            return Err(missing());
+                        }
                     }
                 }
             }
         }
+        reachable.insert(provider, visible);
     }
     Ok(MergedOdrDefinitions { members })
 }

@@ -1,13 +1,10 @@
 mod support;
 
 use scoop_mir::*;
-use scoop_wire::{decode_canonical, encode};
+use scoop_wire::encode;
 
 use super::*;
-use crate::{
-    CodeFingerprintDataV2, CrossConeLayoutProductionManifestV1,
-    DecodedSingleConeProductionManifestV1, DecodedSlibEnvelope, ValidatedGraphArtifact,
-};
+use crate::{CodeFingerprintDataV2, DecodedSlibEnvelope, ValidatedGraphArtifact};
 use crate::{EmptyLayoutCodeFixture, with_empty_layout_code_fixture};
 use support::{
     empty_hir_interface, empty_hir_type_semantics, hir_foundation_and_production, mir_sections,
@@ -22,9 +19,9 @@ fn layout_writer_is_reproducible_and_sections_round_trip() {
     assert_eq!(first.as_bytes(), second.as_bytes());
     assert_eq!(first.target_selection(), selection());
 
-    let compile = open_graph(first.as_bytes())
-        .decode_cross_cone_layout_compile_sections()
-        .unwrap();
+    let graph = open_graph(first.as_bytes());
+    assert!(graph.envelope.manifest().sections().is_empty());
+    let compile = graph.decode_cross_cone_layout_compile_sections().unwrap();
     assert_eq!(
         encode(compile.lir_strong_production_wire()).unwrap(),
         encode(code.production().strong_production()).unwrap()
@@ -41,17 +38,6 @@ fn layout_writer_is_reproducible_and_sections_round_trip() {
     assert_eq!(
         encode(link.link_identity_closure_wire()).unwrap(),
         encode(&expected_identity).unwrap()
-    );
-    let decoded_manifest = decode_canonical::<DecodedSingleConeProductionManifestV1>(
-        &encode(link.production_manifest_wire()).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(
-        encode(&decoded_manifest).unwrap(),
-        encode(&CrossConeLayoutProductionManifestV1::from_verified_code(
-            code
-        ))
-        .unwrap()
     );
 }
 

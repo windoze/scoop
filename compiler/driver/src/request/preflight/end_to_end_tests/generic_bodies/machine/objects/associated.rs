@@ -2,20 +2,20 @@ use super::*;
 use scoop_identity::DefinitionAtomRole;
 
 pub(in super::super) fn change_associated_atom(
-    emitted: &scoop_codegen::EmittedConeObjectSetV2,
+    emitted: &mut scoop_codegen::EmittedConeObjectSetV2,
     role: DefinitionAtomRole,
 ) -> PersistentCallableBodyId {
     let normalization = emitted.target().contract().native_symbol_normalization();
-    for member in emitted.members() {
-        let scoop_codegen::EmittedConeObjectMemberKindV1::CallableBody { body, .. } = member.kind()
+    for member in &mut emitted.members {
+        let scoop_codegen::EmittedConeObjectMemberKindV1::CallableBody { body, .. } = member.kind
         else {
             continue;
         };
         let definition = member
-            .units()
+            .units
             .definition_plans()
             .iter()
-            .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+            .filter_map(|id| emitted.production.canonical_definitions().plan(*id))
             .find(|plan| {
                 plan.definition_role() == scoop_identity::StrongDefinitionRole::CallableBody
             })
@@ -30,7 +30,7 @@ pub(in super::super) fn change_associated_atom(
         else {
             continue;
         };
-        let mut bytes = std::fs::read(member.path()).unwrap();
+        let mut bytes = member.bytes.clone();
         let object = object::File::parse(bytes.as_slice()).unwrap();
         let symbol = |request: scoop_identity::PersistentSymbolRequest| {
             object
@@ -75,9 +75,7 @@ pub(in super::super) fn change_associated_atom(
             let offset = usize::try_from(file_start + offset).unwrap();
             bytes[offset] ^= 1;
         }
-        let replacement = member.path().with_extension("changed");
-        std::fs::write(&replacement, bytes).unwrap();
-        std::fs::rename(replacement, member.path()).unwrap();
+        member.bytes = bytes;
         return body;
     }
     panic!("fixture has no ODR callable with {role:?}");

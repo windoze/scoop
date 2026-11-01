@@ -8,7 +8,6 @@ use crate::DecodedCrossConeLayoutCompileSections;
 /// Link fields retained alongside the same artifact's shared semantic payloads.
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutLinkOnlySections {
-    pub(super) production_manifest: DecodedSingleConeProductionManifestV1,
     pub(super) link_identity_closure: DecodedLinkIdentityClosureSectionV1,
 
     pub(super) link_support: crate::DecodedLirLinkSupportSectionV1,
@@ -36,7 +35,6 @@ impl<'input> DecodedCrossConeLayoutLinkSections<'input> {
     ) -> Result<DecodedCrossConeLayoutCompileSections<'input>, WireError> {
         let Self {
             graph,
-            production_manifest,
             hir_foundation,
             hir_core_production,
             hir_interface,
@@ -55,7 +53,6 @@ impl<'input> DecodedCrossConeLayoutLinkSections<'input> {
         } = self;
 
         let view = DecodedLayoutView::Link(Box::new(DecodedCrossConeLayoutLinkOnlySections {
-            production_manifest,
             link_identity_closure,
 
             link_support,
@@ -83,10 +80,6 @@ impl DecodedCrossConeLayoutLinkOnlySections {
     pub const fn link_support_wire(&self) -> &crate::DecodedLirLinkSupportSectionV1 {
         &self.link_support
     }
-    pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {
-        &self.production_manifest
-    }
-
     pub const fn link_identity_closure_wire(&self) -> &DecodedLinkIdentityClosureSectionV1 {
         &self.link_identity_closure
     }

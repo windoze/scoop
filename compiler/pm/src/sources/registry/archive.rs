@@ -78,10 +78,7 @@ pub(super) fn download(http: &ureq::Agent, url: &str, path: &Path, expected: &st
     use sha2::{Digest, Sha256};
     use std::io::Write;
 
-    let mut response = http
-        .get(url)
-        .call()
-        .map_err(|error| PmError::new(format!("GET {url}: {error}")))?;
+    let mut response = super::http::get(http, url)?;
     let mut input = response.body_mut().as_reader();
     let mut output = fs::File::create(path).map_err(|error| PmError::io(path, error))?;
     let mut digest = Sha256::new();

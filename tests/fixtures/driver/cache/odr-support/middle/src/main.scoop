@@ -1,0 +1,6 @@
+package test.odr.cache.middle
+
+import test.odr.cache.provider.identity
+
+public fun <T> consume(value: T): T = identity(value)
+public fun marker(): Int = 1

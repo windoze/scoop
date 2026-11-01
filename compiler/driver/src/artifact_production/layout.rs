@@ -13,10 +13,11 @@ pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
     hir_types: &'ir scoop_hir::CrossConeTypeSemanticsSectionV1,
     mir_types: &'ir scoop_mir::CrossConeMirTypeBridgeSectionV1<'ir>,
     lir_layout: &'ir scoop_lir::CrossConeLayoutAbiSectionV1<'ir>,
-    native_objects: Vec<slib::SlibMember>,
+    native_objects: Vec<slib::UncompressedObjectMember>,
     native_libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
     native_cxx: bool,
     test_directory: Option<slib::TestDirectory>,
+    dependencies: Option<&'ir slib::ValidatedCrossConeArtifactClosure>,
 }
 
 impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
@@ -35,6 +36,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             native_libraries: Vec::new(),
             native_cxx: false,
             test_directory: None,
+            dependencies: None,
         }
     }
 
@@ -43,7 +45,15 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         self
     }
 
-    pub fn with_native_objects(mut self, objects: Vec<slib::SlibMember>) -> Self {
+    pub fn with_dependencies(
+        mut self,
+        dependencies: &'ir slib::ValidatedCrossConeArtifactClosure,
+    ) -> Self {
+        self.dependencies = Some(dependencies);
+        self
+    }
+
+    pub fn with_native_objects(mut self, objects: Vec<slib::UncompressedObjectMember>) -> Self {
         self.native_objects = objects;
         self
     }
@@ -67,7 +77,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<slib::AssembledCrossConeLayoutArtifactV1, Error> {
-        let optimization = emitted.optimization();
+        let optimization = emitted.optimization;
         let mut prepared = objects::prepare(emitted, generated)?;
         prepared.foundation = prepared
             .foundation
@@ -141,7 +151,8 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
                 code,
                 finalized.members,
             )
-            .with_test_directory(self.test_directory),
+            .with_test_directory(self.test_directory)
+            .with_dependencies(self.dependencies),
         )
         .map_err(|error| Error::Assembly(Box::new(error)))?;
         Ok(artifact)

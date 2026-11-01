@@ -68,7 +68,7 @@ impl PlannedLinkObjectMemberSetV1 {
 
         let mut scoop_lir_members = scoop_lir_unit_sets
             .into_iter()
-            .map(|units| PlannedScoopLirObjectMemberV1::new(producer, target, units))
+            .map(|units| PlannedScoopLirObjectMemberV1::new(producer, units))
             .collect::<Result<Vec<_>, _>>()
             .map_err(LinkObjectMemberSetPlanError::Member)?;
         scoop_lir_members.sort_unstable_by_key(PlannedScoopLirObjectMemberV1::member_id);
@@ -107,7 +107,7 @@ impl PlannedLinkObjectMemberSetV1 {
 
         let mut generated_bridge_members = generated_bridge_unit_sets
             .into_iter()
-            .map(|units| PlannedGeneratedBridgeObjectMemberV1::new(producer, target, units))
+            .map(|units| PlannedGeneratedBridgeObjectMemberV1::new(producer, units))
             .collect::<Result<Vec<_>, _>>()
             .map_err(LinkObjectMemberSetPlanError::Member)?;
         generated_bridge_members

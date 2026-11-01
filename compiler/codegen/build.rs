@@ -4,6 +4,7 @@ use std::process::Command;
 fn main() {
     println!("cargo:rerun-if-env-changed=LLVM_SYS_221_PREFIX");
     println!("cargo:rerun-if-changed=src/debug/records.cpp");
+    println!("cargo:rerun-if-changed=src/emission/metadata_object.cpp");
     let config = std::env::var_os("LLVM_SYS_221_PREFIX")
         .map(|prefix| PathBuf::from(prefix).join("bin/llvm-config"))
         .unwrap_or_else(|| PathBuf::from("llvm-config"));
@@ -13,7 +14,7 @@ fn main() {
         .expect("LLVM 22.1 llvm-config is required; set LLVM_SYS_221_PREFIX");
     assert!(
         version.status.success() && version.stdout.starts_with(b"22.1."),
-        "debug record bindings require LLVM 22.1 headers; set LLVM_SYS_221_PREFIX"
+        "codegen bindings require LLVM 22.1 headers; set LLVM_SYS_221_PREFIX"
     );
     let output = Command::new(config)
         .arg("--includedir")
@@ -27,5 +28,6 @@ fn main() {
         .flag("-isystem")
         .flag(include.trim())
         .file("src/debug/records.cpp")
-        .compile("scoop_debug_records");
+        .file("src/emission/metadata_object.cpp")
+        .compile("scoop_llvm_bindings");
 }

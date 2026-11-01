@@ -13,14 +13,14 @@ use crate::link_object::{
 #[test]
 fn closure_wire_round_trips_saved_fields() {
     let bytes = encode(&closure()).unwrap();
-    assert_eq!(bytes[0], 0xa3);
+    assert_eq!(bytes[0], 0xa4);
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
 #[test]
 fn closure_reader_rejects_old_extended_and_unknown_sum_shapes() {
-    for bytes in [vec![0xa2], vec![0xa4], vec![0xa8]] {
+    for bytes in [vec![0xa2], vec![0xa3], vec![0xa8]] {
         assert!(decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).is_err());
     }
 
@@ -44,14 +44,36 @@ fn closure() -> LinkIdentityClosureSectionV1 {
     let defined_symbols =
         CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
 
+    let symbol_uses = super::super::symbol_uses(&strong, &defined_symbols);
     LinkIdentityClosureSectionV1 {
         materializations: vec![super::super::LinkObjectMaterializationV1::ScoopLir {
             member: member_id,
             units: CanonicalScoopLirObjectUnitSetV1::new(vec![definition_id]).unwrap(),
         }],
         defined_symbols,
-        symbol_uses: super::super::symbol_uses(&strong),
+        symbol_uses,
+        odr_members: super::super::tests::empty_odr_members(),
     }
+}
+
+#[test]
+fn closure_requires_the_odr_directory_field_even_when_empty() {
+    let bytes = encode(&closure()).unwrap();
+    assert!(bytes.ends_with(&[6, 0x80]));
+    let missing = &bytes[..bytes.len() - 2];
+    assert!(decode_canonical::<DecodedLinkIdentityClosureSectionV1>(missing).is_err());
+    let mut wrong_field = bytes;
+    let field = wrong_field.len() - 2;
+    wrong_field[field] = 7;
+    assert_eq!(
+        decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&wrong_field)
+            .unwrap_err()
+            .kind(),
+        &WireErrorKind::UnexpectedField {
+            expected: 6,
+            actual: 7,
+        }
+    );
 }
 
 pub(crate) fn encoded_link_identity_closure_for_test() -> Vec<u8> {

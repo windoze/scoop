@@ -25,7 +25,7 @@ impl<'ctx> MetadataModule<'ctx> {
         Ok(output)
     }
 
-    fn visit(
+    pub(super) fn visit(
         &self,
         machine: &TargetMachine,
         profile: ValidatedBackendProfile,

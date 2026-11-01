@@ -13,7 +13,7 @@ impl SlibObjects {
         let registrations = bind_callable_registrations_v1(
             sites,
             self.emitted
-                .production()
+                .production
                 .registration_production()
                 .callables()
                 .clone(),
@@ -27,7 +27,7 @@ impl SlibObjects {
         .expect("real ELF callable body fingerprints");
         compute_strong_callable_fingerprints_v1(
             bodies,
-            self.emitted.production().canonical_callable_definitions(),
+            self.emitted.production.canonical_callable_definitions(),
         )
         .expect("real ELF callable definition and registration fingerprints")
     }
@@ -37,12 +37,12 @@ impl SlibObjects {
         sites: VerifiedBuiltinObjectStrongRelocationSetV1,
     ) -> CanonicalUndefinedSymbolRequirementSetV1 {
         let strong = sites.strong_relocations().clone();
-        let bridges = self.emitted.production().generated_bridge_plan().clone();
+        let bridges = self.emitted.production.generated_bridge_plan().clone();
         let current = verify_current_cone_undefined_requirements_v1(strong.clone(), bridges)
             .expect("current Cone requirements");
         let native = scoop_lir::CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
             self.emitted.target(),
-            self.emitted.foundation(),
+            &self.emitted.foundation,
         )
         .unwrap();
         let dependencies =
@@ -50,9 +50,8 @@ impl SlibObjects {
                 .expect("dependency requirements");
         let source = verify_source_external_requirements_v1(dependencies, native.clone())
             .expect("source external requirements");
-        let runtime =
-            verify_runtime_and_eh_requirements_v1(source, self.emitted.target_selection())
-                .expect("runtime and EH requirements");
+        let runtime = verify_runtime_and_eh_requirements_v1(source, self.emitted.target_selection)
+            .expect("runtime and EH requirements");
         finalize_undefined_symbol_requirements_v1(current, runtime)
     }
 }

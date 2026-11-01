@@ -159,10 +159,7 @@ impl RegistryVersion {
 }
 
 fn download_json<T: serde::de::DeserializeOwned>(http: &ureq::Agent, url: &str) -> PmResult<T> {
-    let mut response = http
-        .get(url)
-        .call()
-        .map_err(|error| PmError::new(format!("GET {url}: {error}")))?;
+    let mut response = super::http::get(http, url)?;
     serde_json::from_reader(response.body_mut().as_reader())
         .map_err(|error| PmError::new(format!("{url}: {error}")))
 }

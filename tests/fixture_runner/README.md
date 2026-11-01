@@ -4,7 +4,8 @@
 `--suite tests/fixtures/driver/cli` 或 `--filter 'cli-*'`；`--list` 使用同一发现与校验。
 所有被扫描的 `.scoop` 必须归属于声明的 `inputs` 或 `support`，支持文件不单独计为通过。
 缺少工具、期望文件、未知字段、嵌套类型错误、重复载体与前向步骤引用均报配置／环境错误。
-Python 3.11+ 只用标准库；Python peer 和辅助进程统一使用 `${python}`（本次 runner 的解释器），避免 PATH 中另一个旧版本。格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
+runner 本身使用 Python 3.11+ 标准库；Python peer 和辅助进程统一使用 `${python}`（本次 runner 的解释器），避免 PATH 中另一个旧版本。开发依赖通过 `python3 -m pip install -r tests/requirements-dev.txt` 安装，其中固定 Ruff 及产物检查辅助脚本使用的 CBOR reader `cbor2`。
+需要解压 `.slib` 成员的产物检查声明 `tools = ["zstd", ...]`，通过 `${zstd}` 使用 PATH 中的 Zstandard 命令；只在所选用例需要时查找该工具。检查脚本按紧凑容器的 manifest 目录定位对象，并在存在 ObjectDictionary 成员时用同一个字典解压。
 默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
 大型 HTTP 客户端集成用例及 WebSocket 生命周期用例的编译步骤显式使用 900 秒时限，以覆盖较慢宿主上的完整编译；运行、诊断和缓存断言仍按各用例原有规则执行。
 正式 CLI 验证使用按 [准备脚本说明](../../scripts/README.md) 事先准备的开发 sysroot；
@@ -72,6 +73,7 @@ ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment
 Windows 执行保留完整 32-bit exit code；`signal` 退出断言只用于 POSIX。
 每个 Windows fixture 进程在开始执行前加入独立 Job，结束、超时或中断时关闭 Job，
 回收该进程及其后代；不设置 CPU／内存配额。参数使用 Windows Unicode 表示，标准流仍按原始字节断言。
+绝对路径可执行文件通过 CreateProcessW 的独立应用名参数启动，长路径不受命令行中程序名的 MAX_PATH 限制；参数和工作目录按声明传递。
 
 每个用例选择一种载体：相邻 `name.fixture.toml`、目录中的 `fixture.toml`，
 或源码开头 `// fixture:begin` 到 `// fixture:end` 之间每行带 `//` 的 TOML。

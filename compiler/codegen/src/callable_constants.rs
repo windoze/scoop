@@ -1,7 +1,6 @@
 //! Constants synthesized by LLVM while emitting a callable.
 
 use std::collections::BTreeSet;
-use std::path::Path;
 
 use object::{Object, ObjectSection, ObjectSymbol, SectionIndex};
 use scoop_lir::{
@@ -25,12 +24,11 @@ pub(crate) fn atom(
 }
 
 pub(crate) fn present(
-    path: &Path,
+    bytes: &[u8],
     target: LirTargetProfile,
     plan: &DefinitionSymbolPlanV1,
 ) -> Result<BTreeSet<CallableConstantKind>, CodegenError> {
-    let bytes = std::fs::read(path).map_err(error)?;
-    let file = object::File::parse(bytes.as_slice()).map_err(error)?;
+    let file = object::File::parse(bytes).map_err(error)?;
     let mut kinds = BTreeSet::new();
     for section in file.sections() {
         let name = section.name().map_err(error)?;

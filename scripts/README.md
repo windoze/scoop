@@ -14,9 +14,11 @@ OpenSSL 的 Darwin/AArch64 构建也保留 Apple Clang 的平台特性，不传 
 
 Windows 安装包将主驱动命名为 `sco.exe`，其版本信息使用 `sco`；其他可执行程序保持原名，macOS／Linux 仍用 `scoop`。Cargo package 和内部输出名继续为 `scoop`／`scoop.exe`，`package_toolchain.py` 组装时只重命名 Windows 主驱动。维护脚本的 `--scoop` 接受实际路径：开发构建可传 `.../release/scoop.exe`，安装包验证传 `.../bin/sco.exe`；外部命令仍以 `scoop-` 开头。
 
-`build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主 LLVM／Clang 动态库，仅启用 AArch64／X86 后端，并安装 Rust／LLDB 构建所需的 llvm-config、头文件、Clang resources 和 CMake 资料，以及 Clang／Clang++／clang-cl、LLD、LLVM 归档／资源工具和 dsymutil、llvm-objcopy、llvm-strip、llvm-symbolizer、llvm-nm、llvm-readobj。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
+`build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主 LLVM／Clang 动态库，仅启用 AArch64／X86 后端，并安装 Rust／LLDB 构建所需的 llvm-config、头文件、Clang resources 和 CMake 资料，以及 Clang／Clang++／clang-cl、LLD、LLVM 归档／资源工具和 dsymutil、llvm-objcopy、llvm-strip、llvm-symbolizer、llvm-nm、llvm-readobj。安装的 llc 供后端正确性 fixture 使用，确保测试与编译器使用同一套 LLVM 补丁。版本信息使用固定的上游版本，不附加源码解包目录上层仓库的 Git revision。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
 
 Windows RC 构建使用 LLVM 22.1 的 `llvm-windres` 和 `llvm-cvtres`；前者是 LLVM RC 的 windres 入口，用于明确选择目标 Clang 预处理器并取得头文件依赖。默认从已选 Clang 的相邻目录查找，再检查所选 native prefix 的 `bin` 和 PATH，只有实际声明 RC 且需要更新时才调用。`build_llvm.py` 安装这两个工具，外部工具也必须可在宿主执行。
+
+在 Darwin／Linux 开发树中使用此 SDK 时，将 `LLVM_SYS_221_PREFIX` 指向安装根，并为 Cargo 设置同一目录的动态库搜索路径，例如 `RUSTFLAGS="-C link-arg=-Wl,-rpath,${LLVM_SYS_221_PREFIX}/lib"`。发行脚本已使用相同配置；仅设置编译期 prefix 不能保证运行时加载该 LLVM。更新 LLVM 后重新构建 Scoop 命令并准备系统库，fixture 的 `--llc` 也选择此 SDK 的工具。
 
 Linux／macOS 交叉编译 Microsoft target 使用配套宿主 Clang 和显式 `msvc.toml` 开发资源，布局见 [Windows 设计](../docs/windows-targets/DESIGN.md#22-安装布局与选择)。大小写敏感文件系统需要 SDK 文件可按源码的实际 include 拼写和链接库名定位；可在维护准备时为 `Windows.h`／`windows.h` 等差异补齐符号链接。Windows 上准备的 runtime schema 7 索引及相邻对象可直接传到其他宿主，配套 `.slib` 无需重编。
 

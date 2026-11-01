@@ -53,15 +53,19 @@ fn actual_release_hooks_keep_raw_nounwind_machine_bodies() {
                 &[],
             )
             .unwrap();
-        let emitted =
-            scoop_codegen::emit_object_set_v2(&output, production, sysroot.path(), profile)
-                .unwrap();
-        for member in emitted.members() {
-            if !matches!(member.units().kind(), scoop_codegen::ScoopLirObjectKindV1::CallableBody(body) if hooks.contains(&body))
+        let emitted = scoop_codegen::emit_object_set_v2(
+            &output,
+            production,
+            profile,
+            std::num::NonZeroUsize::MIN,
+        )
+        .unwrap();
+        for member in &emitted.members {
+            if !matches!(member.units.kind(), scoop_codegen::ScoopLirObjectKindV1::CallableBody(body) if hooks.contains(&body))
             {
                 continue;
             }
-            let bytes = std::fs::read(member.path()).unwrap();
+            let bytes = member.bytes.clone();
             let object = object::File::parse(bytes.as_slice()).unwrap();
             for section in object.sections() {
                 let name = section.name().unwrap();
