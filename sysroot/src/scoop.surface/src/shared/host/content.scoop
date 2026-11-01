@@ -1,0 +1,13 @@
+package scoop.surface
+
+/** A root owned by one SurfaceWindow, closed before its renderer and native lease. */
+public interface SurfaceContent: Closeable {
+    public fun paint(frame: FrameContext)
+}
+
+internal class PainterContent(private val painter: (FrameContext) -> Unit): SurfaceContent {
+    public override fun paint(frame: FrameContext) {
+        painter(frame)
+    }
+    public override fun close() {}
+}

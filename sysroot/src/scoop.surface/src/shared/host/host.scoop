@@ -9,44 +9,62 @@ public class SurfaceHost public constructor(
 ): ApplicationHandler, Closeable {
     private val thread = currentThreadId()
     private var closing = false
+    private var callbackDepth = 0
+    private var pendingRetirement = false
     private var proxy: ApplicationProxy? = None
     private var renderer: RendererHost? = None
     private val windows = ArrayList<SurfaceWindow>()
     public val isClosed: Boolean get() = closing && windows.size == 0L
+    internal val callbackActive: Boolean get() = callbackDepth != 0
 
     /** Attaches one painter to an open window without replacing its input view. */
     public fun attach(window: Window, painter: (FrameContext) -> Unit): SurfaceWindow {
+        return attach(window, PainterContent(painter))
+    }
+
+    /** Takes ownership after the thread check, including on attachment failure. */
+    public fun attach(window: Window, content: SurfaceContent): SurfaceWindow {
         checkThread()
-        if (closing || window.state != WindowState.Open)
-            throw IllegalStateException(Some("Surface host or window is not open"))
-        when (find(window.id)) {
-            case Some(_) -> throw IllegalStateException(Some("window is already attached"))
-            case None -> {}
-        }
-        val mailbox =
-            proxy ?: throw IllegalStateException(Some("attach requires a running Surface host"))
-        val device =
-            when (renderer) {
-                case Some(value) -> value
+        var target: WindowRenderer? = None
+        var attached: SurfaceWindow? = None
+        try {
+            if (closing || window.state != WindowState.Open)
+                throw IllegalStateException(Some("Surface host or window is not open"))
+            when (find(window.id)) {
+                case Some(_) -> throw IllegalStateException(Some("window is already attached"))
+                case None -> {}
+            }
+            val mailbox =
+                proxy ?: throw IllegalStateException(Some("attach requires a running Surface host"))
+            val device =
+                when (renderer) {
+                    case Some(value) -> value
+                    case None -> {
+                        val value = createRendererHost()
+                        renderer = Some(value)
+                        value
+                    }
+                }
+            val created = device.create(window, mailbox)
+            target = Some(created)
+            val result = SurfaceWindow(this, window, content, created)
+            attached = Some(result)
+            windows.add(result)
+            result.refresh()
+            return result
+        } catch (error: Throwable) {
+            var failure: Throwable? = Some(error)
+            when (attached) {
+                case Some(value) -> failure = cleanupFailure(failure) { value.rollbackAttach() }
                 case None -> {
-                    val value = createRendererHost()
-                    renderer = Some(value)
-                    value
+                    failure = cleanupFailure(failure) { content.close() }
+                    when (target) {
+                        case Some(value) -> failure = cleanupFailure(failure) { value.close() }
+                        case None -> {}
+                    }
                 }
             }
-        try {
-            val result = SurfaceWindow(this, window, painter, device.create(window, mailbox))
-            windows.add(result)
-            try {
-                result.refresh();
-                return result
-            }
-            catch (error: Throwable) {
-                throwFailure(cleanupFailure(Some(error)) { result.close() })
-                throw error
-            }
-        } catch (error: Throwable) {
-            throwFailure(cleanupFailure(Some(error)) { releaseUnusedRenderer() })
+            throwFailure(cleanupFailure(failure) { releaseUnusedRenderer() })
             throw error
         }
     }
@@ -57,6 +75,8 @@ public class SurfaceHost public constructor(
             case None -> proxy = Some(application.proxy())
             case Some(_) -> {}
         }
+        callbackDepth += 1
+        var failure: Throwable? = None
         try {
             when (event) {
                 case Window(id, _event) -> {
@@ -74,9 +94,27 @@ public class SurfaceHost public constructor(
             }
             handler(this, application, event)
         } catch (error: Throwable) {
-            throwFailure(cleanupFailure(Some(error)) { close() })
-            throw error
+            failure = Some(error)
         }
+        callbackDepth -= 1
+        when (failure) {
+            case Some(_) -> failure = cleanupFailure(failure) { close() }
+            case None -> {}
+        }
+        if (callbackDepth == 0 && pendingRetirement) {
+            pendingRetirement = false
+            for (window in windows.toArray())
+                failure = cleanupFailure(failure) { window.finishClosing() }
+            when (failure) {
+                case Some(_) -> failure = cleanupFailure(failure) { close() }
+                case None -> {}
+            }
+        }
+        throwFailure(failure)
+    }
+    internal fun requestRetirement() {
+        if (callbackActive)
+            pendingRetirement = true
     }
     internal fun checkThread() {
         if (thread != currentThreadId())

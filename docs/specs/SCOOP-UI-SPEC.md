@@ -25,7 +25,7 @@ SkSL runtime effect 同样列为后续 graphics 增强，见[接入设计](../gr
 | `scoop.ui` | Component／Element、State／Props／Binding、挂载树、测量与绘制接入、输入／动画的挂载归属；text 子包提供公共段落适配 |
 | `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame、基础样式与对应组合函数 |
 
-表中是目标分层；字体与 Paragraph／TextLayout 已迁入 graphics.text，富文本／行内对象扩展及本框架仍在后续批次中。`scoop.ui.text` 只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
+表中是目标分层；字体与 Paragraph／TextLayout 已迁入 graphics.text，富文本／行内对象扩展已完成，本框架仍在实施中。`scoop.ui.text` 只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
 
 组件、状态及描述使用普通 class／interface／泛型／属性委托。首期不增加 `@Composable`、result builder、属性宏、关联类型、UI 专用 IR 或 runtime 入口。`scoop.ui` 的类型身份查询复用语言规范 9.6 的 `typeInfo<T>()`，不遍历组件字段，不按名称访问私有属性。
 
@@ -414,13 +414,13 @@ ComponentScope 同步发出取消，异步 finally 和实际 I/O 收尾由既有
 
 UiWindow.close 停止根组件的新工作并请求关闭所附着的 SurfaceWindow，不关闭调用方传入的原生 Window；窗口是否继续存在由调用方决定。根组件的实际资源释放遵循下述 content 的安全关闭时机，不在活动绘制／输入回调中抢先销毁其资源。原生 Closing、Application Exiting、SurfaceHost 失败以及显式 close 都必须走同一幂等资源收尾，不能依赖应用转发某个清理通知。
 
-UI 接入阶段需要给 surface 增加一个真实的拥有关系：SurfaceContent 具有 paint(FrameContext) 和 Closeable 合同，SurfaceHost.attach 可以接收它。现有 painter 入口继续服务直接绘图，由库适配为无额外持有资源的 content。SurfaceWindow 在当前业务回调和 Canvas 借用结束后、renderer／lease 释放前，关闭其 content 一次。UI 根挂载对象作为 content 被持有，因此异常或原生关闭路径也能释放整个 UI 子树。
+surface 已提供真实的内容拥有关系：SurfaceContent 具有 paint(FrameContext) 和 Closeable 合同，SurfaceHost.attach 可以接收它。现有 painter 入口继续服务直接绘图，由库适配为无额外持有资源的 content。SurfaceWindow 在当前业务回调和 Canvas 借用结束后、renderer／lease 释放前，关闭其 content 一次。UI 根挂载对象作为 content 被持有，因此异常或原生关闭路径也能释放整个 UI 子树。
 
 SurfaceContent 定义在 scoop.surface，只表达可绘制、需要关闭的内容；它的签名不引用 Component、View 或其他 scoop.ui 类型，不产生低层到 UI 的反向依赖。
 
 SurfaceContent 的 close 必须幂等。通过 owner 线程检查后，attach 接收传入的新 content 的所有权；创建或配置失败也由 surface 关闭 content 并回滚已取得的 renderer／lease，调用方不在返回或抛错后再次自行管理它。错误线程的调用在接收所有权前拒绝。一个 content 不交给多个窗口；UiHost 为每个根创建独立对象。
 
-上述 SurfaceContent 是待实施的 UI 接入增量，尚不属于已实现的 surface API；实施前须先同步 Surface 规范第 4／7 节。单纯给现有 painter 闭包增加一个 GC 引用不能满足此关闭合同。
+SurfaceContent 的具体合同见 [Surface 规范第 4／7 节](SCOOP-SURFACE-SPEC.md#4-surface-宿主与帧)，aarch64 实施及原生关闭／异常验证见 [UI 实施记录](../ui/PROGRESS.md#34-surface-内容根的所有权)。UI 挂载树仍须在后续批次落实自己的子树清理。
 
 参数、重复 key、重复挂载、非法测量／放置或错误线程使用现有参数／状态异常。render、update、measure、paint、输入处理或挂载回调抛错时，停止新 UI 工作，通过宿主关闭其管理的相关根及 surface，按 SurfaceHost 既有异常通路传播。首期不保留一个继续接收输入的半更新树，不增加错误边界或自动重试次数。
 

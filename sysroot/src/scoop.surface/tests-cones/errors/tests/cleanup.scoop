@@ -11,16 +11,24 @@ import scoop.window.*
 @Test
 private class SurfaceErrorTest {
     @Test
-    fun `a throwing painter closes all surfaces and leases before native shutdown`() {
+    fun `paint and content cleanup failures preserve errors and close every root and lease`() {
         val application = Application()
         val probe = ErrorProbe()
         val host = SurfaceHost { owner, active, event -> probe.event(owner, active, event) }
         try {
-            assertFailsWith<IllegalArgumentException> { application.run(host) }
+            val error = assertFailsWith<ResourceUseException> { application.run(host) }
+            assertTrue(containsFailure(error, probe.primary))
+            assertTrue(containsFailure(error, probe.firstCleanup))
+            assertTrue(containsFailure(error, probe.secondCleanup))
             assertTrue(host.isClosed)
             assertEquals(2, probe.destroyed)
             assertTrue(probe.painted)
             assertTrue(probe.view!!.restored())
+            assertEquals(2L, probe.contents.size)
+            for (content in probe.contents) {
+                assertEquals(1, content.closeCalls)
+                assertTrue(content.image.isClosed)
+            }
             assertFalse(application.proxy().post { _ -> fail() })
         } finally {
             host.close()
@@ -30,6 +38,10 @@ private class SurfaceErrorTest {
 }
 
 private class ErrorProbe {
+    val primary = IllegalArgumentException(Some("painter failed"))
+    val firstCleanup = IllegalStateException(Some("first content cleanup failed"))
+    val secondCleanup = IllegalStateException(Some("second content cleanup failed"))
+    val contents = ArrayList<FailingContent>()
     var view: ViewProbe? = None
     var destroyed = 0
     var painted = false
@@ -43,16 +55,29 @@ private class ErrorProbe {
                 first.setWindowLevel(WindowLevel.AlwaysOnTop)
                 first.requestFocus()
                 view = Some(observeWindow(first))
-                host.attach(first) {
-                    frame ->
-                    painted = true
-                    frame.canvas.saveLayer(0.5)
-                    frame.canvas.clear(Color.Black)
-                    throw IllegalArgumentException(Some("painter failed"))
-                }
-                host.attach(application.createWindow(WindowAttributes(visible = false))) {
-                    _ -> fail()
-                }
+                val firstContent =
+                    FailingContent(firstCleanup) {
+                        frame ->
+                        painted = true
+                        frame.canvas.saveLayer(0.5)
+                        frame.canvas.clear(Color.Black)
+                        throw primary
+                    }
+                firstContent.retire = { assertFalse(view!!.restored()) }
+                contents.add(firstContent)
+                host.attach(first, firstContent)
+                val secondContent = FailingContent(secondCleanup) { _ -> fail() }
+                contents.add(secondContent)
+                host.attach(
+                    application.createWindow(WindowAttributes(visible = false)),
+                    secondContent
+                )
+                val rejectedCleanup = IllegalStateException(Some("rejected content cleanup failed"))
+                val rejected = FailingContent(rejectedCleanup) { _ -> fail() }
+                val failure = assertFailsWith<ResourceUseException> { host.attach(first, rejected) }
+                assertTrue(containsFailure(failure, rejectedCleanup))
+                assertEquals(1, rejected.closeCalls)
+                assertTrue(rejected.image.isClosed)
                 application.setControlFlow(
                     ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
                 )
@@ -62,4 +87,39 @@ private class ErrorProbe {
             else -> {}
         }
     }
+}
+
+private class FailingContent(
+    private val failure: Throwable,
+    private val painter: (FrameContext) -> Unit
+): SurfaceContent {
+    val image = Image.fromRgba(1, 1, [0, 0, 0, -1])
+    var closeCalls = 0
+    var retire: () -> Unit = { Unit }
+    private var canvas: Canvas? = None
+    public override fun paint(frame: FrameContext) {
+        canvas = Some(frame.canvas)
+        painter(frame)
+    }
+    public override fun close() {
+        closeCalls += 1
+        if (image.isClosed)
+            return
+        image.close()
+        when (canvas) {
+            case Some(value) -> assertFailsWith<IllegalStateException> { value.clear(Color.White) }
+            case None -> {}
+        }
+        retire()
+        throw failure
+    }
+}
+
+private fun containsFailure(error: Throwable, wanted: Throwable): Boolean {
+    if (error === wanted)
+        return true
+    if (error is ResourceUseException)
+        return containsFailure(error.primaryFailure, wanted) ||
+            containsFailure(error.cleanupFailure, wanted)
+    return false
 }

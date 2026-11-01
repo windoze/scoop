@@ -44,6 +44,10 @@ SurfaceHost 包装 ApplicationHandler，管理所附着的 SurfaceWindow，使�
 
 SurfaceHost 必须在 Closing／Exiting 及用户回调失败时关闭相关 Surface 资源；不能要求应用额外转发清理事件才能释放 lease。绘制和输入回调不挂起、不在内部锁中运行，也不从原生通知递归进入。
 
+`SurfaceContent : Closeable` 定义同步 `paint(FrameContext)`，表示一个由 SurfaceWindow 拥有的内容根。`SurfaceHost.attach(window, content)` 在通过 owner 线程检查后接收新 content 的所有权；窗口状态、重复附着、renderer 创建或配置失败时，也负责关闭 content 并回滚本次取得的资源。错误线程调用在转移所有权前拒绝。一个 content 只能交给一个窗口，close 必须幂等。原有 painter 闭包重载通过不拥有额外资源的 SurfaceContent 适配，继续服务直接绘图。
+
+关闭覆盖 SurfaceHost 的事件处理器、内容 paint 和输入回调。回调内部请求关闭时先进入 Closing 并停止新工作，当前回调栈及 Canvas／frame 借用退出后才关闭 content；随后释放 renderer 和 lease。最外层 `SurfaceHost.use` 因而同时覆盖内容根、原生窗口关闭和异常退出。attach 尚未暴露给调用方的失败结果立即回滚，不等待另一个原生事件。
+
 每个 SurfaceWindow 合并重绘请求。只有 dirty 或活动动画需要新帧时才向平台请求帧机会；普通空闲保持 Wait。requestRedraw、WaitUntil 与 prePresentNotify 均不代表 vsync。
 
 平台适配接收窗口配置与帧需求，通知下一次可尝试绘制的机会，并返回 Ready(Frame) 或 Deferred。Deferred 是正常暂不可绘制状态；保留 dirty，等待后续原生机会或窗口状态改变，不忙重试。隐藏、遮挡、零尺寸、待配置及关闭状态不得申请或提交无效帧。
@@ -51,6 +55,8 @@ SurfaceHost 必须在 Closing／Exiting 及用户回调失败时关闭相关 Sur
 帧开始使用 MonotonicTimeSource 的 TimeMark，一帧内所有动画消费同一个采样时间。平台的预测呈现时间留在呈现层，不冒充输入时间或通用 FrameClock 时间。
 
 一帧依次完成：取得可用目标、采样动画、执行必要文本布局及绘制、建立 Area placement、提交渲染、发布本帧命中几何。失败／中止不发布半帧几何；中止必须释放已取得的目标。帧内新增的失效请求保留到下一帧。
+
+原生窗口在绘制回调中已改变尺寸或 backing scale 时，旧目标必须在提交前中止，即使对应 GeometryChanged 尚未进入业务事件处理器。平台 renderer 核对实际目标所依赖的原生尺寸与 scale；不把排队的 WindowMetrics 当成原生窗口尚未变化的证明，也不要求窗口请求同步递归派发事件。
 
 发布的几何对应最近成功提交的画面，不保证 GPU 已经显示该画面。首期不为输入同步而等待 GPU 或显示扫描完成。平台提交接受之后的 GPU 失败作为渲染错误处理。
 
@@ -114,7 +120,7 @@ graphics 与 graphics.text 的原生持有对象在创建线程串行使用和�
 
 native 薄层复制跨调用存活的数据，或取得明确的原生引用；不能保存移动 GC 对象的裸地址。回调使用已有 ForeignCallback 生命周期。C++／Objective-C 异常与用户异常均不得跨 C ABI 展开。
 
-关闭顺序为停止帧通知并退休回调、结束输入／动画、结束实际 GPU 使用、释放 surface／context 及平台引用、关闭 NativeWindowLease。已停止的 ApplicationProxy 不能成为资源释放的唯一途径。清理失败继续释放其他资源，遵循 ResourceUseException。
+关闭顺序为停止帧通知并退休回调、结束输入／动画、等待当前同步回调和帧借用退出、关闭 SurfaceContent、结束实际 GPU 使用、释放 surface／context 及平台引用、关闭 NativeWindowLease。已停止的 ApplicationProxy 不能成为资源释放的唯一途径。content.close 失败仍释放 renderer／lease，继续关闭其他窗口内容；清理失败遵循 ResourceUseException，不依赖后续一次事件或应用再调用 close 才完成收尾。
 
 在当前业务回调或帧借用期间请求关闭时，先进入 Closing、停止新工作，待当前回调退出并中止帧后完成实际释放；owner 不得等待自身尚未退出的回调，也不得在 Canvas 仍借用时销毁其 surface。
 

@@ -2,6 +2,7 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalDisplayLink.h>
 #import <QuartzCore/CATransaction.h>
+#include <math.h>
 #include <stdint.h>
 
 typedef int32_t (*SSUCallback)(void *, int32_t);
@@ -233,6 +234,23 @@ SSUAcquired scoop_surface_metal_surface_acquire(void *pointer) {
 void *scoop_surface_metal_frame_texture(void *pointer) {
   SSUFrame *frame = (__bridge SSUFrame *)pointer;
   return (__bridge void *)frame.drawable.texture;
+}
+int32_t scoop_surface_metal_frame_current(void *pointer) {
+  @try {
+    SSUFrame *frame = (__bridge SSUFrame *)pointer;
+    SSUSurface *surface = frame.surface;
+    if (!surface || surface.closed || frame.generation != surface.generation)
+      return 0;
+    if (surface.failed || surface.view.layer != surface.layer)
+      return -1;
+    // Native resizing can precede delivery of the queued geometry event.
+    NSRect pixels = [surface.view convertRectToBacking:surface.view.bounds];
+    return ceil(pixels.size.width) == surface.width &&
+           ceil(pixels.size.height) == surface.height &&
+           surface.view.window.backingScaleFactor == surface.scale;
+  } @catch (NSException *exception) {
+    return -1;
+  }
 }
 int32_t scoop_surface_metal_frame_present(void *pointer) {
   @autoreleasepool {

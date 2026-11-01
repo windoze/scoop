@@ -1,0 +1,224 @@
+package scoop.tests.surface.content
+
+import scoop.graphics.*
+import scoop.surface.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.time.Duration
+import scoop.window.*
+
+@Test
+private class SurfaceContentTest {
+    @Test
+    fun `content ownership covers failed attachment callbacks native close and application exit`() {
+        val application = Application()
+        val probe = ContentProbe()
+        val host = SurfaceHost { owner, active, event -> probe.event(owner, active, event) }
+        try {
+            host.use { owner -> application.run(owner) }
+            assertTrue(host.isClosed)
+            assertEquals(ContentPhase.Exiting, probe.phase)
+            for (content in probe.accepted) {
+                assertEquals(1, content.closeCalls)
+                assertTrue(content.image.isClosed)
+            }
+            assertTrue(probe.first!!.paints > 0)
+            assertTrue(probe.second!!.paints > 0)
+            assertEquals(0, probe.hidden!!.paints)
+            assertTrue(probe.firstView!!.restored())
+            assertTrue(probe.hiddenView!!.restored())
+        } finally {
+            host.close()
+            probe.firstView?.close()
+            probe.hiddenView?.close()
+        }
+    }
+}
+
+private enum ContentPhase {
+    Starting, First, Native, Exiting
+}
+
+private class ContentProbe {
+    var phase = ContentPhase.Starting
+    var inHandler = false
+    var first: OwnedContent? = None
+    var second: OwnedContent? = None
+    var hidden: OwnedContent? = None
+    var window: Window? = None
+    var firstView: ViewProbe? = None
+    var hiddenView: ViewProbe? = None
+    val accepted = ArrayList<OwnedContent>()
+
+    fun event(host: SurfaceHost, application: ActiveApplication, event: ApplicationEvent) {
+        inHandler = true
+        try {
+            when (event) {
+                case Resumed -> start(host, application)
+                case Window(_, WindowEvent.RedrawRequested) -> {
+                    // Closing requested by paint is still deferred across the host handler.
+                    if (phase == ContentPhase.First && first!!.paints > 0)
+                        assertEquals(0, first!!.closeCalls)
+                }
+                case AboutToWait -> advance(host, application)
+                case Window(id, WindowEvent.Destroyed) -> {
+                    if (phase == ContentPhase.Native && id == window!!.id)
+                        advance(host, application)
+                }
+                case NewEvents(StartCause.Deadline) -> fail(
+                    Some(
+                        "Surface content deadline: first=" +
+                            (first?.paints ?: -1).toString() +
+                            "/" +
+                            (first?.closeCalls ?: -1).toString() +
+                            ", second=" +
+                            (second?.paints ?: -1).toString() +
+                            "/" +
+                            (second?.closeCalls ?: -1).toString() +
+                            ", hidden=" +
+                            (hidden?.closeCalls ?: -1).toString() +
+                            ", destroyed=" +
+                            (window!!.state == WindowState.Destroyed).toString()
+                    )
+                )
+                else -> {}
+            }
+        } finally {
+            inHandler = false
+        }
+    }
+
+    private fun start(host: SurfaceHost, application: ActiveApplication) {
+        val native =
+            application.createWindow(
+                WindowAttributes("Surface content ownership", LogicalSize(260.0, 140.0))
+            )
+        window = Some(native)
+        native.setWindowLevel(WindowLevel.AlwaysOnTop)
+        native.requestFocus()
+        firstView = Some(observeWindow(native))
+
+        SurfaceHost { _, _, _ -> Unit }.use {
+            inactive ->
+            val rejected = OwnedContent()
+            assertFailsWith<IllegalStateException> { inactive.attach(native, rejected) }
+            assertEquals(1, rejected.closeCalls)
+            assertTrue(rejected.image.isClosed)
+        }
+        val foreign = OwnedContent()
+        Thread.start {
+            assertFailsWith<IllegalStateException> { host.attach(native, foreign) }
+        }.use { thread -> thread.join() }
+        assertEquals(0, foreign.closeCalls)
+        assertFalse(foreign.image.isClosed)
+        foreign.close()
+
+        val closingWindow = application.createWindow(WindowAttributes(visible = false))
+        closingWindow.requestDestroy()
+        val rejected = OwnedContent()
+        assertFailsWith<IllegalStateException> { host.attach(closingWindow, rejected) }
+        assertEquals(1, rejected.closeCalls)
+
+        val content = owned(firstView!!)
+        first = Some(content)
+        content.action =
+            {
+                frame ->
+                frame.window.close()
+                assertEquals(SurfaceWindowState.Closing, frame.window.state)
+                assertEquals(0, content.closeCalls)
+                frame.canvas.drawImage(content.image, Rect(8.0, 8.0, 40.0, 40.0))
+            }
+        host.attach(native, content)
+        val duplicate = OwnedContent()
+        assertFailsWith<IllegalStateException> { host.attach(native, duplicate) }
+        assertEquals(1, duplicate.closeCalls)
+        assertFalse(content.image.isClosed)
+        phase = ContentPhase.First
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(5L))
+        )
+    }
+
+    private fun advance(host: SurfaceHost, application: ActiveApplication) {
+        if (phase == ContentPhase.First && first!!.closeCalls == 1) {
+            assertTrue(firstView!!.restored())
+            val content = owned(firstView!!)
+            second = Some(content)
+            content.action =
+                {
+                    frame ->
+                    frame.window.nativeWindow.requestDestroy()
+                    assertEquals(0, content.closeCalls)
+                    frame.canvas.drawImage(content.image, Rect(4.0, 4.0, 30.0, 30.0))
+                }
+            host.attach(window!!, content)
+            phase = ContentPhase.Native
+        } else
+            if (phase == ContentPhase.Native && window!!.state == WindowState.Destroyed) {
+                assertEquals(1, second!!.closeCalls)
+                assertTrue(firstView!!.restored())
+                val native =
+                    application.createWindow(WindowAttributes("Hidden content", visible = false))
+                hiddenView = Some(observeWindow(native))
+                val content = owned(hiddenView!!)
+                hidden = Some(content)
+                host.attach(native, content)
+                phase = ContentPhase.Exiting
+                application.requestExit()
+                assertEquals(0, content.closeCalls)
+            }
+    }
+
+    private fun owned(view: ViewProbe): OwnedContent {
+        val content = OwnedContent()
+        content.retire =
+            {
+                assertFalse(inHandler)
+                assertFalse(view.restored())
+            }
+        accepted.add(content)
+        return content
+    }
+}
+
+private class OwnedContent: SurfaceContent {
+    val image = Image.fromRgba(1, 1, [0, 0, -1, -1])
+    var closeCalls = 0
+    var paints = 0
+    var action: (FrameContext) -> Unit = { _ -> Unit }
+    var retire: () -> Unit = { Unit }
+    private var insidePaint = false
+    private var canvas: Canvas? = None
+    public override fun paint(frame: FrameContext) {
+        paints += 1
+        insidePaint = true
+        canvas = Some(frame.canvas)
+        try {
+            frame.canvas.clear(Color.White)
+            frame.canvas.drawImage(image, Rect(10.0, 10.0, 20.0, 20.0))
+            action(frame)
+        } finally {
+            insidePaint = false
+        }
+    }
+    public override fun close() {
+        closeCalls += 1
+        if (image.isClosed)
+            return
+        try {
+            assertFalse(insidePaint)
+            when (canvas) {
+                case Some(value) -> assertFailsWith<IllegalStateException> {
+                    value.clear(Color.Black)
+                }
+                case None -> {}
+            }
+            retire()
+        } finally {
+            image.close()
+        }
+    }
+}

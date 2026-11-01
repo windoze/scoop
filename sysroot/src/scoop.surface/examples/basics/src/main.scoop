@@ -7,39 +7,75 @@ import scoop.math.*
 import scoop.window.*
 
 fun main() {
-    FontCollection().use {
-        fonts -> makeStar().use {
-            star -> label(fonts, "Scoop · Surface 基础层", 30.0, 680.0).use {
-                title -> label(fonts, "拖动星形，松开后弹回。下方可以输入文字、移动光标和退格。", 17.0, 680.0).use {
-                    hint -> DemoEditor(fonts, "在这里输入中文、English 或 emoji 👋").use {
-                        editor ->
-                        val panel = DemoPanel(star, title, hint, editor)
-                        val application = Application(ApplicationOptions(LastWindowPolicy.Exit))
-                        SurfaceHost {
-                            host,
-                            active,
-                            event -> when (event) {
-                                case Resumed -> {
-                                    val window =
-                                        active.createWindow(
-                                            WindowAttributes(
-                                                "Scoop Surface",
-                                                LogicalSize(760.0, 540.0)
-                                            )
-                                        )
-                                    panel.attach(
-                                        host.attach(window) { frame -> panel.paint(frame) }
-                                    )
-                                    window.requestFocus()
-                                }
-                                case Window(_, WindowEvent.CloseRequested) -> active.requestExit()
-                                else -> {}
-                            }
-                        }.use { host -> application.run(host) }
-                    }
-                }
+    val application = Application(ApplicationOptions(LastWindowPolicy.Exit))
+    SurfaceHost {
+        host,
+        active,
+        event -> when (event) {
+            case Resumed -> {
+                val window =
+                    active.createWindow(
+                        WindowAttributes("Scoop Surface", LogicalSize(760.0, 540.0))
+                    )
+                val panel = createPanel()
+                panel.attach(host.attach(window, panel))
+                window.requestFocus()
+            }
+            case Window(_, WindowEvent.CloseRequested) -> active.requestExit()
+            else -> {}
+        }
+    }.use { host -> application.run(host) }
+}
+
+private fun createPanel(): DemoPanel {
+    val resources = ArrayList<Closeable>()
+    try {
+        val fonts = FontCollection()
+        resources.add(fonts)
+        val star = makeStar()
+        resources.add(star)
+        val title = label(fonts, "Scoop · Surface 基础层", 30.0, 680.0)
+        resources.add(title)
+        val hint = label(fonts, "拖动星形，松开后弹回。下方可以输入文字、移动光标和退格。", 17.0, 680.0)
+        resources.add(hint)
+        val editor = DemoEditor(fonts, "在这里输入中文、English 或 emoji 👋")
+        resources.add(editor)
+        return DemoPanel(fonts, star, title, hint, editor)
+    } catch (error: Throwable) {
+        var failure: Throwable = error
+        var index = resources.size
+        while (index > 0L) {
+            index -= 1L
+            try {
+                resources[index].close()
+            }
+            catch (cleanup: Throwable) {
+                failure = ResourceUseException(failure, cleanup)
             }
         }
+        throw failure
+    }
+}
+
+internal fun closeDemoResources(resources: Array<Closeable>) {
+    var failure: Throwable? = None
+    for (resource in resources) {
+        try {
+            resource.close()
+        }
+        catch (error: Throwable) {
+            failure =
+                Some(
+                    when (failure) {
+                        case Some(primary) -> ResourceUseException(primary, error)
+                        case None -> error
+                    }
+                )
+        }
+    }
+    when (failure) {
+        case Some(error) -> throw error;
+        case None -> {}
     }
 }
 

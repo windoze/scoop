@@ -1,6 +1,8 @@
 # Surface 基础层组合示例
 
-一个普通 Scoop executable Cone，直接组合 `scoop.graphics`、`scoop.surface` 与 `scoop.window`，无需 component。
+一个普通 Scoop executable Cone，直接组合 `scoop.graphics`、`scoop.graphics.text`、`scoop.surface` 与 `scoop.window`，无需 component。
+
+DemoPanel 实现 SurfaceContent，拥有字体、Path、文本布局和编辑缓存，通过 attach 交给 SurfaceWindow。最外层只需 host.use；原生关闭或异常退出都会关闭内容根。构造内容过程中取得的资源在创建失败时立即回滚，成功后由 DemoPanel.close 统一释放。
 
 ```sh
 scoop run sysroot/src/scoop.surface/examples/basics --release --sysroot /path/to/sysroot

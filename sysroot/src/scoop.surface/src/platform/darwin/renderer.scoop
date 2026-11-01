@@ -233,6 +233,14 @@ private class MacFrame(
         checkOpen()
         if (window.state != WindowState.Open)
             return false
+        @Unsafe
+        {
+            val current = macFrameCurrent(native)
+            if (current < 0)
+                throw GraphicsException("check Metal frame configuration")
+            if (current == 0)
+                return false
+        }
         target.submit()
         window.prePresentNotify()
         @Unsafe
@@ -299,6 +307,9 @@ private fun macSurfaceClose(surface: Ptr<Unit>): Int
 
 @Extern(name = "scoop_surface_metal_frame_texture")
 private fun macFrameTexture(frame: Ptr<Unit>): Ptr<Unit>
+
+@Extern(name = "scoop_surface_metal_frame_current")
+private fun macFrameCurrent(frame: Ptr<Unit>): Int
 
 @Extern(name = "scoop_surface_metal_frame_present")
 private fun macFramePresent(frame: Ptr<Unit>): Int

@@ -12,7 +12,7 @@ public enum SurfaceWindowState {
 public class SurfaceWindow internal constructor(
     private val host: SurfaceHost,
     public val nativeWindow: Window,
-    private val painter: (FrameContext) -> Unit,
+    private val content: SurfaceContent,
     private val renderer: WindowRenderer
 ): Closeable {
     private var phase = SurfaceWindowState.Open
@@ -118,7 +118,7 @@ public class SurfaceWindow internal constructor(
                             animations.withFrame<Unit>(time) {
                                 if (phase == SurfaceWindowState.Open) {
                                     current.draw {
-                                        canvas -> painter(
+                                        canvas -> content.paint(
                                             FrameContext(
                                                 this,
                                                 canvas,
@@ -171,8 +171,7 @@ public class SurfaceWindow internal constructor(
             case Some(_) -> failure = cleanupFailure(failure) { close() }
             case None -> {}
         }
-        if (phase == SurfaceWindowState.Closing && depth == 0)
-            failure = cleanupFailure(failure) { retire() }
+        failure = cleanupFailure(failure) { finishClosing() }
         throwFailure(failure)
     }
     public override fun close() {
@@ -180,19 +179,27 @@ public class SurfaceWindow internal constructor(
         if (phase != SurfaceWindowState.Open)
             return
         phase = SurfaceWindowState.Closing
+        host.requestRetirement()
         var failure = cleanupFailure(None) { renderer.setFrameDemand(false) }
         failure = cleanupFailure(failure) { input.close() }
         failure = cleanupFailure(failure) { animations.close() }
-        if (depth == 0)
-            throwFailure(cleanupFailure(failure) { retire() })
-        else
-            throwFailure(failure)
+        throwFailure(cleanupFailure(failure) { finishClosing() })
+    }
+    internal fun finishClosing() {
+        if (phase == SurfaceWindowState.Closing && depth == 0 && !host.callbackActive)
+            retire()
+    }
+    internal fun rollbackAttach() {
+        val failure = cleanupFailure(None) { close() }
+        // A failed attach has not exposed this window or entered its content callbacks.
+        throwFailure(cleanupFailure(failure) { retire() })
     }
     private fun retire() {
         if (phase == SurfaceWindowState.Closed)
             return
         phase = SurfaceWindowState.Closed
-        val failure = cleanupFailure(None) { renderer.close() }
+        var failure = cleanupFailure(None) { content.close() }
+        failure = cleanupFailure(failure) { renderer.close() }
         throwFailure(cleanupFailure(failure) { host.detached(this) })
     }
 }

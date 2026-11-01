@@ -87,7 +87,7 @@ private class HostProbe {
                     assertEquals(SurfaceWindowState.Closed, firstSurface!!.state)
                     assertTrue(firstView!!.restored())
                     secondSurface!!.close()
-                    assertTrue(secondView!!.restored())
+                    assertEquals(SurfaceWindowState.Closing, secondSurface!!.state)
                     phase = HostPhase.Reattach
                     firstSurface =
                         Some(
@@ -107,6 +107,7 @@ private class HostProbe {
                     assertTrue(repainted)
                     assertEquals(SurfaceWindowState.Closed, firstSurface!!.state)
                     assertTrue(firstView!!.restored())
+                    assertTrue(secondView!!.restored())
                     phase = HostPhase.Done
                     second!!.requestDestroy()
                 }

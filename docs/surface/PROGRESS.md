@@ -4,6 +4,8 @@
 
 2026-11-01：基础字体与段落能力已迁入独立 scoop.graphics.text，并增加公开 Canvas 原生借用。本文下方保留拆分前的验收记录；本次 aarch64 的绘图、文本及必要消费者验证见 [UI 实施记录](../ui/PROGRESS.md#31-独立文本库与画布借用)，x86_64 在本期 UI 功能完成后统一补验。
 
+SurfaceContent 已接入内容根的显式所有权与安全关闭，组合示例由 Surface 持有 DemoPanel。新增正常／异常所有权测试，并修复 Metal 在原生 resize 先于几何事件时接受旧帧的问题；本批 aarch64 结果见 [UI 实施记录第 3.4 节](../ui/PROGRESS.md#34-surface-内容根的所有权)。
+
 ## 交付范围
 
 | 内容 | 已交付能力 |

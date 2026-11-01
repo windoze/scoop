@@ -32,9 +32,11 @@ fun main() {
 
 `SurfaceWindow.requestFrame()` 合并重绘需求。空闲、隐藏、系统报告遮挡或无有效配置时暂停原生帧请求；恢复可绘制状态后继续处理 dirty。Windows 的遮挡状态遵守 window 合同，只报告最小化或 DWM cloaked，不承诺检测其他顶层窗口的完整覆盖。帧内再次请求重绘会保留到下一帧。`FrameContext.time` 使用平台单调时钟，一帧只采样一次；Canvas 仅在 painter 内有效。
 
-关闭 SurfaceWindow 只卸载绘制层，Window 可继续存在或重新 attach。关闭 Window 或 Application 则由 SurfaceHost 自动退休 Surface 资源。回调内关闭先进入 Closing，退出 Canvas 借用后才释放；不会在回调内等待自己。用户异常关闭全部相关资源后沿 Application 的既有异常通路传播。
+持有 Path／Image／文本等资源的内容可实现 `SurfaceContent : Closeable`，通过 `attach(window, content)` 把整个内容根交给 SurfaceWindow。content 提供 `paint(FrameContext)` 和幂等 `close()`；通过 owner 线程检查后即转移所有权，后续附着失败也由 Surface 关闭 content 并回滚资源。错误线程调用在接收所有权前拒绝。直接 painter 重载仍可用于不需要拥有内容资源的绘图。
 
-同一个 SurfaceHost 可直接用于 `scoop.window.asyncio` 的 `runWithAsyncio`；Surface 不创建第二套主循环或任务树。应用负责 CloseRequested 策略、自己的 Path／Image／文本资源生命周期及显式状态更新。
+关闭 SurfaceWindow 只卸载绘制层，Window 可继续存在或重新 attach。关闭 Window 或 Application 则由 SurfaceHost 自动退休 Surface 资源。SurfaceHost 事件处理器、paint 或输入回调内关闭先进入 Closing，整个业务回调和 Canvas 借用结束后，依次关闭 content、renderer 和 lease；不会在回调内等待自己。内容清理失败仍继续释放其余窗口与底层资源，并沿 Application 的既有异常通路传播。
+
+同一个 SurfaceHost 可直接用于 `scoop.window.asyncio` 的 `runWithAsyncio`；Surface 不创建第二套主循环或任务树。应用负责 CloseRequested 策略、内容内部的资源组织及显式状态更新，最外层 host.use 覆盖所附着的全部内容根。
 
 Windows 保留原 HWND、窗口过程、子窗口和 IME context，以 BGRA8／sRGB／预乘 alpha 呈现。DXGI 后台等待只向 owner 消息窗口投递一次通知，再经已有 proxy 请求 redraw。普通帧异步提交；尺寸变化先退休旧 frame，再释放 GPU 对旧 backbuffer 的使用并调整 swapchain。painter 内发生的原生尺寸变化会使当前帧放弃呈现和区域发布。关闭取消等待并移除待处理通知，排空 GPU 后卸载合成目标，最后释放 lease。
 
@@ -56,7 +58,8 @@ Windows 支持 `x86_64-pc-windows-msvc-ucrt`、`x86_64-w64-windows-llvm-mingw-uc
 
 - 本 Cone 的 tests：动画的确定性采样；实际 Skia 离屏几何上的区域命中、传播、拖动、焦点、IME 会话和关闭；两个真实窗口的按需重绘、空闲、隐藏／最小化恢复、resize、输入宿主保留及重新 attach。`--filter Animation` 和 `--filter Input` 可分别运行不需要桌面的测试；`--filter SurfaceHostTest` 运行真实窗口测试。
 - `tests-cones/asyncio`：原生 modal／menu 循环下的帧与 I/O，Windows 还覆盖系统移动／缩放循环，以及根取消后的 Surface 收尾。
-- `tests-cones/errors`：painter 抛错后的多 surface 和 lease 释放。
+- `tests-cones/content`：附着失败及错误线程的所有权边界、回调内关闭、原生关闭、重新附着、从未绘制的隐藏内容和退出收尾。
+- `tests-cones/errors`：paint 与多个 content.close 同时抛错、失败附着的回滚及全部 surface／lease 释放。
 - `tests-cones/input`：在真实输入宿主上组合动画帧、区域鼠标事件、平台 preedit／commit、候选窗坐标、IME 切换和回调内关闭。Windows 的协议注入复用 window 测试 Cone 的 UTF-16 边界；该测试与安装的真实 IME 桌面操作分别记录。
 - `tests-cones/presentation`：Windows 桌面上用两个重叠的真实窗口，采样透明区域和半透明绘图的最终合成像素。
 

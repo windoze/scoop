@@ -223,11 +223,11 @@ Component 与 Element 共用 ComponentScope 的资源登记方式：resource、o
 
 最外层继续用 use 管理宿主：显式入口采用 `host.use { ... }`，runUiApplication 在内部完成。宿主拥有窗口的 UI 根，根拥有各挂载节点；控件使用位置不写 use。单个窗口关闭即清理相应子树，不等整个应用退出。
 
-UI 接入时增加最小的 `SurfaceContent : Closeable`，提供 paint(FrameContext)。该接口定义在 scoop.surface，签名不依赖 UI。SurfaceWindow 明确持有 content，在当前业务回调和 Canvas 借用结束后、renderer／lease 释放前关闭它，覆盖 Closing、Exiting、显式关闭与异常退出。
+`scoop.surface` 已提供最小的 `SurfaceContent : Closeable`，提供 paint(FrameContext)，签名不依赖 UI。SurfaceWindow 明确持有 content，在当前业务回调和 Canvas 借用结束后、renderer／lease 释放前关闭它，覆盖 Closing、Exiting、显式关闭与异常退出。
 
 通过 owner 线程检查后，attach 接收新 content 的所有权；此后的配置失败也负责关闭 content 并回滚 renderer／lease。错误线程调用在转移前拒绝。UiWindow.close 先停止新工作并请求 Surface 安全关闭，不在活跃回调中提前释放子树资源。
 
-SurfaceContent 目前仍是待实施接入点，未因本次命名或设计调整成为可用 API。实施宿主闭环时先同步 Surface 规范第 4／7 节，再修改实现。
+SurfaceContent 已在 aarch64 验证正常、原生和异常关闭，并接入现有 Surface 组合示例；合同见 Surface 规范第 4／7 节。UI 挂载树及其子节点清理继续按下述批次实施。
 
 异步继续复用 runWithAsyncio、CoroutineScope 和 Job。随组件结束的任务在 onDispose 发出取消；应用／文档拥有的下载可以跨页面继续，观察组件卸载只解除订阅。同步卸载不阻塞等待自己的回调或任意异步 finally，宿主继续驱动实际收尾。后台任务不跨挂起借用 Canvas 或组件资源，迟到结果在 owner 上检查挂载或当前业务任务身份；不另建 UI 调度器。
 

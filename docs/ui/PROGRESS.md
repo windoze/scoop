@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 0. 已确认设计与平台范围 | 已记录 | 自绘分层、State／Context／Binding、资源所有权、静止停帧、macOS 首期与后续增强 |
 | 1. 文本公共能力 | aarch64 已完成 | 独立 graphics.text、Canvas 借用、StyledText／SpanStyle、行内 metrics／placement、位置与替代文字 |
-| 2. 独立自绘闭环 | 待实施 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入及 UiHost |
+| 2. 独立自绘闭环 | aarch64 接入中 | SurfaceContent 所有权已完成；Component／Element／State／Props／Binding、挂载、布局、输入及 UiHost 待实施 |
 | 3. 公共文本适配与简单控件 | 待实施 | ParagraphHost／InlineView、Label／Button／Checkbox |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
 | 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
@@ -75,3 +75,24 @@ Scoop／C++ 格式、类型和 native 告警检查，以及准备脚本的 Ruff 
 | Surface basics 示例 | 4／4 | 编辑、布局缓存和拖动收尾 |
 
 本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试。公共文本层已完成，下一步接入 SurfaceContent 所有权和独立自绘 UI 框架。x86_64 资源更新与补验仍在全部 aarch64 功能之后。
+
+### 3.4 Surface 内容根的所有权
+
+SurfaceHost.attach 现在可接收 SurfaceContent，在 owner 线程检查后接管内容，附着失败也关闭内容并回滚 renderer／lease。绘制、输入或宿主事件处理器内关闭先停止新工作，完整回调和 Canvas 借用退出后再关闭内容及底层资源。失败内容清理不阻止其他窗口收尾，多个错误通过 ResourceUseException 保留。现有 basics 示例的 DemoPanel 直接实现该接口，拥有字体、路径和文本缓存，最外层 host.use 覆盖窗口内容。
+
+原生窗口回归发现 Metal 在 resize 已发生但 GeometryChanged 尚未交付时仍接受旧帧，已在 Surface 规范明确提交边界，并在 Metal renderer 提交前检查实际 backing 尺寸和 scale。没有在 UI 中补偿尺寸或递归派发窗口事件。
+
+所有权测试按真实 Destroyed 事件推进，避免依赖主循环在无工作时额外产生 AboutToWait；asyncio 关闭检查允许 Surface 已在较早事件中退休。实现未为测试增加轮询、空任务或多余唤醒。
+
+Scoop 格式／类型检查、Objective-C 格式及严格告警编译通过，aarch64 release scoop.test 结果如下：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| Surface content Cone | 1／1 | 所有权转移、错误线程、失败附着、回调与原生关闭、重挂载、隐藏根及退出 |
+| Surface errors Cone | 1／1 | paint 和多个 close 错误合并、剩余内容与 lease 完整清理 |
+| SurfaceHostTest | 1／1 | 按需帧、多窗口、原生 resize 中止、输入宿主恢复和重新附着 |
+| Surface asyncio Cone | 1／1 | 原生 modal／menu 循环中的帧与 I/O，取消与关闭边界 |
+| Surface native input Cone | 1／1 | 真实输入 view、区域与 IME 切换、回调内关闭 |
+| basics 示例 | 4／4 | 现有文本编辑与拖动收尾，新内容根通过类型检查 |
+
+UI 框架和基础控件尚未交付。本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试；x86_64 仍在全部 aarch64 功能完成后补验。

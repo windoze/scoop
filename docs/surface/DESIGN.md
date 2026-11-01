@@ -102,7 +102,7 @@ graphics 与 Surface 都显式声明自己实际使用的 core／std／math／pl
 
 SurfaceHost 是唯一的 ApplicationHandler 包装入口，可直接传给 `Application.run` 或 `Application.runWithAsyncio`。应用处理器仍决定 CloseRequested 是否销毁窗口；SurfaceHost 自动处理 Closing／Exiting。用户回调抛错时先关闭相关 Surface 资源再向既有应用异常通路传播，避免依赖业务代码补一次清理事件才能释放 lease。
 
-`attach(window, painter)` 在 owner 调用，拒绝本 host 对同一窗口重复附着。调用方不得同时让另一个 renderer 修改该窗口的 layer。关闭 SurfaceWindow 可以只卸载绘制层并保留 Window；关闭 Window 则必定先结束 Surface 使用。这里不增加全局 surface 注册或跨库资源授权机制。
+`attach(window, content)` 在 owner 调用，接收 `SurfaceContent : Closeable`，拒绝本 host 对同一窗口重复附着。通过线程检查后即转移所有权，附着失败也关闭 content 并回滚 renderer／lease；错误线程调用在转移前拒绝。`attach(window, painter)` 通过无额外资源的 content 适配直接绘图。调用方不得同时让另一个 renderer 修改该窗口的 layer。关闭 SurfaceWindow 可以只卸载绘制层并保留 Window；关闭 Window 则必定先结束 Surface 使用。
 
 ### 4.3 跨 Cone 的实际接入
 
@@ -309,9 +309,9 @@ macOS pointer 取消至少覆盖窗口／应用失焦导致已交付鼠标序列
 
 ### 9.5 关闭
 
-SurfaceWindow.close、Window.Closing 和 SurfaceHost.Exiting 进入同一幂等收尾。顺序为：停止／invalidate display link，退休帧通知；结束活动输入和动画；释放未用 drawable；提交或中止剩余图形工作并等待实际相关 GPU 使用结束；销毁窗口 surface、恢复 layer；最后关闭 NativeWindowLease。
+SurfaceWindow.close、Window.Closing 和 SurfaceHost.Exiting 进入同一幂等收尾。顺序为：撤销帧需求，结束活动输入和动画；等待当前回调与 Canvas 借用退出并中止未提交帧；关闭 SurfaceContent；停止原生通知，释放未用 drawable，等待实际相关 GPU 使用结束；销毁窗口 surface、恢复 layer；最后关闭 NativeWindowLease。内容关闭失败也继续释放其余资源。
 
-如果 close 来自正在运行的 painter 或输入 handler，先标记 Closing 并停止新工作，实际销毁在该回调的 finally 收尾中、当前帧中止后执行。不能在 owner 上等待自己返回，也不能提前释放仍被借用的 Canvas／surface。
+如果 close 来自正在运行的 SurfaceHost 事件处理器、paint 或输入 handler，先标记 Closing 并停止新工作，实际销毁在整个业务回调的收尾中、当前帧中止后执行。不能在 owner 上等待自己返回，也不能提前释放仍被借用的 Canvas／surface。失败 attach 尚未暴露的新内容直接回滚，不等待下一次事件。
 
 多窗口共享 context 时，关闭一个窗口只释放该窗口资源；最后一个使用者或 SurfaceHost 关闭后才释放共享 context／queue／device。等待只出现在资源收尾或显式读回，不进入普通帧路径。GPU 收尾不得依赖主线程再次执行某个业务闭包才能完成。
 

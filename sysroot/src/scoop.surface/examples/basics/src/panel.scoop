@@ -8,11 +8,13 @@ import scoop.time.Duration
 import scoop.window.*
 
 internal class DemoPanel(
+    private val fonts: FontCollection,
     private val star: Path,
     private val title: TextLayout,
     private val hint: TextLayout,
     private val editor: DemoEditor
-) {
+): SurfaceContent {
+    private var closed = false
     private var surfaceWindow: SurfaceWindow? = None
     private var shape: InputArea? = None
     private var text: InputArea? = None
@@ -37,7 +39,7 @@ internal class DemoPanel(
         text = Some(window.createArea(textInput = true) { area, event -> textEvent(area, event) })
     }
 
-    fun paint(frame: FrameContext) {
+    public override fun paint(frame: FrameContext) {
         val canvas = frame.canvas
         canvas.clear(Color(0.95, 0.96, 0.97))
         canvas.drawText(title, Point(32.0, 26.0))
@@ -196,5 +198,11 @@ internal class DemoPanel(
     private fun repaint() {
         if (isOpen())
             surfaceWindow!!.requestFrame()
+    }
+    public override fun close() {
+        if (closed)
+            return
+        closed = true
+        closeDemoResources([editor, hint, title, star, fonts])
     }
 }
