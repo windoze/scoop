@@ -1,0 +1,67 @@
+package scoop.examples.surface
+
+import scoop.graphics.*
+import scoop.surface.*
+import scoop.math.*
+import scoop.window.*
+
+fun main() {
+    FontCollection().use {
+        fonts -> makeStar().use {
+            star -> label(fonts, "Scoop · Surface 基础层", 30.0, 680.0).use {
+                title -> label(fonts, "拖动星形，松开后弹回。下方可以输入文字、移动光标和退格。", 17.0, 680.0).use {
+                    hint -> DemoEditor(fonts, "在这里输入中文、English 或 emoji 👋").use {
+                        editor ->
+                        val panel = DemoPanel(star, title, hint, editor)
+                        val application = Application(ApplicationOptions(LastWindowPolicy.Exit))
+                        SurfaceHost {
+                            host,
+                            active,
+                            event -> when (event) {
+                                case Resumed -> {
+                                    val window =
+                                        active.createWindow(
+                                            WindowAttributes(
+                                                "Scoop Surface",
+                                                LogicalSize(760.0, 540.0)
+                                            )
+                                        )
+                                    panel.attach(
+                                        host.attach(window) { frame -> panel.paint(frame) }
+                                    )
+                                    window.requestFocus()
+                                }
+                                case Window(_, WindowEvent.CloseRequested) -> active.requestExit()
+                                else -> {}
+                            }
+                        }.use { host -> application.run(host) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun label(fonts: FontCollection, text: String, size: Double, width: Double): TextLayout =
+    Paragraph(fonts, text, TextStyle(fontSize = size, color = Color(0.12, 0.17, 0.23))).use {
+        paragraph -> paragraph.layout(width)
+    }
+
+private fun makeStar(): Path =
+    PathBuilder().use {
+        builder ->
+        for (index in 0 ..< 10) {
+            val angle = index.toDouble() * 3.141592653589793 / 5.0 - 3.141592653589793 / 2.0
+            val radius =
+                if (index % 2 == 0)
+                    48.0
+                else
+                    22.0
+            val point = Point(cos(angle) * radius, sin(angle) * radius)
+            if (index == 0)
+                builder.moveTo(point)
+            else
+                builder.lineTo(point)
+        }
+        builder.closeContour().build()
+    }

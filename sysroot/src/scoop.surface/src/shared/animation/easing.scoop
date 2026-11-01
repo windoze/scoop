@@ -1,0 +1,82 @@
+package scoop.surface
+
+import scoop.math.abs
+import scoop.math.max
+import scoop.math.min
+
+/** A unit-time cubic Bézier curve. X controls are monotonic; Y controls may overshoot. */
+public class Easing private constructor(
+    private val x1: Double,
+    private val y1: Double,
+    private val x2: Double,
+    private val y2: Double
+) {
+    public fun transform(fraction: Double): Double {
+        requireAnimation(fraction.isFinite(), "non-finite easing fraction")
+        val x = min(1.0, max(0.0, fraction))
+        if (x1 == y1 && x2 == y2)
+            return x
+        return cubic(parameter(x), y1, y2)
+    }
+    internal fun slope(fraction: Double): Double {
+        if (x1 == y1 && x2 == y2)
+            return 1.0
+        val t = parameter(fraction)
+        val dx = derivative(t, x1, x2)
+        if (abs(dx) > 0.000000000001)
+            return derivative(t, y1, y2) / dx
+        val before = max(0.0, fraction - 0.000001)
+        val after = min(1.0, fraction + 0.000001)
+        return (transform(after) - transform(before)) / (after - before)
+    }
+    private fun parameter(x: Double): Double {
+        if (x <= 0.0)
+            return 0.0
+        if (x >= 1.0)
+            return 1.0
+        var low = 0.0
+        var high = 1.0
+        for (index in 0 ..< 48) {
+            val middle = (low + high) * 0.5
+            if (cubic(middle, x1, x2) < x)
+                low = middle
+            else
+                high = middle
+        }
+        return (low + high) * 0.5
+    }
+    public companion object {
+        public val Linear: Easing = Easing(0.0, 0.0, 1.0, 1.0)
+        public val EaseIn: Easing = Easing(0.42, 0.0, 1.0, 1.0)
+        public val EaseOut: Easing = Easing(0.0, 0.0, 0.58, 1.0)
+        public val EaseInOut: Easing = Easing(0.42, 0.0, 0.58, 1.0)
+        public fun cubicBezier(x1: Double, y1: Double, x2: Double, y2: Double): Easing {
+            requireAnimation(
+                x1.isFinite() &&
+                    y1.isFinite() &&
+                    x2.isFinite() &&
+                    y2.isFinite() &&
+                    x1 >=
+                    0.0 &&
+                    x1 <=
+                    1.0 &&
+                    x2 >=
+                    0.0 &&
+                    x2 <=
+                    1.0,
+                "invalid cubic Bézier controls"
+            )
+            return Easing(x1, y1, x2, y2)
+        }
+    }
+}
+
+private fun cubic(t: Double, a: Double, b: Double): Double {
+    val q = 1.0 - t
+    return (3.0 * q * q * t) * a + (3.0 * q * t * t) * b + t * t * t
+}
+
+private fun derivative(t: Double, a: Double, b: Double): Double {
+    val q = 1.0 - t
+    return 3.0 * q * q * a + 6.0 * q * t * (b - a) + 3.0 * t * t * (1.0 - b)
+}

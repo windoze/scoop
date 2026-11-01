@@ -1,0 +1,176 @@
+package scoop.surface
+
+import scoop.math.*
+
+private enum SpringKind {
+    Under, Critical, Over
+}
+
+private class SpringPlan(
+    private val target: AnimationVector,
+    private val a: AnimationVector,
+    private val b: AnimationVector,
+    private val kind: SpringKind,
+    private val rate: Double,
+    private val frequency: Double,
+    public override val duration: Double
+): MotionPlan {
+    public override fun sample(seconds: Double): MotionSample {
+        if (seconds >= duration)
+            return MotionSample(target, AnimationVector())
+        val time = max(0.0, seconds)
+        return when (kind) {
+            case Under -> {
+                val sine = sin(frequency * time)
+                val cosine = cos(frequency * time)
+                val decay = exp(-rate * time)
+                val offset = a.scale(cosine).add(b.scale(sine))
+                val velocity =
+                    b.scale(frequency).subtract(a.scale(rate)).scale(cosine)
+                    .subtract(b.scale(rate).add(a.scale(frequency)).scale(sine))
+                MotionSample(target.add(offset.scale(decay)), velocity.scale(decay))
+            }
+            case Critical -> {
+                val decay = exp(-rate * time)
+                val offset = a.add(b.scale(time))
+                MotionSample(
+                    target.add(offset.scale(decay)),
+                    b.subtract(offset.scale(rate)).scale(decay)
+                )
+            }
+            case Over -> {
+                val first = a.scale(exp(-rate * time))
+                val second = b.scale(exp(-frequency * time))
+                MotionSample(
+                    target.add(first).add(second),
+                    first.scale(-rate).add(second.scale(-frequency))
+                )
+            }
+        }
+    }
+}
+
+internal fun springPlan(
+    from: AnimationVector,
+    to: AnimationVector,
+    velocity: AnimationVector,
+    stiffness: Double,
+    damping: Double,
+    displacement: Double,
+    speed: Double
+): MotionPlan {
+    requireAnimation(
+        stiffness.isFinite() &&
+            stiffness >
+            0.0 &&
+            damping.isFinite() &&
+            damping >
+            0.0 &&
+            displacement.isFinite() &&
+            displacement >
+            0.0 &&
+            speed.isFinite() &&
+            speed >
+            0.0,
+        "invalid spring parameters"
+    )
+    val omega = sqrt(stiffness)
+    val initial = from.subtract(to)
+    if (damping < 1.0) {
+        val rate = omega * damping
+        val frequency = omega * sqrt((1.0 - damping) * (1.0 + damping))
+        val b = velocity.add(initial.scale(rate)).scale(1.0 / frequency)
+        val positionBound = initial.maximum() + b.maximum()
+        val speedBound =
+            b.scale(frequency).subtract(initial.scale(rate)).maximum() +
+                b.scale(rate).add(initial.scale(frequency)).maximum()
+        return springResult(
+            to,
+            initial,
+            b,
+            SpringKind.Under,
+            rate,
+            frequency,
+            settling(positionBound, speedBound, rate, displacement, speed)
+        )
+    }
+    if (damping == 1.0) {
+        val b = velocity.add(initial.scale(omega))
+        val factor = 2.0 / exp(1.0)
+        val positionBound = initial.maximum() + b.maximum() * factor / omega
+        val speedBound = b.subtract(initial.scale(omega)).maximum() + b.maximum() * factor
+        return springResult(
+            to,
+            initial,
+            b,
+            SpringKind.Critical,
+            omega,
+            omega,
+            settling(positionBound, speedBound, omega / 2.0, displacement, speed)
+        )
+    }
+    val sum = damping + sqrt(damping - 1.0) * sqrt(damping + 1.0)
+    val slow = omega / sum
+    val fast = omega * sum
+    val a = velocity.add(initial.scale(fast)).scale(1.0 / (fast - slow))
+    val b = initial.subtract(a)
+    return springResult(
+        to,
+        a,
+        b,
+        SpringKind.Over,
+        slow,
+        fast,
+        settling(
+            a.maximum() + b.maximum(),
+            a.scale(slow).maximum() + b.scale(fast).maximum(),
+            slow,
+            displacement,
+            speed
+        )
+    )
+}
+
+private fun settling(
+    positionBound: Double,
+    speedBound: Double,
+    decay: Double,
+    displacement: Double,
+    speed: Double
+): Double {
+    requireAnimation(
+        positionBound.isFinite() && speedBound.isFinite() && decay.isFinite() && decay > 0.0,
+        "spring coefficient overflow"
+    )
+    val positionTime =
+        if (positionBound <= displacement)
+            0.0
+        else
+            (log(positionBound) - log(displacement)) / decay
+    val speedTime =
+        if (speedBound <= speed)
+            0.0
+        else
+            (log(speedBound) - log(speed)) / decay
+    val result = max(positionTime, speedTime)
+    requireAnimation(result.isFinite(), "spring duration overflow")
+    return result
+}
+
+private fun springResult(
+    target: AnimationVector,
+    a: AnimationVector,
+    b: AnimationVector,
+    kind: SpringKind,
+    rate: Double,
+    frequency: Double,
+    duration: Double
+): MotionPlan {
+    a.check();
+    b.check()
+    requireAnimation(
+        rate.isFinite() && frequency.isFinite() && rate > 0.0 && frequency > 0.0,
+        "spring frequency overflow"
+    )
+    return SpringPlan(target, a, b, kind, rate, frequency, duration)
+}

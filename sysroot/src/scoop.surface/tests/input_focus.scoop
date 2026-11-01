@@ -1,0 +1,232 @@
+package scoop.surface
+
+import scoop.graphics.*
+import scoop.math.abs
+import scoop.test.*
+import scoop.window.*
+
+@Test
+private class InputFocusTest {
+    @Test
+    fun `logical focus survives OS focus loss while keyboard routing is inactive`() {
+        InputRig().use {
+            rig ->
+            val parent = rig.area("parent")
+            val child = rig.area("child", true)
+            assertFalse(child.requestFocus())
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, parent, Rect(0.0, 0.0, 100.0, 100.0), None)
+                frame.place(canvas, child, Rect(0.0, 0.0, 50.0, 50.0), Some(parent))
+            }
+            assertTrue(child.requestFocus())
+            assertTrue(child.hasFocus && child.isFocusActive)
+            rig.log.events.clear()
+            rig.router.event(WindowEvent.Keyboard(inputKey()))
+            rig.router.event(WindowEvent.ModifiersChanged(inputModifiers()))
+            assertEquals("child/key,parent/key,child/modifiers,parent/modifiers", rig.log.trace())
+            rig.log.events.clear()
+            rig.router.event(WindowEvent.Focused(false))
+            rig.router.event(WindowEvent.Keyboard(inputKey()))
+            assertEquals("child/blur", rig.log.trace())
+            assertTrue(child.hasFocus)
+            assertFalse(child.isFocusActive)
+            rig.router.event(WindowEvent.Focused(true))
+            assertTrue(child.isFocusActive)
+            rig.log.events.clear()
+            parent.enabled = false
+            assertEquals("child/blur", rig.log.trace())
+            assertFalse(child.hasFocus)
+            assertFalse(child.requestFocus())
+            parent.enabled = true
+            assertFalse(child.hasFocus)
+            assertTrue(child.requestFocus())
+            child.clearFocus()
+            assertFalse(child.hasFocus)
+            assertEquals(0L, rig.log.ime.size)
+        }
+    }
+
+    @Test
+    fun `composition switches only at Disabled and queued edits retain their old receiver`() {
+        InputRig().use {
+            rig ->
+            val parent = rig.area("parent")
+            val a = rig.area("a", text = true)
+            val b = rig.area("b", text = true)
+            a.setCaret(Rect(1.0, 2.0, 1.0, 10.0))
+            b.setCaret(Rect(3.0, 4.0, 1.0, 12.0))
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, parent, Rect(0.0, 0.0, 300.0, 200.0), None)
+                canvas.save()
+                canvas.translate(10.0, 20.0)
+                canvas.scale(2.0, 2.0)
+                frame.place(canvas, a, Rect(0.0, 0.0, 50.0, 50.0), Some(parent))
+                canvas.restore()
+                canvas.translate(150.0, 0.0)
+                frame.place(canvas, b, Rect(0.0, 0.0, 50.0, 50.0), Some(parent))
+            }
+            assertTrue(a.requestFocus())
+            assertEquals(1L, rig.log.ime.size)
+            assertTrue(rig.log.ime[0L])
+            assertEquals(Rect(12.0, 24.0, 2.0, 20.0), rig.log.carets[0L])
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Enabled))
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Edit(preeditBatch())))
+            assertTrue(b.requestFocus())
+            assertTrue(b.hasFocus && b.isFocusActive)
+            assertEquals(2L, rig.log.ime.size)
+            assertFalse(rig.log.ime[1L])
+            rig.log.events.clear()
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Edit(commitBatch())))
+            assertEquals("a/edit", rig.log.trace())
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Disabled))
+            assertEquals("a/edit,a/disabled", rig.log.trace())
+            assertEquals(3L, rig.log.ime.size)
+            assertTrue(rig.log.ime[2L])
+            assertEquals(Rect(153.0, 4.0, 1.0, 12.0), rig.log.carets[1L])
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Enabled))
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Edit(commitBatch())))
+            assertEquals("a/edit,a/disabled,b/enabled,b/edit", rig.log.trace())
+            b.close()
+            assertTrue(a.requestFocus())
+            rig.log.events.clear()
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Edit(commitBatch())))
+            assertEquals("", rig.log.trace())
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Disabled))
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Enabled))
+            assertEquals("a/enabled", rig.log.trace())
+        }
+    }
+
+    @Test
+    fun `rapid focus changes and OS loss finish the native session before restarting`() {
+        InputRig().use {
+            rig ->
+            val a = rig.area("a", text = true)
+            val b = rig.area("b", text = true)
+            val c = rig.area("c", text = true)
+            rig.frame {
+                frame, canvas ->
+                frame.place(canvas, a, Rect(0.0, 0.0, 30.0, 30.0), None)
+                frame.place(canvas, b, Rect(50.0, 0.0, 30.0, 30.0), None)
+                frame.place(canvas, c, Rect(100.0, 0.0, 30.0, 30.0), None)
+            }
+            assertTrue(a.requestFocus())
+            assertTrue(b.requestFocus())
+            assertTrue(c.requestFocus())
+            assertEquals(2L, rig.log.ime.size)
+            rig.log.events.clear()
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Enabled))
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Edit(preeditBatch())))
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Disabled))
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Enabled))
+            assertEquals("a/enabled,a/edit,a/disabled,c/enabled", rig.log.trace())
+            assertEquals(3L, rig.log.ime.size)
+            rig.log.events.clear()
+            rig.router.event(WindowEvent.Focused(false))
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Disabled))
+            assertEquals("c/blur,c/disabled", rig.log.trace())
+            assertTrue(c.hasFocus)
+            rig.router.event(WindowEvent.Focused(true))
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Enabled))
+            assertEquals("c/blur,c/disabled,c/focus,c/enabled", rig.log.trace())
+            assertEquals(5L, rig.log.ime.size)
+        }
+    }
+
+    @Test
+    fun `caret values from text layout track placement transforms without retaining the layout`() {
+        InputRig().use {
+            rig ->
+            val area = rig.area("text", text = true)
+            val carets = ArrayList<Rect>()
+            FontCollection().use {
+                fonts -> Paragraph(fonts, "Hello", TextStyle(fontSize = 20.0)).use {
+                    paragraph -> paragraph.layout(200.0).use {
+                        layout ->
+                        val caret = layout.caret(TextPosition(2L))!!
+                        carets.add(caret)
+                        area.setCaret(caret)
+                    }
+                }
+            }
+            rig.frame {
+                frame, canvas ->
+                canvas.translate(30.0, 40.0)
+                canvas.scale(2.0, 2.0)
+                frame.place(canvas, area, Rect(0.0, 0.0, 100.0, 50.0), None)
+            }
+            assertTrue(area.requestFocus())
+            val caret = carets[0L]
+            val invalidations = rig.log.invalidations
+            area.setCaret(caret)
+            assertTrue(area.requestFocus())
+            assertEquals(invalidations, rig.log.invalidations)
+            val mapped = rig.log.carets[0L]
+            assertTrue(abs(mapped.x - (30.0 + 2.0 * caret.x)) < 0.001)
+            assertTrue(abs(mapped.y - (40.0 + 2.0 * caret.y)) < 0.001)
+            assertTrue(abs(mapped.height - 2.0 * caret.height) < 0.001)
+            rig.frame {
+                frame, canvas ->
+                canvas.translate(50.0, 60.0)
+                frame.place(canvas, area, Rect(0.0, 0.0, 100.0, 50.0), None)
+            }
+            assertEquals(2L, rig.log.carets.size)
+            assertTrue(abs(rig.log.carets[1L].x - (50.0 + caret.x)) < 0.001)
+            assertEquals(1L, rig.log.ime.size)
+        }
+    }
+
+    @Test
+    fun `close finishes input and releases geometry even when cancellation throws`() {
+        InputRig().use {
+            rig ->
+            val area = rig.area("area", text = true)
+            rig.frame {
+                frame,
+                canvas -> frame.place(canvas, area, Rect(0.0, 0.0, 50.0, 50.0), None)
+            }
+            assertTrue(area.requestFocus())
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Enabled))
+            rig.move(10.0, 10.0)
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            area.handler =
+                {
+                    _, event ->
+                    rig.log.record("area", event)
+                    when (event) {
+                        case Pointer(
+                            AreaPointerEvent.Cancelled(_, _)
+                        ) -> throw IllegalArgumentException(Some("cancel failure"))
+                        else -> InputResult.Ignored
+                    }
+                }
+            rig.log.events.clear()
+            assertFailsWith<IllegalArgumentException> { rig.router.close() }
+            assertTrue(area.isClosed)
+            assertEquals("area/cancel,area/leave,area/blur", rig.log.trace())
+            assertEquals(2L, rig.log.ime.size)
+            assertFalse(rig.log.ime[1L])
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Edit(commitBatch())))
+            assertEquals("area/cancel,area/leave,area/blur", rig.log.trace())
+            assertFailsWith<IllegalStateException> { rig.router.beginFrame() }
+            assertFailsWith<IllegalStateException> { area.requestFocus() }
+        }
+    }
+}
+
+private fun preeditBatch(): TextInputBatch =
+    TextInputBatch(
+        None,
+        [
+            TextInputOperation.Preedit(
+                "是",
+                Some(Utf8Selection(3L, 3L)),
+                TextReplacement.CurrentSelection
+            )
+        ]
+    )
+
+private fun commitBatch(): TextInputBatch =
+    TextInputBatch(None, [TextInputOperation.Commit("是", TextReplacement.CurrentSelection)])

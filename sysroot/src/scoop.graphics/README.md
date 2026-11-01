@@ -57,4 +57,4 @@ TextRange 和 TextPosition 使用 **UTF-8 字节偏移**，与 String 的标量�
 
 TextStyle 支持基本富文本、family 顺序、字号／颜色、字体样式、locale、字距／词距、行高及 OpenType feature／variation；ParagraphStyle 提供方向、对齐、maxLines 和 ellipsis。HarfBuzz shaping、ICU 分段／bidi 与 SkParagraph 排行产生同一份绘制和查询结果。FontCollection、Paragraph 和 TextLayout 均遵守创建线程与显式 close／use 规则。
 
-准备 [native 资源](../../../scripts/README.md)后运行 `scoop test sysroot/src/scoop.graphics --release --sysroot sysroot`。测试通过真实 Skia 像素与几何查询验证行为，不使用 fixture；固定测试字体及许可见 `tests/data/FONTS.md`。整体进展见 [GUI 实施记录](../../../docs/gui/PROGRESS.md)。
+准备 [native 资源](../../../scripts/README.md)后运行 `scoop test sysroot/src/scoop.graphics --release --sysroot sysroot`。测试通过真实 Skia 像素与几何查询验证行为，不使用 fixture；固定测试字体及许可见 `tests/data/FONTS.md`。整体进展见 [GUI 实施记录](../../../docs/surface/PROGRESS.md)。

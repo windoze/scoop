@@ -1,0 +1,108 @@
+package scoop.examples.surface
+
+import scoop.graphics.*
+import scoop.window.*
+
+/** Example-owned editing state; the Surface library only routes transactions and caret geometry. */
+internal class DemoEditor(private val fonts: FontCollection, initial: String = ""): Closeable {
+    private var snapshot =
+        TextInputState(initial, Utf8Selection(initial.byteLength, initial.byteLength))
+    private var cached: TextLayout? = None
+    private var width = 400.0
+    val state: TextInputState get() = snapshot
+
+    fun layout(availableWidth: Double): TextLayout {
+        when (cached) {
+            case Some(value) -> {
+                if (width == availableWidth && value.text == snapshot.surroundingText)
+                    return value
+            }
+            case None -> {}
+        }
+        val next =
+            Paragraph(fonts, snapshot.surroundingText, TextStyle(fontSize = 22.0)).use {
+                paragraph -> paragraph.layout(availableWidth)
+            }
+        when (cached) {
+            case Some(value) -> value.close();
+            case None -> {}
+        }
+        cached = Some(next)
+        width = availableWidth
+        return next
+    }
+    fun apply(batch: TextInputBatch) {
+        snapshot = snapshot.apply(batch)
+    }
+    fun choose(point: Point) {
+        if (snapshot.markedRange != None)
+            return
+        setCursor(layout(width).hitTest(point).byteOffset)
+    }
+    fun caret(): Rect {
+        val text = layout(width)
+        var offset = 0L
+        for (boundary in text.graphemeBoundaries) {
+            if (boundary > snapshot.selection.cursor)
+                break
+            offset = boundary
+        }
+        return text.caret(TextPosition(offset))!!
+    }
+    fun moveCursor(forward: Boolean) {
+        if (snapshot.markedRange != None)
+            return
+        val boundaries = layout(width).graphemeBoundaries
+        val cursor = snapshot.selection.cursor
+        var next = cursor
+        for (boundary in boundaries) {
+            if (forward && boundary > cursor) {
+                next = boundary;
+                break
+            }
+            if (!forward && boundary < cursor)
+                next = boundary
+        }
+        setCursor(next)
+    }
+    fun backspace() {
+        if (snapshot.markedRange != None)
+            return
+        val range = snapshot.selection.range
+        if (range.end == 0L)
+            return
+        var start = range.start
+        if (range.start == range.end) {
+            start = 0L
+            for (boundary in layout(width).graphemeBoundaries) {
+                if (boundary >= range.start)
+                    break
+                start = boundary
+            }
+        }
+        apply(
+            TextInputBatch(
+                None,
+                [TextInputOperation.Commit("", TextReplacement.Range(Utf8Range(start, range.end)))]
+            )
+        )
+    }
+    private fun setCursor(offset: Long) {
+        snapshot =
+            TextInputState(
+                snapshot.surroundingText,
+                Utf8Selection(offset, offset),
+                None,
+                snapshot.caretRect,
+                snapshot.revision + 1L
+            )
+    }
+    public override fun close() {
+        val old = cached
+        cached = None
+        when (old) {
+            case Some(value) -> value.close();
+            case None -> {}
+        }
+    }
+}

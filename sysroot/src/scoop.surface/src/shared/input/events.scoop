@@ -1,0 +1,38 @@
+package scoop.surface
+
+import scoop.graphics.Point
+import scoop.window.*
+
+public enum InputResult {
+    Ignored, Handled
+}
+
+/** Native state is retained; time can describe a later geometry-driven hover transition. */
+public struct AreaPointer(
+    val target: InputArea,
+    val state: PointerState,
+    val localPosition: Point,
+    val time: InputTime
+)
+
+public enum AreaCancelReason {
+    Window(PointerCancelReason), AreaChanged, Closed
+}
+
+/** Pixel distances are logical; line distances retain their native unit. */
+public enum AreaScrollDelta {
+    Lines(Double, Double), Pixels(Double, Double)
+}
+
+public enum AreaPointerEvent {
+    Entered(AreaPointer), Left(InputTime), Moved(AreaPointer),
+    Button(AreaPointer, MouseButton, ElementState, Int),
+    Wheel(AreaPointer, AreaScrollDelta, ScrollPhase, ScrollPhase),
+    Cancelled(AreaCancelReason, InputTime)
+}
+
+/** Text transactions and focus/hover transitions are delivered directly to their owner. */
+public enum AreaEvent {
+    Pointer(AreaPointerEvent), Keyboard(KeyEvent), ModifiersChanged(Modifiers),
+    TextInput(TextInputEvent), FocusChanged(Boolean)
+}

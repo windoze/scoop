@@ -1,0 +1,47 @@
+package scoop.surface
+
+import scoop.graphics.Canvas
+import scoop.window.*
+
+/** Only the platform adapter owns native frame opportunities, targets and presentation. */
+internal interface RendererHost: Closeable {
+    fun create(window: Window, proxy: ApplicationProxy): WindowRenderer
+}
+
+internal interface WindowRenderer: Closeable {
+    fun configure(metrics: WindowMetrics)
+    fun setFrameDemand(required: Boolean)
+    fun acquire(): FrameAcquisition
+}
+
+internal enum FrameAcquisition {
+    Ready(RenderFrame), Deferred
+}
+
+internal interface RenderFrame: Closeable {
+    fun draw(block: (Canvas) -> Unit)
+    /** False means the target became invalid; geometry must not be published. */
+    fun submit(): Boolean
+}
+
+internal fun cleanupFailure(previous: Throwable?, action: () -> Unit): Throwable? {
+    try {
+        action();
+        return previous
+    }
+    catch (error: Throwable) {
+        return Some(
+            when (previous) {
+                case Some(primary) -> ResourceUseException(primary, error)
+                case None -> error
+            }
+        )
+    }
+}
+
+internal fun throwFailure(failure: Throwable?) {
+    when (failure) {
+        case Some(error) -> throw error;
+        case None -> {}
+    }
+}

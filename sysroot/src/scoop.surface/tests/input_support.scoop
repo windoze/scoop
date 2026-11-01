@@ -1,0 +1,115 @@
+package scoop.surface
+
+import scoop.graphics.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.window.*
+
+internal class InputRecord(val name: String, val event: AreaEvent)
+
+internal class InputLog {
+    val events = ArrayList<InputRecord>()
+    val ime = ArrayList<Boolean>()
+    val carets = ArrayList<Rect>()
+    var invalidations = 0
+    fun trace(): String {
+        var result = ""
+        for (record in events) {
+            if (result.byteLength != 0L)
+                result += ","
+            result += record.name + "/" + inputKind(record.event)
+        }
+        return result
+    }
+    fun record(name: String, event: AreaEvent): InputResult {
+        events.add(InputRecord(name, event));
+        return InputResult.Ignored
+    }
+}
+
+internal class InputRig(val log: InputLog = InputLog()): Closeable {
+    val router =
+        InputRouter(
+            true,
+            { log.invalidations += 1 },
+            { value -> log.ime.add(value) },
+            { rect -> log.carets.add(rect) }
+        )
+    val surface = RasterSurface(300, 200)
+    fun area(name: String, focusable: Boolean = false, text: Boolean = false): InputArea =
+        router.createArea(focusable, text) { _, event -> log.record(name, event) }
+    fun frame(block: (InputFrame, Canvas) -> Unit) {
+        router.beginFrame().use {
+            frame ->
+            surface.draw { canvas -> block(frame, canvas) }
+            router.publish(frame)
+        }
+    }
+    fun pointer(event: PointerEvent) {
+        router.event(WindowEvent.Pointer(event))
+    }
+    fun move(x: Double, y: Double) {
+        pointer(PointerEvent.Moved(inputPointer(x, y)))
+    }
+    fun button(x: Double, y: Double, state: ElementState, button: MouseButton = MouseButton.Left) {
+        pointer(PointerEvent.Button(inputPointer(x, y), button, state, 1))
+    }
+    public override fun close() {
+        val failure = cleanupFailure(None) { router.close() }
+        throwFailure(cleanupFailure(failure) { surface.close() })
+    }
+}
+
+internal fun inputModifiers(): Modifiers =
+    Modifiers(
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        ModifierSides(None, None),
+        ModifierSides(None, None),
+        ModifierSides(None, None),
+        ModifierSides(None, None)
+    )
+
+internal fun inputPointer(x: Double, y: Double, scale: Double = 1.0): PointerState =
+    PointerState(
+        LogicalPosition(x, y),
+        PhysicalPosition(x * scale, y * scale),
+        scale,
+        inputModifiers(),
+        InputTime.Observed(MonotonicTimeSource.markNow())
+    )
+
+internal fun inputKey(): KeyEvent =
+    KeyEvent(
+        PhysicalKey.Code(KeyCode.KeyA),
+        LogicalKey.Character("a"),
+        KeyLocation.Standard,
+        ElementState.Pressed,
+        false,
+        inputModifiers(),
+        false,
+        inputObservation()
+    )
+
+internal fun inputKind(event: AreaEvent): String =
+    when (event) {
+        case Pointer(AreaPointerEvent.Entered(_)) -> "enter"
+        case Pointer(AreaPointerEvent.Left(_)) -> "leave"
+        case Pointer(AreaPointerEvent.Moved(_)) -> "move"
+        case Pointer(AreaPointerEvent.Button(_, _, ElementState.Pressed, _)) -> "down"
+        case Pointer(AreaPointerEvent.Button(_, _, ElementState.Released, _)) -> "up"
+        case Pointer(AreaPointerEvent.Wheel(_, _, _, _)) -> "wheel"
+        case Pointer(AreaPointerEvent.Cancelled(_, _)) -> "cancel"
+        case Keyboard(_) -> "key"
+        case ModifiersChanged(_) -> "modifiers"
+        case TextInput(TextInputEvent.Enabled) -> "enabled"
+        case TextInput(TextInputEvent.Disabled) -> "disabled"
+        case TextInput(TextInputEvent.Edit(_)) -> "edit"
+        case FocusChanged(value) -> if (value)
+            "focus"
+        else
+            "blur"
+    }

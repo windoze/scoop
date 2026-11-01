@@ -1,0 +1,65 @@
+package scoop.examples.surface
+
+import scoop.graphics.*
+import scoop.test.*
+import scoop.window.*
+
+@Test
+private class DemoEditorTest {
+    @Test
+    fun `backspace and cursor movement keep grapheme boundaries`() {
+        FontCollection().use {
+            fonts -> DemoEditor(fonts, "Aé👨‍👩‍👧‍👦").use {
+                editor ->
+                editor.backspace()
+                assertEquals("Aé", editor.state.surroundingText)
+                editor.moveCursor(false)
+                assertEquals(1L, editor.state.selection.cursor)
+                editor.moveCursor(true)
+                assertEquals(4L, editor.state.selection.cursor)
+                editor.backspace()
+                assertEquals("A", editor.state.surroundingText)
+                editor.backspace()
+                editor.backspace()
+                assertEquals("", editor.state.surroundingText)
+            }
+        }
+    }
+    @Test
+    fun `composition replaces its marked range and caret movement reuses text layout`() {
+        FontCollection().use {
+            fonts -> DemoEditor(fonts).use {
+                editor ->
+                editor.apply(
+                    TextInputBatch(
+                        None,
+                        [
+                            TextInputOperation.Preedit(
+                                "中😀",
+                                Some(Utf8Selection(3L, 7L)),
+                                TextReplacement.CurrentSelection
+                            )
+                        ]
+                    )
+                )
+                editor.backspace()
+                assertEquals("中😀", editor.state.surroundingText)
+                editor.apply(
+                    TextInputBatch(
+                        None,
+                        [TextInputOperation.Commit("是", TextReplacement.CurrentSelection)]
+                    )
+                )
+                assertEquals("是", editor.state.surroundingText)
+                assertEquals(None, editor.state.markedRange)
+                val first = editor.layout(400.0)
+                editor.moveCursor(false)
+                assertEquals(0L, editor.state.selection.cursor)
+                assertTrue(first === editor.layout(400.0))
+                assertTrue(editor.caret().height > 0.0)
+                val second = editor.layout(200.0)
+                assertTrue(first !== second)
+            }
+        }
+    }
+}

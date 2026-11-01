@@ -1,0 +1,43 @@
+package scoop.examples.surface
+
+import scoop.graphics.Point
+import scoop.surface.*
+
+internal class DemoDrag(private val position: Animatable<Point>, private val home: Point) {
+    private var active = false
+    private var pointerOrigin = Point(0.0, 0.0)
+    private var valueOrigin = Point(0.0, 0.0)
+
+    fun press(pointer: Point) {
+        position.cancel()
+        active = true
+        pointerOrigin = pointer
+        valueOrigin = position.value
+    }
+
+    fun move(pointer: Point) {
+        if (active)
+            position.snapTo(
+                Point(
+                    valueOrigin.x + pointer.x - pointerOrigin.x,
+                    valueOrigin.y + pointer.y - pointerOrigin.y
+                )
+            )
+    }
+
+    fun release() {
+        finish(true)
+    }
+
+    fun cancel(ownerState: SurfaceWindowState) {
+        finish(ownerState == SurfaceWindowState.Open)
+    }
+
+    private fun finish(animateBack: Boolean) {
+        if (!active)
+            return
+        active = false
+        if (animateBack)
+            position.animateTo(home, AnimationSpec.Spring())
+    }
+}
