@@ -2,6 +2,8 @@
 use scoop_lir::{BackendMachineFrameV1, LirTargetProfile, NativeObjectFormat, TargetArchitecture};
 use scoop_target_data::{NativeEnvironment, RuntimeProfile};
 
+#[cfg(all(test, target_os = "macos"))]
+mod darwin_tests;
 mod sources;
 #[cfg(all(test, windows, target_arch = "x86_64"))]
 mod windows_tests;
