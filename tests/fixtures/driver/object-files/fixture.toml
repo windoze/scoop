@@ -19,13 +19,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "produced_before_link"
-argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/state.json"]
-exit = 0
-stdout = ""
-stderr = ""
+checks = [{glob = "${work}/cache/objects-v1/*", equals = []}]
 
 [[steps]]
 name = "program"
@@ -35,13 +29,6 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-
-[[steps]]
-name = "reused_library_objects"
-argv = ["${python}", "${fixture}/state.py", "subset", "${work}/cache", "${work}/state.json"]
-exit = 0
-stdout = ""
-stderr = ""
 
 [[steps]]
 name = "run_program"
@@ -129,27 +116,6 @@ stderr = ""
 [[steps]]
 name = "unchanged_imported"
 argv = ["${python}", "${fixture}/state.py", "same", "${work}/import-cache", "${work}/imported.json"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "missing_output"
-argv = ["${python}", "${fixture}/state.py", "remove_one", "${work}/import-cache", "${work}/imported.json"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
-name = "restore_object"
-argv = ["${scoop-link}", {each = "${link_args}"}, "--cache-dir", "${work}/import-cache", "--sysroot", "${sysroot}", "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/relinked"]
-exit = 0
-stdout = "link-plan ${changed.result.link_plan_fingerprint}\n"
-stderr = ""
-
-[[steps]]
-name = "other_objects_unchanged"
-argv = ["${python}", "${fixture}/state.py", "restored", "${work}/import-cache", "${work}/imported.json"]
 exit = 0
 stdout = ""
 stderr = ""

@@ -1,21 +1,12 @@
 schema = 1
 name = "linked-values-gc"
 inputs = ["program"]
-tools = ["scoop", "scoopc", "scoop-link"]
+tools = ["scoop", "scoopc"]
 when = { os = ["darwin", "linux"] }
 tags = ["linked", "gc-correctness"]
 [[steps]]
-name = "core"
-argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${sysroot}/src/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
-exit = 0
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = []
-
-[[steps]]
 name = "build"
-argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${fixture}/program", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${fixture}/program", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

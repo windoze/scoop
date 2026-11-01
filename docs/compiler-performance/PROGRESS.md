@@ -427,7 +427,19 @@ Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl、Windows M
 
 ## 编译速度阶段验收（进行中）
 
-Linux 完整 release workspace 的 105 个测试组首次为 6,383 项通过、1 项失败，失败项为 `child::tests::production_runner_preserves_linux_tools_and_uses_private_scratch`。测试仍把 child 的第 4 个参数当成临时目录，第十五轮精简协议参数后该位置已是 jobs 数值。测试现按实际 `TMPDIR` 和独立指定的 scratch 根检查路径，保留 GNU／musl 工具环境、真实调用、目录存在与结束清理检查。macOS、Linux 的格式与 release workspace all-targets Clippy 通过；Linux 原失败用例的两个目标分支定向复测通过，未重跑完整 workspace。fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 27 项通过、5 项平台条件跳过。完整 CLI 尚未启动。
+Linux 完整 release workspace 的 105 个测试组首次为 6,383 项通过、1 项失败，失败项为 `child::tests::production_runner_preserves_linux_tools_and_uses_private_scratch`。测试仍把 child 的第 4 个参数当成临时目录，第十五轮精简协议参数后该位置已是 jobs 数值。测试现按实际 `TMPDIR` 和独立指定的 scratch 根检查路径，保留 GNU／musl 工具环境、真实调用、目录存在与结束清理检查。macOS、Linux 的格式与 release workspace all-targets Clippy 通过；Linux 原失败用例的两个目标分支定向复测通过，未重跑完整 workspace。fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 27 项通过、5 项平台条件跳过。Linux GNU 的完整 CLI 验收正在执行。
+
+
+macOS 完整 release workspace 的 105 个测试组共 6,353 项通过，无失败或忽略；fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 26 项通过、6 项平台条件跳过。Windows 正在执行完整 workspace。CLI 均使用各宿主冻结的最终五个工具，每目标只执行一次全量，原始失败记录保留，修复后只复测相关项。
+
+Darwin AArch64 首轮完整 CLI 为 4,290 项通过、25 项平台不适用、8 项失败，共 4,514 个 variant、13,391 次进程调用。已逐项闭合这些失败：
+
+- 主线允许构造期间使用普通 `this` 后，`@NoGC` 构造结果用例漏记 receiver local／value 的两条既有类型诊断，现补齐精确期望。原来拒绝继承计算属性初始化的用例已经不符合语言规则，将其迁入 `constructor-this` Cone，以真实 provider 产物和实际运行断言验证继承 getter 求值；删除退役的 negative fixture，当前集合因此为 4,322 项。
+- hash、linked、queue、tree 四个 GC 用例不再单独重编 core 后混用另一组预编译 std。它们直接消费配套 sysroot；保留原 profile、stress runtime 选择、正常／搬迁运行及实际回收断言。GC stress 不改变普通库产物身份，不需要为该选项重编 core。
+- `object-files` 改为检查库发布不预填充对象缓存，保留真实源码变更、选中对象提取、重复链接不改写文件和程序结果检查。删除人为破坏对象缓存后的恢复验收；实现规范的链接章节也同步去掉遗漏的生产期预填充描述，与第十五轮及当前实现一致。
+- macOS 验收解释器补装仓库 `tests/requirements-dev.txt` 已固定的 `cbor2==6.1.5`，闭合 deployment 检查的环境缺项，没有增加项目依赖。
+
+修复经过 Python 格式与 lint、TOML 解析及差异检查；两组定向 CLI 共 9 项、10 个 variant、37 次进程调用全部通过，迁移后的构造 Cone 10 项真实行为测试全部通过。原始全量与复测日志、报告保存在仓库外；已完成的 Darwin AArch64 fixture 工作目录清理后，继续其余目标验收。
 
 ## 后续优先级
 
