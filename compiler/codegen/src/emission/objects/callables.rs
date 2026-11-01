@@ -50,8 +50,10 @@ pub(super) fn emit_callables<D: Sync, C: Sync, I: Sync>(
     let next = AtomicUsize::new(0);
     let stopped = AtomicBool::new(false);
     let emit_worker = || -> WorkerResult {
-        let machine = profile.create_target_machine()?;
+        // AArch64's instruction selector can retain debug metadata until the
+        // machine is dropped, so its context must outlive it on every exit path.
         let context = Context::create();
+        let machine = profile.create_target_machine()?;
         let mut completed = Vec::new();
         while !stopped.load(Ordering::Relaxed) {
             let index = next.fetch_add(1, Ordering::Relaxed);

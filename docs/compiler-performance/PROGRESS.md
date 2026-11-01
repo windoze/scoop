@@ -363,11 +363,21 @@ Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl 同时覆�
 
 原始配对测量、各目标验证日志和报告保存在仓库外。临时构建缓存、失败复现与已完成的 fixture 工作目录、重复产物和退役对照工具已清理；保留本轮最终工具和每种 profile 的一份库／消费者代表产物，供后续共有路径优化对照。
 
+## 第十六轮：修复 LLVM 对象销毁顺序
+
+Windows 的七目标并行对象对照暴露了既有原生崩溃。保存失败二进制后，GDB 捕获到 AArch64 TargetMachine 析构中的 `MetadataTracking::untrack` 访问已释放的调试 metadata；worker 原先先创建 TargetMachine、后创建 Context，Rust 的逆序析构使 Context 提前释放。该顺序问题已存在于第十四轮并行发射实现，发生与否受分配布局和调度影响。
+
+callable 与元数据发射入口现先创建 Context、后创建 TargetMachine，使后者在正常返回、错误返回和栈展开时都先销毁。IR 输出入口按实际 callable／元数据阶段分别使用词法作用域，上一阶段完整释放后再进入下一阶段；数据对象对照测试也采用相同顺序。没有改变线程数、对象划分、LLVM passes 或产物合同。
+
+macOS、Linux、Windows 的 release workspace all-targets Clippy 均通过；各平台的对象分区、GC／异常记录、IR 输出与数据对象对照 15 项、真实泛型与跨产物消费 4 项全部通过。其中既有并行对照在每个宿主覆盖七目标、debug 与 release/full、四次不同 jobs 的发射，比较完整对象 bytes、分区与生产记录。Windows 另以原始参数独立运行该对照三次，并使用捕获崩溃时的普通堆与 GDB 配置运行一次，均正常退出。
+
+本轮作为已有正确性问题的修复，不记录编译速度收益，也未重跑全量 fixture。原始崩溃堆栈、带诊断输出的旧版运行结果和修复验证日志保存在仓库外；临时崩溃二进制及已完成的初步索引实验目录已清理。保留修复后的 macOS／Linux 工具，下一轮索引优化以它们为基线重新测量。
+
 ## 后续优先级
 
 尺寸优化按用户补充要求，优先精简结构、删除不必要或重复的信息；压缩只作为最后的补充，且不采用 CPU／内存消耗过大的算法。
 
-1. 按用户最新要求，尺寸优化告一段落，转入编译速度大项，优先处理 debug／release 共有路径。Windows MSVC 原有完整验收及全部失败复测已结束，两个 MinGW 全量 CLI 留到速度大项完成后的统一验收。已落地 Scoop 对象内存交接、独立 LLVM context 的并行发射和链接选中后的对象按需落盘，并修复实际遇到的调试信息、压缩与 Windows 路径错误。下一项优先验证 production 构造中反复全表查找 digest 的索引化，再评估元数据分区热点，继续保持全部 GC／ABI 合同。
+1. 按用户最新要求，尺寸优化告一段落，转入编译速度大项，优先处理 debug／release 共有路径。Windows MSVC 原有完整验收及全部失败复测已结束，两个 MinGW 全量 CLI 留到速度大项完成后的统一验收。已落地 Scoop 对象内存交接、独立 LLVM context 的并行发射和链接选中后的对象按需落盘，并修复实际遇到的调试信息、压缩、Windows 路径及 LLVM Context 生命周期错误。下一项优先验证 production 构造中反复全表查找 digest 的索引化，再评估元数据分区热点，继续保持全部 GC／ABI 合同。
 2. 当前完整 29 库的 HIR／MIR／LIR 字符串表投影仅省约 1.05～1.06 MiB，其中 LIR 约 0.04～0.08 MiB。注册记录 ABI 去掉重复 group／member hash 输入的投影约省 1.93 MiB，该估算尚保留旧索引，仅用于候选排序。跨三层 metadata 的重复 ID 原始字节上限为 7.03 MiB，尚未扣映射开销；全局 union 会让只请求 HIR 的读取载入大量 LIR 专用 ID，先保留阶段局部读取。这些候选后置。manifest 的全量 ID 表此前反而增加约 2.10 MiB，不采用。
 
 已排除直接复用 LLVM 22.1 的对象发射 pass manager：即使 AsmPrinter／MCStreamer／MachineModuleInfo 有逐模块收尾，带 GC statepoint 与异常展开的第二个函数模块仍残留前一模块的栈映射记录；仅数据流水线在 COFF debug → 无 debug 切换时也残留字符串表空间。独立的连续模块字节对照发现两者，实验实现均已撤下，未进入生产。本轮仅补齐数据发射入口自身的 LLVM pass 注册，并将测试顺序调整为先调用数据入口，避免测试依赖完整代码生成的先行初始化。格式检查、workspace all-targets Clippy 和七目标两配置的数据对象对照通过；不为撤下的实验记录性能收益。

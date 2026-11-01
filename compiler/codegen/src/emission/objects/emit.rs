@@ -39,8 +39,8 @@ pub(super) fn emit_object_set_with_production<
         production.canonical_definitions(),
     )
     .map_err(|error| CodegenError(error.to_string()))?;
-    let machine = profile.create_target_machine()?;
     let metadata_context = Context::create();
+    let machine = profile.create_target_machine()?;
     let metadata_llvm = prepare_non_callable_strong_llvm_module(
         &metadata_context,
         module,

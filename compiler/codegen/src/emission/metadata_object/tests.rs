@@ -23,8 +23,8 @@ fn data_emission_matches_full_pipeline_on_every_target() {
             )
             .unwrap()
             .with_optimization(optimization);
-            let machine = profile.create_target_machine().unwrap();
             let context = Context::create();
+            let machine = profile.create_target_machine().unwrap();
             let mut source = include_str!("data.ll").to_owned();
             if profile.lir_target_profile().native_object_format()
                 != scoop_lir::NativeObjectFormat::MachO64
