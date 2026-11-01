@@ -2,7 +2,7 @@
 
 本次改动减少大库产物的磁盘占用与读写量，同时控制压缩 CPU 成本。先缩减没有下游消费者的持久化数据，再压缩 Scoop 自用成员。格式合同以 [实现规范 2.6](../specs/SCOOP-IMPL-SPEC.md) 为准。
 
-2026-11-01 的后续结构精简已统一三层 metadata 的成员内 ID 表，并将 ODR 目录移入 LIR。当前容器／manifest 为 6、profile 为 `cross-cone-generic/15`、三层 metadata outer schema 均为 4；成员目录只保存 ID、角色、存储长度和摘要。生产端仍用完整 key 生成稳定 ID；Native 源路径保存在对应角色中，对象目标与格式复用 manifest 的契约。容器使用 16-byte 固定头、manifest 和连续 payload，删除逐成员 ar header 与 padding，按已有目录长度定位成员；普通 native `.a` 不受影响。逐轮固定输入的测量与验证见 [编译器优化报告](../compiler-performance/PROGRESS.md)。对象在 ODR 去重后使用每库共享的至多 64 KiB 字典和 Zstd level 3 编码；字典为独立成员，实际对象提取时才读取。对象摘要改为原生内容，Code 只使用内容记录，维持跨字典 ODR 与对象缓存复用；目录仍只保存一份摘要。物理实现变化通过完整依赖的既有 Code 指纹使本地编译缓存更新，不进入语言语义指纹。实际训练成本和压缩收益在本轮报告中记录。下文保留 2026-10-31 各轮的历史记录。
+2026-11-01 的后续结构精简已统一三层 metadata 的成员内 ID 表，并将 ODR 目录移入 LIR。当前容器／manifest 为 6、profile 为 `cross-cone-generic/15`、三层 metadata outer schema 均为 4；成员目录只保存 ID、角色、存储长度和摘要。生产端仍用完整 key 生成稳定 ID；Native 源路径保存在对应角色中，对象目标与格式复用 manifest 的契约。容器使用 16-byte 固定头、manifest 和连续 payload，删除逐成员 ar header 与 padding，按已有目录长度定位成员；普通 native `.a` 不受影响。逐轮固定输入的测量与验证见 [编译器优化报告](../compiler-performance/PROGRESS.md)。对象在 ODR 去重后使用每库共享的至多 64 KiB 字典和 Zstd level 3 编码；字典为独立成员，实际对象提取时才读取。对象摘要改为原生内容，Code 只使用内容记录，维持跨字典 ODR 与对象缓存复用；目录仍只保存一份摘要。物理实现变化通过完整依赖的既有 Code 指纹使本地编译缓存更新，不进入语言语义指纹。实际训练成本和压缩收益在本轮报告中记录。后续编译速度优化将原生对象文件改为链接选中后按需物化；库生产直接发布容器，不预填充对象缓存，也不额外保留一份原生对象集合。下文保留 2026-10-31 各轮的历史记录。
 
 2026-10-31 的后续实施扩展到逐对象压缩、LIR 成员内 ID 表以及发布前结束边界符号清理。基线为 25 个当前格式 Darwin 库、772.16 MiB；其中对象 378.29 MiB、LIR 287.60 MiB。离线测量中逐对象 Zstd level 3 为 165.46 MiB，LIR ID 索引投影为 123.80 MiB，合计估算约 395.53 MiB。该估算包含 ID 表，不是正式 writer 的验收结果。
 

@@ -29,8 +29,6 @@ enum Command {
     #[command(name = "__child-protocol", hide = true)]
     ChildProtocol {
         version: u32,
-        #[arg(long)]
-        object_cache_dir: Option<PathBuf>,
         #[arg(long, default_value_t = std::num::NonZeroUsize::MIN)]
         jobs: std::num::NonZeroUsize,
     },
@@ -158,11 +156,7 @@ fn main() -> ExitCode {
         }
         Command::Check(args) => check::run(args),
         Command::MachineCapability => write_machine_capability(),
-        Command::ChildProtocol {
-            version,
-            object_cache_dir,
-            jobs,
-        } => child_protocol::run(version, object_cache_dir, jobs),
+        Command::ChildProtocol { version, jobs } => child_protocol::run(version, jobs),
     };
     scoop_process::finish_interruption();
     result
@@ -349,7 +343,6 @@ mod tests {
             cli.command,
             Command::ChildProtocol {
                 version: 1,
-                object_cache_dir: None,
                 jobs: std::num::NonZeroUsize::MIN,
             }
         ));

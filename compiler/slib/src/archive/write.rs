@@ -5,7 +5,6 @@ use super::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalSlibArchive {
     bytes: Vec<u8>,
-    objects: Vec<(scoop_wire::Digest256, Vec<u8>)>,
 }
 
 impl CanonicalSlibArchive {
@@ -44,19 +43,11 @@ impl CanonicalSlibArchive {
         output.extend_from_slice(GLOBAL_MAGIC);
         output.extend_from_slice(&manifest_length.to_le_bytes());
         output.extend_from_slice(&manifest);
-        let mut objects = Vec::new();
         for member in members {
             output.extend_from_slice(member.payload());
-            let digest = member.record().sha256();
-            if let Some(bytes) = member.into_object_payload() {
-                objects.push((digest, bytes));
-            }
         }
         debug_assert_eq!(output.len(), capacity);
-        Ok(Self {
-            bytes: output,
-            objects,
-        })
+        Ok(Self { bytes: output })
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -65,12 +56,6 @@ impl CanonicalSlibArchive {
 
     pub fn into_bytes(self) -> Vec<u8> {
         self.bytes
-    }
-
-    pub fn object_payloads(&self) -> impl Iterator<Item = (scoop_wire::Digest256, &[u8])> {
-        self.objects
-            .iter()
-            .map(|(digest, bytes)| (*digest, bytes.as_slice()))
     }
 }
 

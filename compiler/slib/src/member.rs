@@ -319,7 +319,6 @@ pub struct SlibMemberRecord {
 pub struct SlibMember {
     record: SlibMemberRecord,
     payload: Vec<u8>,
-    object_payload: Option<Vec<u8>>,
 }
 
 impl SlibMember {
@@ -329,23 +328,20 @@ impl SlibMember {
         role: SlibMemberRole,
         payload: Vec<u8>,
     ) -> Result<Self, SlibMemberRecordError> {
-        let (payload, object_payload) = if role.is_compressed() {
-            let compressed = crate::compression::compress(&payload)
-                .map_err(SlibMemberRecordError::Compression)?;
-            let object = role.is_object().then_some(payload);
-            (compressed, object)
+        let object_digest = role.is_object().then(|| sha256(&payload));
+        let payload = if role.is_compressed() {
+            crate::compression::compress(&payload).map_err(SlibMemberRecordError::Compression)?
         } else {
-            (payload, None)
+            payload
         };
-        let digest = sha256(object_payload.as_deref().unwrap_or(&payload));
+        let digest = object_digest.unwrap_or_else(|| sha256(&payload));
         let content = SlibMemberContent::new(cone, stable_key, role, digest)?;
-        Self::from_encoded(content, payload, object_payload)
+        Self::from_encoded(content, payload)
     }
 
     fn from_encoded(
         content: SlibMemberContent,
         payload: Vec<u8>,
-        object_payload: Option<Vec<u8>>,
     ) -> Result<Self, SlibMemberRecordError> {
         let byte_length =
             u64::try_from(payload.len()).map_err(|_| SlibMemberRecordError::LengthOverflow)?;
@@ -355,7 +351,6 @@ impl SlibMember {
                 byte_length,
             },
             payload,
-            object_payload,
         })
     }
 
@@ -364,9 +359,6 @@ impl SlibMember {
     }
     pub fn payload(&self) -> &[u8] {
         &self.payload
-    }
-    pub(crate) fn into_object_payload(self) -> Option<Vec<u8>> {
-        self.object_payload
     }
 }
 

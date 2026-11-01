@@ -80,8 +80,6 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         let mut child = command
             .arg("__child-protocol")
             .arg(tool.protocol().protocol_version().to_string())
-            .arg("--object-cache-dir")
-            .arg(&io.temporary_root)
             .arg("--jobs")
             .arg(io.jobs.to_string())
             .envs(

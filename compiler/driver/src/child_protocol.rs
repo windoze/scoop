@@ -15,14 +15,10 @@ const CHILD_TRANSPORT_FAILURE_EXIT: u8 = 2;
 const CHILD_REQUEST_ERROR_CODE: &str = "SCOOPC_CHILD_REQUEST_INVALID";
 const CHILD_BUILD_ERROR_CODE: &str = "SCOOPC_BUILD_FAILED";
 
-pub(crate) fn run(
-    version: u32,
-    object_cache: Option<std::path::PathBuf>,
-    jobs: std::num::NonZeroUsize,
-) -> ExitCode {
+pub(crate) fn run(version: u32, jobs: std::num::NonZeroUsize) -> ExitCode {
     let stdin = io::stdin();
     let stdout = io::stdout();
-    match run_transport(version, stdin.lock(), stdout.lock(), object_cache, jobs) {
+    match run_transport(version, stdin.lock(), stdout.lock(), jobs) {
         Ok(ChildProtocolExit::Success) => ExitCode::SUCCESS,
         Ok(ChildProtocolExit::CompilerFailure) => ExitCode::from(CHILD_COMPILER_FAILURE_EXIT),
         Err(error) => {
@@ -36,7 +32,6 @@ fn run_transport(
     version: u32,
     mut input: impl Read,
     mut output: impl Write,
-    object_cache: Option<std::path::PathBuf>,
     jobs: std::num::NonZeroUsize,
 ) -> Result<ChildProtocolExit, ChildProtocolError> {
     if version != scoop_protocol::PROTOCOL_VERSION {
@@ -45,7 +40,7 @@ fn run_transport(
     let frame = read_one_frame(&mut input)?;
     let request =
         scoop_protocol::decode_request_frame(&frame).map_err(ChildProtocolError::DecodeRequest)?;
-    let response = execute_request(request, object_cache, jobs)?;
+    let response = execute_request(request, jobs)?;
     let exit = match response {
         ScoopcResponseEnvelopeV1::Success { .. } | ScoopcResponseEnvelopeV1::Observed { .. } => {
             ChildProtocolExit::Success
@@ -71,7 +66,6 @@ fn read_one_frame(input: &mut impl Read) -> Result<Vec<u8>, ChildProtocolError> 
 
 fn execute_request(
     request: ScoopcRequestEnvelopeV1,
-    object_cache: Option<std::path::PathBuf>,
     jobs: std::num::NonZeroUsize,
 ) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
     let request_id = request.request_id();
@@ -83,7 +77,7 @@ fn execute_request(
         );
     }
     let build = match scoopc::normalize_protocol_build_request(request.build()) {
-        Ok(build) => build.with_object_cache_root(object_cache).with_jobs(jobs),
+        Ok(build) => build.with_jobs(jobs),
         Err(error) => {
             return failure_response(request_id, CHILD_REQUEST_ERROR_CODE, error.to_string());
         }
@@ -354,7 +348,6 @@ mod tests {
             scoop_protocol::PROTOCOL_VERSION,
             Cursor::new(request_frame),
             &mut response_frame,
-            None,
             std::num::NonZeroUsize::MIN,
         )
         .unwrap();
@@ -383,7 +376,6 @@ mod tests {
                 scoop_protocol::PROTOCOL_VERSION,
                 Cursor::new(trailing),
                 &mut response,
-                None,
                 std::num::NonZeroUsize::MIN,
             ),
             Err(ChildProtocolError::DecodeRequest(_))

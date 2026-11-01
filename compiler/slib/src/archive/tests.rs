@@ -21,7 +21,7 @@ fn open_archive(input: &[u8]) -> Result<ManifestArchive<'_>, ArchiveReadError> {
 }
 
 #[test]
-fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes() {
+fn object_storage_is_compressed_and_readers_return_native_bytes() {
     let capability = CapabilityId::new("org.scoop-lang.test", "object", 1).unwrap();
     let mut members = vec![diagnostic_member(b"log", b"diagnostic").unwrap()];
     let mut expected = std::collections::BTreeMap::new();
@@ -51,12 +51,6 @@ fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes
     );
     records.sort_unstable_by_key(SlibMemberRecord::id);
     let archive = CanonicalSlibArchive::write(b"m", members).unwrap();
-    assert_eq!(
-        archive
-            .object_payloads()
-            .collect::<std::collections::BTreeMap<_, _>>(),
-        expected
-    );
     let decoded = open_archive(archive.as_bytes())
         .unwrap()
         .validate_directory(&records)

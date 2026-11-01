@@ -105,7 +105,6 @@ pub struct LoadedSingleConeBuildRequest {
     purpose: CompilationPurpose,
     native_inputs: super::NativeInputOrigin,
     generators: scoop_toolchain::GeneratorPrograms,
-    object_cache_root: Option<std::path::PathBuf>,
     jobs: std::num::NonZeroUsize,
 }
 

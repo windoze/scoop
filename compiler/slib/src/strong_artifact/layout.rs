@@ -251,10 +251,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
     pub fn as_bytes(&self) -> &[u8] {
         self.archive.as_bytes()
     }
-
-    pub fn object_payloads(&self) -> impl Iterator<Item = (scoop_wire::Digest256, &[u8])> {
-        self.archive.object_payloads()
-    }
 }
 
 #[cfg(test)]

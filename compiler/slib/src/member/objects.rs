@@ -40,7 +40,7 @@ impl UncompressedObjectMember {
             .compress(&self.payload)
             .map_err(crate::CompressionError::from)
             .map_err(SlibMemberRecordError::Compression)?;
-        SlibMember::from_encoded(self.content, stored, Some(self.payload))
+        SlibMember::from_encoded(self.content, stored)
     }
 }
 
