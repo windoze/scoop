@@ -1,0 +1,177 @@
+package scoop.tests.ui.style
+
+import scoop.graphics.*
+import scoop.graphics.native.withSkiaCanvas
+import scoop.surface.*
+import scoop.test.*
+import scoop.tests.graphics.readNativePixel
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.window.*
+
+internal class StyleScene(private val probe: StyleProbe): Component {
+    public override fun render(): View {
+        probe.renders += 1
+        val generation = probe.generation.value
+        val style =
+            when (generation) {
+                case 1 -> Style(
+                    border = Some(Border(1.0, Color.Black)),
+                    cornerRadius = 10.0,
+                    boxShadows = [BoxShadow(Point(4.0, 0.0), 3.0, 3.0, Color.Black)],
+                    contentEffects = [ContentEffect.Glow(3.0, 3.0, Color(0.0, 0.0, 1.0))]
+                )
+                case 3 -> Style(
+                    cornerRadius = 20.0,
+                    contentEffects = [ContentEffect.Blur(3.0, 3.0)],
+                    clipContent = true
+                )
+                else -> Style()
+            }
+        return element(
+            generation,
+            { props -> StylePanel(props, probe) },
+            [
+                styled(component({ StyleCounter(probe) }), style, ViewKey.Text("content")),
+                if (probe.showAnimation.value)
+                    element({ AnimatedInk(probe) })
+                else
+                    empty()
+            ]
+        )
+    }
+}
+
+private class StylePanel(private val props: Props<Int>, private val probe: StyleProbe): Element {
+    public override fun update() {
+        probe.updates += 1;
+        probe.updatedGeneration = props.value
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        probe.measures += 1
+        val metrics = context.measureChild(0L, Constraints.tight(Size(80.0, 40.0)))
+        assertEquals(Size(80.0, 40.0), metrics.size)
+        assertEquals(Some(20.0), metrics.alphabeticBaseline)
+        assertEquals(Some(28.0), metrics.ideographicBaseline)
+        context.placeChild(0L, Point(40.0, 40.0))
+        context.measureChild(1L, Constraints.tight(Size(50.0, 40.0)))
+        context.placeChild(1L, Point(180.0, 40.0))
+        return LayoutMetrics(constraints.constrain(Size(300.0, 160.0)))
+    }
+    public override fun paint(context: PaintContext) {
+        probe.paints += 1
+        context.canvas.clear(Color.White)
+        context.paintChildren()
+        @Unsafe
+        {
+            context.canvas.withSkiaCanvas {
+                native -> @Unsafe
+                {
+                    probe.centerPixel = readNativePixel(native, 60.0, 60.0)
+                    probe.haloPixel = readNativePixel(native, 123.0, 60.0)
+                }
+            }
+        }
+        probe.paintedGeneration = props.value
+    }
+}
+
+internal class StyleCounter(private val probe: StyleProbe): Component {
+    var count: Int by state(7)
+    var mounts = 0
+    var unmounts = 0
+    public override fun onMount(scope: ComponentScope) {
+        mounts += 1;
+        probe.counter = Some(this)
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+    }
+    public override fun render(): View {
+        probe.counterRenders += 1
+        return element(CounterProps(count, { count += 1 }), { props -> CounterInk(props, probe) })
+    }
+}
+
+internal class CounterProps(val count: Int, val activate: () -> Unit)
+
+internal class CounterInk(
+    private val props: Props<CounterProps>,
+    private val probe: StyleProbe
+): Element {
+    var area: InputArea? = None
+    public override fun onMount(scope: ComponentScope) {
+        probe.ink = Some(this)
+        area =
+            Some(
+                scope.createArea(focusable = true) {
+                    current,
+                    event -> when (event) {
+                        case Pointer(
+                            AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Pressed, _)
+                        ) -> {
+                            current.requestFocus();
+                            InputResult.Handled
+                        }
+                        case Pointer(
+                            AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Released, _)
+                        ) -> {
+                            props.value.activate();
+                            InputResult.Handled
+                        }
+                        case Keyboard(value) -> {
+                            if (value.state == ElementState.Released && !value.synthetic) {
+                                when (value.logicalKey) {
+                                    case Named(NamedKey.Space) -> props.value.activate();
+                                    else -> {}
+                                }
+                            }
+                            InputResult.Handled
+                        }
+                        else -> InputResult.Ignored
+                    }
+                }
+            )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(80.0, 40.0)), Some(20.0), Some(28.0))
+    public override fun paint(context: PaintContext) {
+        val color =
+            if (props.value.count == 7)
+                Color(1.0, 0.0, 0.0)
+            else
+                Color(0.0, 1.0, 0.0)
+        context.canvas.drawRect(Rect(10.0, 10.0, 40.0, 20.0), Paint(color))
+        context.place(area!!, Rect(0.0, 0.0, 80.0, 40.0))
+        probe.paintedCount = props.value.count
+    }
+}
+
+internal class AnimatedInk(private val probe: StyleProbe): Element {
+    var painter: StylePainter? = None
+    var sigma: Animatable<Double>? = None
+    var unmounts = 0
+    public override fun onMount(scope: ComponentScope) {
+        probe.animation = Some(this)
+        painter = Some(scope.resource { StylePainter() })
+        sigma = Some(scope.animation(0.0))
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(50.0, 40.0)))
+    public override fun paint(context: PaintContext) {
+        val value = sigma!!.value
+        painter!!.paint(
+            context,
+            Style(contentEffects = [ContentEffect.Glow(value, value, Color(0.0, 0.0, 1.0))])
+        ) {
+            content -> content.canvas.drawRect(
+                Rect(10.0, 12.0, 18.0, 16.0),
+                Paint(Color(1.0, 0.0, 0.0))
+            )
+        }
+        probe.paintedSigma = value
+    }
+}

@@ -17,7 +17,8 @@ public class SpanStyle public constructor(
     public val features: Array<FontFeature>? = None,
     public val variations: Array<FontVariation>? = None
 ) {
-    internal fun resolve(parent: TextStyle): TextStyle =
+    /** Applies these overrides to the current parent without allocating native resources. */
+    public fun resolve(parent: TextStyle): TextStyle =
         TextStyle(
             families = families ?: parent.families,
             fontSize = fontSize ?: parent.fontSize,

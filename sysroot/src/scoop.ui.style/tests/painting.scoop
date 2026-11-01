@@ -1,0 +1,267 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+import scoop.tests.textfonts.testSansBytes
+
+internal fun channel(bytes: Array<Byte>, width: Int, x: Int, y: Int, color: Int): Int =
+    bytes[(y.toLong() * width.toLong() + x.toLong()) * 4L + color.toLong()].toUByte().toInt()
+
+internal fun renderStyle(style: Style, content: (Canvas) -> Unit): Array<Byte> =
+    StylePainter().use {
+        painter -> RasterSurface(96, 64).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color.Transparent)
+                painter.paint(canvas, Rect(16.0, 16.0, 24.0, 24.0), style, content)
+            }
+            surface.readPixels()
+        }
+    }
+
+@Test
+private class StylePaintTest {
+    @Test
+    fun `box shadow uses the whole outline while content shadow uses sparse alpha`() {
+        val source: (Canvas) -> Unit =
+            { canvas -> canvas.drawRect(Rect(24.0, 22.0, 4.0, 6.0), Paint(Color(1.0, 0.0, 0.0))) }
+        val box =
+            renderStyle(
+                Style(boxShadows = [BoxShadow(Point(30.0, 0.0), 0.0, 0.0, Color.Black)]),
+                source
+            )
+        val alpha =
+            renderStyle(
+                Style(
+                    contentEffects =
+                        [ContentEffect.DropShadow(Point(30.0, 0.0), 0.0, 0.0, Color.Black)]
+                ),
+                source
+            )
+        assertEquals(255, channel(box, 96, 48, 18, 3))
+        assertEquals(0, channel(alpha, 96, 48, 18, 3))
+        assertEquals(255, channel(alpha, 96, 55, 24, 3))
+        assertEquals(255, channel(alpha, 96, 25, 24, 0))
+        assertEquals(0, channel(box, 96, 20, 20, 3))
+    }
+
+    @Test
+    fun `background and inward border surround clipped filtered content with an unclipped outer shadow`() {
+        val style =
+            Style(
+                background = Some(Paint(Color(0.0, 1.0, 0.0))),
+                border = Some(Border(2.0, Color(0.0, 0.0, 1.0))),
+                cornerRadius = 6.0,
+                boxShadows = [BoxShadow(Point(8.0, 0.0), 0.0, 0.0, Color.Black)],
+                contentEffects = [ContentEffect.Blur(2.0, 2.0)],
+                clipContent = true
+            )
+        val pixels =
+            renderStyle(style) {
+                canvas -> canvas.drawRect(Rect(8.0, 8.0, 40.0, 40.0), Paint(Color(1.0, 0.0, 0.0)))
+            }
+        assertEquals(0, channel(pixels, 96, 16, 16, 3))
+        assertEquals(255, channel(pixels, 96, 16, 28, 2))
+        assertEquals(0, channel(pixels, 96, 16, 28, 0))
+        assertTrue(channel(pixels, 96, 28, 28, 0) > 245)
+        assertEquals(255, channel(pixels, 96, 44, 28, 3))
+        assertEquals(0, channel(pixels, 96, 44, 28, 0))
+        assertEquals(0, channel(pixels, 96, 12, 28, 3))
+        val noClip =
+            renderStyle(Style(contentEffects = [ContentEffect.Blur(3.0, 3.0)])) {
+                canvas -> canvas.drawRect(Rect(16.0, 20.0, 8.0, 8.0), Paint(Color.White))
+            }
+        assertTrue(channel(noClip, 96, 13, 24, 3) > 10)
+    }
+
+    @Test
+    fun `ordered content effects differ without blurring the decorators own border`() {
+        val blur = ContentEffect.Blur(3.0, 3.0)
+        val shadow = ContentEffect.DropShadow(Point(4.0, 0.0), 1.0, 1.0, Color(0.0, 0.0, 1.0))
+        val source: (Canvas) -> Unit =
+            { canvas -> canvas.drawRect(Rect(22.0, 22.0, 8.0, 8.0), Paint(Color(1.0, 0.0, 0.0))) }
+        val a =
+            renderStyle(
+                Style(border = Some(Border(2.0, Color.White)), contentEffects = [blur, shadow]),
+                source
+            )
+        val b =
+            renderStyle(
+                Style(border = Some(Border(2.0, Color.White)), contentEffects = [shadow, blur]),
+                source
+            )
+        var differences = 0
+        for (i in 0L until a.size)
+            if (a[i] != b[i])
+                differences += 1
+        assertTrue(differences > 50)
+        assertEquals(255, channel(a, 96, 16, 28, 0))
+        assertEquals(255, channel(b, 96, 16, 28, 0))
+    }
+
+    @Test
+    fun `glow and blur process actual glyph pixels without converting text to paths`() {
+        FontCollection(false).use {
+            fonts ->
+            fonts.register(testSansBytes, "Style Sans")
+            Paragraph(fonts, "UI", TextStyle(["Style Sans"], 22.0, Color(1.0, 0.0, 0.0))).use {
+                paragraph -> paragraph.layoutUnwrapped().use {
+                    layout ->
+                    val text: (Canvas) -> Unit =
+                        { canvas -> canvas.drawText(layout, Point(18.0, 16.0)) }
+                    val source = renderStyle(Style(), text)
+                    val glow =
+                        renderStyle(
+                            Style(
+                                contentEffects =
+                                    [ContentEffect.Glow(2.0, 2.0, Color(0.0, 1.0, 0.0, 0.75))]
+                            ),
+                            text
+                        )
+                    val blur =
+                        renderStyle(Style(contentEffects = [ContentEffect.Blur(2.0, 2.0)]), text)
+                    var halo = 0
+                    var feather = 0
+                    var softened = 0
+                    for (y in 0 until 64)
+                        for (x in 0 until 96) {
+                            val original = channel(source, 96, x, y, 3)
+                            if (
+                                original ==
+                                    0 &&
+                                    channel(glow, 96, x, y, 3) >
+                                    10 &&
+                                    channel(glow, 96, x, y, 1) >
+                                    240
+                            )
+                                halo += 1
+                            if (original == 0 && channel(blur, 96, x, y, 3) > 10)
+                                feather += 1
+                            if (original == 255 && channel(blur, 96, x, y, 3) < 220)
+                                softened += 1
+                        }
+                    assertTrue(halo > 30)
+                    assertTrue(feather > 30)
+                    assertTrue(softened > 10)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `transparent images and changing content stay current under a reusable glow`() {
+        val bytes =
+            Array<Byte>(8L * 8L * 4L) {
+                i ->
+                val x = (i / 4L) % 8L
+                if (i % 4L == 0L || (i % 4L == 3L && x < 3L))
+                    255.toByte()
+                else
+                    0.toByte()
+            }
+        val style = Style(contentEffects = [ContentEffect.Glow(2.0, 2.0, Color(0.0, 0.0, 1.0))])
+        Image.fromRgba(8, 8, bytes).use {
+            image ->
+            val pixels =
+                renderStyle(style) {
+                    canvas -> canvas.drawImage(
+                        image,
+                        Rect(20.0, 20.0, 8.0, 8.0),
+                        ImageSampling.Nearest
+                    )
+                }
+            assertEquals(255, channel(pixels, 96, 21, 23, 0))
+            assertTrue(channel(pixels, 96, 25, 23, 3) > 5)
+            assertEquals(255, channel(pixels, 96, 25, 23, 2))
+        }
+        StylePainter().use {
+            painter -> RasterSurface(96, 64).use {
+                surface -> for (color in [Color(1.0, 0.0, 0.0), Color(0.0, 1.0, 0.0)]) {
+                    surface.draw {
+                        canvas ->
+                        canvas.clear(Color.Transparent)
+                        painter.paint(canvas, Rect(16.0, 16.0, 24.0, 24.0), style) {
+                            content -> content.drawRect(Rect(20.0, 20.0, 8.0, 8.0), Paint(color))
+                        }
+                    }
+                    val pixels = surface.readPixels()
+                    assertEquals((255.0 * color.red).toInt(), channel(pixels, 96, 23, 23, 0))
+                    assertEquals((255.0 * color.green).toInt(), channel(pixels, 96, 23, 23, 1))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `inherited overrides follow current inputs and explicit None removes only that property`() {
+        val overrides =
+            StyleOverride(border = StyleValue.Set(None), cornerRadius = StyleValue.Set(3.0))
+        val first =
+            Style(
+                Some(Paint(Color.Black)),
+                Some(Border(1.0, Color.White)),
+                6.0,
+                contentEffects = [ContentEffect.Blur(2.0, 2.0)]
+            )
+        val second =
+            Style(
+                Some(Paint(Color.White)),
+                Some(Border(2.0, Color.Black)),
+                8.0,
+                contentEffects = [ContentEffect.Glow(3.0, 3.0, Color.White)]
+            )
+        for (base in [first, second]) {
+            val resolved = overrides.resolve(base)
+            assertSame(base.background!!, resolved.background!!)
+            assertEquals(None, resolved.border)
+            assertEquals(3.0, resolved.cornerRadius)
+            assertEquals(base.contentEffects[0L], resolved.contentEffects[0L])
+        }
+    }
+
+    @Test
+    fun `paint failures restore Canvas and reject reentrant or premature resource closure`() {
+        val painter = StylePainter()
+        val bounds = Rect(16.0, 16.0, 24.0, 24.0)
+        val style = Style(contentEffects = [ContentEffect.Glow(2.0, 2.0, Color.White)])
+        RasterSurface(96, 64).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color.Transparent)
+                assertFailsWith<GraphicsException> {
+                    painter.paint(canvas, bounds, style) {
+                        child ->
+                        assertFailsWith<IllegalStateException> { painter.close() }
+                        assertFailsWith<IllegalStateException> {
+                            painter.paint(child, bounds, style) { _ -> }
+                        }
+                        child.saveLayer(0.5)
+                        child.translate(400.0, 400.0)
+                        throw GraphicsException("style draw failed")
+                    }
+                }
+                painter.paint(canvas, bounds, Style()) {
+                    child -> child.drawRect(Rect(1.0, 1.0, 4.0, 4.0), Paint(Color.White))
+                }
+            }
+            assertEquals(255, channel(surface.readPixels(), 96, 2, 2, 3))
+        }
+        Thread.start { assertFailsWith<IllegalStateException> { painter.close() } }.use {
+            thread -> thread.join()
+        }
+        painter.close()
+        painter.close()
+        assertTrue(painter.isClosed)
+        RasterSurface(8, 8).use {
+            surface -> surface.draw {
+                canvas -> assertFailsWith<IllegalStateException> {
+                    painter.paint(canvas, bounds, style) { _ -> }
+                }
+            }
+        }
+    }
+}

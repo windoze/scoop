@@ -11,7 +11,7 @@
 | 2. 独立自绘闭环 | aarch64 已完成 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入、UiHost 与独立自绘示例 |
 | 3a. 公共文本适配 | aarch64 已完成 | ParagraphHost／InlineView、固定字体共享测试数据与独立自绘组合 |
 | 3b. graphics 基础效果 | aarch64 已完成 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
-| 3c. 公共样式 | 设计已更新，待实施 | Style／StyleOverride、稳定 styled、StylePainter、装饰／有序效果；所需嵌套 PaintContext 已交付 |
+| 3c. 公共样式 | aarch64 已完成 | Style／StyleOverride、稳定 styled、StylePainter、装饰／有序效果、真实 Metal／UI 停帧与异常清理 |
 | 3d. 公共主题绘图 | 设计已更新，待实施 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
 | 3e. 简单控件与主题展示 | aarch64 接入中 | 初步 Label／Button／Checkbox 代码待改为消费公共主题；展示各视觉状态及切换，尚未运行验收 |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
@@ -27,7 +27,7 @@
 
 每项完整变更通过格式化、检查和定向测试后提交并推送，再 fetch／merge origin/main；合并改变相关代码时补充必要验证后继续。每轮清理不再使用的临时日志、探测文件和构建输出，仍需复用的正常构建缓存及本期目标资源继续保留。记录只保存验证范围、结果和实际限制。
 
-2026-11-02 已同步 UI、控件、graphics／Surface、SkSL 的分层、顺序和当前状态：基础效果进入本期，SkSL／Backdrop blur 仍属后续。先补下层滤镜与通用绘制作用域，再交付公共样式及控件消费。其中 graphics 基础滤镜现已完成，见第 3.8 节；公共 style 尚待实施。
+2026-11-02 已同步 UI、控件、graphics／Surface、SkSL 的分层、顺序和当前状态：基础效果进入本期，SkSL／Backdrop blur 仍属后续。先补下层滤镜与通用绘制作用域，再交付公共样式及控件消费。其中 graphics 基础滤镜和公共 style 已完成，见第 3.8、3.10 节；主题及控件消费继续实施。
 
 2026-11-02 后续主题调整：公共默认外观、部件绘图协议及几何移至 style，取代 ComponentDefaults 固定视觉值和控件自绘标记方案；ThemeSource 的 State／Context 支持整体切换，StyleOverride／SpanStyle 保留未指定属性的主题继承。新增三风格、明暗和公共部件展示，完整 Radio 分组／ScrollView 不成为绘图批次前置。既有滤镜、内容身份、资源与停帧要求保留。
 
@@ -166,3 +166,27 @@ Scoop 格式／含测试的类型检查和 C++ 格式／严格告警检查通过
 PaintContext.withState 复用 FrameContext 的独立借用，保留同一尺寸、时间、输入父级和子项放置。子项绘制次数在同一 Element 的所有嵌套作用域间共享，避免装饰回调使 children 重复绘制；借用期间父上下文拒绝绘制／放置，结束后子上下文失效。普通和异常退出都恢复 Canvas，框架仍只有 Empty／Component／Element 三种描述。
 
 Scoop 格式与 UI／独立 drawing Cone 的含测试类型检查通过。aarch64 release 的真实 UI drawing 组合 1／1 通过，新增覆盖嵌套子树绘制、父／子借用拒绝、重复 paintChildren 和未配对图层的异常恢复；原有动画、可选放置、输入冒泡与回调关闭继续通过。graphics／graphics.text／Surface 的 aarch64 公开资源已按更新的下层重新发布。无 fixture 或全量测试，公共 style 接着消费此入口。
+
+### 3.10 公共样式与真实停帧
+
+新增独立 scoop.ui.style：Style／StyleOverride 是普通不可变描述，styled 始终保留同一包装与内容位置，StylePainter 通过公开 Canvas／PaintContext 复用当前滤镜和轮廓。背景、向内边框、圆角、外框阴影与有序内容 Blur／DropShadow／Glow 按统一顺序绘制；显式 clip 使用同一轮廓限制输出和子输入。参数以局部逻辑单位表达，图层不按布局框隐式裁剪，效果不改变尺寸、基线或命中范围。
+
+滤镜和几何先完整创建再替换，旧资源即时关闭；不把历代资源追加到 ComponentScope。没有子树像素缓存，文字、透明图片和子组件始终使用当帧内容。没有效果时钟或额外任务；Surface Animatable 直接提供采样值。
+
+Scoop 格式和含测试类型检查、C++／Objective-C 格式与严格告警检查通过。aarch64 release scoop.test：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| scoop.ui.style | 10／10 | 外框与稀疏 alpha 阴影、真实文字及透明图片 glow／blur、顺序、clip／圆角／边框、像素外扩、一次 DPI 的 Metal、继承覆盖、缓存复用／失败替换／关闭与借用 |
+| Style UI Cone | 1／1 | 添加／移除效果保留实例、State、基线和焦点，真实像素及阴影不扩大点击区、clip 限制子输入，动画完成／暂停／取消／隐藏和卸载后的停帧 |
+| Style errors Cone | 1／1 | 绘制与清理同时失败、未配对图层恢复、图片／painter／过期画布释放、原生窗口关闭、失败帧零提交 |
+
+停帧通过测试辅助 Cone 同时观察 render／update／measure／paint 计数、实际 Metal renderer 的帧需求、display-link 暂停和回调／提交计数；稳定区间所有计数不变。辅助观察不持有 renderer、不调度任务，生产实现没有为测试添加计时器或计数器。
+
+补充圆角 clip 输入用例后曾有一次原生等待超时；增加阶段及完整错误链诊断后，完整测试和同一测试产物的复跑通过，未修改生产逻辑或放宽断言。该次超时的原因尚未定位，后续主题／控件原生组合继续沿用这些诊断。
+
+本轮未修改编译器、core／std／test，没有新增 fixture 或运行全量测试。公共 style 已发布到 aarch64 开发 sysroot；下一批为 Theme／ThemePainter、四类公共几何及三套风格，x86_64 继续留待最后。
+
+### 3.11 主题所需的公共文本覆盖解析
+
+SpanStyle.resolve(parent) 由文本库公开，嵌套片段和主题／控件沿用同一继承规则，不复制字体描述或创建 native 资源。格式与含测试类型检查通过，aarch64 release 的 StyledTextTest 8／8 通过：新增更换 parent 后保留显式颜色、清除行高／feature、继承新字体与字号；既有嵌套排版和实际 glyph 绘图同时通过。graphics.text 已重新发布，无编译器／core／std／test 改动，无 fixture 或全量测试。

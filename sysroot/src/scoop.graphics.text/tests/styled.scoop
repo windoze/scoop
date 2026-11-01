@@ -7,6 +7,33 @@ import scoop.test.*
 @Test
 private class StyledTextTest {
     @Test
+    fun `public span resolution preserves local choices while following a changed parent`() {
+        val local =
+            SpanStyle(color = Some(Color.White), lineHeight = Some(None), features = Some([]))
+        val small =
+            local.resolve(
+                TextStyle(
+                    ["Test Sans"],
+                    13.0,
+                    lineHeight = Some(2.0),
+                    features = [FontFeature("kern", 0)]
+                )
+            )
+        val large = local.resolve(TextStyle(["Test CJK"], 22.0, weight = 700, letterSpacing = 1.5))
+        assertEquals(13.0, small.fontSize)
+        assertEquals(22.0, large.fontSize)
+        assertEquals("Test CJK", large.families[0L])
+        assertEquals(700, large.weight)
+        assertEquals(1.5, large.letterSpacing)
+        assertEquals(Color.White, small.color)
+        assertEquals(Color.White, large.color)
+        assertEquals(None, small.lineHeight)
+        assertEquals(None, large.lineHeight)
+        assertEquals(0L, small.features.size)
+        assertEquals(0L, large.features.size)
+    }
+
+    @Test
     fun `nested spans inherit fonts and restore the parent color for following siblings`() {
         testFonts().use {
             fonts ->

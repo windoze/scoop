@@ -1,0 +1,144 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+import scoop.platform.concurrent.currentThreadId
+import scoop.ui.PaintContext
+
+/** Owns just the current filters and outlines; register once in the using element's scope. */
+public class StylePainter public constructor(): Closeable {
+    private val owner = currentThreadId()
+    private var closed = false
+    private var painting = false
+    private val contentFilters = ContentFilterCache()
+    private val boxFilters = BoxFilterCache()
+    private val geometry = DecorationGeometry()
+    public val isClosed: Boolean get() = closed
+
+    private fun checkOpen() {
+        checkThread()
+        if (closed)
+            throw IllegalStateException(Some("style painter is closed"))
+        if (painting)
+            throw IllegalStateException(Some("style painter has an active draw"))
+    }
+    private fun checkThread() {
+        if (owner != currentThreadId())
+            throw IllegalStateException(Some("style painter requires its owner thread"))
+    }
+
+    public fun paint(context: PaintContext, style: Style, content: (PaintContext) -> Unit) {
+        val size = context.size
+        paint(context, Rect(0.0, 0.0, size.width, size.height), style, content)
+    }
+    public fun paint(
+        context: PaintContext,
+        bounds: Rect,
+        style: Style,
+        content: (PaintContext) -> Unit
+    ) {
+        checkOpen()
+        painting = true
+        try {
+            context.withState {
+                local -> draw(local.canvas, bounds, style) { local.withState(content) }
+            }
+        } finally {
+            painting = false
+        }
+    }
+    public fun paint(canvas: Canvas, bounds: Rect, style: Style, content: (Canvas) -> Unit) {
+        checkOpen()
+        painting = true
+        try {
+            canvas.withState { local -> draw(local, bounds, style) { local.withState(content) } }
+        } finally {
+            painting = false
+        }
+    }
+
+    private fun draw(canvas: Canvas, bounds: Rect, style: Style, content: () -> Unit) {
+        requireStyle(
+            bounds.x.isFinite() &&
+                bounds.y.isFinite() &&
+                bounds.width.isFinite() &&
+                bounds.height.isFinite() &&
+                bounds.width >=
+                0.0 &&
+                bounds.height >=
+                0.0 &&
+                (bounds.x + bounds.width).isFinite() &&
+                (bounds.y + bounds.height).isFinite(),
+            "invalid style bounds"
+        )
+        requireStyle(
+            style.cornerRadius.isFinite() && style.cornerRadius >= 0.0,
+            "invalid corner radius"
+        )
+        when (style.border) {
+            case Some(value) -> requireStyle(
+                value.width.isFinite() && value.width >= 0.0,
+                "invalid border width"
+            )
+            case None -> {}
+        }
+        when (style.background) {
+            case Some(value) -> requireStyle(
+                value.style == PaintingStyle.Fill,
+                "style background must be a fill"
+            )
+            case None -> {}
+        }
+        val paths = geometry.update(bounds, style)
+        val shadows = boxFilters.update(style.boxShadows)
+        val filter = contentFilters.update(style.contentEffects)
+        if (bounds.width > 0.0 && bounds.height > 0.0) {
+            for (shadow in shadows)
+                canvas.withState {
+                    mask ->
+                    mask.saveLayer(filter = Some(shadow))
+                    mask.drawPath(paths!!.outline, Paint(Color.White))
+                    mask.restore()
+                }
+            when (style.background) {
+                case Some(paint) -> canvas.drawPath(paths!!.outline, paint)
+                case None -> {}
+            }
+        }
+        canvas.save()
+        if (style.clipContent)
+            canvas.clipPath(paths!!.outline)
+        when (filter) {
+            case Some(value) -> canvas.saveLayer(filter = Some(value))
+            case None -> {}
+        }
+        content()
+        when (filter) {
+            case Some(_) -> canvas.restore();
+            case None -> {}
+        }
+        canvas.restore()
+        when (style.border) {
+            case Some(edge) -> when (paths) {
+                case Some(value) -> when (value.border) {
+                    case Some(path) -> canvas.drawPath(path, Paint(edge.color))
+                    case None -> {}
+                }
+                case None -> {}
+            }
+            case None -> {}
+        }
+    }
+
+    public override fun close() {
+        checkThread()
+        if (painting)
+            throw IllegalStateException(Some("style painter has an active draw"))
+        if (closed)
+            return
+        closed = true
+        var failure = cleanupStyle(None) { contentFilters.close() }
+        failure = cleanupStyle(failure) { boxFilters.close() }
+        failure = cleanupStyle(failure) { geometry.close() }
+        throwStyle(failure)
+    }
+}

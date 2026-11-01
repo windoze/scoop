@@ -1,0 +1,313 @@
+package scoop.tests.ui.style
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.surface.*
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.window.*
+
+@Test
+private class StyleUiTest {
+    @Test
+    fun `style changes retain state baseline and focus while real Metal frames stop after animation`() {
+        val probe = StyleProbe()
+        val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+        try {
+            host.use { owner -> Application().run(owner) }
+            assertTrue(probe.finished)
+            assertTrue(host.isClosed)
+            assertEquals(1, probe.counter!!.mounts)
+            assertEquals(1, probe.counter!!.unmounts)
+            assertEquals(9, probe.counter!!.count)
+            assertEquals(1, probe.animation!!.unmounts)
+            assertTrue(probe.animation!!.painter!!.isClosed)
+            assertEquals(AnimationState.Closed, probe.animation!!.sigma!!.state)
+            assertTrue(probe.view!!.restored())
+            assertFalse(probe.frames!!.snapshot().attached)
+        } catch (error: Throwable) {
+            reportFailure(error)
+            throw error
+        } finally {
+            host.close()
+            probe.frames?.close()
+            probe.view?.close()
+        }
+    }
+}
+
+private fun reportFailure(error: Throwable) {
+    if (error is ResourceUseException) {
+        reportFailure(error.primaryFailure)
+        reportFailure(error.cleanupFailure)
+    } else
+        if (error is Exception)
+            println(error.message ?: "style UI failure without a message")
+}
+
+private enum Phase {
+    Starting, Clicked, Shadow, Removed, Blurred, Animating,
+    SettleFinished, QuietFinished, PauseRunning, SettlePaused, QuietPaused,
+    CancelRunning, SettleCancelled, QuietCancelled, HideRunning,
+    SettleHidden, QuietHidden, RemovedHidden, Restoring, Closing, Done
+}
+
+internal class StyleProbe {
+    val generation = state(0)
+    val showAnimation = state(true)
+    var counter: StyleCounter? = None
+    var ink: CounterInk? = None
+    var animation: AnimatedInk? = None
+    var window: Window? = None
+    var ui: UiWindow? = None
+    var view: ViewProbe? = None
+    var frames: FrameProbe? = None
+    var renders = 0
+    var counterRenders = 0
+    var updates = 0
+    var measures = 0
+    var paints = 0
+    var paintedGeneration = -1
+    var updatedGeneration = -1
+    var paintedCount = 0
+    var paintedSigma = 0.0
+    var centerPixel = -1L
+    var haloPixel = -1L
+    var finished = false
+    private var phase = Phase.Starting
+    private var quietFrames: FrameSnapshot? = None
+    private var quietCounters: Array<Int> = []
+    private var startingFrames: FrameSnapshot? = None
+    private var animationRenders = 0
+    private var pausedSigma = 0.0
+
+    fun event(host: UiHost, active: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val native =
+                    active.createWindow(
+                        WindowAttributes("Scoop style integration", LogicalSize(320.0, 160.0))
+                    )
+                window = Some(native)
+                native.setWindowLevel(WindowLevel.AlwaysOnTop)
+                native.requestFocus()
+                view = Some(observeWindow(native))
+                frames = Some(observeFrames(native))
+                ui = Some(host.attach(native, { StyleScene(this) }))
+                waitFor(active, 25000L)
+            }
+            case AboutToWait -> advance(active)
+            case NewEvents(StartCause.Deadline) -> deadline(active)
+            case Window(_, WindowEvent.Destroyed) -> {
+                assertEquals(Phase.Closing, phase)
+                assertTrue(ui!!.isClosed)
+                phase = Phase.Done
+                finished = true
+                active.requestExit()
+            }
+            else -> {}
+        }
+    }
+
+    private fun preserved() {
+        assertEquals(1, counter!!.mounts)
+        assertEquals(0, counter!!.unmounts)
+        assertTrue(ink!!.area!!.hasFocus)
+    }
+    private fun advance(active: ActiveApplication) {
+        when (phase) {
+            case Starting -> if (paintedGeneration == 0 && window!!.isFocused) {
+                assertEquals(255L, centerPixel)
+                assertEquals(16777215L, haloPixel)
+                assertTrue(moveSurfacePointer(window!!, 60.0, 60.0))
+                assertTrue(view!!.button(60.0, 60.0, true))
+                assertTrue(view!!.button(60.0, 60.0, false))
+                phase = Phase.Clicked
+            }
+            case Clicked -> if (paintedCount == 8) {
+                preserved()
+                generation.value = 1
+                phase = Phase.Shadow
+            }
+            case Shadow -> if (paintedGeneration == 1) {
+                preserved()
+                assertEquals(65280L, centerPixel)
+                assertTrue(haloPixel >= 0L && haloPixel < 16777215L)
+                assertTrue(moveSurfacePointer(window!!, 123.0, 60.0))
+                assertTrue(view!!.button(123.0, 60.0, true))
+                assertTrue(view!!.button(123.0, 60.0, false))
+                assertEquals(8, counter!!.count)
+                generation.value = 2
+                phase = Phase.Removed
+            }
+            case Removed -> if (paintedGeneration == 2) {
+                preserved()
+                assertEquals(16777215L, haloPixel)
+                assertTrue(sendSurfaceKey(window!!, 49, true))
+                assertTrue(sendSurfaceKey(window!!, 49, false))
+                generation.value = 3
+                phase = Phase.Blurred
+            }
+            case Blurred -> if (paintedGeneration == 3 && paintedCount == 9) {
+                preserved()
+                assertTrue(moveSurfacePointer(window!!, 40.5, 40.5))
+                assertTrue(view!!.button(40.5, 40.5, true))
+                assertTrue(view!!.button(40.5, 40.5, false))
+                assertEquals(9, counter!!.count)
+                animationRenders = renders
+                startingFrames = Some(frames!!.snapshot())
+                animation!!.sigma!!.animateTo(6.0, AnimationSpec.Tween(Duration.milliseconds(80L)))
+                phase = Phase.Animating
+            }
+            case Animating -> if (
+                animation!!.sigma!!.state == AnimationState.Finished && paintedSigma == 6.0
+            ) {
+                assertEquals(animationRenders, renders)
+                val frame = frames!!.snapshot()
+                assertTrue(frame.callbacks > startingFrames!!.callbacks)
+                assertTrue(frame.presentations > startingFrames!!.presentations)
+                phase = Phase.SettleFinished
+                waitFor(active, 150L)
+            }
+            case PauseRunning -> if (paintedSigma > 6.05) {
+                animation!!.sigma!!.pause()
+                pausedSigma = animation!!.sigma!!.value
+                phase = Phase.SettlePaused
+                waitFor(active, 150L)
+            }
+            case CancelRunning -> if (paintedSigma > pausedSigma + 0.01) {
+                animation!!.sigma!!.cancel()
+                phase = Phase.SettleCancelled
+                waitFor(active, 150L)
+            }
+            case HideRunning -> if (paintedSigma < pausedSigma - 0.01) {
+                window!!.setVisible(false)
+                generation.value = 4
+                phase = Phase.SettleHidden
+                waitFor(active, 200L)
+            }
+            case Restoring -> {
+                if (paintedGeneration == 5) {
+                    assertEquals(9, counter!!.count)
+                    assertEquals(1, counter!!.mounts)
+                    phase = Phase.Closing
+                    window!!.requestDestroy()
+                }
+            }
+            else -> {}
+        }
+    }
+
+    private fun counters(): Array<Int> = [renders, counterRenders, updates, measures, paints]
+    private fun snapshot(active: ActiveApplication, next: Phase) {
+        val native = frames!!.snapshot()
+        assertTrue(native.attached)
+        assertFalse(native.required)
+        assertTrue(native.paused)
+        quietFrames = Some(native)
+        quietCounters = counters()
+        phase = next
+        waitFor(active, 150L)
+    }
+    private fun assertQuiet() {
+        assertEquals(quietFrames!!, frames!!.snapshot())
+        val current = counters()
+        for (i in 0L until current.size)
+            assertEquals(quietCounters[i], current[i])
+    }
+    private fun deadline(active: ActiveApplication) {
+        when (phase) {
+            case SettleFinished -> snapshot(active, Phase.QuietFinished)
+            case SettlePaused -> snapshot(active, Phase.QuietPaused)
+            case SettleCancelled -> snapshot(active, Phase.QuietCancelled)
+            case SettleHidden -> snapshot(active, Phase.QuietHidden)
+            case QuietFinished -> {
+                assertQuiet()
+                animation!!.sigma!!.animateTo(9.0, AnimationSpec.Tween(Duration.seconds(1L)))
+                phase = Phase.PauseRunning
+                waitFor(active, 25000L)
+            }
+            case QuietPaused -> {
+                assertQuiet()
+                assertEquals(AnimationState.Paused, animation!!.sigma!!.state)
+                animation!!.sigma!!.resume()
+                phase = Phase.CancelRunning
+                waitFor(active, 25000L)
+            }
+            case QuietCancelled -> {
+                assertQuiet()
+                assertEquals(AnimationState.Cancelled, animation!!.sigma!!.state)
+                pausedSigma = animation!!.sigma!!.value
+                animation!!.sigma!!.animateTo(0.0, AnimationSpec.Tween(Duration.seconds(1L)))
+                phase = Phase.HideRunning
+                waitFor(active, 25000L)
+            }
+            case QuietHidden -> {
+                assertQuiet()
+                assertEquals(4, updatedGeneration)
+                showAnimation.value = false
+                phase = Phase.RemovedHidden
+                assertTrue(
+                    active.proxy().post {
+                        owner ->
+                        assertTrue(animation!!.painter!!.isClosed)
+                        assertEquals(AnimationState.Closed, animation!!.sigma!!.state)
+                        assertEquals(1, animation!!.unmounts)
+                        window!!.setVisible(true)
+                        window!!.requestFocus()
+                        generation.value = 5
+                        phase = Phase.Restoring
+                        waitFor(owner, 25000L)
+                    }
+                )
+            }
+            else -> fail(
+                Some(
+                    "style UI deadline, sigma=" +
+                        paintedSigma.toString() +
+                        ", generation=" +
+                        paintedGeneration.toString() +
+                        ", count=" +
+                        paintedCount.toString() +
+                        ", focused=" +
+                        window!!.isFocused.toString() +
+                        ", phase=" +
+                        phaseName(phase)
+                )
+            )
+        }
+    }
+    private fun waitFor(active: ActiveApplication, milliseconds: Long) {
+        active.setControlFlow(
+            ControlFlow.WaitUntil(
+                MonotonicTimeSource.markNow() + Duration.milliseconds(milliseconds)
+            )
+        )
+    }
+}
+
+private fun phaseName(phase: Phase): String =
+    when (phase) {
+        case Starting -> "starting"
+        case Clicked -> "clicked"
+        case Shadow -> "shadow"
+        case Removed -> "removed"
+        case Blurred -> "blurred"
+        case Animating -> "animating"
+        case SettleFinished -> "settle finished"
+        case QuietFinished -> "quiet finished"
+        case PauseRunning -> "pause running"
+        case SettlePaused -> "settle paused"
+        case QuietPaused -> "quiet paused"
+        case CancelRunning -> "cancel running"
+        case SettleCancelled -> "settle cancelled"
+        case QuietCancelled -> "quiet cancelled"
+        case HideRunning -> "hide running"
+        case SettleHidden -> "settle hidden"
+        case QuietHidden -> "quiet hidden"
+        case RemovedHidden -> "removed hidden"
+        case Restoring -> "restoring"
+        case Closing -> "closing"
+        case Done -> "done"
+    }

@@ -1,6 +1,6 @@
 # Scoop 公共 UI 样式规范
 
-日期：2026-11-02。状态：graphics 滤镜／图层与通用嵌套 PaintContext 已完成，公共 Style 及主题绘图按更新后的设计分批实施。分批计划见 [UI 设计](../ui/DESIGN.md)与[实施记录](../ui/PROGRESS.md)。本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。
+日期：2026-11-02。状态：graphics 滤镜／图层、通用嵌套 PaintContext 和公共 Style 已在 macOS aarch64 完成；主题绘图按更新后的设计继续实施。分批计划见 [UI 设计](../ui/DESIGN.md)与[实施记录](../ui/PROGRESS.md)。本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。
 
 ## 1. 分层与接入
 
@@ -53,6 +53,8 @@ styled 把同样的约束传给唯一子项，原点放置，并原样返回其 
 ## 4. 资源、更新与动画
 
 StylePainter 是实际 Element 拥有的 Closeable 缓存，通过 ComponentScope 登记一次。它保留当前参数对应的滤镜和必要轮廓，参数未变复用；新结果完整构造后替换，及时关闭旧对象。失败关闭本次临时结果，旧缓存保持可清理。卸载、原生窗口关闭和异常退出沿正常 scope 路径释放，不把历代滤镜逐帧追加进 scope。
+
+StylePainter 的一个 paint 回调结束前，不能重入同一 painter 或关闭它；这些调用报告状态错误。另一个 painter 可在内容回调内正常嵌套，Canvas／PaintContext 隔离各自借用，回调抛错后恢复原状态。
 
 首批不缓存子树图像或显示列表。每个真实帧重画当帧内容，filter／轮廓缓存不代替内容更新，因此文字、透明图像替换、子项 State 和动画不会因为 Style 引用不变而滞后。未来若有实际需求增加像素缓存，失效必须包含内容、尺寸、DPI、效果参数与子项动画，不能只比较 Style。
 

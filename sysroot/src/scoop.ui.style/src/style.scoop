@@ -1,0 +1,61 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+
+/** A border occupies pixels inside the outline, without contributing to layout. */
+public struct Border(val width: Double, val color: Color)
+
+/** A shadow of the filled outer box, independent of its background and content. */
+public struct BoxShadow(val offset: Point, val sigmaX: Double, val sigmaY: Double, val color: Color)
+
+/** Ordered processing of the actual content alpha and color. Sigma is in local logical units. */
+public enum ContentEffect {
+    Blur(val sigmaX: Double, val sigmaY: Double),
+    DropShadow(val offset: Point, val sigmaX: Double, val sigmaY: Double, val color: Color),
+    Glow(val sigmaX: Double, val sigmaY: Double, val color: Color)
+}
+
+/** Reusable resource-free drawing inputs. Empty styles retain the same styled content identity. */
+public class Style public constructor(
+    public val background: Paint? = None,
+    public val border: Border? = None,
+    public val cornerRadius: Double = 0.0,
+    public val boxShadows: Array<BoxShadow> = [],
+    public val contentEffects: Array<ContentEffect> = [],
+    public val clipContent: Boolean = false
+) {
+    public fun withBackground(value: Paint?): Style =
+        Style(value, border, cornerRadius, boxShadows, contentEffects, clipContent)
+    public fun withBorder(value: Border?): Style =
+        Style(background, value, cornerRadius, boxShadows, contentEffects, clipContent)
+}
+
+/** Inherit is distinct from explicitly setting an optional property to None. */
+public enum StyleValue<T> {
+    Inherit, Set(T)
+}
+
+public class StyleOverride public constructor(
+    public val background: StyleValue<Paint?> = StyleValue.Inherit,
+    public val border: StyleValue<Border?> = StyleValue.Inherit,
+    public val cornerRadius: StyleValue<Double> = StyleValue.Inherit,
+    public val boxShadows: StyleValue<Array<BoxShadow>> = StyleValue.Inherit,
+    public val contentEffects: StyleValue<Array<ContentEffect>> = StyleValue.Inherit,
+    public val clipContent: StyleValue<Boolean> = StyleValue.Inherit
+) {
+    public fun resolve(inherited: Style): Style =
+        Style(
+            background.resolve(inherited.background),
+            border.resolve(inherited.border),
+            cornerRadius.resolve(inherited.cornerRadius),
+            boxShadows.resolve(inherited.boxShadows),
+            contentEffects.resolve(inherited.contentEffects),
+            clipContent.resolve(inherited.clipContent)
+        )
+}
+
+public fun <T> StyleValue<T>.resolve(inherited: T): T =
+    when (this) {
+        case Inherit -> inherited
+        case Set(value) -> value
+    }

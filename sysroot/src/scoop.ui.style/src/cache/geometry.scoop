@@ -1,0 +1,80 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+
+internal struct OutlineInput(val bounds: Rect, val radius: Double, val border: Double)
+
+internal class DecorationPaths(val outline: Path, val border: Path?): Closeable {
+    public override fun close() {
+        var failure = cleanupStyle(None) { outline.close() }
+        failure = cleanupStyle(failure) { border?.close() }
+        throwStyle(failure)
+    }
+}
+
+internal class DecorationGeometry: Closeable {
+    private var input: OutlineInput? = None
+    private var current: DecorationPaths? = None
+
+    fun update(bounds: Rect, style: Style): DecorationPaths? {
+        val background =
+            when (style.background) {
+                case Some(_) -> true;
+                case None -> false
+            }
+        val border = style.border?.width ?: 0.0
+        if (!background && border == 0.0 && style.boxShadows.size == 0L && !style.clipContent) {
+            close()
+            return None
+        }
+        val nextInput = OutlineInput(bounds, style.cornerRadius, border)
+        if (input == Some(nextInput))
+            return current
+        val outline = roundPath(bounds, style.cornerRadius, 0.0)
+        val edge =
+            try {
+                if (border > 0.0 && bounds.width > 0.0 && bounds.height > 0.0)
+                    Some(roundPath(bounds, style.cornerRadius, border))
+                else
+                    None
+            } catch (error: Throwable) {
+                throwStyle(cleanupStyle(Some(error)) { outline.close() })
+                throw error
+            }
+        val next = DecorationPaths(outline, edge)
+        val previous = current
+        current = Some(next)
+        input = Some(nextInput)
+        previous?.close()
+        return Some(next)
+    }
+
+    public override fun close() {
+        val previous = current
+        current = None
+        input = None
+        previous?.close()
+    }
+}
+
+private fun roundPath(bounds: Rect, radius: Double, border: Double): Path =
+    PathBuilder(FillRule.EvenOdd).use {
+        builder ->
+        builder.addRoundRect(bounds, radius, radius)
+        if (border > 0.0 && border < bounds.width / 2.0 && border < bounds.height / 2.0) {
+            val inner =
+                Rect(
+                    bounds.x + border,
+                    bounds.y + border,
+                    bounds.width - 2.0 * border,
+                    bounds.height - 2.0 * border
+                )
+            val innerRadius =
+                if (radius > border)
+                    radius - border
+                else
+                    0.0
+            builder.addRoundRect(inner, innerRadius, innerRadius)
+        }
+        builder.build()
+    }

@@ -1,0 +1,33 @@
+package scoop.ui.style
+
+import scoop.graphics.Point
+import scoop.ui.*
+
+public class StyledProps public constructor(
+    public val content: View,
+    public val style: Style = Style()
+)
+
+/** The wrapper exists even for an empty style, preserving the content's mount position. */
+public class Styled public constructor(private val props: Props<StyledProps>): Component {
+    public override fun render(): View =
+        element(props.value.style, ::StyledInk, [props.value.content])
+}
+
+public fun styled(content: View, style: Style = Style(), key: ViewKey = ViewKey.Position): View =
+    component(StyledProps(content, style), ::Styled, key)
+
+private class StyledInk(private val props: Props<Style>): Element {
+    private var painter: StylePainter? = None
+    public override fun onMount(scope: ComponentScope) {
+        painter = Some(scope.resource { StylePainter() })
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val result = context.measureChild(0L, constraints)
+        context.placeChild(0L, Point(0.0, 0.0))
+        return result
+    }
+    public override fun paint(context: PaintContext) {
+        painter!!.paint(context, props.value) { content -> content.paintChildren() }
+    }
+}

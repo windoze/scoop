@@ -1,0 +1,64 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+import scoop.test.*
+
+@Test
+private class StyleCacheTest {
+    @Test
+    fun `filter graphs reuse value-equal parameters and replace without retaining retired handles`() {
+        ContentFilterCache().use {
+            cache ->
+            val a = cache.update([ContentEffect.Blur(2.0, 2.0)])!!
+            assertSame(a, cache.update([ContentEffect.Blur(2.0, 2.0)])!!)
+            assertFailsWith<IllegalArgumentException> {
+                cache.update(
+                    [ContentEffect.Glow(3.0, 3.0, Color.White), ContentEffect.Blur(-1.0, 0.0)]
+                )
+            }
+            assertFalse(a.isClosed)
+            assertSame(a, cache.update([ContentEffect.Blur(2.0, 2.0)])!!)
+            val b = cache.update([ContentEffect.Glow(3.0, 3.0, Color.White)])!!
+            assertTrue(a.isClosed)
+            assertFalse(b.isClosed)
+            cache.update([])
+            assertTrue(b.isClosed)
+        }
+        BoxFilterCache().use {
+            cache ->
+            val shadow = BoxShadow(Point(2.0, 3.0), 2.0, 2.0, Color.Black)
+            val original = cache.update([shadow])[0L]
+            assertSame(original, cache.update([shadow])[0L])
+            assertFailsWith<IllegalArgumentException> {
+                cache.update([shadow, BoxShadow(Point(0.0, 0.0), -1.0, 0.0, Color.Black)])
+            }
+            assertFalse(original.isClosed)
+            cache.update([])
+            assertTrue(original.isClosed)
+        }
+    }
+
+    @Test
+    fun `outline cache follows geometry and clipping rather than fill colors and releases on empty style`() {
+        DecorationGeometry().use {
+            cache ->
+            val bounds = Rect(0.0, 0.0, 32.0, 24.0)
+            val style = Style(Some(Paint(Color.White)), Some(Border(2.0, Color.Black)), 4.0)
+            val first = cache.update(bounds, style)!!
+            assertSame(
+                first,
+                cache.update(bounds, style.withBackground(Some(Paint(Color.Black))))!!
+            )
+            val second = cache.update(Rect(0.0, 0.0, 40.0, 24.0), style)!!
+            assertTrue(first.outline.isClosed)
+            assertTrue(first.border!!.isClosed)
+            assertFalse(second.outline.isClosed)
+            cache.update(bounds, Style())
+            assertTrue(second.outline.isClosed)
+            val clip = cache.update(bounds, Style(clipContent = true))!!
+            assertTrue(clip.outline.contains(Point(1.0, 1.0)))
+            cache.close()
+            assertTrue(clip.outline.isClosed)
+        }
+    }
+}

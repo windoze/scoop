@@ -20,6 +20,45 @@ public fun observeWindow(window: Window, customContent: Boolean = false): ViewPr
 
 public fun surfaceNativeModeCount(): Int = 2
 
+public fun moveSurfacePointer(window: Window, x: Double, y: Double): Boolean {
+    @Unsafe
+    {
+        return window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                return@use when (lease.handle) {
+                    case AppKit(_, view) -> movePointer(view, x, y)
+                }
+            }
+        }
+    }
+}
+
+public fun sendSurfaceKey(
+    window: Window,
+    code: Int,
+    pressed: Boolean,
+    repeat: Boolean = false
+): Boolean {
+    @Unsafe
+    {
+        return window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                return@use when (lease.handle) {
+                    case AppKit(_, view) -> sendKey(view, code, pressed, repeat)
+                }
+            }
+        }
+    }
+}
+
+@Extern(name = "scoop_surface_test_pointer_move")
+private fun movePointer(view: Ptr<Unit>, x: Double, y: Double): Boolean
+
+@Extern(name = "scoop_surface_test_key")
+private fun sendKey(view: Ptr<Unit>, code: Int, pressed: Boolean, repeat: Boolean): Boolean
+
 public fun scheduleSurfaceNativeMode(window: Window, kind: Int) {
     @Unsafe
     {

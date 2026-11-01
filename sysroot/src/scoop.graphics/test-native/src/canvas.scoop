@@ -6,3 +6,11 @@ public fun drawNativeMarker(canvas: Ptr<Unit>): Boolean = canvasMarker(canvas)
 
 @Extern(name = "scoop_graphics_test_canvas_marker")
 private fun canvasMarker(canvas: Ptr<Unit>): Boolean
+
+/** Reads a single logical point from the real drawing target, for control appearance checks. */
+@Unsafe
+public fun readNativePixel(canvas: Ptr<Unit>, x: Double, y: Double): Long =
+    canvasPixel(canvas, x, y)
+
+@Extern(name = "scoop_graphics_test_canvas_pixel")
+private fun canvasPixel(canvas: Ptr<Unit>, x: Double, y: Double): Long

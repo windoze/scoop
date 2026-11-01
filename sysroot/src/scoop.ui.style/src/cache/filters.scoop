@@ -1,0 +1,118 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+
+/** A single current filter graph, never a cache of subtree pixels. */
+internal class ContentFilterCache: Closeable {
+    private var inputs: Array<ContentEffect> = []
+    private var current: ImageFilter? = None
+
+    fun update(effects: Array<ContentEffect>): ImageFilter? {
+        if (sameEffects(inputs, effects))
+            return current
+        var next: ImageFilter? = None
+        try {
+            for (effect in effects) {
+                val part = createFilter(effect)
+                when (next) {
+                    case Some(previous) -> {
+                        val joined =
+                            try {
+                                previous.then(part)
+                            } finally {
+                                part.close()
+                            }
+                        next = Some(joined)
+                        previous.close()
+                    }
+                    case None -> next = Some(part)
+                }
+            }
+        } catch (error: Throwable) {
+            val failed = next
+            throwStyle(cleanupStyle(Some(error)) { failed?.close() })
+            throw error
+        }
+        val previous = current
+        current = next
+        inputs = effects
+        previous?.close()
+        return next
+    }
+
+    public override fun close() {
+        val previous = current
+        current = None
+        inputs = []
+        previous?.close()
+    }
+}
+
+internal class BoxFilterCache: Closeable {
+    private var inputs: Array<BoxShadow> = []
+    private var current: Array<ImageFilter> = []
+
+    fun update(shadows: Array<BoxShadow>): Array<ImageFilter> {
+        if (sameShadows(inputs, shadows))
+            return current
+        val next = ArrayList<ImageFilter>()
+        try {
+            for (shadow in shadows)
+                next.add(
+                    ImageFilter.dropShadowOnly(
+                        shadow.offset,
+                        shadow.sigmaX,
+                        shadow.sigmaY,
+                        shadow.color
+                    )
+                )
+        } catch (error: Throwable) {
+            throwStyle(closeFilters(next.toArray(), Some(error)))
+            throw error
+        }
+        val previous = current
+        current = next.toArray()
+        inputs = shadows
+        throwStyle(closeFilters(previous))
+        return current
+    }
+
+    public override fun close() {
+        val previous = current
+        current = []
+        inputs = []
+        throwStyle(closeFilters(previous))
+    }
+}
+
+private fun createFilter(effect: ContentEffect): ImageFilter =
+    when (effect) {
+        case Blur(x, y) -> ImageFilter.blur(x, y)
+        case DropShadow(offset, x, y, color) -> ImageFilter.dropShadow(offset, x, y, color)
+        case Glow(x, y, color) -> ImageFilter.dropShadow(Point(0.0, 0.0), x, y, color)
+    }
+
+private fun sameEffects(a: Array<ContentEffect>, b: Array<ContentEffect>): Boolean {
+    if (a.size != b.size)
+        return false
+    for (i in 0L until a.size)
+        if (a[i] != b[i])
+            return false
+    return true
+}
+
+private fun sameShadows(a: Array<BoxShadow>, b: Array<BoxShadow>): Boolean {
+    if (a.size != b.size)
+        return false
+    for (i in 0L until a.size)
+        if (a[i] != b[i])
+            return false
+    return true
+}
+
+private fun closeFilters(values: Array<ImageFilter>, failure: Throwable? = None): Throwable? {
+    var result = failure
+    for (value in values)
+        result = cleanupStyle(result) { value.close() }
+    return result
+}

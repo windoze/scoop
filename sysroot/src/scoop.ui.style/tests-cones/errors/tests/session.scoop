@@ -1,0 +1,132 @@
+package scoop.tests.ui.style.errors
+
+import scoop.graphics.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.window.*
+
+@Test
+private class StyleFailureTest {
+    @Test
+    fun `a failing filtered subtree releases native resources even when scope cleanup also fails`() {
+        val probe = FailureProbe()
+        val host =
+            UiHost {
+                owner,
+                active,
+                event -> when (event) {
+                    case Resumed -> {
+                        val native =
+                            active.createWindow(
+                                WindowAttributes("Style failure", LogicalSize(180.0, 100.0))
+                            )
+                        native.setWindowLevel(WindowLevel.AlwaysOnTop)
+                        probe.window = Some(native)
+                        probe.view = Some(observeWindow(native))
+                        probe.frames = Some(observeFrames(native))
+                        owner.attach(native, { FailureScene(probe) })
+                        active.setControlFlow(
+                            ControlFlow.WaitUntil(
+                                MonotonicTimeSource.markNow() + Duration.seconds(20L)
+                            )
+                        )
+                    }
+                    case NewEvents(StartCause.Deadline) -> fail(Some("style failure did not draw"))
+                    else -> {}
+                }
+            }
+        try {
+            val failure =
+                assertFailsWith<ResourceUseException> {
+                    host.use { owner -> Application().run(owner) }
+                }
+            assertTrue(contains(failure, probe.paintFailure))
+            assertTrue(contains(failure, probe.closeFailure))
+            assertTrue(host.isClosed)
+            assertTrue(probe.painted)
+            assertEquals(1, probe.unmounts)
+            assertEquals(1, probe.disposals)
+            assertTrue(probe.painter!!.isClosed)
+            assertTrue(probe.image!!.isClosed)
+            assertEquals(WindowState.Destroyed, probe.window!!.state)
+            assertTrue(probe.view!!.restored())
+            assertFalse(probe.frames!!.snapshot().attached)
+            assertEquals(0L, probe.frames!!.snapshot().presentations)
+            assertFailsWith<IllegalStateException> { probe.canvas!!.save() }
+        } finally {
+            host.close()
+            probe.frames?.close()
+            probe.view?.close()
+        }
+    }
+}
+
+private class FailureProbe {
+    val paintFailure = IllegalStateException(Some("expected filtered subtree failure"))
+    val closeFailure = IllegalStateException(Some("expected scope cleanup failure"))
+    var painter: StylePainter? = None
+    var image: Image? = None
+    var canvas: Canvas? = None
+    var window: Window? = None
+    var view: ViewProbe? = None
+    var frames: FrameProbe? = None
+    var painted = false
+    var unmounts = 0
+    var disposals = 0
+}
+
+private class FailureScene(private val probe: FailureProbe): Component {
+    public override fun render(): View = element({ FailureInk(probe) })
+}
+
+private class FailureInk(private val probe: FailureProbe): Element {
+    public override fun onMount(scope: ComponentScope) {
+        scope.onDispose {
+            probe.disposals += 1;
+            throw probe.closeFailure
+        }
+        probe.painter = Some(scope.resource { StylePainter() })
+        probe.image =
+            Some(
+                scope.resource {
+                    Image.fromRgba(1, 1, [255.toByte(), 0.toByte(), 0.toByte(), 255.toByte()])
+                }
+            )
+    }
+    public override fun onUnmount() {
+        probe.unmounts += 1
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(180.0, 100.0)))
+    public override fun paint(context: PaintContext) {
+        probe.painter!!.paint(
+            context,
+            Style(
+                background = Some(Paint(Color.White)),
+                border = Some(Border(2.0, Color.Black)),
+                boxShadows = [BoxShadow(Point(2.0, 2.0), 2.0, 2.0, Color.Black)],
+                contentEffects =
+                    [ContentEffect.Glow(3.0, 3.0, Color.White), ContentEffect.Blur(1.0, 1.0)]
+            )
+        ) {
+            child ->
+            probe.canvas = Some(child.canvas)
+            child.canvas.saveLayer(0.5)
+            child.canvas.drawImage(probe.image!!, Rect(20.0, 20.0, 24.0, 24.0))
+            probe.painted = true
+            throw probe.paintFailure
+        }
+    }
+}
+
+private fun contains(error: Throwable, expected: Throwable): Boolean {
+    if (error === expected)
+        return true
+    if (error is ResourceUseException)
+        return contains(error.primaryFailure, expected) || contains(error.cleanupFailure, expected)
+    return false
+}

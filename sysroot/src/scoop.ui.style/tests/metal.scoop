@@ -1,0 +1,66 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+import scoop.graphics.native.macos.MetalContext
+import scoop.test.*
+import scoop.tests.graphics.TestMetalSurface
+
+@Test
+private class MetalStyleTest {
+    @Test
+    fun `combined decorations and content glow use local units on a real Metal target`() {
+        StylePainter().use {
+            painter -> TestMetalSurface.create(128, 96).use {
+                objects -> @Unsafe
+                {
+                    MetalContext.create(objects.device(), objects.queue()).use {
+                        context -> @Unsafe
+                        {
+                            context.target(objects.texture(), 128, 96, 2.0).use {
+                                target ->
+                                target.draw {
+                                    canvas ->
+                                    canvas.clear(Color.Transparent)
+                                    canvas.translate(2.0, 1.0)
+                                    painter.paint(
+                                        canvas,
+                                        Rect(8.0, 8.0, 24.0, 24.0),
+                                        Style(
+                                            border = Some(Border(1.0, Color(0.0, 1.0, 0.0))),
+                                            cornerRadius = 4.0,
+                                            boxShadows =
+                                                [
+                                                    BoxShadow(
+                                                        Point(12.0, 0.0),
+                                                        0.0,
+                                                        0.0,
+                                                        Color.Black
+                                                    )
+                                                ],
+                                            contentEffects =
+                                                [ContentEffect.Glow(2.0, 2.0, Color(0.0, 0.0, 1.0))]
+                                        )
+                                    ) {
+                                        child -> child.drawRect(
+                                            Rect(12.0, 12.0, 6.0, 6.0),
+                                            Paint(Color(1.0, 0.0, 0.0))
+                                        )
+                                    }
+                                }
+                                target.submit()
+                                val pixels = target.readPixels()
+                                assertEquals(255, channel(pixels, 128, 20, 40, 1))
+                                assertEquals(255, channel(pixels, 128, 32, 32, 0))
+                                assertTrue(channel(pixels, 128, 24, 32, 2) > 240)
+                                assertTrue(channel(pixels, 128, 24, 32, 3) > 5)
+                                assertEquals(255, channel(pixels, 128, 84, 40, 3))
+                                assertEquals(0, channel(pixels, 128, 100, 40, 3))
+                            }
+                            context.drain()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

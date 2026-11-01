@@ -27,6 +27,9 @@ objc_flags = ["-Wall", "-Wextra", "-Werror"]
 path = "native/view.m"
 when = { os = "darwin" }
 [[native.sources]]
+path = "native/frames.m"
+when = { os = "darwin" }
+[[native.sources]]
 path = "native/view.cpp"
 when = { os = "windows" }
 [[native.libraries]]

@@ -1,0 +1,25 @@
+package scoop.ui.style
+
+internal fun requireStyle(value: Boolean, message: String) {
+    if (!value)
+        throw IllegalArgumentException(Some(message))
+}
+
+internal fun cleanupStyle(previous: Throwable?, action: () -> Unit): Throwable? {
+    try {
+        action()
+    } catch (error: Throwable) {
+        return when (previous) {
+            case Some(primary) -> Some(ResourceUseException(primary, error))
+            case None -> Some(error)
+        }
+    }
+    return previous
+}
+
+internal fun throwStyle(failure: Throwable?) {
+    when (failure) {
+        case Some(error) -> throw error;
+        case None -> {}
+    }
+}

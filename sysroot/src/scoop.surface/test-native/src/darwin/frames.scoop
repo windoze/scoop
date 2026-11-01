@@ -1,0 +1,86 @@
+package scoop.tests.surface
+
+import scoop.window.*
+import scoop.window.native.*
+
+/** Real native demand, display-link callbacks and presentation commands for one window. */
+public struct FrameSnapshot(
+    val attached: Boolean,
+    val required: Boolean,
+    val paused: Boolean,
+    val callbacks: Long,
+    val presentations: Long
+)
+
+/** Install before attaching Surface; observation never retains its renderer or schedules work. */
+public class FrameProbe internal constructor(view: Ptr<Unit>): Closeable {
+    private var native: Ptr<Unit>? = None
+    init {
+        @Unsafe
+        {
+            native =
+                Some(
+                    createFrames(view) ?:
+                        throw IllegalStateException(Some("cannot observe Metal frames"))
+                )
+        }
+    }
+    public fun snapshot(): FrameSnapshot {
+        @Unsafe
+        {
+            val value =
+                snapshotFrames(native ?: throw IllegalStateException(Some("frame probe is closed")))
+            return FrameSnapshot(
+                value.attached != 0,
+                value.required != 0,
+                value.paused != 0,
+                value.callbacks,
+                value.presentations
+            )
+        }
+    }
+    public override fun close() {
+        when (native) {
+            case Some(value) -> {
+                native = None;
+                @Unsafe
+                {
+                    dropFrames(value)
+                }
+            }
+            case None -> {}
+        }
+    }
+}
+
+public fun observeFrames(window: Window): FrameProbe {
+    @Unsafe
+    {
+        return window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                return@use when (lease.handle) {
+                    case AppKit(_, view) -> FrameProbe(view)
+                }
+            }
+        }
+    }
+}
+
+@CLayout
+private struct NativeFrameSnapshot(
+    val attached: Int,
+    val required: Int,
+    val paused: Int,
+    val callbacks: Long,
+    val presentations: Long
+)
+
+@Extern(name = "scoop_surface_test_frames_create")
+private fun createFrames(view: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_surface_test_frames_snapshot")
+private fun snapshotFrames(probe: Ptr<Unit>): NativeFrameSnapshot
+
+@Extern(name = "scoop_surface_test_frames_drop")
+private fun dropFrames(probe: Ptr<Unit>)

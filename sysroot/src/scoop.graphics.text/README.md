@@ -31,7 +31,7 @@ FontCollection().use { fonts ->
 
 FontCollection 默认使用系统 fallback，也可以通过 `FontCollection(false)` 关闭并用 `register(bytes, family)` 登记自有字体。只读 `revision` 从 0 开始，每次成功登记增加一次，失败不改变版本。Paragraph 在构造时保存文字、样式和字体来源快照；`layout(width)` 与 `layoutUnwrapped()` 每次产生独立结果，后续登记字体、关闭来源或重新布局不改变旧结果。
 
-内容输入为 StyledText，或 String／TextStyle 的便利构造。TextSpan.text 创建文字，TextSpan.span 组合局部 SpanStyle 和子片段；未指定属性继承父样式，数组属性整体替换，`lineHeight = Some(None)` 恢复自然行高。TextStyle 支持 family 顺序、字号、颜色、weight／width／slant、locale、字距、词距、行高及 OpenType feature／variation；ParagraphStyle 指定方向、对齐、maxLines 和 ellipsis。TextRun 仅为内部展开结果。
+内容输入为 StyledText，或 String／TextStyle 的便利构造。TextSpan.text 创建文字，TextSpan.span 组合局部 SpanStyle 和子片段；未指定属性继承父样式，数组属性整体替换，`lineHeight = Some(None)` 恢复自然行高。公开 `SpanStyle.resolve(parent)` 允许主题及普通消费者使用同一继承计算，返回完整 TextStyle，不创建 native 资源。TextStyle 支持 family 顺序、字号、颜色、weight／width／slant、locale、字距、词距、行高及 OpenType feature／variation；ParagraphStyle 指定方向、对齐、maxLines 和 ellipsis。TextRun 仅为内部展开结果。
 
 ```scoop
 val content = StyledText([

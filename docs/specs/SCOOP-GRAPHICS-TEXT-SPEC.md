@@ -42,6 +42,8 @@ TextStyle 是完整样式，沿用当前的 family 顺序、字号、颜色、we
 
 局部覆盖必须区分继承、显式设置与清除可选值。例如 TextStyle.lineHeight 为 Option<Double>，SpanStyle 对应字段为 Option<Option<Double>>：None 继承，Some(None) 恢复字体自然行高，Some(Some(value)) 设置行高。空 feature／variation 数组可以显式清除继承设置。基础 TextStyle 的默认值不能冒充 SpanStyle 的未指定值。
 
+`SpanStyle.resolve(parent: TextStyle): TextStyle` 公开同一套继承计算，返回普通完整描述，不创建排版或 native 资源。主题、控件和其他文本消费者可以把局部覆盖应用到当前默认样式；再次用新的 parent 解析时，未指定属性随 parent 更新。嵌套 TextSpan 也使用此方法，不另建主题字体模型或另一套解析规则。参数有效性仍由实际文本排版入口按既有合同检查。
+
 进入段落引擎前，将描述展开为最终样式的文字 run 和行内对象记录。相邻等样式文字允许合并，空 Span 不插入额外字符。原始描述可以复用；不要求它是 struct、不强制深复制数组，也不为每个片段分配 native 资源。解析后的 TextRun 是排版输入的内部正常形态，不再另设一套平行的公开富文本模型。
 
 纯空内容或仅含空片段时，段落的默认字体、行高与起始 caret 来自 StyledText.style；空的局部样式片段不制造一行或改变无文字段落的样式。段落构造使用基础样式设置默认文本属性，非空片段使用各自解析后的完整样式。

@@ -127,6 +127,61 @@ bool scoop_surface_test_view_text(void *pointer, bool commit) {
   }
 }
 
+bool scoop_surface_test_pointer_move(void *pointer, double x, double y) {
+  @autoreleasepool {
+    @try {
+      NSView *view = (__bridge NSView *)pointer;
+      NSEvent *event = [NSEvent
+          mouseEventWithType:NSEventTypeMouseMoved
+                    location:[view convertPoint:NSMakePoint(x, y) toView:nil]
+               modifierFlags:0
+                   timestamp:NSProcessInfo.processInfo.systemUptime
+                windowNumber:view.window.windowNumber
+                     context:nil
+                 eventNumber:1
+                  clickCount:0
+                    pressure:0];
+      [view mouseMoved:event];
+      return true;
+    } @catch (NSException *exception) {
+      (void)exception;
+      return false;
+    }
+  }
+}
+
+bool scoop_surface_test_key(void *pointer, int32_t code, bool pressed,
+                            bool repeat) {
+  @autoreleasepool {
+    @try {
+      if (code < 0 || code > UINT16_MAX)
+        return false;
+      NSView *view = (__bridge NSView *)pointer;
+      NSString *text = code == 49 ? @" " : code == 36 ? @"\r" : @"a";
+      NSEvent *event =
+          [NSEvent keyEventWithType:pressed ? NSEventTypeKeyDown
+                                            : NSEventTypeKeyUp
+                                 location:NSZeroPoint
+                            modifierFlags:0
+                                timestamp:NSProcessInfo.processInfo.systemUptime
+                             windowNumber:view.window.windowNumber
+                                  context:nil
+                               characters:text
+              charactersIgnoringModifiers:text
+                                isARepeat:repeat
+                                  keyCode:(unsigned short)code];
+      if (pressed)
+        [view keyDown:event];
+      else
+        [view keyUp:event];
+      return true;
+    } @catch (NSException *exception) {
+      (void)exception;
+      return false;
+    }
+  }
+}
+
 bool scoop_surface_test_view_caret(void *pointer, double x, double y,
                                    double width, double height) {
   @autoreleasepool {
