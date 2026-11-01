@@ -1,13 +1,17 @@
-package scoop.graphics
+package scoop.graphics.text
+
+import scoop.graphics.*
 
 /** Owns explicit font data and optional system fallback. Existing paragraphs retain a snapshot. */
 public class FontCollection public constructor(systemFallback: Boolean = true): Closeable {
     internal val resource = makeFonts(systemFallback)
+    private var currentRevision = 0L
     public val isClosed: Boolean get() = resource.isClosed
+    public val revision: Long get() = currentRevision
 
     /** Copies one face from a font file or collection under a family alias. */
     public fun register(data: Array<Byte>, family: String, collectionIndex: Int = 0) {
-        requireGraphics(
+        requireText(
             data.size > 0L && family.byteLength > 0L && collectionIndex >= 0,
             "invalid font data, family or collection index"
         )
@@ -22,7 +26,7 @@ public class FontCollection public constructor(systemFallback: Boolean = true): 
                         alias,
                         count -> @Unsafe
                         {
-                            graphicsResult(
+                            textResult(
                                 fontsAdd(pointer, bytes, length, alias, count, collectionIndex),
                                 "register font data"
                             )
@@ -31,23 +35,24 @@ public class FontCollection public constructor(systemFallback: Boolean = true): 
                 }
             }
         }
+        currentRevision += 1L
     }
     public override fun close() {
         resource.close()
     }
 }
 
-private fun makeFonts(fallback: Boolean): GraphicsResource {
+private fun makeFonts(fallback: Boolean): TextResource {
     @Unsafe
     {
-        return ownedGraphics(fontsCreate(fallback), "create font collection")
+        return ownedText(fontsCreate(fallback), "create font collection")
     }
 }
 
-@Extern(name = "scoop_graphics_fonts_create")
+@Extern(name = "scoop_graphics_text_fonts_create")
 private fun fontsCreate(fallback: Boolean): Ptr<Unit>?
 
-@Extern(name = "scoop_graphics_fonts_add")
+@Extern(name = "scoop_graphics_text_fonts_add")
 private fun fontsAdd(
     fonts: Ptr<Unit>,
     bytes: Ptr<Byte>,

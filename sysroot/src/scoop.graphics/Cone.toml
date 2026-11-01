@@ -13,9 +13,6 @@ when = { os = ["darwin", "windows"] }
 path = "src/drawing"
 when = { os = ["darwin", "windows"] }
 [[sources]]
-path = "src/text"
-when = { os = ["darwin", "windows"] }
-[[sources]]
 path = "src/native"
 when = { os = ["darwin", "windows"] }
 [[sources]]
@@ -38,7 +35,7 @@ when = { os = "windows" }
 [[test.sources]]
 path = "tests/drawing.scoop"
 [[test.sources]]
-path = "tests/text.scoop"
+path = "tests/native_canvas.scoop"
 [[test.sources]]
 path = "tests/metal.scoop"
 when = { os = "darwin" }
@@ -58,20 +55,10 @@ path = "native/shared/drawing.cpp"
 [[native.sources]]
 path = "native/shared/geometry.cpp"
 [[native.sources]]
-path = "native/shared/text.cpp"
-[[native.sources]]
-path = "native/shared/text_layout.cpp"
-[[native.sources]]
-path = "native/shared/text_queries.cpp"
-[[native.sources]]
-path = "native/darwin/fonts.cpp"
-when = { os = "darwin" }
+path = "native/shared/canvas.cpp"
 [[native.sources]]
 path = "native/darwin/metal.cpp"
 when = { os = "darwin" }
-[[native.sources]]
-path = "native/windows/fonts.cpp"
-when = { os = "windows" }
 [[native.sources]]
 path = "native/windows/d3d.cpp"
 when = { os = "windows" }

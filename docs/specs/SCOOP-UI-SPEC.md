@@ -8,7 +8,7 @@
 
 框架不提供 Label、Button、文本样式、点击判定或 Row／Column／Stack 等现成控件和布局策略。它提供实现这些控件所需的公开能力。`scoop.ui.component` 是独立的普通 Cone，使用与第三方控件相同的公开接口构建基础控件；`scoop.ui` 不依赖、转导出或识别该控件库中的类型。只依赖框架的应用可以完成自绘、输入和动画。
 
-首期只实现和验证 macOS，目标为 Darwin ARM64／x86_64；Windows 接入与验收留待后续，不因底层已有 Windows renderer 就声明 UI 已支持该平台。不发布空 renderer。实施批次及定向验证见 [UI 实施记录](../ui/PROGRESS.md)。
+首期只实现和验证 macOS：先完成 aarch64 的各批功能，最后统一补验 x86_64；Windows 接入与验收留待后续，不因底层已有 Windows renderer 就声明 UI 已支持该平台。不发布空 renderer。实施批次及定向验证见 [UI 实施记录](../ui/PROGRESS.md)。
 
 静止时停止渲染工作是首期基本要求，见[第 6.1 节](#61-静止时停止渲染工作)。没有待处理更新、绘制失效或需推进的动画时，框架不维持周期性的逻辑遍历、绘制回调或 GPU 提交；该合同同时适用于桌面与未来移动端。
 
@@ -25,7 +25,7 @@ SkSL runtime effect 同样列为后续 graphics 增强，见[接入设计](../gr
 | `scoop.ui` | Component／Element、State／Props／Binding、挂载树、测量与绘制接入、输入／动画的挂载归属；text 子包提供公共段落适配 |
 | `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame、基础样式与对应组合函数 |
 
-表中是目标分层；字体与 Paragraph／TextLayout 目前仍在 graphics，graphics.text 拆分与本框架均待实施。`scoop.ui.text` 只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
+表中是目标分层；字体与 Paragraph／TextLayout 已迁入 graphics.text，富文本／行内对象扩展及本框架仍在后续批次中。`scoop.ui.text` 只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
 
 组件、状态及描述使用普通 class／interface／泛型／属性委托。首期不增加 `@Composable`、result builder、属性宏、关联类型、UI 专用 IR 或 runtime 入口。`scoop.ui` 的类型身份查询复用语言规范 9.6 的 `typeInfo<T>()`，不遍历组件字段，不按名称访问私有属性。
 

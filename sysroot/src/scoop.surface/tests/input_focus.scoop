@@ -1,6 +1,7 @@
 package scoop.surface
 
 import scoop.graphics.*
+import scoop.graphics.text.*
 import scoop.math.abs
 import scoop.test.*
 import scoop.window.*

@@ -10,7 +10,7 @@
 
 框架决定挂载身份、树的更新和生命周期；本库决定控件外观、文字输入与裁剪策略、点击语义、布局算法及默认样式。公共文本模型、样式继承、shaping 和行内对象排版由 graphics.text 完成，段落与子组件的测量／缓存适配使用 scoop.ui.text；路径绘制、帧呈现和动画求值继续由 graphics／surface 完成。第一期控件全部自绘，不嵌入原生 Label／Button。
 
-首期只实现和验证 macOS，与 UI 框架相同；Windows 接入后续单独推进。普通控件测试使用本 Cone 的 scoop.test，实施记录见 [UI 实施记录](../ui/PROGRESS.md)。
+首期与 UI 框架相同，先在 macOS aarch64 完成实现与验证，最后统一补验 x86_64；Windows 接入后续单独推进。普通控件测试使用本 Cone 的 scoop.test，实施记录见 [UI 实施记录](../ui/PROGRESS.md)。
 
 ## 2. 控件与使用入口
 

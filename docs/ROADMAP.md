@@ -815,9 +815,9 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - window 已先行补齐鼠标序列取消和有来源标记的单调输入时间，见[窗口规范第 11 节](specs/SCOOP-WINDOW-SPEC.md#11-surface-基础层所需输入扩展)。沿用现有 Application／asyncio 宿主、native lease、普通 FFI 和构建合同；全部功能与验证使用普通 Cone 和 scoop.test，实际交付范围见[实施记录](surface/PROGRESS.md)。
 - 基础 API 与 [组合示例](../sysroot/src/scoop.surface/examples/basics/README.md)已交付；Darwin ARM64 和 Rosetta x86_64 的绘图／文本、动画、区域输入、宿主呈现、主循环组合、异常收尾及原生 IME 会话测试通过。两架构示例均验证简体拼音组合与提交；窗口缩放后的重排及应用失焦／恢复已观察。跨屏混合 DPI 缺少多显示器硬件条件，具体桌面验证范围见实施记录。
 
-### scoop.graphics.text 公共文本排版（设计稿，待实施）
+### scoop.graphics.text 公共文本排版（基础拆分实施中）
 
-- [设计](graphics/text/DESIGN.md)与[文本排版规范](specs/SCOOP-GRAPHICS-TEXT-SPEC.md)将字体、Paragraph／TextLayout 从 graphics 独立为 `scoop.graphics.text`，通过普通 graphics native 画布接入保持 `scoop.graphics.text → scoop.graphics`；现有文本 API 及消费者尚未迁移。
+- [设计](graphics/text/DESIGN.md)与[文本排版规范](specs/SCOOP-GRAPHICS-TEXT-SPEC.md)将字体、Paragraph／TextLayout 从 graphics 独立为 `scoop.graphics.text`，通过普通 graphics native 画布接入保持 `scoop.graphics.text → scoop.graphics`；基础文本 API、native 所有权、测试和 Surface 示例已迁移，macOS 定向验证见 [UI 实施记录](ui/PROGRESS.md)；StyledText／SpanStyle 和行内对象继续实施。
 - StyledText／SpanStyle 表达多字体、字号及局部样式继承；行内图片和控件以稳定 key、尺寸与基线参与同一段落排版，结果明确保留被截断对象及其可见性。UTF-8 位置、caret／selection、替代文字和资源所有权共用公共合同。
 - 继续使用当前 SkParagraph／HarfBuzz／ICU；先验收独立 graphics.text／graphics 的图文排版和跨 Cone 绘制，再接入 UI 子项，不增加语言／runtime 通道或完整文档编辑系统。
 

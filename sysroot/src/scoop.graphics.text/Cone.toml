@@ -1,0 +1,57 @@
+schema = 1
+
+[cone]
+group = "scoop"
+name = "scoop.graphics.text"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+when = { os = ["darwin", "windows"] }
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.graphics" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"scoop:scoop.math" = "0.1.0"
+"scoop.tests:graphics-native" = { version = "0.1.0", path = "../scoop.graphics/test-native" }
+
+[[test.sources]]
+path = "tests/text.scoop"
+[[test.sources]]
+path = "tests/metal.scoop"
+when = { os = "darwin" }
+
+[native]
+cxx = true
+include = [{ sysroot = "include/skia" }]
+cxx_flags = ["-Wmost", "-Wextra", "-Werror", "-Wno-unused-parameter", "-DSK_RELEASE", "-DSK_GANESH", "-DSK_SHAPER_HARFBUZZ_AVAILABLE", "-DSK_UNICODE_ICU_IMPLEMENTATION"]
+
+[[native.sources]]
+path = "native/shared/text.cpp"
+[[native.sources]]
+path = "native/shared/text_layout.cpp"
+[[native.sources]]
+path = "native/shared/text_queries.cpp"
+[[native.sources]]
+path = "native/darwin/fonts.cpp"
+when = { os = "darwin" }
+[[native.sources]]
+path = "native/windows/fonts.cpp"
+when = { os = "windows" }
+
+[[native.libraries]]
+name = "scoop_skia"
+kind = "static"
+[[native.libraries]]
+name = "CoreText"
+kind = "framework"
+when = { os = "darwin" }
+[[native.libraries]]
+name = "dwrite"
+when = { os = "windows" }

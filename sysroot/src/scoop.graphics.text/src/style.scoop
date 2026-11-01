@@ -1,4 +1,6 @@
-package scoop.graphics
+package scoop.graphics.text
+
+import scoop.graphics.*
 
 public enum FontSlant {
     Upright, Italic, Oblique
@@ -36,17 +38,17 @@ public class TextStyle public constructor(
     public val variations: Array<FontVariation> = []
 ) {
     internal fun <T> withNative(block: (Ptr<Unit>) -> T): T {
-        checkScalar(fontSize)
-        checkScalar(letterSpacing)
-        checkScalar(wordSpacing)
-        checkColor(color)
-        requireGraphics(
+        checkTextScalar(fontSize)
+        checkTextScalar(letterSpacing)
+        checkTextScalar(wordSpacing)
+        checkTextColor(color)
+        requireText(
             fontSize > 0.0 && weight >= 1 && weight <= 1000 && width >= 1 && width <= 9,
             "invalid font size, weight or width"
         )
         val height = lineHeight ?: 1.0
-        checkScalar(height)
-        requireGraphics(height > 0.0, "line height must be positive")
+        checkTextScalar(height)
+        requireText(height > 0.0, "line height must be positive")
         val value =
             NativeTextStyleData(
                 color,
@@ -70,16 +72,16 @@ public class TextStyle public constructor(
             resource ->
             val pointer = resource.get()
             for (family in families) {
-                requireGraphics(family.byteLength > 0L, "font family must not be empty")
+                requireText(family.byteLength > 0L, "font family must not be empty")
                 setStyleString(pointer, family, false)
             }
             setStyleString(pointer, locale, true)
             for (feature in features) {
-                requireGraphics(feature.value >= 0, "negative OpenType feature value")
+                requireText(feature.value >= 0, "negative OpenType feature value")
                 setStyleFeature(pointer, feature.tag, feature.value.toDouble(), false)
             }
             for (variation in variations) {
-                checkScalar(variation.value)
+                checkTextScalar(variation.value)
                 setStyleFeature(pointer, variation.tag, variation.value, true)
             }
             block(pointer)
@@ -96,10 +98,10 @@ public class ParagraphStyle public constructor(
 
 public struct TextRun(val text: String, val style: TextStyle = TextStyle())
 
-private fun makeTextStyle(value: NativeTextStyleData): GraphicsResource {
+private fun makeTextStyle(value: NativeTextStyleData): TextResource {
     @Unsafe
     {
-        return ownedGraphics(textStyleCreate(value), "create text style")
+        return ownedText(textStyleCreate(value), "create text style")
     }
 }
 
@@ -110,7 +112,7 @@ private fun setStyleString(style: Ptr<Unit>, value: String, locale: Boolean) {
             bytes,
             count -> @Unsafe
             {
-                graphicsResult(
+                textResult(
                     textStyleString(style, bytes, count, locale),
                     "set font family or locale"
                 )
@@ -120,16 +122,16 @@ private fun setStyleString(style: Ptr<Unit>, value: String, locale: Boolean) {
 }
 
 private fun setStyleFeature(style: Ptr<Unit>, tag: String, value: Double, variation: Boolean) {
-    requireGraphics(tag.byteLength == 4L, "OpenType tags require four ASCII bytes")
+    requireText(tag.byteLength == 4L, "OpenType tags require four ASCII bytes")
     for (character in tag)
-        requireGraphics(character.code >= 32 && character.code <= 126, "invalid OpenType tag")
+        requireText(character.code >= 32 && character.code <= 126, "invalid OpenType tag")
     @Unsafe
     {
         tag.withUtf8Bytes {
             bytes,
             _ -> @Unsafe
             {
-                graphicsResult(
+                textResult(
                     textStyleFeature(style, bytes, value, variation),
                     "set OpenType feature or variation"
                 )

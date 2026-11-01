@@ -17,7 +17,7 @@ UI 框架提供构建完全自绘控件的能力，应用可以只使用框架�
 
 主要依赖方向为 `scoop.ui.component → scoop.ui → scoop.surface → scoop.window + scoop.graphics`，文本支路为 `scoop.ui → scoop.graphics.text → scoop.graphics`。使用下层类型的 Cone 同时声明实际直接依赖。框架不依赖或转导出控件库，不根据 Label／Button 等具体类型做分派，不提供只有该库可以访问的控件入口。
 
-这是目标分层；graphics.text 拆分尚未实施，现有字体和布局 API 仍在 graphics。`scoop.ui.text` 是 UI Cone 中的公共适配包，不是额外的库或控件集合。它复用 graphics.text 的段落算法，连接子项测量与放置，第三方自绘元素可以直接使用。
+这是目标分层；基础字体和布局 API 已迁入 graphics.text，富文本描述、行内对象和 UI 接入按实施批次继续推进。`scoop.ui.text` 是 UI Cone 中的公共适配包，不是额外的库或控件集合。它复用 graphics.text 的段落算法，连接子项测量与放置，第三方自绘元素可以直接使用。
 
 Row／Column／Stack 的布局策略也放在控件库。框架提供约束、基线、子项测量和放置协议；文字换行由 graphics.text 处理，点击语义、默认字体、背景、边框和主题不进入框架。`empty` 只表示结构上的空内容。
 
@@ -306,7 +306,7 @@ Context 传播 Store 引用，不改变线程和任务归属。只有 asyncio �
 
 ## 11. 实施批次
 
-本期只实现 macOS，按 Darwin ARM64／x86_64 的实际资源和后端验证；Windows 留待后续。先修复文本、Surface 以及实际遇到的编译器／核心库缺口，再由框架和简单组件消费这些公开能力，不在 UI 中绕过底层问题。测试使用所属 Cone 的 scoop.test 与必要的真实窗口组合，不运行全量测试；只有涉及编译器或 core／std／test 自身时才考虑相应定向 fixture。每批验证后提交、推送并合并 origin/main，清理不再需要的临时文件，详见实施记录。
+本期先在 macOS aarch64 完成实施与定向验证，功能完成后统一补验 x86_64；Windows 留待后续。先修复文本、Surface 以及实际遇到的编译器／核心库缺口，再由框架和简单组件消费这些公开能力，不在 UI 中绕过底层问题。测试使用所属 Cone 的 scoop.test 与必要的真实窗口组合，不运行全量测试；只有涉及编译器或 core／std／test 自身时才考虑相应定向 fixture。每批验证后提交、推送并合并 origin/main，清理不再需要的临时文件，详见实施记录。
 
 | 批次 | 交付 | 验收 |
 | --- | --- | --- |

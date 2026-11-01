@@ -17,6 +17,7 @@ when = { os = ["darwin", "windows"] }
 "scoop:scoop.std" = "0.1.0"
 "scoop:scoop.math" = "0.1.0"
 "scoop:scoop.graphics" = "0.1.0"
+"scoop:scoop.graphics.text" = "0.1.0"
 "scoop:scoop.surface" = { version = "0.1.0", path = "../.." }
 "scoop:scoop.window" = "0.1.0"
 

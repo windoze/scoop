@@ -8,9 +8,9 @@
 
 基础 Cone 统一使用 `scoop.surface` 名称，类型为 SurfaceHost／SurfaceWindow／SurfaceWindowState，原生入口以 `scoop_surface_` 为前缀，不提供旧名称的兼容入口。上层由 [`scoop.ui` 自绘框架](SCOOP-UI-SPEC.md)和独立的 [`scoop.ui.component` 控件库](SCOOP-UI-COMPONENT-SPEC.md)组成；两者尚未实现，其设计未改变本文件的已实现 API。
 
-文本的目标分层另见 [`scoop.graphics.text` 规范](SCOOP-GRAPHICS-TEXT-SPEC.md)：字体、富文本模型、Paragraph／TextLayout 和行内对象排版将成为独立公共库。该拆分尚未实施；本文件下述 graphics 文本 API 仍描述当前实现。Surface 的帧、动画、输入区域与 Rect caret 不因文本拆分反向依赖 graphics.text 或 UI。
+字体、样式 run 和 Paragraph／TextLayout 已迁入独立 [`scoop.graphics.text`](SCOOP-GRAPHICS-TEXT-SPEC.md)；富文本描述与行内对象按该规范继续实施。Surface 的帧、动画、输入区域与 Rect caret 不反向依赖 graphics.text 或 UI；使用文本的示例和测试直接声明依赖。
 
-- `scoop.graphics` 是普通 Cone，提供几何、Canvas、Path、Image、字体和文本布局，允许离屏使用，不依赖 `scoop.window`。绘图由 Skia 实现；文本采用 SkParagraph、HarfBuzz 和 SkUnicode 的 ICU 后端。
+- `scoop.graphics` 是普通 Cone，提供几何、Canvas、Path、Image 及绘图目标，允许离屏使用，不依赖 `scoop.window`。绘图由 Skia 实现，文本由独立 graphics.text 接入。
 - `scoop.surface` 是普通 Cone，依赖 graphics、window 及实际使用的 core／std／math／platform，提供 SurfaceHost、SurfaceWindow、帧调度、动画、InputArea 与区域焦点。两库的几何与动画所需数学函数复用 scoop.math。
 - window 继续拥有原生窗口、输入归一、IME 协议、事件循环和 native lease；Surface 的平台适配拥有 surface 与呈现。共享层不依赖 AppKit、Metal 或其他窗口／GPU API。
 
@@ -28,27 +28,15 @@ Canvas 是一次绘制作用域内的借用对象，不得跨帧保存或在其�
 
 `scoop.graphics.native` 提供当前 Surface renderer 实际需要的公开 Unsafe 接入：原生渲染目标、受控的 Canvas 借用、提交／中止，以及几何状态快照。Skia C++ 类型不进入普通公共 API；Metal 等句柄只出现在按目标选择的 native 子包。跨 Cone 调用不能依赖另一 Cone 的 internal 构造器。
 
+独立文本库使用同一 package 的 `@Unsafe fun <T> Canvas.withSkiaCanvas(block: (Ptr<Unit>) -> T): T`。它在当前有效 Canvas 的 owner 线程同步借出实际 SkCanvas 指针，调用前保存原生画布状态，正常返回或异常退出都恢复原状态；不施加第二次 DPI 变换。指针只在 block 内有效，不能保存、释放、跨线程或挂起使用。block 只通过该指针进行 Skia 绘制，不重入同一 Canvas 的 Scoop 操作或几何捕获，不恢复到借用入口保存层以下，不自行提交目标或变更 GPU context。调用方承担这项 Unsafe 约束；graphics 的私有包装、资源析构和 clip 记录不向另一 Cone 开放。
+
 SkSL／SkRuntimeEffect 的公开接入列为后续 graphics 增强，见[SkSL 设计](../graphics/sksl/DESIGN.md)。当前 Paint 只开放颜色／基础渐变等参数，saveLayer 只开放组透明度；shader 填充、输入图像和子树滤镜尚未接入。后续实现通过既有 Skia 后端与普通 FFI 扩展，不隐式创建时间驱动器，也不改变 Canvas 借用或第 4.1 节的按需停帧规则。
 
 ## 3. 字体与文本布局
 
-本节保留已实现的 graphics 文本合同；新增的 StyledText／SpanStyle、行内对象 metrics／placement 及目标资源边界以[文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)为准。实施迁移时同步移动 API、native 与实际消费者，并把本节收敛为文本规范引用；设计阶段不把新类型标为已可用。
+字体、Paragraph／TextLayout、多样式 run、位置查询和绘制的合同统一见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)。公共类型及 Canvas.drawText 扩展位于 scoop.graphics.text；graphics 本身不引用 TextLayout，也不负责其原生释放。
 
-FontCollection 管理显式字体及系统 fallback。Paragraph 保存自有文字、样式 run、段落设置和字体来源；`layout(width)` 产生完整 TextLayout，供 paint、命中、caret 和 selection 查询共同使用。宽度采用有限非负逻辑值；另提供明确的无换行布局请求，不用无穷浮点值表示它。
-
-TextLayout 保存所属文字及布局所需资源，包含尺寸、基线、行范围、可见／截断范围、位置命中、caret 与 range 对应的矩形集合。双向文本的一个逻辑范围可以产生多个矩形。重新布局不得改变已交付的旧 TextLayout；native 内部对象可变时必须独立持有或复制结果。
-
-文本位置采用 UTF-8 字节偏移，计数类型为 Long；范围为半开区间，端点位于 Unicode 标量边界。TextPosition 另含 affinity，区分软换行和双向边界处的视觉位置。Surface 在 graphics 文本位置与 window 的 Utf8Range 之间显式转换；graphics 不为复用窗口类型而依赖 window。
-
-UTF-8／UTF-16 索引映射随文字构建并复用。标量、grapheme、shaping cluster 与 glyph 不得视为同一概念；用户 caret 不落在 grapheme 内部，利用 cluster／glyph 关系与 affinity 确定视觉位置，不能用 glyph 边界代替文本位置。shaping 与绘制使用同一字体、fallback 结果及 variation 设置。
-
-FontCollection 可登记自有字体数据和 family 别名；Paragraph 在构造时保存字体集合与各样式 run 的快照，之后登记字体或关闭来源不改变已有段落和布局。TextStyle 包括 family 顺序、字号、颜色、weight／width／slant、locale、字距、词距、行高和 OpenType feature／variation。系统 fallback 可关闭，以便应用使用完全指定的字体来源。
-
-TextLayout 提供 grapheme 边界、各行的字节范围和可见范围、基线与矩形，以及 unresolved glyph 数量。hitTest 返回可见文字的 grapheme 边界；显式 caret 查询要求偏移位于 grapheme 边界，返回一条逻辑坐标竖线的矩形，被截断的位置返回 None。selection 接受标量边界范围并返回方向明确的矩形序列。Upstream／Downstream 分别选择边界前／后的视觉 run，软换行处可以对应不同行。空文字仍有字体决定的行高与起始 caret；无换行请求保留显式换行，按自然宽度布局。文字长度超过实际 ICU／SkParagraph 索引表示范围时在接入处报告参数错误。
-
-第一期包括基本富文本 run、CJK／RTL／emoji、换行、对齐、行高、maxLines、ellipsis、测量与位置查询。HarfBuzz 负责 shaping；双向分析、分段、断行及段落组合由 SkUnicode／SkParagraph 处理。仅变换或整体透明度变化复用 TextLayout；文字、字体、字号或布局约束变化重新布局。
-
-文本编辑状态与文本布局分离。Surface 可将窗口 TextInputBatch 路由给当前文本接收区域，并换算候选窗矩形；本期不增加完整 surrounding 文档桥接、撤销历史、剪贴板协议或 TextField。
+Surface 只接收局部 Rect caret，并通过区域几何转换为窗口 IME 候选窗位置。文本编辑状态由应用拥有，应用在 graphics.text 的 TextRange 与 window 的 Utf8Range 之间显式转换；输入路由不保留段落或完整文档，也不接管撤销、剪贴板或 TextField。
 
 ## 4. Surface 宿主与帧
 
@@ -122,7 +110,7 @@ requestFocus 只对已发布、可交互且允许焦点的区域成功；文本�
 
 GPU context、窗口 surface、字体／图像／Path／文本的原生持有对象使用显式 Closeable／use 生命周期。托管包装的 GC release 只允许既有 runtime 合同许可的叶子释放；不借它调用 UI、等待 GPU、注销宿主回调或投递托管闭包。
 
-第一期 graphics 原生持有对象在创建线程串行使用和关闭；Surface 资源在窗口 owner，离屏资源不要求主线程。纯值可复制传递；结果逻辑上不可变不构成 Skia 内部缓存并发访问的承诺。
+graphics 与 graphics.text 的原生持有对象在创建线程串行使用和关闭；Surface 资源在窗口 owner，离屏资源不要求主线程。纯值可复制传递；结果逻辑上不可变不构成 Skia 内部缓存并发访问的承诺。
 
 native 薄层复制跨调用存活的数据，或取得明确的原生引用；不能保存移动 GC 对象的裸地址。回调使用已有 ForeignCallback 生命周期。C++／Objective-C 异常与用户异常均不得跨 C ABI 展开。
 

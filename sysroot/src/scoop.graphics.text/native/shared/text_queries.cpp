@@ -1,9 +1,9 @@
 #include "text.h"
 
 extern "C" {
-SGTextHit scoop_graphics_text_hit(void *pointer, SGPoint point) {
+STTextHit scoop_graphics_text_hit(void *pointer, STPoint point) {
   try {
-    auto layout = static_cast<SGTextLayout *>(pointer);
+    auto layout = static_cast<STTextLayout *>(pointer);
     auto &data = *layout->data;
     auto hit = layout->paragraph->getGlyphPositionAtCoordinate((float)point.x,
                                                                (float)point.y);
@@ -33,10 +33,10 @@ SGTextHit scoop_graphics_text_hit(void *pointer, SGPoint point) {
     return {0, 1, 0};
   }
 }
-SGCaret scoop_graphics_text_caret(void *pointer, int64_t byte, int32_t affinity,
+STCaret scoop_graphics_text_caret(void *pointer, int64_t byte, int32_t affinity,
                                   double thickness) {
   try {
-    auto layout = static_cast<SGTextLayout *>(pointer);
+    auto layout = static_cast<STTextLayout *>(pointer);
     auto &data = *layout->data;
     if (!data.scalar(byte) || !data.grapheme(byte))
       return {{}, -1};
@@ -78,15 +78,15 @@ SGCaret scoop_graphics_text_caret(void *pointer, int64_t byte, int32_t affinity,
     return {{}, -2};
   }
 }
-SGSelection scoop_graphics_text_selection(void *pointer, int64_t start,
+STSelection scoop_graphics_text_selection(void *pointer, int64_t start,
                                           int64_t end) {
   try {
-    auto layout = static_cast<SGTextLayout *>(pointer);
+    auto layout = static_cast<STTextLayout *>(pointer);
     if (start > end || !layout->data->scalar(start) ||
         !layout->data->scalar(end)) {
       return {nullptr, -1};
     }
-    auto result = std::make_unique<SGTextBoxes>();
+    auto result = std::make_unique<STTextBoxes>();
     result->values = layout->paragraph->getRectsForRange(
         (unsigned)layout->data->to16[start], (unsigned)layout->data->to16[end],
         sgt::RectHeightStyle::kMax, sgt::RectWidthStyle::kTight);
@@ -96,10 +96,10 @@ SGSelection scoop_graphics_text_selection(void *pointer, int64_t start,
   }
 }
 int64_t scoop_graphics_text_boxes_count(void *pointer) {
-  return (int64_t)static_cast<SGTextBoxes *>(pointer)->values.size();
+  return (int64_t)static_cast<STTextBoxes *>(pointer)->values.size();
 }
-SGTextBox scoop_graphics_text_box(void *pointer, int64_t index) {
-  const auto &box = static_cast<SGTextBoxes *>(pointer)->values[(size_t)index];
-  return {sg_rect(box.rect), box.direction == sgt::TextDirection::kLtr ? 1 : 0};
+STTextBox scoop_graphics_text_box(void *pointer, int64_t index) {
+  const auto &box = static_cast<STTextBoxes *>(pointer)->values[(size_t)index];
+  return {st_rect(box.rect), box.direction == sgt::TextDirection::kLtr ? 1 : 0};
 }
 }

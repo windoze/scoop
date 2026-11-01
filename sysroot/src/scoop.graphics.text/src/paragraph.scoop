@@ -1,4 +1,6 @@
-package scoop.graphics
+package scoop.graphics.text
+
+import scoop.graphics.*
 
 /** Owns UTF-8 text, run settings and font sources. Each layout is an independent result. */
 public class Paragraph public constructor(
@@ -20,8 +22,8 @@ public class Paragraph public constructor(
 
     /** Lays out in finite logical width, preserving prior results. */
     public fun layout(width: Double): TextLayout {
-        checkScalar(width)
-        requireGraphics(width >= 0.0, "negative paragraph width")
+        checkTextScalar(width)
+        requireText(width >= 0.0, "negative paragraph width")
         return createLayout(width, true)
     }
     /** Uses natural width; explicit line breaks are preserved. */
@@ -29,7 +31,7 @@ public class Paragraph public constructor(
     private fun createLayout(width: Double, wrap: Boolean): TextLayout {
         @Unsafe
         {
-            val native = ownedGraphics(textLayout(resource.get(), width, wrap), "layout paragraph")
+            val native = ownedText(textLayout(resource.get(), width, wrap), "layout paragraph")
             try {
                 return TextLayout(native, text)
             }
@@ -48,7 +50,7 @@ private fun joinRuns(runs: Array<TextRun>): String {
     val result = StringBuilder()
     var length = 0L
     for (run in runs) {
-        requireGraphics(
+        requireText(
             run.text.byteLength <= 2147483647L - length,
             "paragraph exceeds native text index range"
         )
@@ -62,10 +64,10 @@ private fun makeParagraph(
     fonts: FontCollection,
     runs: Array<TextRun>,
     settings: ParagraphStyle
-): GraphicsResource {
+): TextResource {
     val maxLines = settings.maxLines ?: -1L
     when (settings.maxLines) {
-        case Some(value) -> requireGraphics(
+        case Some(value) -> requireText(
             value > 0L && value <= 2147483647L,
             "invalid maximum line count"
         )
@@ -98,7 +100,7 @@ private fun makeParagraph(
                         bytes,
                         count -> @Unsafe
                         {
-                            graphicsResult(
+                            textResult(
                                 paragraphRun(pointer, style, bytes, count),
                                 "append paragraph run"
                             )
@@ -109,7 +111,7 @@ private fun makeParagraph(
         }
         @Unsafe
         {
-            return@use ownedGraphics(paragraphFinish(pointer), "build paragraph")
+            return@use ownedText(paragraphFinish(pointer), "build paragraph")
         }
     }
 }
@@ -120,14 +122,14 @@ private fun beginParagraph(
     direction: Int,
     maxLines: Long,
     ellipsis: String
-): GraphicsResource {
+): TextResource {
     @Unsafe
     {
         return ellipsis.withUtf8Bytes {
             bytes,
             count -> @Unsafe
             {
-                return@withUtf8Bytes ownedGraphics(
+                return@withUtf8Bytes ownedText(
                     paragraphBegin(fonts, alignment, direction, maxLines, bytes, count),
                     "create paragraph builder"
                 )
@@ -136,7 +138,7 @@ private fun beginParagraph(
     }
 }
 
-@Extern(name = "scoop_graphics_paragraph_begin")
+@Extern(name = "scoop_graphics_text_paragraph_begin")
 private fun paragraphBegin(
     fonts: Ptr<Unit>,
     alignment: Int,
@@ -146,10 +148,10 @@ private fun paragraphBegin(
     length: Long
 ): Ptr<Unit>?
 
-@Extern(name = "scoop_graphics_paragraph_run")
+@Extern(name = "scoop_graphics_text_paragraph_run")
 private fun paragraphRun(builder: Ptr<Unit>, style: Ptr<Unit>, text: Ptr<UInt8>, length: Long): Int
 
-@Extern(name = "scoop_graphics_paragraph_finish")
+@Extern(name = "scoop_graphics_text_paragraph_finish")
 private fun paragraphFinish(builder: Ptr<Unit>): Ptr<Unit>?
 
 @Extern(name = "scoop_graphics_text_layout")

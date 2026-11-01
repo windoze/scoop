@@ -1,4 +1,7 @@
-package scoop.graphics
+package scoop.graphics.text
+
+import scoop.graphics.*
+import scoop.graphics.native.withSkiaCanvas
 
 /** Half-open UTF-8 byte range, checked against the text by layout queries. */
 @CLayout
@@ -24,7 +27,7 @@ public struct TextLine(
 
 /** One immutable layout snapshot; all geometry is local logical coordinates. */
 public class TextLayout internal constructor(
-    internal val resource: GraphicsResource,
+    internal val resource: TextResource,
     public val text: String
 ): Closeable {
     private val info = readLayoutInfo(resource.get())
@@ -40,11 +43,11 @@ public class TextLayout internal constructor(
     public val isClosed: Boolean get() = resource.isClosed
 
     public fun hitTest(point: Point): TextPosition {
-        checkPoint(point)
+        checkTextPoint(point)
         @Unsafe
         {
             val value = textHit(resource.get(), point)
-            graphicsResult(value.status, "text position hit test")
+            textResult(value.status, "text position hit test")
             return TextPosition(
                 value.byteOffset,
                 if (value.affinity == 0)
@@ -56,8 +59,8 @@ public class TextLayout internal constructor(
     }
     /** Requires a grapheme boundary; elided text has no caret geometry. */
     public fun caret(position: TextPosition, thickness: Double = 1.0): Rect? {
-        checkScalar(thickness)
-        requireGraphics(thickness >= 0.0, "negative caret thickness")
+        checkTextScalar(thickness)
+        requireText(thickness >= 0.0, "negative caret thickness")
         @Unsafe
         {
             val value =
@@ -86,8 +89,8 @@ public class TextLayout internal constructor(
         @Unsafe
         {
             val selected = textSelection(pointer, range.start, range.end)
-            graphicsResult(selected.status, "selection range must use UTF-8 scalar boundaries")
-            return ownedGraphics(selected.pointer, "query text selection").use {
+            textResult(selected.status, "selection range must use UTF-8 scalar boundaries")
+            return ownedText(selected.pointer, "query text selection").use {
                 boxes -> @Unsafe
                 {
                     return@use readBoxes(boxes.get(), textBoxesCount(boxes.get()))
@@ -102,13 +105,16 @@ public class TextLayout internal constructor(
 
 /** Paints the same shaped runs used by hit testing and caret queries. */
 public fun Canvas.drawText(layout: TextLayout, origin: Point = Point(0.0, 0.0)) {
-    checkPoint(origin)
+    checkTextPoint(origin)
     @Unsafe
     {
-        graphicsResult(
-            textPaint(layout.resource.get(), resource.get(), origin),
-            "paint text layout"
-        )
+        val pointer = layout.resource.get()
+        withSkiaCanvas {
+            canvas -> @Unsafe
+            {
+                textResult(textPaint(pointer, canvas, origin), "paint text layout")
+            }
+        }
     }
 }
 

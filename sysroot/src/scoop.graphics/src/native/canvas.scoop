@@ -1,0 +1,22 @@
+package scoop.graphics.native
+
+import scoop.graphics.Canvas
+import scoop.graphics.ownedGraphics
+
+/** Borrows the actual SkCanvas synchronously and restores its state on every exit. */
+@Unsafe
+public fun <T> Canvas.withSkiaCanvas(block: (Ptr<Unit>) -> T): T {
+    val borrow = ownedGraphics(canvasBorrow(resource.get()), "borrow native canvas")
+    return borrow.use {
+        value -> @Unsafe
+        {
+            return@use block(canvasPointer(value.get()))
+        }
+    }
+}
+
+@Extern(name = "scoop_graphics_canvas_borrow")
+private fun canvasBorrow(canvas: Ptr<Unit>): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_canvas_pointer")
+private fun canvasPointer(borrow: Ptr<Unit>): Ptr<Unit>

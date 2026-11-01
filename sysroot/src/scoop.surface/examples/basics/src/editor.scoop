@@ -1,6 +1,7 @@
 package scoop.examples.surface
 
 import scoop.graphics.*
+import scoop.graphics.text.*
 import scoop.window.*
 
 /** Example-owned editing state; the Surface library only routes transactions and caret geometry. */

@@ -1,11 +1,13 @@
-package scoop.graphics
+package scoop.graphics.text
+
+import scoop.graphics.*
 
 import scoop.compiler.includeBytes
 import scoop.math.abs
 import scoop.platform.concurrent.Thread
 import scoop.test.*
 
-private fun testFonts(fallback: Boolean = false): FontCollection {
+internal fun testFonts(fallback: Boolean = false): FontCollection {
     val result = FontCollection(fallback)
     try {
         result.register(includeBytes("data/Roboto-Regular.ttf"), "Test Sans")
@@ -25,11 +27,16 @@ private class TextLayoutTest {
     fun `paragraphs snapshot font registrations before later collection changes`() {
         FontCollection(false).use {
             fonts ->
+            assertEquals(0L, fonts.revision)
             fonts.register(includeBytes("data/Roboto-Regular.ttf"), "Test Sans")
+            assertEquals(1L, fonts.revision)
             val style = textStyle()
             Paragraph(fonts, "是", style).use {
                 old ->
                 fonts.register(includeBytes("data/NotoSansCJK-VF-subset.otf.ttc"), "Test CJK")
+                assertEquals(2L, fonts.revision)
+                assertFailsWith<IllegalArgumentException> { fonts.register([0, 1], "broken") }
+                assertEquals(2L, fonts.revision)
                 old.layout(100.0).use { layout -> assertTrue(layout.unresolvedGlyphCount > 0) }
                 Paragraph(fonts, "是", style).use {
                     fresh -> fresh.layout(100.0).use {
@@ -292,7 +299,7 @@ private fun containsOffset(values: Array<Long>, wanted: Long): Boolean {
     return false
 }
 
-private fun hasInk(pixels: Array<Byte>): Boolean {
+internal fun hasInk(pixels: Array<Byte>): Boolean {
     var index = 3L
     while (index < pixels.size) {
         if (pixels[index].toUByte().toInt() > 0)

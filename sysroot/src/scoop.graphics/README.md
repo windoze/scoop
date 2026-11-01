@@ -36,29 +36,8 @@ Path、PathBuilder、PathMeasure、Image、RasterSurface 与底层目标均显�
 
 GUI renderer 通过 `scoop.graphics.native` 的 RenderTarget 和 geometry 捕获接入。macOS 的 Unsafe `scoop.graphics.native.macos.MetalContext` 接受所属 device／queue 和 BGRA8 texture；Windows 的 Unsafe `scoop.graphics.native.windows.D3DContext` 接受 adapter／device／direct queue，以及同设备的单采样 BGRA8 render target。D3D12 resource 在包装前须处于 PRESENT／COMMON 状态，submit 和读回结束后恢复 PRESENT。绑定保留所需 COM 引用，原生对象仍由调用方按 GPU 使用顺序管理。
 
-DPI 缩放由目标根部施加一次，geometry 快照仍使用逻辑坐标。普通 submit 不等待 GPU；显式读回、drain 和 context 关闭是同步点。系统字体发现分别使用 CoreText 与 DirectWrite，文本布局和查询共用同一套 SkParagraph／HarfBuzz／ICU 实现。
+DPI 缩放由目标根部施加一次，geometry 快照仍使用逻辑坐标。普通 submit 不等待 GPU；显式读回、drain 和 context 关闭是同步点。字体、样式、Paragraph／TextLayout 和 Canvas.drawText 由独立 [scoop.graphics.text](../scoop.graphics.text/README.md) 提供；使用文本时声明该 Cone 依赖并导入其 package。
 
-文本使用 `FontCollection`、`TextStyle`、`Paragraph` 和 `TextLayout`。FontCollection 默认启用系统 fallback，也可以关闭后使用 `register(bytes, family)` 登记自有字体。Paragraph 在构造时保存文字、run 与字体来源快照，`layout(width)` 和 `layoutUnwrapped()` 每次返回独立结果；旧结果不受重新布局、字体登记或来源关闭影响。
+文本等原生绘图适配通过 `scoop.graphics.native` 的 `@Unsafe Canvas.withSkiaCanvas` 同步借用实际 SkCanvas。借用保留现有坐标／裁剪，正常返回和异常退出都恢复原生状态，不增加 DPI 缩放。指针仅限回调内使用；回调不能重入同一 Canvas 的 Scoop 操作、越过借用的保存边界、提交目标或变更 context。详细合同见 [Surface 规范](../../../docs/specs/SCOOP-SURFACE-SPEC.md#2-几何与绘制)。
 
-后续将按 [scoop.graphics.text 设计](../../../docs/graphics/text/DESIGN.md)独立字体与段落能力，并增加样式继承和行内对象。该方案尚未实施，下面示例仍使用当前 `scoop.graphics` API；新文本规范不代表本库已经支持行内控件或已完成 package 迁移。
-
-```scoop
-FontCollection().use { fonts ->
-    Paragraph(fonts, "Hello，是世界。مرحبا", TextStyle(fontSize = 20.0)).use { paragraph ->
-        paragraph.layout(280.0).use { layout ->
-            RasterSurface(320, 180).use { surface ->
-                surface.draw { canvas -> canvas.drawText(layout, Point(12.0, 12.0)) }
-                val position = layout.hitTest(Point(30.0, 10.0))
-                val caret = layout.caret(position)
-                val selection = layout.selection(TextRange(0L, paragraph.text.byteLength))
-            }
-        }
-    }
-}
-```
-
-TextRange 和 TextPosition 使用 **UTF-8 字节偏移**，与 String 的标量索引不同。selection 的端点须是标量边界；caret 的端点须是 `graphemeBoundaries` 中的位置。hitTest 返回 grapheme 边界，affinity 区分软换行和双向 run 的两侧；未显示的截断文字没有 caret。selection 可返回多个带方向的矩形，各行另有 range、contentRange、visibleRange、baseline 与尺寸。查询几何相对布局原点，调用方自行应用绘制位置和 Canvas 变换。
-
-TextStyle 支持基本富文本、family 顺序、字号／颜色、字体样式、locale、字距／词距、行高及 OpenType feature／variation；ParagraphStyle 提供方向、对齐、maxLines 和 ellipsis。HarfBuzz shaping、ICU 分段／bidi 与 SkParagraph 排行产生同一份绘制和查询结果。FontCollection、Paragraph 和 TextLayout 均遵守创建线程与显式 close／use 规则。
-
-准备 [native 资源](../../../scripts/README.md)后运行 `scoop test sysroot/src/scoop.graphics --release --sysroot sysroot`。测试通过真实 Skia 像素与几何查询验证行为，不使用 fixture；固定测试字体及许可见 `tests/data/FONTS.md`。整体进展见 [GUI 实施记录](../../../docs/surface/PROGRESS.md)。
+准备 [native 资源](../../../scripts/README.md)后运行 `scoop test sysroot/src/scoop.graphics --release --sysroot sysroot`。测试通过真实 Skia 像素、几何和跨 Cone 借用验证行为；文本与字体测试归 graphics.text。整体进展见 [Surface 实施记录](../../../docs/surface/PROGRESS.md)及 [UI 实施记录](../../../docs/ui/PROGRESS.md)。

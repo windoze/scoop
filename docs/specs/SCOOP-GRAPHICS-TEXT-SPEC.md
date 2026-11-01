@@ -1,12 +1,12 @@
 # Scoop 文本排版库规范
 
-日期：2026-11-01。状态：设计稿，`scoop.graphics.text` 尚未建立。现有字体、样式 run、Paragraph／TextLayout 位于 `scoop.graphics`，已实现合同见 [Surface 规范第 3 节](SCOOP-SURFACE-SPEC.md#3-字体与文本布局)。本文件规定独立文本排版库及富文本／行内对象扩展的目标合同；取舍、迁移和调研依据见 [文本排版设计](../graphics/text/DESIGN.md)。UI 接入见 [UI 规范第 7.5 节](SCOOP-UI-SPEC.md#75-公共文本接入)。
+日期：2026-11-01。状态：分批实施。字体、样式 run、Paragraph／TextLayout 已迁入独立 `scoop.graphics.text`，基础拆分的验证及后续批次见 [UI 实施记录](../ui/PROGRESS.md)。StyledText／SpanStyle 和行内对象扩展尚未交付。本文件同时规定其目标合同；取舍、迁移和调研依据见 [文本排版设计](../graphics/text/DESIGN.md)。UI 接入见 [UI 规范第 7.5 节](SCOOP-UI-SPEC.md#75-公共文本接入)。
 
 ## 1. 定位与依赖
 
 `scoop.graphics.text` 是普通 Scoop Cone，负责富文本内容、字体来源、shaping、段落排版及文字／行内对象的几何查询。直接绘图程序和 UI 控件使用同一套公共能力。它依赖实际使用的 core／std／platform 和 `scoop.graphics`，不依赖 window、surface、ui 或控件库。
 
-Cone 名称为 `scoop:scoop.graphics.text`，公共 package 为 `scoop.graphics.text`，计划源码目录为 `sysroot/src/scoop.graphics.text/`。命名上属于 graphics 的文本排版领域，编译单元仍独立；依赖、导入和 internal 可见性遵守普通 Cone 规则，共享名称前缀不产生跨 Cone 内部访问权。`scoop.text` 是 scoop.std 已有的文本处理 package，负责字符串操作、数值文本转换和 Hex，见[标准库规范](SCOOP-STDLIB-SPEC.md)；其含义和现有 API 保持。
+Cone 名称为 `scoop:scoop.graphics.text`，公共 package 为 `scoop.graphics.text`，源码目录为 `sysroot/src/scoop.graphics.text/`。命名上属于 graphics 的文本排版领域，编译单元仍独立；依赖、导入和 internal 可见性遵守普通 Cone 规则，共享名称前缀不产生跨 Cone 内部访问权。`scoop.text` 是 scoop.std 已有的文本处理 package，负责字符串操作、数值文本转换和 Hex，见[标准库规范](SCOOP-STDLIB-SPEC.md)；其含义和现有 API 保持。
 
 | 层 | 目标职责 |
 | --- | --- |
@@ -20,7 +20,7 @@ Cone 名称为 `scoop:scoop.graphics.text`，公共 package 为 `scoop.graphics.
 
 文本算法继续采用当前固定版本的 SkParagraph、HarfBuzz 与 SkUnicode／ICU，系统字体发现继续复用 CoreText／DirectWrite。拆分不要求新的文本引擎、语言语法、编译器处理、runtime ABI 或插件协议。
 
-当前实施批次以 macOS 的 CoreText 与真实离屏／Metal 绘图为验收目标；Windows 的迁移及 DirectWrite 组合留待后续。共享文本模型仍按本规范实现，目标平台的可用性以已交付的 Cone 源码和验证记录为准。
+当前实施批次先以 macOS aarch64 的 CoreText 与真实离屏／Metal 绘图为验收目标，本期功能完成后统一补验 x86_64。拆分时一起移动已有的 DirectWrite 工厂及目标选择，避免保留两套文本所有权；Windows 的新增接入和运行验收留待后续。共享文本模型仍按本规范实现，目标平台的可用性以已交付的 Cone 源码和验证记录为准。
 
 本期支持段落内多字体／字号／样式混排，以及不可分割的行内图片和控件盒子。完整编辑文档、撤销、剪贴板系统接入、accessibility 树、分页、浮动元素和跨多行图文绕排不属于本库本期交付；文本位置、替代文字与选择几何则在本期有明确合同。
 
@@ -106,6 +106,8 @@ maxLines／ellipsis 决定排版可见性；Canvas clip 只决定某次绘制的
 
 对外位置继续使用 Long UTF-8 字节偏移和 TextAffinity；范围为半开区间，端点须在 Unicode 标量边界。UTF-8／UTF-16、grapheme、cluster 与 glyph 的关系由接入层维护；描述树路径和对象 key 不取代文本位置。新增内容或换行可以改变位置，但不会改变未替换对象的 key。
 
+既有纯文字查询继续适用：Upstream／Downstream 选择边界前／后的视觉 run，在软换行处可对应不同行；caret 返回具有指定 thickness 的逻辑矩形。TextLayout 同时提供 grapheme 边界、各行 range／contentRange／visibleRange、基线和 unresolved glyph 数量。空文字有字体决定的行高与起始 caret，无换行请求仍保留显式换行。超过实际 ICU／SkParagraph 索引表示范围的文本在接入处报参数错误。
+
 每个行内对象作为一个原子文本单元，其两端保留为定位边界，不与相邻纯文字合并成不可分的定位单元；纯文字仍按 grapheme 定位。caret 只在对象前后，不落入其编码内部。hitTest 在对象盒内选择其前／后文本位置，结合方向、距离与 affinity 处理；需要把指针交给实际控件时，UI 仍走该控件的 InputArea，不能用文字 hitTest 代替控件事件分发。
 
 selection 返回可见文字和已选中对象的 TextBox；完全覆盖对象的范围包含其实际盒子，被截断部分没有选择几何。一个逻辑范围在 bidi 下仍可返回多个矩形。被截断位置的 caret 为 None，空文本的行高及起始 caret 保持既有行为。
@@ -118,6 +120,8 @@ selection 返回可见文字和已选中对象的 TextBox；完全覆盖对象�
 
 跨 Cone 绘制通过 `scoop.graphics.native` 提供的同步、受限 Unsafe 画布借用接入；有效期沿用原 Canvas。适配经不透明 C ABI 句柄连接同一固定版本的 Skia，不复制 SGCanvas／SGObject 的私有布局，不把 C++ 类型暴露为 Scoop API。graphics.text 自己持有并释放段落／字体对象；graphics 不按文本类型分派或为 graphics.text 建立资源注册表。借用不允许保存画布、跨线程／挂起使用，文字绘制结束后恢复调用方几何状态。
 
+具体入口为 `Canvas.withSkiaCanvas`，签名及原生借用约束见 [Surface 规范第 2 节](SCOOP-SURFACE-SPEC.md#2-几何与绘制)。Canvas.drawText 在这段借用内绘制同一 TextLayout，只使用公开的 Point／Rect／Color 值布局及 Skia 头文件，不包含 graphics 的私有 native 头文件。
+
 FontCollection、Paragraph 和 TextLayout 在创建线程串行使用与关闭；不可变结果不自动获得底层 Skia 缓存的并发保证。native 持有跨调用需要的数据或原生引用，不能保存移动 GC 对象的裸地址。关闭幂等，失败与清理继续遵守既有 GraphicsException、参数／状态异常和 ResourceUseException 合同。
 
 缓存由实际宿主拥有。内容、样式、段落设置或字体集合／revision 改变时重建 Paragraph；宽度、行内尺寸或基线改变时重排。仅位置、Canvas 变换、整体透明度及不改变尺寸的行内绘制变化复用排版。颜色等已经保存在 Paragraph 中的样式变化可以走重建路径，本期不要求另建绘制样式增量系统。
@@ -128,7 +132,7 @@ FontCollection、Paragraph 和 TextLayout 在创建线程串行使用与关闭�
 
 ## 8. 实施与验收
 
-本规范尚未实现。实施时按文本设计同步移动源码、native 所有权、构建依赖、测试、示例和文档；不保留旧 package 别名或 graphics／graphics.text 两套公开文本实现。当前可运行的 graphics API 在迁移实施前仍按 Surface 规范使用，不能把本稿的名称当作已可导入接口。
+基础拆分已包含独立 Cone、字体和段落资源所有权、公开 Canvas 借用、测试和 Surface 示例迁移，不保留旧 package 别名。当前可用的 Paragraph 输入仍为 String／TextStyle 或 Array<TextRun>；下一批由 StyledText／SpanStyle 和行内对象替换 run 作者接口，不长期维护两套内容模型。第 2 至 6 节中的这些新增类型、metrics 与 placement 尚未交付，具体验证范围以实施记录为准。
 
 普通行为测试使用所属 Cone 的 scoop.test，至少覆盖：
 

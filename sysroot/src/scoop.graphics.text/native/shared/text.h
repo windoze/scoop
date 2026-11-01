@@ -1,6 +1,7 @@
 #pragma once
 
-#include "graphics.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkData.h"
 #include "include/core/SkFontArguments.h"
 #include "include/core/SkTypeface.h"
 #include "modules/skparagraph/include/ParagraphBuilder.h"
@@ -8,54 +9,78 @@
 #include "modules/skunicode/include/SkUnicode_icu.h"
 #include "src/core/SkUTF.h"
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace sgt = skia::textlayout;
 
-sk_sp<SkFontMgr> sg_system_fonts();
+struct STPoint {
+  double x, y;
+};
+struct STRect {
+  double x, y, width, height;
+};
+struct STColor {
+  double red, green, blue, alpha;
+};
+struct STObject {
+  virtual ~STObject() = default;
+};
+inline SkColor4f st_color(STColor value) {
+  return {(float)value.red, (float)value.green, (float)value.blue,
+          (float)value.alpha};
+}
+inline STRect st_rect(const SkRect &value) {
+  return {value.x(), value.y(), value.width(), value.height()};
+}
 
-struct SGFontEntry {
+sk_sp<SkFontMgr> st_system_fonts();
+
+struct STFontEntry {
   sk_sp<SkTypeface> face;
   SkString family;
 };
-struct SGFonts : SGObject {
+struct STFonts : STObject {
   sk_sp<SkFontMgr> system;
-  std::vector<SGFontEntry> entries;
+  std::vector<STFontEntry> entries;
   bool fallback;
-  SGFonts(sk_sp<SkFontMgr> manager, bool enabled)
+  STFonts(sk_sp<SkFontMgr> manager, bool enabled)
       : system(std::move(manager)), fallback(enabled) {}
   sk_sp<sgt::FontCollection> snapshot() const;
 };
-struct SGTextStyleData {
-  SGColor color;
+struct STTextStyleData {
+  STColor color;
   double size, height, letter, word;
   int32_t weight, width, slant, has_height;
 };
-struct SGTextStyle : SGObject {
+struct STTextStyle : STObject {
   sgt::TextStyle style;
   std::vector<SkString> families;
   std::vector<SkFontArguments::VariationPosition::Coordinate> variations;
 };
-struct SGRichRun {
+struct STRichRun {
   std::string text;
   sgt::TextStyle style;
 };
-struct SGParagraphBuilder : SGObject {
+struct STParagraphBuilder : STObject {
   sk_sp<sgt::FontCollection> fonts;
   sgt::ParagraphStyle style;
   std::string text;
-  std::vector<SGRichRun> runs;
-  explicit SGParagraphBuilder(sk_sp<sgt::FontCollection> source)
+  std::vector<STRichRun> runs;
+  explicit STParagraphBuilder(sk_sp<sgt::FontCollection> source)
       : fonts(std::move(source)) {}
 };
-struct SGTextData {
+struct STTextData {
   std::string text;
   sk_sp<SkUnicode> unicode;
   std::vector<size_t> to16, to8;
   std::vector<int64_t> graphemes;
-  explicit SGTextData(std::string value);
+  explicit STTextData(std::string value);
   bool scalar(int64_t index) const {
     return index >= 0 && (size_t)index < to16.size() &&
            to16[index] != std::numeric_limits<size_t>::max();
@@ -65,55 +90,55 @@ struct SGTextData {
   }
   size_t byte(size_t utf16) const { return to8.at(utf16); }
 };
-struct SGParagraph : SGObject {
+struct STParagraph : STObject {
   sk_sp<sgt::FontCollection> fonts;
   sgt::ParagraphStyle style;
-  std::vector<SGRichRun> runs;
-  std::shared_ptr<SGTextData> data;
-  explicit SGParagraph(const SGParagraphBuilder &builder)
+  std::vector<STRichRun> runs;
+  std::shared_ptr<STTextData> data;
+  explicit STParagraph(const STParagraphBuilder &builder)
       : fonts(builder.fonts), style(builder.style), runs(builder.runs),
-        data(std::make_shared<SGTextData>(builder.text)) {}
+        data(std::make_shared<STTextData>(builder.text)) {}
 };
-struct SGRange {
+struct STRange {
   int64_t start, end;
 };
-struct SGTextLine {
-  SGRange range, content, visible;
-  SGRect rect;
+struct STTextLine {
+  STRange range, content, visible;
+  STRect rect;
   double baseline, ascent, descent;
   int32_t hard_break;
 };
-struct SGLayoutInfo {
+struct STLayoutInfo {
   double width, height, minimum, maximum, alphabetic, ideographic;
   int64_t lines, graphemes;
   int32_t exceeded, unresolved;
 };
-struct SGTextHit {
+struct STTextHit {
   int64_t byte;
   int32_t affinity, status;
 };
-struct SGCaret {
-  SGRect rect;
+struct STCaret {
+  STRect rect;
   int32_t status;
 };
-struct SGTextBox {
-  SGRect rect;
+struct STTextBox {
+  STRect rect;
   int32_t direction;
 };
-struct SGTextBoxes : SGObject {
+struct STTextBoxes : STObject {
   std::vector<sgt::TextBox> values;
 };
-struct SGSelection {
+struct STSelection {
   void *pointer;
   int32_t status;
 };
-struct SGTextLayout : SGObject {
+struct STTextLayout : STObject {
   std::unique_ptr<sgt::Paragraph> paragraph;
-  std::shared_ptr<SGTextData> data;
+  std::shared_ptr<STTextData> data;
   sgt::ParagraphStyle style;
-  std::vector<SGTextLine> lines;
-  SGLayoutInfo info;
-  SGTextLayout(const SGParagraph &source, double width, bool wrap);
+  std::vector<STTextLine> lines;
+  STLayoutInfo info;
+  STTextLayout(const STParagraph &source, double width, bool wrap);
   size_t visible_end() const;
   int line_at(size_t byte, bool upstream) const;
 };

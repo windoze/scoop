@@ -1,6 +1,6 @@
 #include "text.h"
 
-sk_sp<sgt::FontCollection> SGFonts::snapshot() const {
+sk_sp<sgt::FontCollection> STFonts::snapshot() const {
   auto result = sk_make_sp<sgt::FontCollection>();
   auto assets = sk_make_sp<sgt::TypefaceFontProvider>();
   for (const auto &entry : entries)
@@ -13,7 +13,7 @@ sk_sp<sgt::FontCollection> SGFonts::snapshot() const {
   return result;
 }
 
-SGTextData::SGTextData(std::string value)
+STTextData::STTextData(std::string value)
     : text(std::move(value)), unicode(SkUnicodes::ICU::Make()),
       to16(text.size() + 1, std::numeric_limits<size_t>::max()) {
   if (!unicode)
@@ -44,19 +44,22 @@ SGTextData::SGTextData(std::string value)
 }
 
 extern "C" {
-void *scoop_graphics_fonts_create(bool fallback) {
+void scoop_graphics_text_drop(void *pointer) {
+  delete static_cast<STObject *>(pointer);
+}
+void *scoop_graphics_text_fonts_create(bool fallback) {
   try {
-    auto manager = sg_system_fonts();
-    return manager ? new SGFonts(std::move(manager), fallback) : nullptr;
+    auto manager = st_system_fonts();
+    return manager ? new STFonts(std::move(manager), fallback) : nullptr;
   } catch (...) {
     return nullptr;
   }
 }
-int32_t scoop_graphics_fonts_add(void *pointer, const void *bytes,
-                                 int64_t length, const char *alias,
-                                 int64_t alias_length, int32_t index) {
+int32_t scoop_graphics_text_fonts_add(void *pointer, const void *bytes,
+                                      int64_t length, const char *alias,
+                                      int64_t alias_length, int32_t index) {
   try {
-    auto fonts = static_cast<SGFonts *>(pointer);
+    auto fonts = static_cast<STFonts *>(pointer);
     auto data = SkData::MakeWithCopy(bytes, (size_t)length);
     auto face = fonts->system->makeFromData(std::move(data), index);
     if (!face)
@@ -68,10 +71,10 @@ int32_t scoop_graphics_fonts_add(void *pointer, const void *bytes,
     return 0;
   }
 }
-void *scoop_graphics_text_style_create(SGTextStyleData value) {
+void *scoop_graphics_text_style_create(STTextStyleData value) {
   try {
-    auto result = std::make_unique<SGTextStyle>();
-    result->style.setColor(sg_color(value.color).toSkColor());
+    auto result = std::make_unique<STTextStyle>();
+    result->style.setColor(st_color(value.color).toSkColor());
     result->style.setFontSize((float)value.size);
     result->style.setFontStyle(SkFontStyle(value.weight, value.width,
                                            (SkFontStyle::Slant)value.slant));
@@ -89,7 +92,7 @@ void *scoop_graphics_text_style_create(SGTextStyleData value) {
 int32_t scoop_graphics_text_style_string(void *pointer, const char *value,
                                          int64_t length, bool locale) {
   try {
-    auto style = static_cast<SGTextStyle *>(pointer);
+    auto style = static_cast<STTextStyle *>(pointer);
     SkString text(value, (size_t)length);
     if (locale)
       style->style.setLocale(text);
@@ -105,7 +108,7 @@ int32_t scoop_graphics_text_style_string(void *pointer, const char *value,
 int32_t scoop_graphics_text_style_feature(void *pointer, const char *tag,
                                           double value, bool variation) {
   try {
-    auto style = static_cast<SGTextStyle *>(pointer);
+    auto style = static_cast<STTextStyle *>(pointer);
     if (variation) {
       SkFourByteTag axis = SkSetFourByteTag(tag[0], tag[1], tag[2], tag[3]);
       style->variations.push_back({axis, (float)value});
@@ -121,12 +124,13 @@ int32_t scoop_graphics_text_style_feature(void *pointer, const char *tag,
     return 0;
   }
 }
-void *scoop_graphics_paragraph_begin(void *pointer, int32_t alignment,
-                                     int32_t direction, int64_t max_lines,
-                                     const char *ellipsis, int64_t length) {
+void *scoop_graphics_text_paragraph_begin(void *pointer, int32_t alignment,
+                                          int32_t direction, int64_t max_lines,
+                                          const char *ellipsis,
+                                          int64_t length) {
   try {
-    auto result = std::make_unique<SGParagraphBuilder>(
-        static_cast<SGFonts *>(pointer)->snapshot());
+    auto result = std::make_unique<STParagraphBuilder>(
+        static_cast<STFonts *>(pointer)->snapshot());
     result->style.setTextAlign((sgt::TextAlign)alignment);
     result->style.setTextDirection((sgt::TextDirection)direction);
     result->style.setApplyRoundingHack(false);
@@ -139,11 +143,11 @@ void *scoop_graphics_paragraph_begin(void *pointer, int32_t alignment,
     return nullptr;
   }
 }
-int32_t scoop_graphics_paragraph_run(void *pointer, void *style_pointer,
-                                     const char *text, int64_t length) {
+int32_t scoop_graphics_text_paragraph_run(void *pointer, void *style_pointer,
+                                          const char *text, int64_t length) {
   try {
-    auto builder = static_cast<SGParagraphBuilder *>(pointer);
-    auto &style = static_cast<SGTextStyle *>(style_pointer)->style;
+    auto builder = static_cast<STParagraphBuilder *>(pointer);
+    auto &style = static_cast<STTextStyle *>(style_pointer)->style;
     if (builder->runs.empty())
       builder->style.setTextStyle(style);
     if ((uint64_t)length + builder->text.size() > INT32_MAX)
@@ -155,9 +159,9 @@ int32_t scoop_graphics_paragraph_run(void *pointer, void *style_pointer,
     return 0;
   }
 }
-void *scoop_graphics_paragraph_finish(void *pointer) {
+void *scoop_graphics_text_paragraph_finish(void *pointer) {
   try {
-    return new SGParagraph(*static_cast<SGParagraphBuilder *>(pointer));
+    return new STParagraph(*static_cast<STParagraphBuilder *>(pointer));
   } catch (...) {
     return nullptr;
   }

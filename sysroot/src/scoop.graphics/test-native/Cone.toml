@@ -6,6 +6,8 @@ version = "0.1.0"
 kind = "library"
 
 [[sources]]
+path = "src/canvas.scoop"
+[[sources]]
 path = "src/metal.scoop"
 when = { os = "darwin" }
 [[sources]]
@@ -14,14 +16,20 @@ when = { os = "windows" }
 
 [native]
 cxx = true
-cxx_flags = ["-Wmost", "-Wextra", "-Werror"]
+include = [{ sysroot = "include/skia" }]
+cxx_flags = ["-Wmost", "-Wextra", "-Werror", "-Wno-unused-parameter", "-DSK_RELEASE"]
 objc_flags = ["-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/canvas.cpp"
 [[native.sources]]
 path = "native/metal.m"
 when = { os = "darwin" }
 [[native.sources]]
 path = "native/d3d.cpp"
 when = { os = "windows" }
+[[native.libraries]]
+name = "scoop_skia"
+kind = "static"
 [[native.libraries]]
 name = "Foundation"
 kind = "framework"

@@ -1,0 +1,117 @@
+package scoop.graphics
+
+import scoop.graphics.native.*
+import scoop.platform.concurrent.Thread
+import scoop.tests.graphics.drawNativeMarker
+import scoop.test.*
+
+@Test
+private class NativeCanvasTest {
+    @Test
+    fun `native draw restores transform clip and save depth before ordinary drawing`() {
+        RasterSurface(40, 40).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color.Transparent)
+                canvas.translate(2.0, 3.0)
+                canvas.clipRect(Rect(0.0, 0.0, 24.0, 20.0))
+                @Unsafe
+                {
+                    val result =
+                        canvas.withSkiaCanvas {
+                            pointer -> @Unsafe
+                            {
+                                assertTrue(drawNativeMarker(pointer))
+                                return@withSkiaCanvas 41
+                            }
+                        }
+                    assertEquals(41, result)
+                }
+                assertRestoredCanvas(canvas)
+            }
+            assertMarkerPixels(surface.readPixels())
+        }
+    }
+
+    @Test
+    fun `a throwing native borrow restores the caller canvas before the error is caught`() {
+        RasterSurface(40, 40).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color.Transparent)
+                canvas.translate(2.0, 3.0)
+                canvas.clipRect(Rect(0.0, 0.0, 24.0, 20.0))
+                assertFailsWith<IllegalStateException> {
+                    @Unsafe
+                    {
+                        canvas.withSkiaCanvas {
+                            pointer ->
+                            @Unsafe
+                            {
+                                assertTrue(drawNativeMarker(pointer))
+                            }
+                            throw IllegalStateException(Some("native draw callback failed"))
+                        }
+                    }
+                }
+                assertRestoredCanvas(canvas)
+            }
+            assertMarkerPixels(surface.readPixels())
+        }
+    }
+
+    @Test
+    fun `expired and foreign-thread canvases reject native borrowing before the callback`() {
+        val expired =
+            RasterSurface(10, 10).use {
+                surface -> surface.draw {
+                    canvas ->
+                    Thread.start {
+                        assertFailsWith<IllegalStateException> {
+                            @Unsafe
+                            {
+                                canvas.withSkiaCanvas {
+                                    _ -> fail(Some("foreign canvas callback ran"))
+                                }
+                            }
+                        }
+                    }.use { thread -> thread.join() }
+                    canvas
+                }
+            }
+        assertFailsWith<IllegalStateException> {
+            @Unsafe
+            {
+                expired.withSkiaCanvas { _ -> fail(Some("expired canvas callback ran")) }
+            }
+        }
+    }
+}
+
+private fun assertRestoredCanvas(canvas: Canvas) {
+    canvas.drawRect(Rect(0.0, 0.0, 2.0, 2.0), Paint(Color(0.0, 1.0, 0.0)))
+    canvas.drawRect(Rect(22.0, 18.0, 6.0, 6.0), Paint(Color(0.0, 0.0, 1.0)))
+    @Unsafe
+    {
+        captureGeometry(canvas, Rect(0.0, 0.0, 30.0, 30.0)).use {
+            geometry ->
+            assertEquals(Some(Point(1.0, 1.0)), geometry.toLocal(Point(3.0, 4.0)))
+            assertTrue(geometry.hitTest(Point(25.0, 22.0)))
+            assertFalse(geometry.hitTest(Point(27.0, 24.0)))
+        }
+    }
+    assertFailsWith<IllegalArgumentException> { canvas.restore() }
+}
+
+private fun assertMarkerPixels(pixels: Array<Byte>) {
+    assertEquals(255, nativeChannel(pixels, 11, 8, 0))
+    assertEquals(255, nativeChannel(pixels, 2, 3, 1))
+    assertEquals(255, nativeChannel(pixels, 25, 22, 2))
+    assertEquals(0, nativeChannel(pixels, 26, 23, 3))
+    assertEquals(0, nativeChannel(pixels, 16, 8, 3))
+}
+
+private fun nativeChannel(pixels: Array<Byte>, x: Int, y: Int, component: Int): Int =
+    pixels[((y * 40 + x) * 4 + component).toLong()].toUByte().toInt()

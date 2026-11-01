@@ -1,6 +1,6 @@
 #include "text.h"
 
-SGTextLayout::SGTextLayout(const SGParagraph &source, double width, bool wrap)
+STTextLayout::STTextLayout(const STParagraph &source, double width, bool wrap)
     : data(source.data), style(source.style) {
   auto builder =
       sgt::ParagraphBuilder::make(style, source.fonts, data->unicode);
@@ -67,10 +67,10 @@ SGTextLayout::SGTextLayout(const SGParagraph &source, double width, bool wrap)
     throw std::runtime_error("text layout overflow");
 }
 
-size_t SGTextLayout::visible_end() const {
+size_t STTextLayout::visible_end() const {
   return lines.empty() ? 0 : (size_t)lines.back().visible.end;
 }
-int SGTextLayout::line_at(size_t byte, bool upstream) const {
+int STTextLayout::line_at(size_t byte, bool upstream) const {
   if (lines.empty() || (info.exceeded && byte > visible_end()))
     return -1;
   if (upstream && byte > 0)
@@ -88,26 +88,25 @@ int SGTextLayout::line_at(size_t byte, bool upstream) const {
 extern "C" {
 void *scoop_graphics_text_layout(void *pointer, double width, bool wrap) {
   try {
-    return new SGTextLayout(*static_cast<SGParagraph *>(pointer), width, wrap);
+    return new STTextLayout(*static_cast<STParagraph *>(pointer), width, wrap);
   } catch (...) {
     return nullptr;
   }
 }
-SGLayoutInfo scoop_graphics_text_info(void *pointer) {
-  return static_cast<SGTextLayout *>(pointer)->info;
+STLayoutInfo scoop_graphics_text_info(void *pointer) {
+  return static_cast<STTextLayout *>(pointer)->info;
 }
-SGTextLine scoop_graphics_text_line(void *pointer, int64_t index) {
-  return static_cast<SGTextLayout *>(pointer)->lines[(size_t)index];
+STTextLine scoop_graphics_text_line(void *pointer, int64_t index) {
+  return static_cast<STTextLayout *>(pointer)->lines[(size_t)index];
 }
 void scoop_graphics_text_graphemes(void *pointer, int64_t *output) {
-  const auto &values = static_cast<SGTextLayout *>(pointer)->data->graphemes;
+  const auto &values = static_cast<STTextLayout *>(pointer)->data->graphemes;
   std::copy(values.begin(), values.end(), output);
 }
-int32_t scoop_graphics_text_paint(void *pointer, void *target, SGPoint origin) {
+int32_t scoop_graphics_text_paint(void *pointer, void *target, STPoint origin) {
   try {
-    static_cast<SGTextLayout *>(pointer)->paragraph->paint(
-        static_cast<SGCanvas *>(target)->canvas, (float)origin.x,
-        (float)origin.y);
+    static_cast<STTextLayout *>(pointer)->paragraph->paint(
+        static_cast<SkCanvas *>(target), (float)origin.x, (float)origin.y);
     return 1;
   } catch (...) {
     return 0;

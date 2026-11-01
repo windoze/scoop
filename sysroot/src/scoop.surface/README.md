@@ -2,7 +2,7 @@
 
 本库提供窗口呈现、帧调度、动画与区域输入。上层的 `scoop.ui` 提供不含现成控件的自绘框架，`scoop.ui.component` 使用其公开能力实现 Label／Button 等基础控件，见 [UI 设计](../../../docs/ui/DESIGN.md)；这两个上层库均尚未实现。
 
-公共字体、富文本、段落和行内对象另见 [scoop.graphics.text 设计](../../../docs/graphics/text/DESIGN.md)，目前仍处于设计阶段，现有文本 API 位于 graphics。Surface 继续只管理呈现、动画和区域几何，文本或 UI 宿主拥有具体内容和资源。
+公共字体和段落 API 已迁入 [scoop.graphics.text](../scoop.graphics.text/README.md)，富文本描述和行内对象继续按[设计](../../../docs/graphics/text/DESIGN.md)实施。Surface 继续只管理呈现、动画和区域几何，文本或 UI 宿主拥有具体内容和资源。
 
 普通 Scoop Cone，提供共享 Surface 宿主、动画、区域输入与按目标选择的平台 renderer。macOS 使用 CAMetalLayer／CAMetalDisplayLink 和 Skia Ganesh Metal；Windows 使用 D3D12、DXGI swapchain／frame-latency waitable object 和 DirectComposition。共享代码只依赖 window 的事件、配置、代理和 lease 合同。
 

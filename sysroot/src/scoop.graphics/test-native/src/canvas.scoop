@@ -1,0 +1,8 @@
+package scoop.tests.graphics
+
+/** Draws through public Skia APIs and deliberately leaves nested canvas state. */
+@Unsafe
+public fun drawNativeMarker(canvas: Ptr<Unit>): Boolean = canvasMarker(canvas)
+
+@Extern(name = "scoop_graphics_test_canvas_marker")
+private fun canvasMarker(canvas: Ptr<Unit>): Boolean

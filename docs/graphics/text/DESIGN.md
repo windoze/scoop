@@ -1,14 +1,14 @@
 # scoop.graphics.text：富文本排版与行内对象设计
 
-日期：2026-11-01。状态：进入 macOS 分批实施，当前尚未迁移源码或交付行内对象，进展见 [UI 实施记录](../../ui/PROGRESS.md)。目标合同见 [文本排版规范](../../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)，UI 对接见 [UI 规范第 7.5 节](../../specs/SCOOP-UI-SPEC.md#75-公共文本接入)，整体分层见 [UI 设计](../../ui/DESIGN.md)。
+日期：2026-11-01。状态：进入 macOS 分批实施，已迁移基础字体和段落源码，行内对象尚未交付，进展见 [UI 实施记录](../../ui/PROGRESS.md)。目标合同见 [文本排版规范](../../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)，UI 对接见 [UI 规范第 7.5 节](../../specs/SCOOP-UI-SPEC.md#75-公共文本接入)，整体分层见 [UI 设计](../../ui/DESIGN.md)。
 
 ## 1. 从现有能力演进
 
-现有 `scoop.graphics` 已有 FontCollection、多样式 TextRun、Paragraph／TextLayout、行与基线、UTF 索引、caret／selection 和命中查询。它们当前属于已交付 graphics API，见 [Surface 规范第 3 节](../../specs/SCOOP-SURFACE-SPEC.md#3-字体与文本布局)。
+已有的 FontCollection、多样式 TextRun、Paragraph／TextLayout、行与基线、UTF 索引、caret／selection 和命中查询已迁入 `scoop.graphics.text`。该库经公开的 `Canvas.withSkiaCanvas` 同步借用绘图目标，独立持有和释放字体／段落，不再包含 graphics 的私有 native 头文件。
 
 新增需求是把字体、字号和样式混排提升为公共内容描述，并让图片及任意自绘控件参与段落断行与行高计算。TextLayout 作为排版结果保留；内容、样式继承和行内 metrics 是其上游输入，控件挂载及绘制是其下游使用者。
 
-使用 `scoop.graphics.text` 表达图形领域的文本排版；`scoop.text` 已由 scoop.std 用于字符串操作、数值转换和 Hex，见[标准库规范](../../specs/SCOOP-STDLIB-SPEC.md)。排版库仍是独立 Cone，计划位于 `sysroot/src/scoop.graphics.text/`，与 graphics 通过普通依赖连接。
+使用 `scoop.graphics.text` 表达图形领域的文本排版；`scoop.text` 已由 scoop.std 用于字符串操作、数值转换和 Hex，见[标准库规范](../../specs/SCOOP-STDLIB-SPEC.md)。排版库仍是独立 Cone，位于 `sysroot/src/scoop.graphics.text/`，与 graphics 通过普通依赖连接。
 
 拆为普通 `scoop.graphics.text` Cone，依赖 graphics 的几何、颜色和画布；字体与文字 API 随之迁出 graphics。Canvas.drawText 扩展定义在 graphics.text，维持单向依赖。surface 继续接收 Rect caret，不持有文本内容，不因本次拆分依赖 graphics.text。ui 通过本 Cone 内的 `scoop.ui.text` 公共适配包使用 graphics.text。
 

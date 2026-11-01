@@ -2,6 +2,8 @@
 
 日期：2026-10-31。分支：`codex/gui-macos`。第一期共享架构与 macOS 部分已交付；其他平台 renderer 留待后续。公共合同见 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)，架构与调研依据见 [设计](DESIGN.md)。
 
+2026-11-01：基础字体与段落能力已迁入独立 scoop.graphics.text，并增加公开 Canvas 原生借用。本文下方保留拆分前的验收记录；本次 aarch64 的绘图、文本及必要消费者验证见 [UI 实施记录](../ui/PROGRESS.md#31-独立文本库与画布借用)，x86_64 在本期 UI 功能完成后统一补验。
+
 ## 交付范围
 
 | 内容 | 已交付能力 |

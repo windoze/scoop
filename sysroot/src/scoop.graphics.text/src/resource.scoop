@@ -1,0 +1,68 @@
+package scoop.graphics.text
+
+import scoop.graphics.GraphicsException
+import scoop.graphics.Point
+import scoop.graphics.Color
+import scoop.platform.concurrent.currentThreadId
+
+internal class TextResource(pointer: Ptr<Unit>): Closeable {
+    private val thread = currentThreadId()
+    private var pointer: Ptr<Unit>? = Some(pointer)
+    val isClosed: Boolean get() = pointer == None
+    fun checkThread() {
+        if (thread != currentThreadId())
+            throw IllegalStateException(Some("text resource requires its owner thread"))
+    }
+    fun get(): Ptr<Unit> {
+        checkThread()
+        return pointer ?: throw IllegalStateException(Some("text resource is closed"))
+    }
+    public override fun close() {
+        checkThread()
+        when (pointer) {
+            case Some(value) -> {
+                pointer = None
+                @Unsafe
+                {
+                    textDrop(value)
+                }
+            }
+            case None -> {}
+        }
+    }
+}
+
+internal fun ownedText(pointer: Ptr<Unit>?, operation: String): TextResource =
+    TextResource(pointer ?: throw GraphicsException(operation))
+
+internal fun textResult(result: Int, operation: String) {
+    if (result < 0)
+        throw IllegalArgumentException(Some(operation))
+    if (result == 0)
+        throw GraphicsException(operation)
+}
+
+internal fun requireText(condition: Boolean, message: String) {
+    if (!condition)
+        throw IllegalArgumentException(Some(message))
+}
+
+internal fun checkTextScalar(value: Double) {
+    requireText(value.isFinite() && value.toFloat().isFinite(), "text scalar overflow")
+}
+
+internal fun checkTextPoint(value: Point) {
+    checkTextScalar(value.x)
+    checkTextScalar(value.y)
+}
+
+internal fun checkTextColor(value: Color) {
+    for (component in [value.red, value.green, value.blue, value.alpha])
+        requireText(
+            component.isFinite() && component >= 0.0 && component <= 1.0,
+            "invalid sRGB text color"
+        )
+}
+
+@Extern(name = "scoop_graphics_text_drop")
+private fun textDrop(pointer: Ptr<Unit>)
