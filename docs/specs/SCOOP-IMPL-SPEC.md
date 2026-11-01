@@ -745,6 +745,8 @@ manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 
 
 production 与 Link metadata 保存消费方实际使用的 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、registration identities、静态存储与初始化单元、image/root entry 归属、defined symbol owners、未定义符号使用以及 native contracts 与逻辑 library requirements。只用于 codegen 的对象定义计划、digest finalization、shape/bridge 生产计划、重复的 callable/shape ABI 和 runtime registration 生产副本保留在生产阶段内存中，不写入 production section。完整 runtime/GC 记录仍正常发射到机器对象。
 
+生产期的各类注册构造按完整 typed key 复用同一计划的 digest 节点查询索引，保留节点既有排序与身份；索引不进入持久化数据。codegen 删除不再发射的 safepoint 节点时，同步更新查询索引及其输入边。
+
 `cone-production/16` 仅保存字段 5 registration production、6 image plan、7 entry plan。共用该生产投影的 `strong-production` section 编码为 26；旧 Strong profile 仍不作为消费入口。字段 2 canonical definitions 与 LIR foundation 已保存的 definition plans、atoms 及 typed symbol requests 重复，不再落盘。Compile 直接从已解析的 foundation 投影所需定义；Link 只投影 owner、entity、role 和实际 image trap 符号，不重建完整 codegen symbol surface。该投影只做现有 key 的机械转换，不重放生产阶段的符号、布局或对象校验。registration production 仅保存字段 1 identities、6 static storages、7 initialization units；image plan 仅保存字段 4 symbol、6 support atoms，support atoms 仅保存字段 11 array-bounds message 和 12 array-size-overflow message。其余生产字段没有下游消费者，当前格式不编码也不解码这些副本。
 
 `link-identity-closure/21` 的字段 5 保存全部跨物理 member 符号使用，按目标符号原始 bytes 排序、分组，每组仅有字段 1 target 和 2 按 ID 排序、去重的 source members。target 为封闭和类型：tag 1 保存字段 1 的 defined symbol owner 目录下标，tag 2 保存字段 1 的外部符号原始 bytes。同 Cone 目标直接引用已有目录；跨 Cone 和普通 native 名称每个不同符号只保存一次。生产时直接投影已经解析的实际 relocation，包含同 Cone、跨 Cone callable／shape、ODR、generated-C、runtime 和 native 引用；不能只投影 legacy undefined requirement 子集而遗漏跨 Cone 使用。对象内部已经闭合的引用不重复保存。完整 relocation 和 requirement 继续用于生产阶段的对象处理与 Code 指纹，不作为链接器不消费的副本落盘。

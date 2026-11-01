@@ -245,9 +245,8 @@ fn require_digest_node(
 ) -> Result<&crate::DigestNodeV1, EntryProductionPlanBuildError> {
     let id = DigestNodeId::from_key(&key).map_err(EntryProductionPlanBuildError::Hash)?;
     digests
-        .nodes()
-        .iter()
-        .find(|node| node.id() == id && node.key() == &key)
+        .node(&key)
+        .filter(|node| node.id() == id)
         .ok_or(EntryProductionPlanBuildError::MissingDigestNode(id))
 }
 

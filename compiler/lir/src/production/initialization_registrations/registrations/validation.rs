@@ -205,8 +205,6 @@ pub(super) fn require_digest_node(
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongInitializationUnitRegistrationPlanBuildError> {
     digests
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &key)
+        .node(&key)
         .ok_or(StrongInitializationUnitRegistrationPlanBuildError::MissingDigestNode(key))
 }

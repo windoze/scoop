@@ -70,12 +70,9 @@ impl ConeImagePlanV1 {
         let (primary_atom, support_atoms) = require_image_atoms(foundation, definition_plan)?;
 
         digest_plan
-            .nodes()
-            .iter()
-            .find(|node| {
-                node.key().owner_and_role()
-                    == scoop_identity::DigestOwnerAndRoleKey::RuntimeImage(cone.identity())
-            })
+            .node(&scoop_identity::DigestNodeKey::runtime_image(
+                cone.identity(),
+            ))
             .ok_or(ConeImagePlanBuildError::MissingDigestNode)?;
 
         Ok(Self {

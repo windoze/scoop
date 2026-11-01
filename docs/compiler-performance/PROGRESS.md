@@ -373,11 +373,38 @@ macOS、Linux、Windows 的 release workspace all-targets Clippy 均通过；各
 
 本轮作为已有正确性问题的修复，不记录编译速度收益，也未重跑全量 fixture。原始崩溃堆栈、带诊断输出的旧版运行结果和修复验证日志保存在仓库外；临时崩溃二进制及已完成的初步索引实验目录已清理。保留修复后的 macOS／Linux 工具，下一轮索引优化以它们为基线重新测量。
 
+## 第十七轮：为 production 的 digest 查询建立索引
+
+callable、safepoint、类型、静态存储、初始化、入口和 runtime image 的注册构造原先反复线性扫描完整 digest 节点表。现在为同一计划建立按完整 typed key 排序的节点位置索引，查询改为二分；节点本身仍按原 canonical 身份排序，索引不进入持久化数据。codegen 删除不再发射的 safepoint 时同步重建位置索引并清理输入边。构造入口也去掉一次已包含在 `validate_plan` 内的重复节点检测，保留原错误优先级。
+
+以下对照的前后工具均包含第十六轮生命周期修复。两边使用相同路径、源码和预编译依赖，jobs 固定为 macOS 32、Linux 20，各执行三组交替顺序的冷构建。每组先编译库，再编译、链接实际消费者；两步合计取各组两条命令耗时之和的中位数。
+
+| 宿主与源码 Cone | Scoop profile | 库编译前 → 后 | 库耗时减少 | 消费者冷构建前 → 后 | 两步合计前 → 后 | 合计耗时减少 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| macOS `scoop.std` | debug | 5.351 → 5.268 s | 1.5% | 1.999 → 1.988 s | 7.399 → 7.232 s | 2.3% |
+| macOS `scoop.std` | release | 5.628 → 5.594 s | 0.6% | 1.818 → 1.792 s | 7.468 → 7.424 s | 0.6% |
+| macOS `scoop.http.client` | debug | 38.262 → 36.362 s | 5.0% | 18.666 → 18.376 s | 56.928 → 54.879 s | 3.6% |
+| macOS `scoop.http.client` | release | 37.690 → 35.397 s | 6.1% | 18.459 → 18.319 s | 56.079 → 53.694 s | 4.3% |
+| Linux `scoop.std` | debug | 9.784 → 9.776 s | 0.1% | 2.383 → 2.370 s | 12.189 → 12.145 s | 0.4% |
+| Linux `scoop.std` | release | 9.868 → 9.886 s | -0.2% | 2.275 → 2.284 s | 12.143 → 12.170 s | -0.2% |
+
+明确收益集中在较大的 HTTP 客户端：库编译减少 5.0%／6.1%，连同消费者的两步合计减少 3.6%／4.3%。标准库的变化较小，Linux 的库编译差异不到 0.2%，不视为明确加速；不据此推断 Windows 性能。
+
+72 次源码冷构建均只启动目标 Cone 的一个编译 child；对应 72 次热构建均命中且没有编译 child，消费者冷／热 link plan 指纹一致。库与消费者共 12 组完整 `.slib`，各组六份 SHA-256 全部相同，尺寸不变；36 次实际运行均得到预期的 `2` 或 `true`。首次库构建还与第十五轮代表产物比较完整文件，确认生命周期修复也未改变产物。热构建中位数为 macOS 19.15～24.37 ms、Linux 12.92～14.75 ms，未计为本轮收益。
+
+按各组三次测量中的最大单进程 RSS 报告，macOS 标准库 debug／release 增加 3.1／18.6 MiB，HTTP 库增加 19.4／221.2 MiB；HTTP 消费者分别减少 18.5 MiB、增加 72.9 MiB。Linux 各项变化为 -0.5～+0.4 MiB。索引只存储节点位置，不复制节点或它们的 key。
+
+三个宿主的 release workspace all-targets Clippy 均通过，production、后端和真实泛型／跨产物定向 Rust 测试各 134 项通过。新增三项回归覆盖 key 排序与 canonical 排序不同、重复节点的原诊断，以及删除 safepoint 后索引和剩余输入边的一致性。后端继续在七目标、两配置和不同 jobs 下比较完整对象 bytes、分区与生产记录。
+
+Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl、Windows MSVC、MinGW/MSVCRT、MinGW/UCRT 的正式 CLI 确定性与泛型异常控制流用例全部通过，合计 14 次 fixture 执行、21 个 variant、91 次进程调用，未重跑全量 fixture。独立于计时的六次 HTTP 库／消费者采样构建也保持完整产物一致，四次消费者运行成功。最终工具的采样显示元数据分区仍是 debug／release 共有的主要串行热点，消费者还存在明显的后端依赖数据读取和链接准备开销。
+
+原始配对计时、采样和七目标验证报告保存在仓库外。已清理每次测量与采样的缓存、完成的 fixture 工作目录与缓存、重复产物及退役工具；保留最终工具、每种 profile 的一份库／消费者代表产物，以及下一轮继续使用的小型消费者源码。
+
 ## 后续优先级
 
 尺寸优化按用户补充要求，优先精简结构、删除不必要或重复的信息；压缩只作为最后的补充，且不采用 CPU／内存消耗过大的算法。
 
-1. 按用户最新要求，尺寸优化告一段落，转入编译速度大项，优先处理 debug／release 共有路径。Windows MSVC 原有完整验收及全部失败复测已结束，两个 MinGW 全量 CLI 留到速度大项完成后的统一验收。已落地 Scoop 对象内存交接、独立 LLVM context 的并行发射和链接选中后的对象按需落盘，并修复实际遇到的调试信息、压缩、Windows 路径及 LLVM Context 生命周期错误。下一项优先验证 production 构造中反复全表查找 digest 的索引化，再评估元数据分区热点，继续保持全部 GC／ABI 合同。
+1. 按用户最新要求，尺寸优化告一段落，转入编译速度大项，优先处理 debug／release 共有路径。Windows MSVC 原有完整验收及全部失败复测已结束，两个 MinGW 全量 CLI 留到速度大项完成后的统一验收。已落地 Scoop 对象内存交接、独立 LLVM context 的并行发射和链接选中后的对象按需落盘，并修复实际遇到的调试信息、压缩、Windows 路径及 LLVM Context 生命周期错误。production 构造中的 digest 查询索引已落地。下一项优先验证元数据分区克隆、裁剪与发射路径的并行化，并继续研究依赖读取和链接准备中的剩余成本，保持全部 GC／ABI 合同。
 2. 当前完整 29 库的 HIR／MIR／LIR 字符串表投影仅省约 1.05～1.06 MiB，其中 LIR 约 0.04～0.08 MiB。注册记录 ABI 去掉重复 group／member hash 输入的投影约省 1.93 MiB，该估算尚保留旧索引，仅用于候选排序。跨三层 metadata 的重复 ID 原始字节上限为 7.03 MiB，尚未扣映射开销；全局 union 会让只请求 HIR 的读取载入大量 LIR 专用 ID，先保留阶段局部读取。这些候选后置。manifest 的全量 ID 表此前反而增加约 2.10 MiB，不采用。
 
 已排除直接复用 LLVM 22.1 的对象发射 pass manager：即使 AsmPrinter／MCStreamer／MachineModuleInfo 有逐模块收尾，带 GC statepoint 与异常展开的第二个函数模块仍残留前一模块的栈映射记录；仅数据流水线在 COFF debug → 无 debug 切换时也残留字符串表空间。独立的连续模块字节对照发现两者，实验实现均已撤下，未进入生产。本轮仅补齐数据发射入口自身的 LLVM pass 注册，并将测试顺序调整为先调用数据入口，避免测试依赖完整代码生成的先行初始化。格式检查、workspace all-targets Clippy 和七目标两配置的数据对象对照通过；不为撤下的实验记录性能收益。
