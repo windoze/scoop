@@ -1,0 +1,56 @@
+package scoop.ui.component
+
+import scoop.graphics.Size
+import scoop.ui.Constraints
+import scoop.ui.LayoutMetrics
+
+internal fun requireComponent(value: Boolean, message: String) {
+    if (!value)
+        throw IllegalArgumentException(Some(message))
+}
+
+internal fun nonnegative(value: Double, message: String) {
+    requireComponent(value.isFinite() && value >= 0.0, message)
+}
+
+internal fun validSize(value: Size) {
+    nonnegative(value.width, "invalid component width")
+    nonnegative(value.height, "invalid component height")
+}
+
+internal fun lowerBound(value: Double, lower: Double): Double =
+    if (value < lower)
+        lower
+    else
+        value
+
+internal fun upperBound(value: Double, upper: Double): Double =
+    if (value > upper)
+        upper
+    else
+        value
+
+internal fun insetMaximum(value: Double?, padding: Double): Double? =
+    when (value) {
+        case Some(limit) -> Some(lowerBound(limit - padding, 0.0))
+        case None -> None
+    }
+
+internal fun childConstraints(parent: Constraints, padding: Size): Constraints =
+    Constraints(
+        maxWidth = insetMaximum(parent.maxWidth, padding.width),
+        maxHeight = insetMaximum(parent.maxHeight, padding.height)
+    )
+
+internal fun offsetMetrics(child: LayoutMetrics, size: Size, y: Double): LayoutMetrics =
+    LayoutMetrics(
+        size,
+        offsetBaseline(child.alphabeticBaseline, y),
+        offsetBaseline(child.ideographicBaseline, y)
+    )
+
+private fun offsetBaseline(value: Double?, y: Double): Double? =
+    when (value) {
+        case Some(baseline) -> Some(baseline + y)
+        case None -> None
+    }

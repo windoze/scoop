@@ -334,8 +334,8 @@ Context 传播 Store 引用，不改变线程和任务归属。只有 asyncio �
 | 3b：graphics 基础效果 | ImageFilter、图层滤镜／混合与共用圆角 Path | 真实离屏／Metal 像素、alpha 阴影、顺序、外扩、clip、DPI、借用与资源 |
 | 3c：公共样式 | scoop.ui.style、Style／StyleOverride／styled／StylePainter，消费已交付的 PaintContext.withState | 背景／边框／圆角、外框阴影、内容 drop shadow／glow／blur，身份、输入、资源与最终停帧 |
 | 3d：公共主题绘图 | Theme／ThemePainter、四类部件的 metrics／geometry／draw、macOS／Material／Fluent 与 Light／Dark | 离屏输出、几何一致、尺寸／DPI、主题参数与资源替换 |
-| 3e：基础控件与主题展示 | Label／Button／Checkbox 消费主题绘图，ThemeSource／Context 及明确局部覆盖 | 图文与 Button 混排；Counter、checked 与 enabled 联动、交互外观、截断和焦点 |
-| 4：布局与组合 | Row／Column／Stack／Frame、keyed 子项及资源组合 | 动态列表、基线透传、嵌套布局和动画重排 |
+| 3e：基础控件 | Label／Button／Checkbox 消费主题绘图，ThemeSource／Context 及明确局部覆盖 | Counter、checked 与 enabled 联动、交互外观、主题／效果切换、焦点和停帧 |
+| 4：布局、组合与主题展示 | Row／Column／Stack／Frame、keyed 子项及资源组合；完整主题展示 | 动态列表、基线透传、图文与 Button 混排、截断、嵌套布局和动画重排；三风格、明暗与系统跟随 |
 | 5：宿主与生命周期组合 | 隐藏更新、现有 asyncio／HTTP 下载接入及多窗口 | 主线程进度、跨线程合并投递、任务取消／替换、Deferred 无空转、两种 run 的停帧／唤醒、清理失败及多根需求隔离 |
 
 每批完成能运行的纵向能力，不先导出空组件类、空 renderer 或调用后报尚未支持的 API。Frame 和容器属于控件库，其所需的通用子项协议在框架批次中以实际自绘组合验证。

@@ -1,0 +1,32 @@
+package scoop.ui.component
+
+import scoop.ui.style.*
+
+/** Captures the ambient source, while explicit sources remain replaceable Props. */
+internal class ThemeAccess {
+    private var ambient: ThemeSource? = None
+    fun mount(explicit: ThemeSource?) {
+        when (explicit) {
+            case None -> ambient = Some(currentThemeSource());
+            case Some(_) -> {}
+        }
+    }
+    fun read(explicit: ThemeSource?): Theme {
+        val source =
+            when (explicit) {
+                case Some(value) -> value
+                case None -> when (ambient) {
+                    case Some(value) -> value
+                    case None -> {
+                        val value = currentThemeSource()
+                        ambient = Some(value)
+                        value
+                    }
+                }
+            }
+        return source.current.value
+    }
+}
+
+internal fun InteractionState.asVisual(enabled: Boolean): InteractionVisual =
+    InteractionVisual(enabled, hovered, pressed, focused)

@@ -28,7 +28,7 @@ Theme 是不可变的主题描述／协议实现，提供语义参数和各部�
 
 原生缓存由 `ThemePainter : Closeable` 持有，通过 `Theme.createPainter()` 创建；其 drawSurface／drawCheckbox／drawRadio／drawScrollbar 只接收普通 Canvas、对应几何和视觉数据。这样离屏程序可以长期复用同一 painter，自绘 Element 则通过 ComponentScope 登记拥有可替换 painter 的 `ThemePainterCache`。cache 在主题实际变化时先构建新 painter，再替换并关闭旧值；创建失败保留旧值用于清理或下一次绘制。应用不为每个部件／每帧使用 use。
 
-ThemePainter 和缓存限创建线程使用，close 幂等。绘图同步借用 Canvas，退出后不能保存该画布；正常及异常路径恢复嵌套状态。Theme／几何只是普通描述，不替代实际资源所有者。普通离屏用法为先查询 geometry，再把同一 geometry 交给对应 painter 的 draw 方法；不要求运行 UI。
+ThemePainter 和缓存限创建线程使用，close 幂等。ThemePainterCache.clear 释放当前 painter 并回到可复用的空状态，供同一个 Element 从主题表面切换为普通装饰；close 则结束整个缓存的有效期。绘图同步借用 Canvas，退出后不能保存该画布；正常及异常路径恢复嵌套状态。Theme／几何只是普通描述，不替代实际资源所有者。普通离屏用法为先查询 geometry，再把同一 geometry 交给对应 painter 的 draw 方法；不要求运行 UI。
 
 ## 3. 通用参数与覆盖
 

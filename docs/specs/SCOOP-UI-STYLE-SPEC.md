@@ -16,6 +16,8 @@
 
 Style 是普通不可变、可复用的完整描述 class，经 Props 传递，不拥有需要调用方 close 的 native 对象。主题的局部输入使用 StyleOverride，只替换明确指定的属性；StyleValue<T>.Inherit／Set 区分继承和显式清除。覆盖在最终几何计算前解析，具体协议见主题规范第 3 节。
 
+`StyleOverride.then(next)` 有序组合覆盖：next 中的 Inherit 保留前一覆盖，Set 替换对应属性，包括显式 None 与完整效果数组。组合结果仍是覆盖描述，之后才对当前主题 resolve，不冻结旧主题。控件的普通／hover／pressed／focus／disabled 局部外观复用这个操作，再把结果交给主题计算几何。
+
 | 输入 | 合同 |
 | --- | --- |
 | background | 可选 graphics Paint 填充，复用颜色／渐变描述；其 PaintingStyle 必须为 Fill |

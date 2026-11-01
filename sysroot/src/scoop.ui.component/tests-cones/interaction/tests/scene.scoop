@@ -1,0 +1,134 @@
+package scoop.tests.ui.controls
+
+import scoop.graphics.*
+import scoop.graphics.native.withSkiaCanvas
+import scoop.graphics.text.*
+import scoop.test.*
+import scoop.tests.graphics.readNativePixel
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.style.*
+
+internal class ControlScene(private val probe: ControlProbe): Component {
+    var count: Int by state(7)
+    var mounts = 0
+    var unmounts = 0
+    public override fun onMount(scope: ComponentScope) {
+        mounts += 1
+        probe.scene = Some(this)
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+    }
+    public override fun render(): View {
+        probe.renders += 1
+        val theme = probe.source.current.value
+        val generation = probe.generation.value
+        val binding =
+            if (probe.useSecond.value)
+                probe.secondBinding
+            else
+                probe.firstBinding
+        val delta =
+            if (probe.newCallback.value)
+                10
+            else
+                1
+        val effects =
+            when (probe.effects.value) {
+                case 1 -> Style(
+                    contentEffects = [ContentEffect.Glow(3.0, 3.0, Color(0.0, 0.3, 1.0))]
+                )
+                case 2 -> Style(contentEffects = [ContentEffect.Blur(1.5, 1.5)])
+                else -> Style()
+            }
+        val buttonStyle =
+            ButtonStyle(
+                surface = SurfaceOptions(style = StyleOverride(cornerRadius = StyleValue.Set(9.0)))
+            )
+        return element(
+            PanelProps(generation, count, theme.tokens.palette.canvas),
+            { props -> ControlPanel(props, probe) },
+            [
+                styled(
+                    component(
+                        ButtonProps(
+                            LabelProps(
+                                LabelText.Plain(f"Count: ${count}", None),
+                                Some(probe.fonts)
+                            ),
+                            { count += delta },
+                            binding.value,
+                            buttonStyle
+                        ),
+                        {
+                            props ->
+                            probe.buttonCreates += 1;
+                            Button(props)
+                        }
+                    ),
+                    effects
+                ),
+                component(
+                    CheckboxProps(binding, probe.checkEnabled.value),
+                    {
+                        props ->
+                        probe.checkCreates += 1;
+                        Checkbox(props)
+                    }
+                ),
+                checkbox(initialChecked = false),
+                component(
+                    LabelProps(
+                        LabelText.Plain("Theme body", Some(SpanStyle(weight = Some(700)))),
+                        Some(probe.fonts)
+                    ),
+                    {
+                        props ->
+                        probe.labelCreates += 1;
+                        Label(props)
+                    }
+                )
+            ]
+        )
+    }
+}
+
+private class PanelProps(val generation: Int, val count: Int, val background: Color)
+
+private class ControlPanel(
+    private val props: Props<PanelProps>,
+    private val probe: ControlProbe
+): Element {
+    public override fun update() {
+        probe.updates += 1
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        probe.measures += 1
+        probe.buttonMetrics = Some(context.measureChild(0L, Constraints()))
+        context.placeChild(0L, Point(20.0, 20.0))
+        probe.checkMetrics = Some(context.measureChild(1L, Constraints()))
+        context.placeChild(1L, Point(20.0, 100.0))
+        context.measureChild(2L, Constraints())
+        context.placeChild(2L, Point(140.0, 100.0))
+        probe.labelMetrics = Some(context.measureChild(3L, Constraints()))
+        context.placeChild(3L, Point(20.0, 180.0))
+        return LayoutMetrics(constraints.constrain(Size(360.0, 240.0)))
+    }
+    public override fun paint(context: PaintContext) {
+        probe.paints += 1
+        context.canvas.clear(props.value.background)
+        context.paintChildren()
+        @Unsafe
+        {
+            context.canvas.withSkiaCanvas {
+                native -> @Unsafe
+                {
+                    probe.buttonPixel = readNativePixel(native, 30.0, 25.0)
+                }
+            }
+        }
+        probe.paintedGeneration = props.value.generation
+        probe.paintedCount = props.value.count
+    }
+}

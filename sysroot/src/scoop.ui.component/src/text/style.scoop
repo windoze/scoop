@@ -1,0 +1,49 @@
+package scoop.ui.component
+
+import scoop.graphics.Color
+import scoop.graphics.text.*
+
+internal fun sameSpanStyle(left: SpanStyle?, right: SpanStyle?): Boolean =
+    when (left) {
+        case Some(a) -> when (right) {
+            case Some(b) -> a === b;
+            case None -> false
+        }
+        case None -> when (right) {
+            case Some(_) -> false;
+            case None -> true
+        }
+    }
+
+private class TextAppearance(
+    val base: TextStyle,
+    val color: Color,
+    val local: SpanStyle?,
+    val resolved: TextStyle
+)
+
+/** Focus and unrelated Props changes should not invalidate an unchanged label paragraph. */
+internal class ActionTextStyle {
+    private var cached: TextAppearance? = None
+    fun resolve(base: TextStyle, color: Color, local: SpanStyle?): TextStyle {
+        when (cached) {
+            case Some(previous) -> if (
+                previous.base ===
+                    base &&
+                    previous.color ==
+                    color &&
+                    sameSpanStyle(previous.local, local)
+            )
+                return previous.resolved
+            case None -> {}
+        }
+        val colored = SpanStyle(color = Some(color)).resolve(base)
+        val resolved =
+            when (local) {
+                case Some(value) -> value.resolve(colored);
+                case None -> colored
+            }
+        cached = Some(TextAppearance(base, color, local, resolved))
+        return resolved
+    }
+}

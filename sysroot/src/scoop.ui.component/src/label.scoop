@@ -1,0 +1,154 @@
+package scoop.ui.component
+
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.text.*
+import scoop.ui.style.ThemeSource
+
+public enum LabelText {
+    Plain(String, SpanStyle?), Styled(StyledText)
+}
+
+public class LabelProps public constructor(
+    public val text: LabelText,
+    public val fonts: FontCollection? = None,
+    public val settings: ParagraphStyle = ParagraphStyle(),
+    public val inlines: Array<InlineView> = [],
+    public val theme: ThemeSource? = None,
+    public val baseStyle: TextStyle? = None
+)
+
+/** A normal component; text measurement and ownership belong to the public ParagraphHost. */
+public class Label public constructor(private val props: Props<LabelProps>): Component {
+    private var plain: PlainLabel? = None
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        when (props.value.text) {
+            case Plain(_, _) -> when (props.value.baseStyle) {
+                case None -> themes.mount(props.value.theme)
+                case Some(_) -> {}
+            }
+            case Styled(_) -> {}
+        }
+    }
+    public override fun render(): View {
+        val input = props.value
+        val content =
+            when (input.text) {
+                case Plain(text, style) -> plainContent(
+                    text,
+                    input.baseStyle ?: themes.read(input.theme).tokens.typography.body,
+                    style
+                )
+                case Styled(content) -> content
+            }
+        return element(
+            LabelInkProps(content, input),
+            { current -> LabelInk(current) },
+            inlineChildren(content, input.inlines)
+        )
+    }
+    private fun plainContent(text: String, base: TextStyle, style: SpanStyle?): StyledText {
+        when (plain) {
+            case Some(previous) -> {
+                if (
+                    previous.text ==
+                        text &&
+                        previous.base ===
+                        base &&
+                        sameSpanStyle(previous.localStyle, style)
+                )
+                    return previous.content
+            }
+            case None -> {}
+        }
+        val resolved =
+            when (style) {
+                case Some(value) -> value.resolve(base);
+                case None -> base
+            }
+        val next = PlainLabel(text, base, style, StyledText([TextSpan.text(text)], resolved))
+        plain = Some(next)
+        return next.content
+    }
+}
+
+public fun label(
+    text: String,
+    style: SpanStyle? = None,
+    fonts: FontCollection? = None,
+    settings: ParagraphStyle = ParagraphStyle(),
+    theme: ThemeSource? = None,
+    key: ViewKey = ViewKey.Position
+): View =
+    component(
+        LabelProps(LabelText.Plain(text, style), fonts, settings, theme = theme),
+        { props -> Label(props) },
+        key
+    )
+
+public fun label(
+    content: StyledText,
+    fonts: FontCollection? = None,
+    settings: ParagraphStyle = ParagraphStyle(),
+    inlines: Array<InlineView> = [],
+    theme: ThemeSource? = None,
+    key: ViewKey = ViewKey.Position
+): View =
+    component(
+        LabelProps(LabelText.Styled(content), fonts, settings, inlines, theme),
+        { props -> Label(props) },
+        key
+    )
+
+private class PlainLabel(
+    val text: String,
+    val base: TextStyle,
+    val localStyle: SpanStyle?,
+    val content: StyledText
+)
+
+private class LabelInkProps(val content: StyledText, val input: LabelProps)
+
+private class LabelInk(private val props: Props<LabelInkProps>): Element {
+    private var scope: ComponentScope? = None
+    private var paragraph: ParagraphHost? = None
+    private var ownedFonts: FontCollection? = None
+    private var fonts: FontCollection? = None
+    public override fun onMount(scope: ComponentScope) {
+        this.scope = Some(scope)
+        paragraph = Some(scope.resource { ParagraphHost() })
+    }
+    public override fun update() {
+        fonts =
+            Some(
+                when (props.value.input.fonts) {
+                    case Some(value) -> value
+                    case None -> {
+                        when (ownedFonts) {
+                            case Some(value) -> value
+                            case None -> {
+                                val value = scope!!.resource { FontCollection() }
+                                ownedFonts = Some(value)
+                                value
+                            }
+                        }
+                    }
+                }
+            )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val value = props.value
+        return paragraph!!.measure(
+            context,
+            constraints,
+            fonts!!,
+            value.content,
+            value.input.settings,
+            value.input.inlines
+        )
+    }
+    public override fun paint(context: PaintContext) {
+        paragraph!!.paint(context)
+    }
+}

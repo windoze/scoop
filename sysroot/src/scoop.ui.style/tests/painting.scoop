@@ -25,6 +25,34 @@ internal fun renderStyle(style: Style, content: (Canvas) -> Unit): Array<Byte> =
 @Test
 private class StylePaintTest {
     @Test
+    fun `ordered state overrides preserve inheritance until resolving the current theme`() {
+        val basic =
+            StyleOverride(
+                cornerRadius = StyleValue.Set(4.0),
+                border = StyleValue.Set(Some(Border(1.0, Color.Black)))
+            )
+        val hovered =
+            StyleOverride(
+                border = StyleValue.Set(None),
+                contentEffects = StyleValue.Set([ContentEffect.Blur(2.0, 2.0)])
+            )
+        val pressed =
+            StyleOverride(
+                contentEffects = StyleValue.Set([ContentEffect.Glow(3.0, 3.0, Color.White)])
+            )
+        val combined = basic.then(hovered).then(pressed)
+        for (color in [Color.Black, Color.White]) {
+            val resolved =
+                combined.resolve(Style(background = Some(Paint(color)), cornerRadius = 10.0))
+            assertEquals(color, resolved.background!!.color)
+            assertEquals(None, resolved.border)
+            assertEquals(4.0, resolved.cornerRadius)
+            assertEquals(1L, resolved.contentEffects.size)
+            assertEquals(ContentEffect.Glow(3.0, 3.0, Color.White), resolved.contentEffects[0L])
+        }
+    }
+
+    @Test
     fun `box shadow uses the whole outline while content shadow uses sparse alpha`() {
         val source: (Canvas) -> Unit =
             { canvas -> canvas.drawRect(Rect(24.0, 22.0, 4.0, 6.0), Paint(Color(1.0, 0.0, 0.0))) }

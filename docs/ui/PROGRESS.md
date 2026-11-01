@@ -13,8 +13,8 @@
 | 3b. graphics 基础效果 | aarch64 已完成 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
 | 3c. 公共样式 | aarch64 已完成 | Style／StyleOverride、稳定 styled、StylePainter、装饰／有序效果、真实 Metal／UI 停帧与异常清理 |
 | 3d. 公共主题绘图 | aarch64 已完成 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
-| 3e. 简单控件与主题展示 | aarch64 接入中 | 初步 Label／Button／Checkbox 代码待改为消费公共主题；展示各视觉状态及切换，尚未运行验收 |
-| 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
+| 3e. 简单控件 | aarch64 已完成 | Label／Button／Checkbox 消费公共主题，状态／绑定、局部覆盖、实例／焦点保留和真实停帧 |
+| 4. 布局、组合与主题展示 | 实施中 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合，公共部件和真实控件的完整主题展示 |
 | 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
 
 已有 scoop.surface 的窗口、动画和 InputArea 实现作为基础，独立 UI 框架和公共文本适配已交付；graphics 效果、公共样式、控件库和后续组合验证继续按批次推进。下文保存实际验证范围，不把设计示例和文档检查当成已交付功能。
@@ -202,3 +202,23 @@ Scoop 格式、生产与含测试类型检查通过，三套主题和更新后�
 Metal 与 Raster 的圆周抗锯齿覆盖不同，初始逐像素最大误差断言把单个圆边缘差异误判为几何失败。检查原始图像后确认边界一致、内部最大差异 1、该 Radio 覆盖量差约 0.7%。最终测试分别约束均匀内部颜色、每个部件的像素边界及覆盖量，并保留整图误差检查；六组主题全部通过。临时原始像素及预览不提交。
 
 控件整体切换、实例／焦点保留、主题动画与完整展示继续在下一批验证；本节的离屏与 Metal 部件测试不代替实际 UI 组合。无编译器／core／std／test 改动，无 fixture 或全量测试，x86_64 仍在 aarch64 全部功能完成后补验。
+
+### 3.13 基础控件消费公共主题
+
+独立 scoop.ui.component 已提供 Label／Button／Checkbox，生产依赖只有公开的 UI、style 及实际下层库，不依赖三套具体主题。Label 使用 ParagraphHost，Plain 的 SpanStyle 继承本轮主题，完整 StyledText 保留自己的模型；Button 的 action 字体与颜色显式转交给标签，实际基线透传。Checkbox 提供外部 Binding 与自有 State 两种入口，交互使用当前 Props 的绑定或回调。
+
+Button／Checkbox 在 measure 中保存本帧采样后的主题几何和视觉输入，paint 使用同一结果。私有交互状态只处理指针、键盘和焦点；主题 painter 绘制表面、标记和焦点。局部状态覆盖通过 StyleOverride.then 有序组合，未指定属性继续跟随主题；hover／press／selection 复用 Surface Animatable，无独立时钟。
+
+Scoop 格式及生产／含测试的类型检查通过，aarch64 开发 sysroot 已发布。release scoop.test：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| scoop.ui.style | 11／11 | 原样式／像素／资源测试，加局部覆盖的有序组合与显式清除 |
+| scoop.ui.component | 3／3 | 控件状态覆盖、文字解析复用与主题变更、挂载环境来源和明确 Props 换绑 |
+| controls UI Cone | 1／1 | 六种主题组合、真实文字与尺寸／基线、公共几何查询和绘图调用、实例／自有 State／焦点保留，指针与键盘、重复抑制、最新回调、Binding 换绑、禁用取消、效果切换和原生关闭 |
+
+控件组合同时记录 render／update／measure／paint、公共主题绘图调用和原生帧需求／display-link／提交；动画结束后等待区间全部停止。每轮主题替换立即关闭旧 painter，原生关闭释放最后一组，外部字体仍有效。效果改变保持测量和基线，绘制与输入继续采用 Surface 成功提交的几何。
+
+测试初次出现过无完整诊断的焦点等待超时；补充断言链后另定位到测试把原生事件入队误当成交付完成。现已在事件批次之后断言状态，不增加轮询或生产唤醒。requestFocus 仍遵守 window 的请求式合同；保留阶段、可见性、遮挡、焦点和帧计数诊断用于后续原生验收。
+
+容器及完整主题展示接着实施，并已补充具体布局与 Frame 表面切换合同。当前提交不把未完成的展示草稿算作交付。无编译器／core／std／test 改动，无 fixture 或全量测试；x86_64 继续在 aarch64 完成后统一补验。

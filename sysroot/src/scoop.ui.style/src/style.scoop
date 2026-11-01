@@ -43,6 +43,16 @@ public class StyleOverride public constructor(
     public val contentEffects: StyleValue<Array<ContentEffect>> = StyleValue.Inherit,
     public val clipContent: StyleValue<Boolean> = StyleValue.Inherit
 ) {
+    public fun then(next: StyleOverride): StyleOverride =
+        StyleOverride(
+            background.then(next.background),
+            border.then(next.border),
+            cornerRadius.then(next.cornerRadius),
+            boxShadows.then(next.boxShadows),
+            contentEffects.then(next.contentEffects),
+            clipContent.then(next.clipContent)
+        )
+
     public fun resolve(inherited: Style): Style =
         Style(
             background.resolve(inherited.background),
@@ -53,6 +63,12 @@ public class StyleOverride public constructor(
             clipContent.resolve(inherited.clipContent)
         )
 }
+
+public fun <T> StyleValue<T>.then(next: StyleValue<T>): StyleValue<T> =
+    when (next) {
+        case Inherit -> this;
+        case Set(_) -> next
+    }
 
 public fun <T> StyleValue<T>.resolve(inherited: T): T =
     when (this) {

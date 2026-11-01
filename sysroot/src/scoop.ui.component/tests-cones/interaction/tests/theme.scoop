@@ -1,0 +1,136 @@
+package scoop.tests.ui.controls
+
+import scoop.graphics.*
+import scoop.graphics.native.captureGeometry
+import scoop.test.*
+import scoop.ui.style.*
+
+/** Observe only the public protocol used by an ordinary third-party theme. */
+internal class TraceTheme(
+    val id: Int,
+    private val base: Theme,
+    private val probe: ControlProbe
+): Theme {
+    val painters = ArrayList<TracePainter>()
+    var surfaces = 0
+    var checkboxes = 0
+    var surfaceDraws = 0
+    var checkboxDraws = 0
+    public override val tokens: ThemeTokens get() = base.tokens
+    public override fun surfaceMetrics(
+        visual: SurfaceVisual,
+        options: SurfaceOptions
+    ): SurfaceMetrics = base.surfaceMetrics(visual, options)
+    public override fun surfaceGeometry(
+        bounds: Rect,
+        visual: SurfaceVisual,
+        options: SurfaceOptions
+    ): SurfaceGeometry {
+        surfaces += 1
+        return base.surfaceGeometry(bounds, visual, options)
+    }
+    public override fun checkboxMetrics(options: CheckboxOptions): CheckboxMetrics =
+        base.checkboxMetrics(options)
+    public override fun checkboxGeometry(
+        bounds: Rect,
+        visual: CheckboxVisual,
+        options: CheckboxOptions
+    ): CheckboxGeometry {
+        checkboxes += 1
+        return base.checkboxGeometry(bounds, visual, options)
+    }
+    public override fun radioMetrics(options: RadioOptions): RadioMetrics =
+        base.radioMetrics(options)
+    public override fun radioGeometry(
+        bounds: Rect,
+        visual: RadioVisual,
+        options: RadioOptions
+    ): RadioGeometry = base.radioGeometry(bounds, visual, options)
+    public override fun scrollbarMetrics(options: ScrollbarOptions): ScrollbarMetrics =
+        base.scrollbarMetrics(options)
+    public override fun scrollbarGeometry(
+        bounds: Rect,
+        visual: ScrollbarVisual,
+        options: ScrollbarOptions
+    ): ScrollbarGeometry = base.scrollbarGeometry(bounds, visual, options)
+    public override fun surfaceTextColor(visual: SurfaceVisual): Color =
+        base.surfaceTextColor(visual)
+    public override fun createPainter(): ThemePainter {
+        val value = TracePainter(base.createPainter(), this, probe)
+        painters.add(value)
+        return value
+    }
+    fun assertClosed() {
+        assertTrue(surfaces > 0 && checkboxes > 0)
+        assertEquals(surfaces * 2, surfaceDraws)
+        assertEquals(checkboxes, checkboxDraws)
+        assertEquals(3L, painters.size)
+        for (painter in painters) {
+            assertTrue(painter.isClosed)
+            assertEquals(1, painter.closes)
+        }
+    }
+}
+
+internal class TracePainter(
+    private val base: ThemePainter,
+    private val theme: TraceTheme,
+    private val probe: ControlProbe
+): ThemePainter {
+    var closes = 0
+    public override val isClosed: Boolean get() = base.isClosed
+    public override fun drawSurface(
+        canvas: Canvas,
+        geometry: SurfaceGeometry,
+        visual: SurfaceVisual,
+        layer: SurfaceLayer
+    ) {
+        base.drawSurface(canvas, geometry, visual, layer)
+        theme.surfaceDraws += 1
+        probe.themeDraws += 1
+        probe.buttonVisual = visual.interaction
+        probe.buttonGeometry = Some(geometry)
+        probe.buttonBounds = mapped(canvas, geometry.bounds)
+        probe.paintedTheme = theme.id
+    }
+    public override fun drawCheckbox(
+        canvas: Canvas,
+        geometry: CheckboxGeometry,
+        visual: CheckboxVisual
+    ) {
+        base.drawCheckbox(canvas, geometry, visual)
+        theme.checkboxDraws += 1
+        probe.themeDraws += 1
+        val bounds = mapped(canvas, geometry.bounds)
+        if (bounds.x < 100.0) {
+            probe.checkBounds = bounds
+            probe.checkVisual = visual
+        } else {
+            probe.ownedBounds = bounds
+            probe.ownedVisual = visual
+        }
+    }
+    public override fun drawRadio(canvas: Canvas, geometry: RadioGeometry, visual: RadioVisual) {
+        base.drawRadio(canvas, geometry, visual)
+    }
+    public override fun drawScrollbar(
+        canvas: Canvas,
+        geometry: ScrollbarGeometry,
+        visual: ScrollbarVisual
+    ) {
+        base.drawScrollbar(canvas, geometry, visual)
+    }
+    public override fun close() {
+        if (!base.isClosed) {
+            closes += 1
+            base.close()
+        }
+    }
+}
+
+private fun mapped(canvas: Canvas, bounds: Rect): Rect {
+    @Unsafe
+    {
+        return captureGeometry(canvas, bounds).use { geometry -> geometry.toWindow(bounds) }
+    }
+}

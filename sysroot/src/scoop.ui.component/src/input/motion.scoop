@@ -1,0 +1,76 @@
+package scoop.ui.component
+
+import scoop.surface.*
+import scoop.ui.ComponentScope
+import scoop.ui.style.InteractionVisual
+
+/** The only clocks are the two animations already owned by the Surface scope. */
+internal class InteractionMotion(scope: ComponentScope, initial: InteractionVisual) {
+    private val hover =
+        scope.animation(
+            if (initial.enabled && initial.hovered)
+                1.0
+            else
+                0.0
+        )
+    private val press =
+        scope.animation(
+            if (initial.enabled && initial.pressed)
+                1.0
+            else
+                0.0
+        )
+    fun update(visual: InteractionVisual, hoverSpec: AnimationSpec?, pressSpec: AnimationSpec?) {
+        changeProgress(
+            hover,
+            if (visual.enabled && visual.hovered)
+                1.0
+            else
+                0.0,
+            if (visual.enabled)
+                hoverSpec
+            else
+                None
+        )
+        changeProgress(
+            press,
+            if (visual.enabled && visual.pressed)
+                1.0
+            else
+                0.0,
+            if (visual.enabled)
+                pressSpec
+            else
+                None
+        )
+    }
+    fun sample(visual: InteractionVisual): InteractionVisual =
+        InteractionVisual(
+            visual.enabled,
+            visual.hovered,
+            visual.pressed,
+            visual.focused,
+            Some(hover.value),
+            Some(press.value)
+        )
+}
+
+internal fun changeProgress(value: Animatable<Double>, target: Double, transition: AnimationSpec?) {
+    when (transition) {
+        case Some(spec) -> {
+            if (value.target != target)
+                value.animateTo(target, spec)
+        }
+        case None -> {
+            if (
+                value.value !=
+                    target ||
+                    value.state ==
+                    AnimationState.Running ||
+                    value.state ==
+                    AnimationState.Paused
+            )
+                value.snapTo(target)
+        }
+    }
+}

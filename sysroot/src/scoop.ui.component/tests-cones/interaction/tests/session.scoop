@@ -1,0 +1,426 @@
+package scoop.tests.ui.controls
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+import scoop.ui.style.fluent.fluentTheme
+import scoop.window.Application
+import scoop.window.ActiveApplication
+import scoop.window.ApplicationEvent
+import scoop.window.ControlFlow
+import scoop.window.LogicalSize
+import scoop.window.StartCause
+import scoop.window.Window
+import scoop.window.WindowAttributes
+import scoop.window.WindowEvent
+import scoop.window.WindowLevel
+import scoop.window.setWindowLevel
+
+@Test
+private class ControlUiTest {
+    @Test
+    fun `real controls use public theme geometry retain state and focus and stop Metal work`() {
+        val probe = ControlProbe()
+        val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+        try {
+            context(probe.source) {
+                host.use { owner -> Application().run(owner) }
+            }
+            assertTrue(probe.finished)
+            assertTrue(host.isClosed)
+            assertEquals(1, probe.scene!!.mounts)
+            assertEquals(1, probe.scene!!.unmounts)
+            assertEquals(1, probe.buttonCreates)
+            assertEquals(1, probe.checkCreates)
+            assertEquals(1, probe.labelCreates)
+            for (theme in probe.themes)
+                theme.assertClosed()
+            assertFalse(probe.fonts.isClosed)
+            assertTrue(probe.view!!.restored())
+            assertFalse(probe.frames!!.snapshot().attached)
+        } catch (error: Throwable) {
+            println(
+                f"control UI phase=${probe.phase}, theme=${probe.paintedTheme}, generation=${
+                    probe.paintedGeneration
+                }, count=${probe.paintedCount}"
+            )
+            reportFailure(error)
+            throw error
+        } finally {
+            host.close()
+            probe.frames?.close()
+            probe.view?.close()
+            probe.fonts.close()
+        }
+    }
+}
+
+private fun reportFailure(error: Throwable) {
+    if (error is ResourceUseException) {
+        reportFailure(error.primaryFailure)
+        reportFailure(error.cleanupFailure)
+    } else
+        if (error is AssertionFailure) {
+            println(
+                f"${error.kind} at ${error.location.file}:${error.location.line}: ${
+                    error.message ?: ""
+                }"
+            )
+            when (error.expected) {
+                case Text(value) -> println(f"expected: ${value}");
+                else -> {}
+            }
+            when (error.actual) {
+                case Text(value) -> println(f"actual: ${value}");
+                else -> {}
+            }
+        } else
+            if (error is Exception)
+                println(error.message ?: "control UI failure")
+}
+
+internal class ControlProbe {
+    val first = state(false)
+    val second = state(false)
+    var firstWrites = 0
+    var secondWrites = 0
+    val firstBinding =
+        binding<Boolean>(
+            { first.value },
+            {
+                value ->
+                firstWrites += 1;
+                first.value = value
+            }
+        )
+    val secondBinding =
+        binding<Boolean>(
+            { second.value },
+            {
+                value ->
+                secondWrites += 1;
+                second.value = value
+            }
+        )
+    val useSecond = state(false)
+    val newCallback = state(false)
+    val checkEnabled = state(true)
+    val generation = state(0)
+    val effects = state(0)
+    val themes: Array<TraceTheme> =
+        [
+            TraceTheme(0, macosTheme(), this),
+            TraceTheme(1, materialTheme(), this),
+            TraceTheme(2, fluentTheme(), this),
+            TraceTheme(3, macosTheme(ThemeMode.Dark), this),
+            TraceTheme(4, materialTheme(ThemeMode.Dark), this),
+            TraceTheme(5, fluentTheme(ThemeMode.Dark), this)
+        ]
+    val source = ThemeSource(themes[0L])
+    val fonts = FontCollection(false)
+    init {
+        for (theme in themes) {
+            for (family in theme.tokens.typography.body.families)
+                fonts.register(testSansBytes, family)
+            for (family in theme.tokens.typography.action.families)
+                fonts.register(testSansBytes, family)
+        }
+    }
+    var scene: ControlScene? = None
+    var window: Window? = None
+    var ui: UiWindow? = None
+    var view: ViewProbe? = None
+    var frames: FrameProbe? = None
+    var finished = false
+    var phase = 0
+    var buttonCreates = 0
+    var checkCreates = 0
+    var labelCreates = 0
+    var renders = 0
+    var updates = 0
+    var measures = 0
+    var paints = 0
+    var themeDraws = 0
+    var paintedTheme = -1
+    var paintedGeneration = -1
+    var paintedCount = 0
+    var buttonPixel = -1L
+    var buttonVisual = InteractionVisual()
+    var checkVisual = CheckboxVisual()
+    var ownedVisual = CheckboxVisual()
+    var buttonGeometry: SurfaceGeometry? = None
+    var buttonBounds = Rect(0.0, 0.0, 0.0, 0.0)
+    var checkBounds = Rect(0.0, 0.0, 0.0, 0.0)
+    var ownedBounds = Rect(0.0, 0.0, 0.0, 0.0)
+    var buttonMetrics: LayoutMetrics? = None
+    var checkMetrics: LayoutMetrics? = None
+    var labelMetrics: LayoutMetrics? = None
+    private var previousButton: LayoutMetrics? = None
+    private var previousLabel: LayoutMetrics? = None
+    private var previousPixel = -1L
+    private var themeIndex = 0
+    private var quietFrames: FrameSnapshot? = None
+    private var quietCounters: Array<Int> = []
+
+    fun event(host: UiHost, active: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val native =
+                    active.createWindow(
+                        WindowAttributes("Scoop themed controls", LogicalSize(360.0, 240.0))
+                    )
+                window = Some(native)
+                native.setWindowLevel(WindowLevel.AlwaysOnTop)
+                native.requestFocus()
+                view = Some(observeWindow(native))
+                frames = Some(observeFrames(native))
+                ui = Some(host.attach(native, { ControlScene(this) }))
+                waitFor(active, 25000L)
+            }
+            case AboutToWait -> advance(active)
+            case NewEvents(StartCause.Deadline) -> deadline(active)
+            case Window(_, WindowEvent.Destroyed) -> {
+                assertEquals(90, phase)
+                assertTrue(ui!!.isClosed)
+                finished = true
+                active.requestExit()
+            }
+            else -> {}
+        }
+    }
+    private fun click(rect: Rect) {
+        val x = rect.x + rect.width / 2.0
+        val y = rect.y + rect.height / 2.0
+        assertTrue(moveSurfacePointer(window!!, x, y))
+        assertTrue(view!!.button(x, y, true))
+        assertTrue(view!!.button(x, y, false))
+    }
+    private fun key(code: Int) {
+        assertTrue(sendSurfaceKey(window!!, code, true))
+        assertTrue(sendSurfaceKey(window!!, code, false))
+    }
+    private fun afterInput(active: ActiveApplication, action: (ActiveApplication) -> Unit) {
+        phase = 100
+        assertTrue(active.proxy().post(action))
+    }
+    private fun advance(active: ActiveApplication) {
+        when (phase) {
+            case 0 -> if (paintedGeneration == 0 && window!!.isFocused) {
+                assertFalse(buttonVisual.enabled)
+                click(buttonBounds)
+                click(checkBounds)
+                afterInput(active) {
+                    _ ->
+                    assertEquals(7, scene!!.count)
+                    assertTrue(first.value)
+                    phase = 1
+                }
+            }
+            case 1 -> if (buttonVisual.enabled && checkVisual.interaction.focused) {
+                assertEquals(28.0, buttonMetrics!!.size.height)
+                assertEquals(9.0, buttonGeometry!!.outline.radius)
+                assertTrue(buttonMetrics!!.alphabeticBaseline!! > 0.0)
+                assertEquals(None, checkMetrics!!.alphabeticBaseline)
+                key(36)
+                assertTrue(sendSurfaceKey(window!!, 49, true))
+                assertTrue(sendSurfaceKey(window!!, 49, true, true))
+                assertTrue(sendSurfaceKey(window!!, 49, false))
+                key(49)
+                click(ownedBounds)
+                afterInput(active) {
+                    _ ->
+                    assertTrue(first.value)
+                    assertEquals(3, firstWrites)
+                    phase = 2
+                }
+            }
+            case 2 -> if (ownedVisual.mark == CheckMark.On && buttonVisual.enabled) {
+                click(buttonBounds)
+                val x = buttonBounds.x + 8.0
+                val y = buttonBounds.y + 8.0
+                assertTrue(view!!.button(x, y, true))
+                assertTrue(moveSurfacePointer(window!!, 330.0, 220.0))
+                assertTrue(view!!.button(330.0, 220.0, false))
+                key(36)
+                assertTrue(sendSurfaceKey(window!!, 49, true))
+                assertTrue(sendSurfaceKey(window!!, 49, true, true))
+                assertTrue(sendSurfaceKey(window!!, 36, false))
+                assertTrue(sendSurfaceKey(window!!, 49, false))
+                assertTrue(moveSurfacePointer(window!!, x, y))
+                assertTrue(view!!.button(x, y, true))
+                key(49)
+                assertTrue(view!!.button(x, y, false))
+                afterInput(active) {
+                    _ ->
+                    assertEquals(11, scene!!.count)
+                    newCallback.value = true
+                    generation.value = 1
+                    phase = 3
+                }
+            }
+            case 3 -> if (paintedGeneration == 1 && buttonVisual.focused) {
+                key(36)
+                afterInput(active) {
+                    _ ->
+                    assertEquals(21, scene!!.count)
+                    previousButton = buttonMetrics
+                    previousLabel = labelMetrics
+                    previousPixel = buttonPixel
+                    switchTheme(1)
+                    phase = 4
+                }
+            }
+            case 4 -> if (paintedTheme == themeIndex && paintedCount == scene!!.count) {
+                assertEquals(1, buttonCreates)
+                assertEquals(1, checkCreates)
+                assertEquals(1, scene!!.mounts)
+                assertTrue(buttonVisual.focused)
+                assertEquals(CheckMark.On, ownedVisual.mark)
+                assertEquals(9.0, buttonGeometry!!.outline.radius)
+                assertEquals(buttonMetrics!!.size.width, buttonBounds.width)
+                assertEquals(buttonMetrics!!.size.height, buttonBounds.height)
+                val expected =
+                    themes[themeIndex.toLong()].surfaceMetrics(
+                        SurfaceVisual(SurfaceKind.Action),
+                        SurfaceOptions()
+                    )
+                assertEquals(expected.suggestedSize.height, buttonBounds.height)
+                assertTrue(previousPixel != buttonPixel)
+                if (themeIndex == 1) {
+                    assertTrue(previousButton!!.size != buttonMetrics!!.size)
+                    assertTrue(
+                        previousButton!!.alphabeticBaseline != buttonMetrics!!.alphabeticBaseline
+                    )
+                    assertTrue(previousLabel!!.size.height != labelMetrics!!.size.height)
+                }
+                themes[(themeIndex - 1).toLong()].assertClosed()
+                key(49)
+                afterInput(active) {
+                    _ ->
+                    assertEquals(21 + themeIndex * 10, scene!!.count)
+                    previousPixel = buttonPixel
+                    if (themeIndex < 5) {
+                        switchTheme(themeIndex + 1);
+                        phase = 4
+                    }
+                    else {
+                        previousButton = buttonMetrics
+                        effects.value = 1
+                        generation.value = 2
+                        phase = 5
+                    }
+                }
+            }
+            case 5 -> if (paintedGeneration == 2) {
+                assertEquals(71, scene!!.count)
+                assertTrue(buttonVisual.focused)
+                assertEquals(previousButton, buttonMetrics)
+                effects.value = 2
+                generation.value = 3
+                phase = 6
+            }
+            case 6 -> if (paintedGeneration == 3) {
+                assertEquals(previousButton, buttonMetrics)
+                assertTrue(buttonVisual.focused)
+                effects.value = 0
+                useSecond.value = true
+                generation.value = 4
+                phase = 7
+            }
+            case 7 -> if (paintedGeneration == 4 && !buttonVisual.enabled) {
+                key(49)
+                click(checkBounds)
+                afterInput(active) {
+                    _ ->
+                    assertEquals(71, scene!!.count)
+                    assertTrue(first.value)
+                    assertTrue(second.value)
+                    assertEquals(1, secondWrites)
+                    phase = 8
+                }
+            }
+            case 8 -> if (buttonVisual.enabled) {
+                // First deliver the press, then disable in the owner mailbox before the release.
+                val x = checkBounds.x + checkBounds.width / 2.0
+                val y = checkBounds.y + checkBounds.height / 2.0
+                assertTrue(moveSurfacePointer(window!!, x, y))
+                assertTrue(view!!.button(x, y, true))
+                afterInput(active) {
+                    _ ->
+                    checkEnabled.value = false
+                    generation.value = 5
+                    phase = 9
+                }
+            }
+            case 9 -> {
+                if (paintedGeneration == 5 && !checkVisual.interaction.enabled) {
+                    assertFalse(checkVisual.interaction.pressed)
+                    assertTrue(view!!.button(checkBounds.x + 4.0, checkBounds.y + 4.0, false))
+                    assertTrue(moveSurfacePointer(window!!, 330.0, 220.0))
+                    afterInput(active) {
+                        owner ->
+                        assertTrue(second.value)
+                        assertEquals(1, secondWrites)
+                        phase = 10
+                        waitFor(owner, 400L)
+                    }
+                }
+            }
+            else -> {}
+        }
+    }
+    private fun switchTheme(index: Int) {
+        themeIndex = index
+        source.current.value = themes[index.toLong()]
+    }
+    private fun counters(): Array<Int> = [renders, updates, measures, paints, themeDraws]
+    private fun deadline(active: ActiveApplication) {
+        when (phase) {
+            case 10 -> {
+                val native = frames!!.snapshot()
+                assertTrue(native.attached)
+                assertFalse(native.required)
+                assertTrue(native.paused)
+                quietFrames = Some(native)
+                quietCounters = counters()
+                assertEquals(Some(0.0), buttonVisual.hoverProgress)
+                assertEquals(Some(0.0), buttonVisual.pressProgress)
+                assertEquals(Some(1.0), checkVisual.selectionProgress)
+                phase = 11
+                waitFor(active, 180L)
+            }
+            case 11 -> {
+                assertEquals(quietFrames!!, frames!!.snapshot())
+                val current = counters()
+                for (i in 0L until current.size)
+                    assertEquals(quietCounters[i], current[i])
+                phase = 90
+                window!!.requestDestroy()
+            }
+            else -> fail(
+                Some(
+                    f"control UI timed out in phase ${phase}, focused=${
+                        window!!.isFocused
+                    }, visible=${window!!.isVisible}, occluded=${window!!.isOccluded}, frames=${
+                        frames!!.snapshot().presentations
+                    }"
+                )
+            )
+        }
+    }
+    private fun waitFor(active: ActiveApplication, milliseconds: Long) {
+        active.setControlFlow(
+            ControlFlow.WaitUntil(
+                MonotonicTimeSource.markNow() + Duration.milliseconds(milliseconds)
+            )
+        )
+    }
+}

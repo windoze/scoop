@@ -1,0 +1,116 @@
+package scoop.ui.component
+
+import scoop.surface.*
+import scoop.ui.*
+import scoop.window.*
+
+internal struct InteractionState(
+    val hovered: Boolean = false,
+    val pressed: Boolean = false,
+    val focused: Boolean = false
+)
+
+/** One pointer or keyboard activation sequence, using the committed Surface hover path. */
+internal class Activation(private val acceptsEnter: Boolean) {
+    val visual = state(InteractionState())
+    private var enabled = true
+    private var hovered = false
+    private var focused = false
+    private var pointer = false
+    private var key: PhysicalKey? = None
+
+    fun update(accepts: Boolean) {
+        enabled = accepts
+        if (!accepts) {
+            hovered = false;
+            focused = false;
+            cancel()
+        }
+        publish()
+    }
+    fun handle(area: InputArea, event: AreaEvent, activate: () -> Unit): InputResult {
+        val result =
+            when (event) {
+                case FocusChanged(value) -> {
+                    focused = value && enabled
+                    if (!focused)
+                        cancel()
+                    InputResult.Ignored
+                }
+                case Pointer(AreaPointerEvent.Cancelled(_, _)) -> {
+                    pointer = false
+                    InputResult.Ignored
+                }
+                case Pointer(AreaPointerEvent.Entered(_)) -> {
+                    hovered = enabled
+                    InputResult.Ignored
+                }
+                case Pointer(AreaPointerEvent.Left(_)) -> {
+                    hovered = false
+                    InputResult.Ignored
+                }
+                case Pointer(AreaPointerEvent.Button(_, MouseButton.Left, state, _)) -> {
+                    if (!enabled)
+                        InputResult.Ignored
+                    else {
+                        if (state == ElementState.Pressed) {
+                            if (hovered && key == None) {
+                                area.requestFocus()
+                                pointer = true
+                            }
+                        } else {
+                            val fire = pointer && hovered
+                            pointer = false
+                            publish()
+                            if (fire)
+                                activate()
+                        }
+                        InputResult.Handled
+                    }
+                }
+                case Keyboard(value) -> keyboard(area, value, activate)
+                else -> InputResult.Ignored
+            }
+        publish()
+        return result
+    }
+    private fun keyboard(area: InputArea, event: KeyEvent, activate: () -> Unit): InputResult {
+        if (!enabled || !area.isFocusActive)
+            return InputResult.Ignored
+        val supported =
+            when (event.logicalKey) {
+                case Named(NamedKey.Space) -> true
+                case Named(NamedKey.Enter) -> acceptsEnter
+                else -> false
+            }
+        if (event.state == ElementState.Released && key == Some(event.physicalKey)) {
+            key = None
+            publish()
+            if (!event.synthetic)
+                activate()
+            return InputResult.Handled
+        }
+        if (!supported)
+            return InputResult.Ignored
+        if (
+            event.state ==
+                ElementState.Pressed &&
+                !event.isRepeat &&
+                !event.synthetic &&
+                !pointer &&
+                key ==
+                None
+        )
+            key = Some(event.physicalKey)
+        return InputResult.Handled
+    }
+    private fun cancel() {
+        pointer = false;
+        key = None
+    }
+    private fun publish() {
+        val next = InteractionState(hovered, (pointer && hovered) || key != None, focused)
+        if (visual.value != next)
+            visual.value = next
+    }
+}

@@ -1,0 +1,62 @@
+package scoop.ui.component
+
+import scoop.graphics.text.SpanStyle
+import scoop.surface.AnimationSpec
+import scoop.ui.style.*
+
+/** Explicit state overrides, composed before theme geometry is calculated. */
+public class InteractionStyles public constructor(
+    public val hovered: StyleOverride = StyleOverride(),
+    public val pressed: StyleOverride = StyleOverride(),
+    public val focused: StyleOverride = StyleOverride(),
+    public val disabled: StyleOverride = StyleOverride()
+) {
+    internal fun apply(base: StyleOverride, visual: InteractionVisual): StyleOverride {
+        var result = base
+        if (visual.enabled) {
+            if (visual.hovered)
+                result = result.then(hovered)
+            if (visual.pressed)
+                result = result.then(pressed)
+            if (visual.focused)
+                result = result.then(focused)
+        } else
+            result = result.then(disabled)
+        return result
+    }
+}
+
+public class ButtonStyle public constructor(
+    public val kind: SurfaceKind = SurfaceKind.Action,
+    public val surface: SurfaceOptions = SurfaceOptions(),
+    public val text: SpanStyle? = None,
+    public val states: InteractionStyles = InteractionStyles(),
+    public val transition: StyleValue<AnimationSpec?> = StyleValue.Inherit
+) {
+    internal fun options(visual: InteractionVisual): SurfaceOptions =
+        SurfaceOptions(
+            surface.suggestedSize,
+            surface.minimumSize,
+            surface.padding,
+            states.apply(surface.style, visual),
+            surface.focus
+        )
+}
+
+public class CheckboxStyle public constructor(
+    public val marker: CheckboxOptions = CheckboxOptions(),
+    public val padding: Insets? = None,
+    public val states: InteractionStyles = InteractionStyles(),
+    public val transition: StyleValue<AnimationSpec?> = StyleValue.Inherit,
+    public val selectionTransition: StyleValue<AnimationSpec?> = StyleValue.Inherit
+) {
+    internal fun options(visual: InteractionVisual): CheckboxOptions =
+        CheckboxOptions(
+            marker.size,
+            marker.minimumSize,
+            marker.markInset,
+            states.apply(marker.style, visual),
+            marker.markColor,
+            marker.focus
+        )
+}

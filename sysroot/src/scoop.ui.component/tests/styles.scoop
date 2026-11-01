@@ -1,0 +1,100 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.test.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+
+@Test
+private class ComponentStyleTest {
+    @Test
+    fun `control state overrides combine in order without freezing theme defaults`() {
+        val states =
+            InteractionStyles(
+                hovered = StyleOverride(cornerRadius = StyleValue.Set(7.0)),
+                pressed = StyleOverride(background = StyleValue.Set(Some(Paint(Color.Black)))),
+                focused = StyleOverride(border = StyleValue.Set(Some(Border(3.0, Color.White)))),
+                disabled = StyleOverride(background = StyleValue.Set(None))
+            )
+        val style =
+            ButtonStyle(surface = SurfaceOptions(padding = Some(Insets.all(5.0))), states = states)
+        val active = InteractionVisual(hovered = true, pressed = true, focused = true)
+        val options = style.options(active)
+        for (theme in [macosTheme(), materialTheme()]) {
+            val geometry =
+                theme.surfaceGeometry(
+                    Rect(0.0, 0.0, 80.0, 40.0),
+                    SurfaceVisual(SurfaceKind.Action, active),
+                    options
+                )
+            assertEquals(Color.Black, geometry.style.background!!.color)
+            assertEquals(Some(Border(3.0, Color.White)), geometry.style.border)
+            assertEquals(7.0, geometry.outline.radius)
+            assertEquals(Rect(8.0, 8.0, 64.0, 24.0), geometry.content)
+            assertEquals(
+                theme.surfaceMetrics(SurfaceVisual(SurfaceKind.Action)).suggestedSize,
+                theme.surfaceMetrics(SurfaceVisual(SurfaceKind.Action), options).suggestedSize
+            )
+            val disabled =
+                InteractionVisual(enabled = false, hovered = true, pressed = true, focused = true)
+            val result =
+                theme.surfaceGeometry(
+                    Rect(0.0, 0.0, 80.0, 40.0),
+                    SurfaceVisual(SurfaceKind.Action, disabled),
+                    style.options(disabled)
+                )
+            when (result.style.background) {
+                case None -> {};
+                case Some(_) -> fail(Some("explicit background removal was lost"))
+            }
+            assertEquals(
+                theme.surfaceMetrics(SurfaceVisual(SurfaceKind.Action)).cornerRadius,
+                result.style.cornerRadius
+            )
+        }
+    }
+
+    @Test
+    fun `label appearance cache follows the current theme but reuses unchanged text inputs`() {
+        val cache = ActionTextStyle()
+        val first = macosTheme().tokens.typography.action
+        val second = materialTheme().tokens.typography.action
+        val local = SpanStyle(weight = Some(700))
+        val a = cache.resolve(first, Color.White, Some(local))
+        assertSame(a, cache.resolve(first, Color.White, Some(local)))
+        assertEquals(first.fontSize, a.fontSize)
+        assertEquals(700, a.weight)
+        val b = cache.resolve(second, Color.Black, Some(local))
+        assertTrue(a !== b)
+        assertEquals(second.fontSize, b.fontSize)
+        assertEquals(second.families[0L], b.families[0L])
+        assertEquals(700, b.weight)
+        assertEquals(Color.Black, b.color)
+        val colored = SpanStyle(color = Some(Color(1.0, 0.0, 0.0)))
+        assertEquals(Color(1.0, 0.0, 0.0), cache.resolve(second, Color.White, Some(colored)).color)
+    }
+
+    @Test
+    fun `controls retain the mounted ambient source while explicit Props can rebind it`() {
+        val first = ThemeSource(macosTheme())
+        val second = ThemeSource(materialTheme())
+        val themes = ThemeAccess()
+        context(first) {
+            themes.mount(None)
+        }
+        context(second) {
+            assertSame(first.current.value, themes.read(None))
+            assertSame(second.current.value, themes.read(Some(second)))
+            assertSame(first.current.value, themes.read(None))
+        }
+        val dark = macosTheme(ThemeMode.Dark)
+        first.current.value = dark
+        assertSame(dark, themes.read(None))
+        val explicit = ThemeAccess()
+        explicit.mount(Some(second))
+        assertSame(second.current.value, explicit.read(Some(second)))
+        assertFailsWith<MissingContextException> { explicit.read(None) }
+    }
+}
