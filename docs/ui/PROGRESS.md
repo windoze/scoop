@@ -157,3 +157,9 @@ Scoop 格式与生产／测试类型检查通过，aarch64 release scoop.test：
 Scoop 格式／含测试的类型检查和 C++ 格式／严格告警检查通过。aarch64 release 的 scoop.graphics 共 24／24 通过，新增 7 项滤镜／几何行为和 1 项真实 Metal 组合：透明图片孔洞与半透明 alpha、只投影／带源、模糊外扩与零 sigma、有序效果差异、源 clip 与输出 clip、组混合、一次 DPI、输入关闭／错误线程与异常图层恢复。既有画布借用、形状、图像和 Metal 测试同时通过。
 
 本轮没有编译器、core／std／test 改动，没有 fixture 或全量测试；公共 style 与控件接入继续在 aarch64 推进，x86_64 留待最后。
+
+### 3.9 公共嵌套绘制上下文
+
+PaintContext.withState 复用 FrameContext 的独立借用，保留同一尺寸、时间、输入父级和子项放置。子项绘制次数在同一 Element 的所有嵌套作用域间共享，避免装饰回调使 children 重复绘制；借用期间父上下文拒绝绘制／放置，结束后子上下文失效。普通和异常退出都恢复 Canvas，框架仍只有 Empty／Component／Element 三种描述。
+
+Scoop 格式与 UI／独立 drawing Cone 的含测试类型检查通过。aarch64 release 的真实 UI drawing 组合 1／1 通过，新增覆盖嵌套子树绘制、父／子借用拒绝、重复 paintChildren 和未配对图层的异常恢复；原有动画、可选放置、输入冒泡与回调关闭继续通过。graphics／graphics.text／Surface 的 aarch64 公开资源已按更新的下层重新发布。无 fixture 或全量测试，公共 style 接着消费此入口。

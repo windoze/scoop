@@ -106,7 +106,30 @@ internal class DrawingPanel(
         context.place(area!!, Rect(0.0, 0.0, context.size.width, context.size.height))
         context.canvas.clipRect(Rect(0.0, 0.0, 280.0, 160.0))
         context.canvas.translate(4.0, 6.0)
-        context.paintChildren(area)
+        val size = context.size
+        val expired =
+            context.withState {
+                child ->
+                assertEquals(size, child.size)
+                assertFailsWith<IllegalStateException> { context.paintChildren() }
+                assertFailsWith<IllegalStateException> {
+                    context.place(area!!, Rect(0.0, 0.0, 1.0, 1.0))
+                }
+                child.withState { nested -> nested.paintChildren(area) }
+                assertFailsWith<IllegalStateException> { child.paintChildren() }
+                child
+            }
+        assertFailsWith<IllegalStateException> { expired.canvas.clear(Color.Black) }
+        assertFailsWith<IllegalStateException> { expired.withState { _ -> } }
+        assertFailsWith<GraphicsException> {
+            context.withState<Unit> {
+                child ->
+                child.canvas.saveLayer(0.5)
+                child.canvas.save()
+                child.canvas.translate(500.0, 500.0)
+                throw GraphicsException("nested drawing failed")
+            }
+        }
         assertFailsWith<IllegalStateException> { context.paintChildren() }
         context.canvas.drawRect(Rect(0.0, 0.0, 4.0, 4.0), Paint(Color.Black))
         probe.sequence.add("foreground")

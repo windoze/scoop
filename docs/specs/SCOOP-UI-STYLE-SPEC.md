@@ -10,7 +10,7 @@
 
 `styled(content, style = Style(), key = ViewKey.Position)` 始终建立相同具体类型的普通组件／元素及单个内容子项，包括空 Style。更新只替换 Props；在相同 key 和类型下，从无效果到有阴影、阴影移除、参数或效果顺序改变，都保留内容的实例和 State。调用者改变 content 自身的 key／类型时继续执行正常重挂载规则。
 
-第三方 Element 可在 onMount 中 `scope.resource(StylePainter())`，在 paint 中调用公共 `StylePainter.paint(context, style, content)`；也可提供显式局部 bounds。回调接收隔离后的 PaintContext，可绘制自己的内容并调用 paintChildren。StylePainter 同时提供 Canvas／Rect 入口，供真实离屏组合使用。隔离复用通用 PaintContext.withState／Canvas.withState，不访问 UI 内部节点。回调借用不能逃出作用域。
+第三方 Element 可在 onMount 中 `scope.resource { StylePainter() }`，在 paint 中调用公共 `StylePainter.paint(context, style, content)`；也可提供显式局部 bounds。回调接收隔离后的 PaintContext，可绘制自己的内容并调用 paintChildren。StylePainter 同时提供 Canvas／Rect 入口，供真实离屏组合使用。隔离复用通用 PaintContext.withState／Canvas.withState，不访问 UI 内部节点。回调借用不能逃出作用域。
 
 ## 2. 描述与参数
 

@@ -5,15 +5,20 @@ import scoop.surface.FrameContext
 import scoop.surface.InputArea
 import scoop.time.TimeMark
 
+internal class PaintPass {
+    var paintedChildren = false
+}
+
 /** Local coordinates and canvas state, borrowed only for this element's paint callback. */
 public class PaintContext internal constructor(
     private val node: MountedNode,
     private val frame: FrameContext,
     private val extent: Size,
-    private val inheritedParent: InputArea?
+    private val inheritedParent: InputArea?,
+    private val pass: PaintPass = PaintPass()
 ) {
     private var active = true
-    private var paintedChildren = false
+    private var borrowed = false
     public val canvas: Canvas get() {
         checkActive();
         return frame.canvas
@@ -30,6 +35,26 @@ public class PaintContext internal constructor(
         node.root.checkThread()
         if (!active)
             throw IllegalStateException(Some("paint context has ended"))
+        if (borrowed)
+            throw IllegalStateException(Some("paint context has an active child scope"))
+    }
+    /** Isolates drawing state while sharing this element's one child-paint pass. */
+    public fun <T> withState(block: (PaintContext) -> T): T {
+        checkActive()
+        borrowed = true
+        try {
+            return frame.withState {
+                childFrame ->
+                val child = PaintContext(node, childFrame, extent, inheritedParent, pass)
+                try {
+                    block(child)
+                } finally {
+                    child.end()
+                }
+            }
+        } finally {
+            borrowed = false
+        }
     }
     public fun place(area: InputArea, shape: Rect, parent: InputArea? = None) {
         checkActive()
@@ -41,9 +66,9 @@ public class PaintContext internal constructor(
     }
     public fun paintChildren(parent: InputArea? = None) {
         checkActive()
-        if (paintedChildren)
+        if (pass.paintedChildren)
             throw IllegalStateException(Some("children were already painted"))
-        paintedChildren = true
+        pass.paintedChildren = true
         val inputParent = chooseParent(parent, inheritedParent)
         var index = 0L
         for (child in node.children) {
@@ -55,7 +80,7 @@ public class PaintContext internal constructor(
         }
     }
     internal fun finish() {
-        if (!paintedChildren) {
+        if (!pass.paintedChildren) {
             for (origin in node.placements)
                 if (origin != None)
                     throw IllegalStateException(Some("placed children must be painted"))
