@@ -69,7 +69,7 @@ ARM64 与 Rosetta 示例都已运行，观察到正确的 Skia 路径、旋转�
 
 ## 2026-11-01：Surface 更名与 UI 设计
 
-底层 Cone、package、SurfaceHost／SurfaceWindow／SurfaceWindowState、C 入口、测试辅助接口、示例和文档已统一改名；没有兼容别名。声明式层另见 [UI 设计](../ui/DESIGN.md)与 [UI 规范](../specs/SCOOP-UI-SPEC.md)，当前尚未实现该 Cone。最外层 use、组件资源归属及待增加的 SurfaceContent 关闭合同已在设计中明确，本次不提前改变 surface 的绘制／关闭行为。
+底层 Cone、package、SurfaceHost／SurfaceWindow／SurfaceWindowState、C 入口、测试辅助接口、示例和文档已统一改名；没有兼容别名。上层另见 [UI 设计](../ui/DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)与[控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)：`scoop.ui` 提供公开自绘协议，`scoop.ui.component` 独立实现 Label／Button 等控件，两个 Cone 均尚未实现。最外层 use、组件资源归属及待增加的 SurfaceContent 关闭合同已在设计中明确，本次不提前改变 surface 的绘制／关闭行为。
 
 本次验证目标为 `aarch64-apple-darwin`，全部使用 release。Scoop 与原生源码已格式化，开发 sysroot 的系统库及四种 runtime 产物已完整准备；测试使用当前 runtime 源码和共享构建缓存。
 
@@ -84,3 +84,7 @@ ARM64 与 Rosetta 示例都已运行，观察到正确的 Skia 路径、旋转�
 | errors／asyncio／input 三个独立桌面测试程序 | `--no-run` 构建及链接通过，未运行 |
 
 系统会话两次报告 `CGSSessionScreenIsLocked=true`，锁屏环境无法完成真实帧与焦点验证；窗口宿主的超时不计为通过，待解锁后连同原生输入、模态循环及异常呈现收尾一起复验。本轮没有运行 Windows 或 Rosetta。25 项无需桌面的行为测试通过；原始日志、结构化结果及测试程序保存在仓库外。
+
+## 2026-11-01：文本公共能力设计
+
+新增 [scoop.graphics.text 规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)及[文本排版设计](../graphics/text/DESIGN.md)：独立字体／富文本／段落能力，支持样式继承、行内图片与控件的尺寸／基线／可见位置。UI 设计同步增加 LayoutMetrics、可选子项放置及公共 ParagraphHost，Label 使用相同接口。现有 SkParagraph 已有 placeholder 接口，但 Scoop 接入、native 拆分与控件组合尚未实现；本次仅更新设计，没有新增运行验收结论。

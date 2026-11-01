@@ -27,7 +27,7 @@ target/debug/scoop run sysroot/src/scoop.window/examples/metal/app --release
 | 能力 | 接口与行为 |
 | --- | --- |
 | 主循环 | Wait、Poll、单调 WaitUntil；跨线程 `ApplicationProxy.post`／`requestExit`；回调串行交付 |
-| 窗口 | 标题、显示／隐藏、焦点请求、尺寸及约束、桌面位置、装饰及按钮、窗口级别、最小化／最大化、主题、透明／模糊、内容共享提示、注意力请求 |
+| 窗口 | 多个独立非模态窗口；标题、显示／隐藏、焦点请求、尺寸及约束、桌面位置、装饰及按钮、窗口级别、最小化／最大化、主题、透明／模糊、内容共享提示、注意力请求 |
 | macOS | activation policy、titlebar 属性、bundle identifier 查询 |
 | 显示器与 DPI | 拥有数据的显示器快照、可选名称／桌面位置／刷新率；窗口完整 logical／physical／scale metrics |
 | 输入 | 物理键、当前布局逻辑键、重复、左右修饰键、未知键码、指针位置／按钮、序列取消、行／像素滚轮及 momentum、单调输入时间、基础光标和区域内隐藏 |
@@ -41,6 +41,16 @@ target/debug/scoop run sysroot/src/scoop.window/examples/metal/app --release
 `PointerState.time`、`KeyEvent.time` 和 `PointerEvent.Cancelled` 携带 `InputTime`，其 `mark()` 与 `MonotonicTimeSource` 同源。当前后端使用原生接收边界的 `Observed`；它区别于可可靠映射的原生发生时间 `Event`，不在业务派发时重新采样。失焦或原生捕获／跟踪中断仅取消仍活动的鼠标序列；正常离开内容区继续拖动，取消后的迟到 Up 被忽略。
 
 全屏控制／显示模式切换、全局 raw device、触摸／高级手势、光标捕获／自定义光标、文件拖放和复杂平台窗口交互属于后续范围。完整映射见 [WINIT-MAPPING.md](../../../docs/windowing/WINIT-MAPPING.md)。
+
+## 多窗口、模态与窗框
+
+在 Resumed 中可以多次调用 ActiveApplication.createWindow；这些窗口共用一个 Application 和事件循环，以 ApplicationEvent.Window(id, event) 区分事件。它们各自重绘和销毁，默认是独立的非模态（modeless）顶层窗口。最后一个窗口实际销毁后的行为仍由 LastWindowPolicy 决定。
+
+模态（modal）窗口尚无公共 API：当前没有窗口 owner、modality、showModal 或 sheet 入口。后文的模态／菜单测试验证系统嵌套循环期间 asyncio 仍能推进，不表示可以用 Scoop API 创建模态对话框。WindowLevel.AlwaysOnTop 只改变层级，不阻止其他窗口输入。
+
+创建时用 decorations／resizable，运行中用 setDecorations／setResizable 控制装饰和缩放；buttons／setEnabledButtons 控制原生按钮可用性。Win32 在 decorations=false、resizable=true 时仍保留 WS_THICKFRAME 缩放边框，要去掉这一边框还须设置 resizable=false。系统拖移、边缘缩放的 beginMove／beginResize 接口尚未提供，不能把关闭装饰直接等同于完整自绘窗框支持。
+
+macOS 的 TitlebarOptions 支持标题栏透明、隐藏标题和内容延伸到标题栏，通过 setMacOSTitlebar 设置；无装饰窗口仍可接收键盘焦点。当前接口和后续模态／自绘窗框分工见[窗口规范第 4.1～4.3 节](../../../docs/specs/SCOOP-WINDOW-SPEC.md#41-多窗口)。
 
 ## 文本输入
 

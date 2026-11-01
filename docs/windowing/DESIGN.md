@@ -1,6 +1,6 @@
 # 桌面窗口与事件库设计
 
-状态：基础架构、macOS 与 Windows GUI 骨架已实现。更新：2026-10-30。Windows 阶段复用两个普通 Cone，交付窗口、属性、基础输入／IME、显示器、native lease、DXGI renderer 和 asyncio；Linux Wayland／X11 及其他后端仍留待后续。实现、验收边界与硬件交互限制见 [PROGRESS.md](PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
+状态：基础架构、macOS 与 Windows GUI 骨架已实现。更新：2026-11-01，补充多窗口、模态与窗框边界，未新增实现。Windows 阶段复用两个普通 Cone，交付窗口、属性、基础输入／IME、显示器、native lease、DXGI renderer 和 asyncio；Linux Wayland／X11 及其他后端仍留待后续。实现、验收边界与硬件交互限制见 [PROGRESS.md](PROGRESS.md)，使用方式见[窗口库 README](../../sysroot/src/scoop.window/README.md)。
 
 本轮按 winit 的职责搭建可供 GUI 使用的骨架：真实窗口／主循环、显式生命周期与 proxy、基础窗口属性、DPI／显示器快照、键盘／指针／滚轮／文本输入、native lease、renderer 和 asyncio 接入。winit 的完整能力地图用于确定边界和后续扩展方向，不要求本轮复制它的全部平台扩展。全屏控制／显示模式切换、全局原始设备监听、触摸／高级手势、光标捕获、文件拖放及平台专有的复杂窗口交互分批补充；未实施项不以 Unsupported 伪装成平台不支持。控件、布局、菜单体系和应用编辑器仍由上层 GUI 实现。
 
@@ -138,9 +138,9 @@ watch/remove 的所有权、非内联注册、串行通知、回调退出后注�
 
 ## 5. 窗口属性、DPI 与平台差异
 
-WindowAttributes 使用普通属性／值类型，包含标题、内容尺寸约束、可见性、装饰、可调整大小、初始位置／全屏、透明、主题、窗口级别、按钮集合、图标、初始光标及激活请求。创建时取得独立快照，之后修改原属性对象或图像数组不改变已创建窗口；ApplicationOptions 同样在构造时取快照。无平台支持的必需属性使创建失败；主题／聚焦等建议性属性只表示已请求，不能把请求值伪装成 OS 已接受的状态。各方法分组见映射表。
+当前 WindowAttributes 使用普通属性／值类型，包含标题、内容尺寸及约束、可见性、装饰、可调整大小、初始位置、resize increments、透明／模糊、主题、窗口级别、按钮集合、内容共享提示及激活请求。创建时取得独立快照，之后修改原属性对象不改变已创建窗口；ApplicationOptions 同样在构造时取快照。全屏、图标和初始光标属性属于后续范围，不列为已存在的创建字段。无平台支持的必需属性使创建失败；主题／聚焦等建议性属性只表示已请求，不能把请求值伪装成 OS 已接受的状态。各方法分组见映射表。
 
-`RequestStatus` 为 Applied／Requested／Unsupported。Applied 只用于可立即确认的设置；Requested 由后续事件／快照确认；Unsupported 不产生副作用。非法参数用通常参数异常；平台失败用 WindowException，保留 operation、错误类别、backend 和可选原生 code。supports 是当前能力提示，不代替实际调用的错误处理；运行环境失联、权限或 compositor 状态仍可能变化。
+`RequestStatus` 为 Applied／Requested／Unsupported。Applied 只用于可立即确认的设置；Requested 由后续事件／快照确认；Unsupported 不产生副作用。非法参数用通常参数异常；平台失败用 WindowException，保留 operation、错误类别、backend 和可选原生 code。当前没有通用 supports 查询；实际调用仍须处理运行环境失联、权限或 compositor 状态变化。
 
 公共类型表达实际后端的共同语义与必要差异。窗口级别用 Normal／AlwaysOnTop／AlwaysOnBottom；后续全屏采用 Windowed／Borderless(monitor?)／Exclusive(videoMode)。本阶段直接提供已实施的方法，不预留一组没有对应方法的 WindowFeature 枚举或空平台分支。Windows 接入时复用语义相同的类型；发现当前表示不合适时直接修订 API 与调用方，不为保持旧事件匹配增加平行模型。
 
@@ -151,6 +151,16 @@ WindowAttributes 使用普通属性／值类型，包含标题、内容尺寸约
 全局位置单独用 `DesktopPosition`／`DesktopRect`，表示当前显示系统的桌面坐标；不能用某一个窗口的 scaleFactor 在混合 DPI 桌面上进行全局换算。桌面位置与尺寸查询允许 None，Wayland 不伪造全局窗口位置或 primary monitor。窗口内物理／逻辑换算只在同一 metrics 快照中进行，像素分配尺寸向上取整。
 
 MonitorId、WindowId、DeviceId 为不同值类型，库内分配且在本次 Application 内不复用；不暴露 XID、指针或数组下标作为公共 id。Monitor 是可保存的自有快照，屏幕离开后不再出现在新枚举中，旧快照内容仍可读取；名称、位置、刷新率等未知时为 None，刷新率使用可选整数毫赫兹，不能假定 60 Hz。触摸身份和显示模式控制随对应后续能力加入。
+
+### 5.1 多窗口、模态与自绘窗框
+
+当前已支持一个 Application 创建多个独立的非模态顶层窗口，共用原生主循环，按 WindowId 路由事件。单个窗口的重绘、输入、销毁和 lease 独立；默认关闭最后窗口后继续运行，也可设置 LastWindowPolicy.Exit。当前状态及属性对照见[窗口规范第 4.1～4.3 节](../specs/SCOOP-WINDOW-SPEC.md#41-多窗口)。
+
+decorations／resizable／buttons／level 等已有创建及运行中设置入口。AppKit 另有标题栏透明、隐藏标题和 full-size-content 选项；Win32 关闭装饰但保留 resizable 时仍使用 WS_THICKFRAME。去掉该原生边框需要同时关闭 resizable，完整自绘窗框的系统拖移／边缘缩放接口仍待实施。
+
+模态属于单独的待补能力：现有 WindowAttributes 没有窗口 owner 或 modality，原生模态／菜单测试只验证嵌套循环与 asyncio 配合。后续需要在 window 层明确窗口归属、窗口模态与应用模态的输入范围、取消／关闭时恢复、owner 关闭和焦点返回；UI 提供对话框内容与结果，不实现第二套原生输入阻塞规则。
+
+多窗口、自绘窗框和模态分别交付、分别验收。多窗口 UI 可以使用现有窗口基础；模态对话框和自绘窗框系统操作在对应窗口 API 真实实现后接入，不成为先交付普通自绘组件的前置门槛。
 
 ## 6. 输入与 IME
 

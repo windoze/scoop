@@ -6,7 +6,9 @@
 
 第一期提供基本 2D 绘图与 Path、动画、文本布局、指定区域的输入响应。它们是后续 component 的基础；本期不提供组件树、声明式 DSL、通用布局容器、完整文本编辑器或手势识别系统。
 
-基础 Cone 统一使用 `scoop.surface` 名称，类型为 SurfaceHost／SurfaceWindow／SurfaceWindowState，原生入口以 `scoop_surface_` 为前缀，不提供旧名称的兼容入口。上层声明式组件由独立的 [`scoop.ui` 设计](SCOOP-UI-SPEC.md)规定；该设计尚未改变本文件的已实现 API。
+基础 Cone 统一使用 `scoop.surface` 名称，类型为 SurfaceHost／SurfaceWindow／SurfaceWindowState，原生入口以 `scoop_surface_` 为前缀，不提供旧名称的兼容入口。上层由 [`scoop.ui` 自绘框架](SCOOP-UI-SPEC.md)和独立的 [`scoop.ui.component` 控件库](SCOOP-UI-COMPONENT-SPEC.md)组成；两者尚未实现，其设计未改变本文件的已实现 API。
+
+文本的目标分层另见 [`scoop.graphics.text` 规范](SCOOP-GRAPHICS-TEXT-SPEC.md)：字体、富文本模型、Paragraph／TextLayout 和行内对象排版将成为独立公共库。该拆分尚未实施；本文件下述 graphics 文本 API 仍描述当前实现。Surface 的帧、动画、输入区域与 Rect caret 不因文本拆分反向依赖 graphics.text 或 UI。
 
 - `scoop.graphics` 是普通 Cone，提供几何、Canvas、Path、Image、字体和文本布局，允许离屏使用，不依赖 `scoop.window`。绘图由 Skia 实现；文本采用 SkParagraph、HarfBuzz 和 SkUnicode 的 ICU 后端。
 - `scoop.surface` 是普通 Cone，依赖 graphics、window 及实际使用的 core／std／math／platform，提供 SurfaceHost、SurfaceWindow、帧调度、动画、InputArea 与区域焦点。两库的几何与动画所需数学函数复用 scoop.math。
@@ -26,7 +28,11 @@ Canvas 是一次绘制作用域内的借用对象，不得跨帧保存或在其�
 
 `scoop.graphics.native` 提供当前 Surface renderer 实际需要的公开 Unsafe 接入：原生渲染目标、受控的 Canvas 借用、提交／中止，以及几何状态快照。Skia C++ 类型不进入普通公共 API；Metal 等句柄只出现在按目标选择的 native 子包。跨 Cone 调用不能依赖另一 Cone 的 internal 构造器。
 
+SkSL／SkRuntimeEffect 的公开接入列为后续 graphics 增强，见[SkSL 设计](../graphics/sksl/DESIGN.md)。当前 Paint 只开放颜色／基础渐变等参数，saveLayer 只开放组透明度；shader 填充、输入图像和子树滤镜尚未接入。后续实现通过既有 Skia 后端与普通 FFI 扩展，不隐式创建时间驱动器，也不改变 Canvas 借用或第 4.1 节的按需停帧规则。
+
 ## 3. 字体与文本布局
+
+本节保留已实现的 graphics 文本合同；新增的 StyledText／SpanStyle、行内对象 metrics／placement 及目标资源边界以[文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)为准。实施迁移时同步移动 API、native 与实际消费者，并把本节收敛为文本规范引用；设计阶段不把新类型标为已可用。
 
 FontCollection 管理显式字体及系统 fallback。Paragraph 保存自有文字、样式 run、段落设置和字体来源；`layout(width)` 产生完整 TextLayout，供 paint、命中、caret 和 selection 查询共同使用。宽度采用有限非负逻辑值；另提供明确的无换行布局请求，不用无穷浮点值表示它。
 
@@ -59,6 +65,18 @@ SurfaceHost 必须在 Closing／Exiting 及用户回调失败时关闭相关 Sur
 一帧依次完成：取得可用目标、采样动画、执行必要文本布局及绘制、建立 Area placement、提交渲染、发布本帧命中几何。失败／中止不发布半帧几何；中止必须释放已取得的目标。帧内新增的失效请求保留到下一帧。
 
 发布的几何对应最近成功提交的画面，不保证 GPU 已经显示该画面。首期不为输入同步而等待 GPU 或显示扫描完成。平台提交接受之后的 GPU 失败作为渲染错误处理。
+
+### 4.1 空闲帧需求与原生等待
+
+按需停帧是 Surface 的基本合同。最后的必要帧结束后，若没有新的 dirty、运行中动画或待处理完成回调，必须撤销该窗口的原生帧需求。平台适配暂停或解除帧通知，不能让 display link、帧等待回调、固定 timer 或代理投递链持续运行，只在回调内部跳过绘制。
+
+静止期间不主动 acquire 绘制目标、调用 painter、提交 GPU 命令或重复 present。同一画面由平台保留；系统曝光、尺寸／DPI 变化等真实重绘请求仍可以安排必要帧，完成后再次停止。已经提交的 GPU 工作和有限的在途通知允许完成，但不得自行续订下一轮需求；停帧不要求同步 drain GPU，也不要求销毁可复用的图形资源。
+
+每个窗口独立管理需求。只要 UI 没有工作，就不因另一窗口的动画、无关 I/O 通知或主循环再次进入 AboutToWait 而绘制它。Surface 不设置 Poll 或循环的短 WaitUntil 来等待绘制；应用存在其他任务时继续复用既有主循环等待策略。
+
+隐藏、完全遮挡、零尺寸及其他暂不可呈现状态停止无效帧需求，保留 dirty 等待真实的帧机会或配置／可见性恢复，不忙轮询 acquire。原生恢复和新失效能重新请求工作；停止需求与通知交付的交错不能丢失有效请求，也不能形成永不停止的重绘链。
+
+macOS 的需求撤销对应暂停 CAMetalDisplayLink；Windows 对应解除 DXGI frame-latency 的原生等待及不再需要的排队通知。未来移动端的前后台／可见性接入也必须停止相应帧订阅。上层 UI 队列、组件与布局的静止要求另见 [UI 规范第 6.1 节](SCOOP-UI-SPEC.md#61-静止时停止渲染工作)。
 
 ## 5. 动画
 
@@ -93,6 +111,8 @@ hover 根据当前位置和已发布几何单独计算；鼠标不动而区域�
 Surface 维护逻辑 focusedArea；键盘、修饰键与 TextInputBatch 路由给当前活动焦点。OS 失焦使其暂不活动并结束按下／组合状态，重新获得焦点时可恢复仍有效的区域；移除／禁用则清除逻辑焦点。文字插入只来自 TextInputBatch，不能同时从 LogicalKey.Character 插入。
 
 requestFocus 只对已发布、可交互且允许焦点的区域成功；文本区域自动允许焦点。它只改变 Surface 内逻辑焦点，不强制抢占 OS 窗口焦点。每个区域的 caret 保存为局部 Rect 值，应用可直接传入 TextLayout.caret 的结果，不让路由层保留段落或编辑文档。区域因移除而取消的按钮序列在全部原生按钮释放前保持空路径，不能让剩余 Move／Up 或追加按钮突然命中其他区域。
+
+区域本帧不再放置时，在成功发布该帧几何后按区域缺席处理，退出命中并执行所需取消／失焦；失败帧继续保留最近已提交几何。区域对象本身不因此关闭。UI 可用这条既有放置规则处理被省略号隐藏的行内控件，无需给 Surface 增加文本对象或组件生命周期。
 
 更换文本接收者先关闭旧接收者的 IME，以 Disabled 为旧会话结束边界，再设置新候选窗位置并开启新接收者；没有活动旧接收者时直接开启。Enabled 先于新接收者的 Edit。结束前的 Edit 仍路由旧接收者，已注销则丢弃，不得写进新区域。逻辑 focus 可以先改变，排队编辑的归属不能随之被改写；窗口关闭的资源释放不等待业务 IME 通知。
 

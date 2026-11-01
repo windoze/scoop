@@ -1,6 +1,6 @@
 # winit 能力映射与分阶段范围
 
-状态：macOS 与 Windows 骨架已实现，Linux 后续实施；更新于 2026-10-30。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界以 [PROGRESS.md](PROGRESS.md) 为准。
+状态：macOS 与 Windows 骨架已实现，Linux 后续实施；更新于 2026-11-01，补充多窗口、模态与窗框的能力边界，未新增实现。与 [DESIGN.md](DESIGN.md) 和[规范](../specs/SCOOP-WINDOW-SPEC.md)一起阅读。基线为 winit 0.30.13 的桌面能力；下表是完整能力地图，实际交付与验收边界以 [PROGRESS.md](PROGRESS.md) 为准。
 
 当前阶段交付 macOS／Windows GUI 骨架：应用／窗口、proxy／关闭／lease、基础属性、显示器与 DPI、键盘／鼠标／滚轮／IME、renderer 与 asyncio 接入。全屏控制／显示模式切换、全局 raw device、触摸／高级手势、光标捕获、文件拖放和复杂平台窗口交互后续补充。下表的“本期”均指当前骨架阶段，不要求实现完整 AppKit GUI。
 
@@ -18,11 +18,12 @@
 | resumed／suspended／exiting／memory_warning | ApplicationEvent 对应生命周期事件 | 本期模型；启动先 Resumed，不把失焦当 Suspended；只报告系统提供的 memory warning |
 | ControlFlow | Wait／Poll／WaitUntil(TimeMark) | 本期；单调来源检查 |
 | run_on_demand／pump_app_events／嵌入外部 loop | 专用平台接入 | 后续；首期不作跨平台承诺 |
-| create_window／WindowId | createWindow／WindowId | 本期；创建与可绘制配置分开，Wayland configure 的零维度由客户端选择 |
-| title／visible／resizable／decorations | setTitle／setVisible／setResizable／setDecorations | 本期；显示系统限制明确返回，Wayland 隐藏／重显重新执行映射与 configure 握手 |
+| create_window／WindowId | createWindow／WindowId | 本期；同一 Application 可创建多个独立非模态窗口，按 id 路由和独立销毁；创建与可绘制配置分开 |
+| owner／modality（Scoop 后续需求） | 窗口归属、窗口模态／应用模态、关闭与焦点恢复 | 待设计实施；当前没有公共 owner／modality／showModal 入口，系统嵌套循环支持不代表已支持模态窗口 |
+| title／visible／resizable／decorations | setTitle／setVisible／setResizable／setDecorations | 本期；Win32 无装饰且 resizable 时保留 WS_THICKFRAME，完全自绘窗框的系统操作另行补充 |
 | inner／outer size、position、resize increments | metrics、outerBounds、desktopPosition、requestSize／requestPosition／setResizeIncrements | 本期按能力；Wayland 无全局窗口位置 |
 | min／max inner size | setSizeConstraints | 本期；逻辑尺寸，参数互相一致 |
-| enabled buttons／window level | setEnabledButtons／setWindowLevel | 本期按能力，保留按钮集合与上下层级 |
+| enabled buttons／window level | setEnabledButtons／setWindowLevel | 本期按能力，保留按钮集合与上下层级；置顶不建立模态输入限制 |
 | minimize／maximize | requestMinimized／requestMaximized | 本期；请求不等于状态确认，未知状态为 None |
 | borderless／exclusive fullscreen | 后续 requestFullscreen(Fullscreen) | 后续；系统全屏过渡、模式切换与恢复一起实施 |
 | focus／attention | requestFocus／requestAttention | 本期按能力；不承诺绕过 OS 激活策略 |
@@ -32,6 +33,8 @@
 | window icon | 后续 WindowIcon 与 setIcon | 后续；不把 macOS 应用图标冒充单窗口图标 |
 | close on Drop | requestDestroy／Closing／Destroyed | 本期改用显式寿命；GC 不调用 GUI |
 | raw-window-handle／raw-display-handle | NativeWindowLease 与类型化 native handle | 本期按实际后端提供载荷，Windows 目标提供 Win32；lease 不授权待配置时提交帧 |
+
+上述已实现与待补能力详见[窗口规范第 4.1～4.3 节](../specs/SCOOP-WINDOW-SPEC.md#41-多窗口)。Wayland 的配置握手、隐藏／重显等仍属于后续 Linux 后端；当前多窗口和装饰结论针对 AppKit／Win32。
 
 ## 2. 事件、输入与绘制
 

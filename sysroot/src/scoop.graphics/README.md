@@ -28,6 +28,8 @@ RasterSurface(320, 180).use { surface ->
 
 Canvas 支持 save／restore、仿射变换、矩形／Path 裁剪、基本形状、描边、线性／径向渐变、Image 及组透明度。`saveLayer(opacity)` 对整个组的合成结果应用透明度，`restore()` 结束该组。PathBuilder 的 `build()` 返回不可变快照；Path 的 contains、bounds 和 PathMeasure 使用相同几何与填充规则。
 
+SkSL runtime effect、uniform／输入 shader、Paint 着色及子树图层效果列为[后续增强设计](../../../docs/graphics/sksl/DESIGN.md)，目前未提供 Scoop 接口。计划复用 Skia 现有后端，程序与参数分开管理，动画显式驱动 uniform；持有效果不自动启动帧循环。
+
 Path、PathBuilder、PathMeasure、Image、RasterSurface 与底层目标均显式 close／use。原生资源限创建线程使用，Canvas 只在一次 draw 回调内有效，异常退出也会结束借用并恢复状态。Geometry 快照保留原生 Path 数据，可以在原 Path 或绘制作用域结束后继续使用；关闭快照后不可再查询。
 
 颜色采用 sRGB，绘制内部为预乘 alpha；RGBA8 输入和 `readPixels()` 返回值采用紧密排列的直通 alpha 字节。PNG／JPEG decode 会复制输入并实际解码；surface snapshot 保留独立图像内容，后续绘制不会修改旧快照。
@@ -37,6 +39,8 @@ GUI renderer 通过 `scoop.graphics.native` 的 RenderTarget 和 geometry 捕获
 DPI 缩放由目标根部施加一次，geometry 快照仍使用逻辑坐标。普通 submit 不等待 GPU；显式读回、drain 和 context 关闭是同步点。系统字体发现分别使用 CoreText 与 DirectWrite，文本布局和查询共用同一套 SkParagraph／HarfBuzz／ICU 实现。
 
 文本使用 `FontCollection`、`TextStyle`、`Paragraph` 和 `TextLayout`。FontCollection 默认启用系统 fallback，也可以关闭后使用 `register(bytes, family)` 登记自有字体。Paragraph 在构造时保存文字、run 与字体来源快照，`layout(width)` 和 `layoutUnwrapped()` 每次返回独立结果；旧结果不受重新布局、字体登记或来源关闭影响。
+
+后续将按 [scoop.graphics.text 设计](../../../docs/graphics/text/DESIGN.md)独立字体与段落能力，并增加样式继承和行内对象。该方案尚未实施，下面示例仍使用当前 `scoop.graphics` API；新文本规范不代表本库已经支持行内控件或已完成 package 迁移。
 
 ```scoop
 FontCollection().use { fonts ->

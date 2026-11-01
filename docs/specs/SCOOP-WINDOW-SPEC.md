@@ -2,6 +2,8 @@
 
 状态：基础架构与 macOS／Windows GUI 骨架已实现。实现基线日期：2026-10-30；第 11 节的 GUI 输入扩展于 2026-10-31 实现，Darwin 两目标验证通过，Win32 同步共享合同但本轮未执行 Windows 验证。本文件描述普通 Cone `scoop.window` 与 `scoop.window.asyncio` 的当前合同及后续平台设计方向；实际交付与验证范围见[窗口库实施记录](../windowing/PROGRESS.md)、[目标扩展实施记录](../target-refactor/PROGRESS.md)和 [GUI 实施记录](../surface/PROGRESS.md)。依据 [设计](../windowing/DESIGN.md)与 [winit 能力映射](../windowing/WINIT-MAPPING.md)。
 
+2026-11-01 补充第 4.1～4.3 节的多窗口、模态和窗框能力边界；本次是文档更新，没有新增窗口 API 或运行验收结论。
+
 ## 1. 分层与目标
 
 window 依赖 core／std／platform；window.asyncio 另依赖 asyncio。Darwin AArch64／amd64 的 AppKit 后端和三个 Windows x86_64 target 的 Win32 后端已实现；Windows 窗口 API 要求 Windows 10 1703 起的 Per-Monitor V2。Linux Wayland／X11 及其他后端留待后续；不添加没有后端的 native handle 变体或假窗口实现。两个库及其原生薄层、测试、示例均以普通 Cone 组织，窗口逻辑不进入编译器或 runtime。
@@ -45,6 +47,47 @@ WindowMetrics 包含 logicalSize、physicalSize、scaleFactor，scaleFactor 必�
 尺寸约束分别保存可选 min／max，非负且 min 不大于 max；创建尺寸必须满足约束。运行中收紧约束时请求调整当前内容大小，实际结果由 GeometryChanged 确认。resize increments 为可选的有限正尺寸，None 恢复平台默认。属性在创建返回前复制并应用，再按 visible／activation 请求显示窗口；不会先显示一个忽略所需属性的窗口。
 
 AppKit 使用原生内容尺寸／桌面坐标、titlebar 按钮、window level、miniaturize／zoom、appearance 与 NSVisualEffectView。改变装饰、resizable 或 full-size-content 的 style mask 后恢复输入 view 为 first responder，保证键盘路由连续。模糊背景放在 renderer 宿主 view 后面，关闭模糊时恢复独立的 transparent 设置。content protection 使用系统分享提示，返回 Requested，不保证屏幕捕获系统遵守该提示。macOS 的 activation policy 和 titlebar／full-size-content 选项位于 platform.macos；应用标识只查询实际 main bundle，命令行进程没有 bundle identifier 时返回 None。
+
+### 4.1 多窗口
+
+多窗口在 AppKit 和 Win32 后端均已实现。一个 Application 可以多次调用 ActiveApplication.createWindow，创建共享同一 owner 线程和原生事件循环的多个独立窗口；每个窗口有自己的 WindowId、状态、输入、重绘需求和 native lease。ApplicationEvent.Window(id, event) 指明事件归属，不为每个窗口另建 Application 或主循环。
+
+当前 createWindow 创建非模态（modeless）的独立顶层窗口，没有窗口间的 parent／owner 关系。对一个窗口调用 requestDestroy 只请求该窗口销毁；应用仍可在 CloseRequested 中选择退出整个应用。最后一个窗口实际 Destroyed 后，LastWindowPolicy.Exit 才触发应用退出；默认 KeepRunning，详见第 7 节。
+
+现有 [Darwin 测试](../../sysroot/src/scoop.window/tests/application.scoop)与 [Win32 测试](../../sysroot/src/scoop.window/test-windows/application.scoop)包含双窗口、不同 WindowId、分别请求销毁和重复销毁的用例。它们不构成模态窗口或父子窗口关系的实现证明。
+
+### 4.2 装饰与窗口外观
+
+当前创建属性与运行中操作包括：
+
+| 能力 | WindowAttributes | Window 操作 |
+| --- | --- | --- |
+| 原生标题栏／装饰 | decorations | setDecorations |
+| 交互式调整大小 | resizable | setResizable |
+| 关闭／最小化／最大化按钮可用性 | buttons | setEnabledButtons |
+| 普通／置顶／置底层级 | level | setWindowLevel |
+| 透明背景 | transparent | setTransparent |
+| 显示／隐藏 | visible | setVisible |
+
+decorations 与 resizable 是独立属性。Win32 当前在 decorations=false 时使用 WS_POPUP，在 resizable=true 时仍保留 WS_THICKFRAME，因此关闭标题栏／装饰不承诺同时去掉原生缩放边框。需要去掉该缩放边框时，当前还须设置 resizable=false；原生样式见 [Win32 实现](../../sysroot/src/scoop.window/native/windows/window.c)。
+
+macOS 的 TitlebarOptions 另提供 transparent、titleHidden、fullSizeContent，通过 WindowAttributes.setMacOSTitlebar 或 Window.setMacOSTitlebar 设置。无装饰窗口仍可成为 key／main window，沿用第 5 节的输入规则。透明背景属性不替代 renderer 的实际 alpha 呈现能力。
+
+窗口层级与模态是不同属性：AlwaysOnTop／AlwaysOnBottom 只改变叠放策略，不禁止其他窗口输入，也不建立窗口归属。
+
+### 4.3 模态与自绘窗框的待补能力
+
+当前公共 API 没有 parent／owner、modality、showModal 或 sheet 入口。第 8～10 节的模态循环接入，以及测试原生层的 runModalForWindow／MessageBox，验证的是系统嵌套循环期间事件与 asyncio 继续推进；它们不提供普通 Scoop 调用方可用的模态窗口合同。
+
+正式对话框需要窗口层补充以下具体语义；本节记录待补范围，不新增可调用接口：
+
+- 窗口归属：明确对话框关联的 owner 窗口、相应原生关系，以及 owner 关闭时关联窗口的收尾规则。这里的 owner 窗口与现有 owner 线程是不同概念。
+- 模态作用范围：区分非模态、仅约束关联窗口的窗口模态，以及约束同一应用其他窗口的应用模态；明确定义哪些窗口在何时停止和恢复交互。
+- 生命周期与焦点：关闭、取消、异常及 owner 提前关闭时完成模态状态释放；焦点只能请求恢复到仍存在且可交互的窗口，继续遵守 OS 激活策略与 callback／lease 关闭顺序。
+
+自绘窗框还需要系统拖移和边缘缩放接入。能力映射中的 beginMove／beginResize／showWindowMenu 均待实施；当前原生装饰的用户拖动不等于已有这些公开方法。后续入口须使用有效输入上下文，协调实际 DPI、原生命中与嵌套循环，不能仅把 decorations=false 当成完整自定义窗框支持。
+
+窗口归属、模态输入限制、焦点与系统拖移／缩放由 scoop.window 提供；UI 负责内容、控件及结果交付。不得在组件中通过临时屏蔽几个输入回调或设置置顶来代替窗口模态。实施时分别验证窗口模态／应用模态、其他窗口的交互、关闭及焦点恢复、自绘窗框拖移／缩放，以及真实原生循环中的 asyncio 推进。
 
 ## 5. 输入与文本
 

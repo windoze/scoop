@@ -4,6 +4,10 @@
 
 当前进入 Windows 阶段，方案与验收见第 13 节；第 1～12 节的“本期／第一期”保留为已交付的共享架构与 macOS 范围。Linux 留待后续。
 
+2026-11-01 的[文本排版设计](../graphics/text/DESIGN.md)规定后续把字体、Paragraph／TextLayout 迁入独立 `scoop.graphics.text`，增加富文本描述与行内对象排版；[UI 设计](../ui/DESIGN.md)据此接入基线、可选子项放置和公共段落宿主。两项均处于设计阶段，本文下述 graphics 归属仍对应已实现的基础层；实施迁移时同步改动源码、native、调用方与合同。
+
+同日补充的 [GPU／3D／视频调研](../ui/DESIGN.md#13-后续增强gpu-互操作3d-与视频)列为更后续的增强：graphics 接入外部目标与图像，surface 衔接离屏宿主、帧和输入，3D／媒体逻辑由独立库或应用承担。当前 Metal／D3D12 目标包装已有基础，但外部 GPU 图像导入、离屏 UI 根及视频选帧与播放时钟接入尚未实现，不改变本文已交付的窗口呈现合同。
+
 ## 1. 本期决定
 
 采用两个普通 Cone：`scoop.graphics` 提供绘图、路径、字体和段落布局；`scoop.surface` 把这些能力与窗口、帧、动画和输入区域连接起来。Skia 负责绘图，文本采用 SkParagraph + HarfBuzz + SkUnicode／ICU。第一期完成共享实现及 macOS 后端，后续平台分别实现 surface、帧通知和字体／窗口适配。
@@ -62,7 +66,8 @@ native frame source、Skia context、dirty 管理、Area 命中、逻辑 focus�
 
 ```mermaid
 flowchart TD
-    Component[scoop.ui 声明式组件] --> Surface[scoop.surface 共享逻辑]
+    Controls[scoop.ui.component 基础控件] --> UI[scoop.ui 自绘框架]
+    UI --> Surface[scoop.surface 共享逻辑]
     Surface --> Graphics[scoop.graphics 公共绘图与文本]
     Surface --> Window[scoop.window]
     Surface --> Backend[scoop.surface 平台 renderer]
@@ -72,7 +77,7 @@ flowchart TD
     Native --> Skia
 ```
 
-两个 Cone 都显式声明自己实际使用的 core／std／math／platform 依赖；几何变换、easing 和 spring 所需的三角、平方根及指数函数复用 scoop.math。graphics 不反向依赖 Surface 或 window；离屏绘图和文本测量不要求 Application 已运行。
+graphics 与 Surface 都显式声明自己实际使用的 core／std／math／platform 依赖；几何变换、easing 和 spring 所需的三角、平方根及指数函数复用 scoop.math。graphics 不反向依赖 Surface 或 window；离屏绘图和文本测量不要求 Application 已运行。图中的两个 UI 层仍是待实施设计：框架提供公开自绘能力，Label／Button 等由独立控件库实现，详见 [UI 设计](../ui/DESIGN.md)。
 
 | 内容 | 共享实现 | 平台独立实现 |
 | --- | --- | --- |
@@ -198,6 +203,23 @@ sequenceDiagram
 FrameClock 使用现有 MonotonicTimeSource，在 owner 开始本帧时采样一次。所有动画共用该 TimeMark。原生预测呈现时间可用于平台 present 策略，不拿来与来源不明的输入时间直接相减。
 
 命中几何对应最近成功提交的一帧。异步 GPU 和显示扫描天然可能稍后才显示；本期不以等待 GPU 的方式强行保证输入对应屏幕上刚扫描的像素。需要离屏截图或明确 GPU 完成的测试使用显式读回路径。
+
+### 6.3 停帧机制与验证
+
+静止时必须停止 Surface 自身的周期唤醒及 GPU 工作，具体合同见[规范第 4.1 节](../specs/SCOOP-SURFACE-SPEC.md#41-空闲帧需求与原生等待)。目标是既没有持续绘制，也没有每次只检查一下就返回的空帧循环；无需为保持静态画面反复 present，不因缓存和 GPU 资源仍被持有就继续运行时钟。
+
+现有源码已有按需基础：[SurfaceWindow.refresh](../../sysroot/src/scoop.surface/src/shared/host/window.scoop)结合 dirty、AnimationTimeline.hasWork、尺寸与可见性设置需求；[macOS 适配](../../sysroot/src/scoop.surface/native/darwin/renderer.m)在需求撤销时暂停 CAMetalDisplayLink，[Windows 适配](../../sysroot/src/scoop.surface/native/windows/notifications.cpp)解除 frame-latency 等待并退休排队通知。[动画时间轴](../../sysroot/src/scoop.surface/src/shared/animation/timeline.scoop)区分持有的动画与活动集合，[Animatable](../../sysroot/src/scoop.surface/src/shared/animation/animatable.scoop)在完成、暂停和取消时退出活动集合。UI 接入必须保留这些行为，并使自己的逻辑队列同样按需运行。
+
+现有 [SurfaceHost 测试](../../sysroot/src/scoop.surface/tests/host.scoop)在一次性 WaitUntil 的静止区间检查 painter 计数不增加，也检查隐藏和最小化停帧。这是现有的绘制次数覆盖；完整 UI 静止及原生唤醒／GPU 提交的联合验收仍随 UI 实施补齐，不把已通过的 Surface 测试扩大解释为全部能耗指标已经测量。
+
+验收采用真实平台后端，至少检查以下组合：
+
+1. 初次画面、窗口配置和有限的在途通知结束后，稳定区间内没有新的组件／布局／绘制调用、原生周期帧通知、目标获取和 GPU submit／present。以一次性等待结束观察，不在测试中安装持续轮询计数的 timer。
+2. 单次失效或同轮多次请求能产生所需更新，处理中新失效不丢失；完成后回到稳定区间。系统真实曝光、resize／DPI 等请求单独触发并验证，不把它们混入无事件区间，也不能用其存在掩盖框架自发重绘。
+3. 动画完成、暂停、取消、零时长和卸载均能停止持续帧需求；最终画面与完成回调产生的更新仍正确。多窗口中仅有需求的窗口绘制，隐藏／Deferred 不忙重试，恢复后重新取得机会。
+4. 普通 run 与 runWithAsyncio 使用相同停帧机制，无关 I/O 通知不导致绘制；关闭后不残留帧等待或投递链。未来离屏宿主、3D 和视频同样验证需求撤销。
+
+测试内入口计数、实际后端调用记录和平台分析工具分别提供证据，CPU／GPU 活动及能耗采样作为辅助观察。判据是稳定区间没有 UI 自发工作，不能以“频率较低”或某台机器低于任意百分比替代；生产代码不因此增加常驻性能监测器、轮询线程或预算机制。GPU 完成和系统合成照常运行，不为测试零读数强制普通帧同步等待。
 
 ## 7. 动画
 
