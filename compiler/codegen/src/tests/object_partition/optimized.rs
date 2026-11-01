@@ -54,7 +54,6 @@ fn pair_roots(null: bool) -> Module {
 
 #[test]
 fn emitted_registration_and_stackmap_use_final_ssa_root_count() {
-    let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::DARWIN_AARCH64_ID,
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -67,12 +66,11 @@ fn emitted_registration_and_stackmap_use_final_ssa_root_count() {
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
-                directory.path(),
                 profile(target, OptimizationMode::Release),
             )
             .unwrap_or_else(|error| panic!("{target:?}/null={null}: {error}"));
             let registrations = emitted
-                .production()
+                .production
                 .registration_production()
                 .safepoints()
                 .registrations();
@@ -88,17 +86,12 @@ fn emitted_registration_and_stackmap_use_final_ssa_root_count() {
                 .native_symbol_normalization();
             let symbol = normalization
                 .compiler_generated_object_symbol(registrations[0].symbol().symbol().as_str());
-            let bytes = std::fs::read(
-                emitted
-                    .members()
-                    .iter()
-                    .find(|member| {
-                        matches!(member.units().kind(), ScoopLirObjectKindV1::CallableBody(_))
-                    })
-                    .unwrap()
-                    .path(),
-            )
-            .unwrap();
+            let bytes = &emitted
+                .members
+                .iter()
+                .find(|member| matches!(member.units.kind(), ScoopLirObjectKindV1::CallableBody(_)))
+                .unwrap()
+                .bytes;
             let file = object::File::parse(bytes.as_slice()).unwrap();
             let record = file.symbol_by_name(&symbol).unwrap();
             let section = file
@@ -171,7 +164,6 @@ fn dead_invokes_module() -> Module {
 
 #[test]
 fn deleted_invokes_leave_no_site_registration_image_entry_or_stackmap() {
-    let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::DARWIN_AARCH64_ID,
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -185,14 +177,13 @@ fn deleted_invokes_leave_no_site_registration_image_entry_or_stackmap() {
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
-                directory.path(),
                 profile(target, mode),
             )
             .unwrap_or_else(|error| panic!("{target:?}/{mode:?}: {error}"));
             // Both profiles fold the equal expressions before root finalization.
             assert_eq!(
                 emitted
-                    .production()
+                    .production
                     .registration_production()
                     .safepoints()
                     .registrations()
@@ -200,31 +191,26 @@ fn deleted_invokes_leave_no_site_registration_image_entry_or_stackmap() {
                 0
             );
             assert_eq!(
-                emitted
-                    .production()
-                    .image_plan()
-                    .tables()
-                    .safepoints()
-                    .len(),
+                emitted.production.image_plan().tables().safepoints().len(),
                 0
             );
             let projected = ScoopLirObjectPartitionV1::from_foundation(
                 &input,
-                emitted.foundation(),
-                emitted.production().canonical_definitions(),
+                &emitted.foundation,
+                emitted.production.canonical_definitions(),
             )
             .unwrap();
-            assert_eq!(&projected, emitted.partition());
+            assert_eq!(projected, emitted.partition);
             let member = emitted
-                .members()
+                .members
                 .iter()
-                .find(|member| member.units().kind() == ScoopLirObjectKindV1::CallableBody(body))
+                .find(|member| member.units.kind() == ScoopLirObjectKindV1::CallableBody(body))
                 .unwrap();
             let plan = member
-                .units()
+                .units
                 .definition_plans()
                 .iter()
-                .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+                .filter_map(|id| emitted.production.canonical_definitions().plan(*id))
                 .find(|plan| {
                     plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
                 })
@@ -239,12 +225,12 @@ fn deleted_invokes_leave_no_site_registration_image_entry_or_stackmap() {
                 assert!(!roles.contains(&DefinitionAtomRole::Lsda));
             }
             assert_eq!(
-                member.units().definition_plans().len(),
+                member.units.definition_plans().len(),
                 2,
                 "body and callable registration survive"
             );
             assert_eq!(
-                emitted.foundation().definition_plan_count() + 3,
+                emitted.foundation.definition_plan_count() + 3,
                 input.foundation().definition_plan_count()
             );
         }

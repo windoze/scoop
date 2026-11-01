@@ -113,16 +113,16 @@ fn add_external_alias(
 }
 
 pub(crate) fn materialize_global_linkages_v1(
-    path: &std::path::Path,
+    bytes: &mut Vec<u8>,
     target: scoop_lir::LirTargetProfile,
     surface: &ObjectSymbolSurfaceV1,
     definitions: &[scoop_lir::ObjectDefinitionPlanId],
 ) -> Result<(), CodegenError> {
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
-        return elf::materialize(path, surface, definitions);
+        return elf::materialize(bytes, surface, definitions);
     }
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
-        return coff::materialize(path, surface, definitions);
+        return coff::materialize(bytes, surface, definitions);
     }
     let normalization = target.contract().native_symbol_normalization();
     let mut names = Vec::new();
@@ -163,12 +163,9 @@ pub(crate) fn materialize_global_linkages_v1(
     if names.is_empty() {
         return Ok(());
     }
-    let mut bytes = std::fs::read(path)
-        .map_err(|error| CodegenError(format!("cannot read atom boundaries: {error}")))?;
-    let layout = crate::callable_atom_boundaries::MachOLayout::parse(&bytes, target)?;
+    let layout = crate::callable_atom_boundaries::MachOLayout::parse(bytes, target)?;
     for name in names {
-        layout.materialize_odr_definition(&mut bytes, &name)?;
+        layout.materialize_odr_definition(bytes, &name)?;
     }
-    std::fs::write(path, bytes)
-        .map_err(|error| CodegenError(format!("cannot write atom boundary linkage: {error}")))
+    Ok(())
 }

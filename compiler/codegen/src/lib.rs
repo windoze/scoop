@@ -27,6 +27,7 @@
 //! monotonic card mark reserved for a future generational collector.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+#[cfg(test)]
 use std::path::Path;
 
 use inkwell::attributes::{Attribute, AttributeLoc};

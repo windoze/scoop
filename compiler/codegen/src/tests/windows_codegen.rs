@@ -26,7 +26,6 @@ pub(super) fn native_command(target: TargetProfileId, triple: &str) -> std::proc
 
 #[test]
 fn windows_members_preserve_seh_stackmaps_tls_and_definition_boundaries() {
-    let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID,
         scoop_target_data::WINDOWS_X86_64_MINGW_MSVCRT_ID,
@@ -69,15 +68,14 @@ fn windows_members_preserve_seh_stackmaps_tls_and_definition_boundaries() {
                     &scoop_lir::ConeCoordinate::reserved_single_file(),
                     &[scoop_identity::ConeIdentity::CORE],
                     scoop_lir::EntryProductionSourceV1::Library,
-                    directory.path(),
                     profile,
                 )
                 .unwrap_or_else(|error| panic!("{target:?}/{optimization:?}/ODR={odr}: {error}"));
                 let mut saw_stackmap = false;
                 let mut saw_tls = false;
                 let mut saw_seh = false;
-                for member in emitted.members() {
-                    let bytes = std::fs::read(member.path()).unwrap();
+                for member in &emitted.members {
+                    let bytes = member.bytes.clone();
                     let envelope = scoop_slib::validate_scoop_lir_llvm_22_1_object_envelope_v1(
                         input.module().meta.target_profile,
                         &bytes,
@@ -86,10 +84,10 @@ fn windows_members_preserve_seh_stackmaps_tls_and_definition_boundaries() {
                     let file = object::File::parse(bytes.as_slice()).unwrap();
                     assert_eq!(file.format(), object::BinaryFormat::Coff);
                     let callable_sections = member
-                        .units()
+                        .units
                         .definition_plans()
                         .iter()
-                        .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+                        .filter_map(|id| emitted.production.canonical_definitions().plan(*id))
                         .find(|plan| {
                             plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
                         })
@@ -122,9 +120,9 @@ fn windows_members_preserve_seh_stackmaps_tls_and_definition_boundaries() {
                                 .starts_with(".tls")
                         });
                     }
-                    for definition in member.units().definition_plans() {
+                    for definition in member.units.definition_plans() {
                         let plan = emitted
-                            .production()
+                            .production
                             .canonical_definitions()
                             .plan(*definition)
                             .unwrap();

@@ -93,7 +93,6 @@ fn windows_aggregate_values_roundtrip_between_scoop_and_native_c() {
             &scoop_lir::ConeCoordinate::reserved_single_file(),
             &[scoop_identity::ConeIdentity::CORE],
             scoop_lir::EntryProductionSourceV1::Library,
-            directory.path(),
             profile,
         )
         .unwrap();
@@ -128,14 +127,19 @@ int main(void) {{
             .arg(&source)
             .args(
                 emitted
-                    .members()
+                    .members
                     .iter()
                     .filter(|member| {
-                        matches!(member.units().kind(),
+                        matches!(member.units.kind(),
                             ScoopLirObjectKindV1::CallableBody(body) if body != native_body
                         )
                     })
-                    .map(|member| member.path()),
+                    .enumerate()
+                    .map(|(index, member)| {
+                        let path = directory.path().join(format!("callable-{index}.o"));
+                        std::fs::write(&path, &member.bytes).unwrap();
+                        path
+                    }),
             )
             .arg("-o")
             .arg(&executable)

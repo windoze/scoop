@@ -62,6 +62,7 @@ pub(super) fn floating_function(name: &str, odr: bool) -> Function {
 
 #[test]
 fn windows_constant_pools_follow_callable_selection_and_preserve_alignment() {
+    #[cfg(windows)]
     let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::WINDOWS_X86_64_MSVC_UCRT_ID,
@@ -86,26 +87,25 @@ fn windows_constant_pools_follow_callable_selection_and_preserve_alignment() {
             &scoop_lir::ConeCoordinate::reserved_single_file(),
             &[scoop_identity::ConeIdentity::CORE],
             scoop_lir::EntryProductionSourceV1::Library,
-            directory.path(),
             profile,
         )
         .unwrap_or_else(|error| panic!("{target:?}: {error}"));
         let mut callables = Vec::new();
         for member in emitted
-            .members()
+            .members
             .iter()
-            .filter(|member| matches!(member.units().kind(), ScoopLirObjectKindV1::CallableBody(_)))
+            .filter(|member| matches!(member.units.kind(), ScoopLirObjectKindV1::CallableBody(_)))
         {
             let plan = member
-                .units()
+                .units
                 .definition_plans()
                 .iter()
-                .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+                .filter_map(|id| emitted.production.canonical_definitions().plan(*id))
                 .find(|plan| {
                     plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
                 })
                 .unwrap();
-            let bytes = std::fs::read(member.path()).unwrap();
+            let bytes = member.bytes.clone();
             let file = object::File::parse(bytes.as_slice()).unwrap();
             scoop_slib::validate_scoop_lir_llvm_22_1_object_envelope_v1(
                 input.module().meta.target_profile,
@@ -153,7 +153,7 @@ fn windows_constant_pools_follow_callable_selection_and_preserve_alignment() {
             }) {
                 assert!(symbol.is_local());
             }
-            callables.push((member.path(), plan.primary_symbol()));
+            callables.push((member.bytes.as_slice(), plan.primary_symbol()));
         }
         assert_eq!(callables.len(), 2);
         #[cfg(windows)]
@@ -166,8 +166,17 @@ fn link_and_run(
     directory: &std::path::Path,
     target: TargetProfileId,
     triple: &str,
-    callables: &[(&std::path::Path, scoop_lir::PersistentSymbolRequest)],
+    callables: &[(&[u8], scoop_lir::PersistentSymbolRequest)],
 ) {
+    let callables = callables
+        .iter()
+        .enumerate()
+        .map(|(index, (bytes, symbol))| {
+            let path = directory.join(format!("callable-{index}.o"));
+            std::fs::write(&path, bytes).unwrap();
+            (path, *symbol)
+        })
+        .collect::<Vec<_>>();
     let source = directory.join("coff-constants.c");
     std::fs::write(&source, format!(
         "extern double first(double) __asm__(\"{}\");\nextern double second(double) __asm__(\"{}\");\nint main(void) {{ return first(2.0) != -10.0 || second(-2.0) != -5.0 || first == second; }}\n",
@@ -178,11 +187,11 @@ fn link_and_run(
         .iter()
         .find(|(_, symbol)| symbol.linkage() == scoop_lir::LinkageClass::OdrWeak)
         .unwrap();
-    std::fs::copy(odr.0, &duplicate).unwrap();
+    std::fs::copy(&odr.0, &duplicate).unwrap();
     let executable = directory.join("coff-constants.exe");
     let output = native_command(target, triple)
         .arg(&source)
-        .args(callables.iter().map(|(path, _)| *path))
+        .args(callables.iter().map(|(path, _)| path))
         .arg(&duplicate)
         .arg("-o")
         .arg(&executable)

@@ -6,6 +6,7 @@ use super::*;
 
 #[test]
 fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
+    #[cfg(target_os = "linux")]
     let parent = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -49,14 +50,13 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
-                parent.path(),
                 profile,
             )
             .unwrap_or_else(|error| panic!("{target:?}/ODR={odr}: {error}"));
             let mut observed_tls = Vec::new();
             let mut odr_member = None;
-            for member in emitted.members() {
-                let bytes = std::fs::read(member.path()).unwrap();
+            for member in &emitted.members {
+                let bytes = member.bytes.clone();
                 let envelope = scoop_slib::validate_scoop_lir_llvm_22_1_object_envelope_v1(
                     input.module().meta.target_profile,
                     &bytes,
@@ -85,9 +85,9 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                         matches!(stackmaps.flags(), SectionFlags::Elf { sh_flags } if sh_flags & u64::from(elf::SHF_WRITE) != 0)
                     );
                 }
-                for definition in member.units().definition_plans() {
+                for definition in member.units.definition_plans() {
                     let plan = emitted
-                        .production()
+                        .production
                         .canonical_definitions()
                         .plan(*definition)
                         .unwrap();
@@ -126,9 +126,9 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                     }
                 }
                 if odr
-                    && matches!(member.kind(), EmittedConeObjectMemberKindV1::CallableBody { body, .. } if body == odr_body)
+                    && matches!(member.kind, EmittedConeObjectMemberKindV1::CallableBody { body, .. } if body == odr_body)
                 {
-                    odr_member = Some(member.path());
+                    odr_member = Some(member.bytes.as_slice());
                 }
             }
             observed_tls.sort();
@@ -144,12 +144,14 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
 }
 
 #[cfg(target_os = "linux")]
-fn check_coalescing(member: &Path, parent: &Path, symbol: &str) {
+fn check_coalescing(bytes: &[u8], parent: &Path, symbol: &str) {
+    let member = parent.join("callable.o");
+    std::fs::write(&member, bytes).unwrap();
     let output = parent.join("coalesced.o");
     let linked = std::process::Command::new("ld")
         .arg("-r")
-        .arg(member)
-        .arg(member)
+        .arg(&member)
+        .arg(&member)
         .arg("-o")
         .arg(&output)
         .output()

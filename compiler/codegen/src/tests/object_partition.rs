@@ -185,29 +185,27 @@ fn renders_only_the_callable_selected_by_each_physical_member() {
 }
 
 #[test]
-fn emitted_object_set_owns_temporary_members() {
+fn emitted_object_set_owns_complete_members() {
     let mut module = exceptions_module();
     module.output = scoop_lir::LirOutput::Library;
     let expected_bodies = module.functions.len();
     let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
-    let parent = tempfile::tempdir().unwrap();
 
     let emitted = emit_object_set(
         &input,
         &scoop_lir::ConeCoordinate::reserved_single_file(),
         &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
-        parent.path(),
         host_profile(),
     )
     .unwrap();
 
     assert_eq!(
         emitted
-            .members()
+            .members
             .iter()
             .filter(|member| matches!(
-                member.kind(),
+                member.kind,
                 EmittedConeObjectMemberKindV1::CallableBody { .. }
             ))
             .count(),
@@ -215,24 +213,23 @@ fn emitted_object_set_owns_temporary_members() {
     );
     assert_eq!(emitted.target(), input.module().meta.target_profile);
     assert_eq!(
-        emitted.target_selection(),
+        emitted.target_selection,
         scoop_target_data::DARWIN_AARCH64_LLVM_22_1
     );
     let projected = ScoopLirObjectPartitionV1::from_foundation(
         &input,
-        emitted.foundation(),
-        emitted.production().canonical_definitions(),
+        &emitted.foundation,
+        emitted.production.canonical_definitions(),
     )
     .unwrap();
-    assert_eq!(&projected, emitted.partition());
-    assert_eq!(emitted.members().len(), projected.objects().len());
-    assert!(emitted.members().iter().all(|member| {
-        std::fs::metadata(member.path()).is_ok_and(|metadata| metadata.len() > 0)
-    }));
-    let backing = emitted.temporary_directory().to_path_buf();
-    assert!(backing.starts_with(parent.path()));
-    drop(emitted);
-    assert!(!backing.exists());
+    assert_eq!(projected, emitted.partition);
+    assert_eq!(emitted.members.len(), projected.objects().len());
+    assert!(
+        emitted
+            .members
+            .iter()
+            .all(|member| !member.bytes.is_empty())
+    );
 }
 
 #[test]
@@ -240,13 +237,11 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
     let mut module = exceptions_module();
     module.output = scoop_lir::LirOutput::Library;
     let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
-    let parent = tempfile::tempdir().unwrap();
     let emitted = emit_object_set(
         &input,
         &scoop_lir::ConeCoordinate::reserved_single_file(),
         &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
-        parent.path(),
         host_profile(),
     )
     .unwrap();
@@ -258,27 +253,27 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
         .native_symbol_normalization();
     let mut callable_count = 0;
 
-    for member in emitted.members() {
-        let EmittedConeObjectMemberKindV1::CallableBody { body, .. } = member.kind() else {
+    for member in &emitted.members {
+        let EmittedConeObjectMemberKindV1::CallableBody { body, .. } = member.kind else {
             continue;
         };
         callable_count += 1;
         let plan = member
-            .units()
+            .units
             .definition_plans()
             .iter()
-            .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+            .filter_map(|id| emitted.production.canonical_definitions().plan(*id))
             .find(|plan| plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody)
             .unwrap();
         assert_eq!(
             plan.owner().kind(),
             scoop_lir::StrongDefinitionEntityKind::CallableBody(body)
         );
-        let bytes = std::fs::read(member.path()).unwrap();
+        let bytes = member.bytes.clone();
         let object = object::File::parse(bytes.as_slice()).unwrap();
-        for definition in member.units().definition_plans() {
+        for definition in member.units.definition_plans() {
             let definition = emitted
-                .production()
+                .production
                 .canonical_definitions()
                 .plan(*definition)
                 .unwrap();

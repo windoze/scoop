@@ -5,7 +5,6 @@ use inkwell::targets::FileType;
 
 #[test]
 fn data_emission_matches_full_pipeline_on_every_target() {
-    let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::DARWIN_AARCH64_ID,
         scoop_target_data::DARWIN_X86_64_ID,
@@ -43,17 +42,12 @@ fn data_emission_matches_full_pipeline_on_every_target() {
             module.set_triple(&machine.get_triple());
             module.set_data_layout(&machine.get_target_data().get_data_layout());
             module.verify().unwrap();
-            let path = directory.path().join("metadata.o");
             // Exercise the data path before the C API initializes codegen passes.
-            write(&machine, &module, &path).unwrap();
+            let bytes = emit(&machine, &module).unwrap();
             let full = machine
                 .write_to_memory_buffer(&module.clone(), FileType::Object)
                 .unwrap();
-            assert_eq!(
-                std::fs::read(path).unwrap(),
-                full.as_slice(),
-                "{target:?}/{optimization:?}"
-            );
+            assert_eq!(bytes, full.as_slice(), "{target:?}/{optimization:?}");
         }
     }
 }

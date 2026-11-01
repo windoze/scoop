@@ -31,7 +31,6 @@ impl SlibObjects {
             &scoop_lir::ConeCoordinate::reserved_single_file(),
             &[scoop_identity::ConeIdentity::CORE],
             scoop_lir::EntryProductionSourceV1::Library,
-            directory,
             backend,
         )
         .unwrap();
@@ -43,18 +42,16 @@ impl SlibObjects {
             })
             .unwrap();
         let partition =
-            scoop_lir::ProducerUnitPartitionV1::from_foundation(emitted.foundation()).unwrap();
+            scoop_lir::ProducerUnitPartitionV1::from_foundation(&emitted.foundation).unwrap();
         let plans = PlannedLinkObjectMemberSetV1::new(
             emitted.target(),
             &partition,
             emitted
-                .members()
+                .members
                 .iter()
                 .map(|member| {
-                    CanonicalScoopLirObjectUnitSetV1::new(
-                        member.units().definition_plans().to_vec(),
-                    )
-                    .unwrap()
+                    CanonicalScoopLirObjectUnitSetV1::new(member.units.definition_plans().to_vec())
+                        .unwrap()
                 })
                 .collect(),
             c_emitted
@@ -67,11 +64,11 @@ impl SlibObjects {
         )
         .unwrap();
         let surface =
-            scoop_lir::ObjectSymbolSurfaceV1::from_foundation(emitted.foundation()).unwrap();
+            scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&emitted.foundation).unwrap();
         let symbols =
             PlannedStrongObjectSymbolSetV1::new(emitted.target(), &surface, &plans).unwrap();
         let bridges =
-            scoop_lir::GeneratedBridgePlanSetV1::from_foundation(emitted.foundation()).unwrap();
+            scoop_lir::GeneratedBridgePlanSetV1::from_foundation(&emitted.foundation).unwrap();
         let mut c_objects = c_emitted
             .members()
             .iter()
@@ -96,14 +93,14 @@ impl SlibObjects {
         )
         .unwrap();
         let mut objects = emitted
-            .members()
+            .members
             .iter()
             .map(|member| {
                 (
                     plans
-                        .member_for_definition(member.units().definition_plans()[0])
+                        .member_for_definition(member.units.definition_plans()[0])
                         .unwrap(),
-                    std::fs::read(member.path()).unwrap(),
+                    member.bytes.clone(),
                 )
             })
             .collect::<Vec<_>>();

@@ -77,7 +77,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<slib::AssembledCrossConeLayoutArtifactV1, Error> {
-        let optimization = emitted.optimization();
+        let optimization = emitted.optimization;
         let mut prepared = objects::prepare(emitted, generated)?;
         prepared.foundation = prepared
             .foundation

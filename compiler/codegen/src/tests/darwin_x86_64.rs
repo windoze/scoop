@@ -6,7 +6,6 @@ use super::*;
 
 #[test]
 fn members_preserve_dwarf_stackmaps_tls_and_definition_boundaries() {
-    let directory = tempfile::tempdir().unwrap();
     let target = scoop_target_data::DARWIN_X86_64_ID;
     for optimization in [
         scoop_lir::OptimizationMode::Debug,
@@ -45,7 +44,6 @@ fn members_preserve_dwarf_stackmaps_tls_and_definition_boundaries() {
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
-                directory.path(),
                 profile,
             )
             .unwrap_or_else(|error| panic!("{optimization:?}/ODR={odr}: {error}"));
@@ -53,8 +51,8 @@ fn members_preserve_dwarf_stackmaps_tls_and_definition_boundaries() {
             let mut saw_tls = false;
             let mut saw_eh = false;
             let mut saw_lsda = false;
-            for member in emitted.members() {
-                let bytes = std::fs::read(member.path()).unwrap();
+            for member in &emitted.members {
+                let bytes = member.bytes.clone();
                 let envelope = scoop_slib::validate_scoop_lir_llvm_22_1_object_envelope_v1(
                     input.module().meta.target_profile,
                     &bytes,
@@ -78,9 +76,9 @@ fn members_preserve_dwarf_stackmaps_tls_and_definition_boundaries() {
                         file.section_by_index(section).unwrap().name().unwrap() == "__thread_vars"
                     });
                 }
-                for definition in member.units().definition_plans() {
+                for definition in member.units.definition_plans() {
                     let plan = emitted
-                        .production()
+                        .production
                         .canonical_definitions()
                         .plan(*definition)
                         .unwrap();

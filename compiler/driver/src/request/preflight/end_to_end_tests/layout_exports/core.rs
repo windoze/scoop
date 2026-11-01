@@ -262,7 +262,6 @@ fn check_core_layout_exports(names: &[&str]) {
         let objects = scoop_codegen::emit_object_set_v2(
             &lir,
             production,
-            directory.path(),
             scoop_codegen::ValidatedBackendProfile::from_selection(
                 target.lir_target_selection(),
                 target.c_bridge_toolchain().profile().contract(),
@@ -270,7 +269,7 @@ fn check_core_layout_exports(names: &[&str]) {
             .unwrap(),
         )
         .unwrap();
-        assert!(!objects.members().is_empty());
+        assert!(!objects.members.is_empty());
         artifact::check(
             name,
             directory.path(),

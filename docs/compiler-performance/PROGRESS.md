@@ -2,13 +2,13 @@
 
 开始日期：2026-11-01。源码基线 `427ef37cccc67ef4b95942ef31ea7c51ec73410c`。先测量实际编译与当前产物，再按收益安排实施；不降低语言检查、生成代码的优化等级、GC／ABI 正确性或调试能力。每轮完成后更新本文、清理无用临时产物、提交并推送，再合并 `origin/main`。
 
-按最新安排，当前集中处理 `.slib` 尺寸：每次改动只做必要的定向验证，尺寸方面的大幅优化全部完成后统一运行全量 fixture。随后再集中处理编译速度，同样在该阶段的大项完成后统一全量验收。发现的已有错误一并修复，不以基线问题为由排除检查。
+按最新安排，`.slib` 尺寸优化告一段落，当前集中提升编译速度，优先处理影响大且 debug／release 共有的路径。每次改动只做必要的定向验证，该阶段的大项完成后统一全量验收。已启动的尺寸阶段验收继续收尾；发现的已有错误一并修复，不以基线问题为由排除检查。
 
 已有工作见[编译性能修复](../COMPILER-PERFORMANCE.md)和[存储精简与压缩](../slib-storage/DESIGN.md)。本任务从这些优化之后的当前版本继续，不将过去的收益再次计入。
 
 ## 基线与方法
 
-本机为 Apple M3 Ultra、macOS 27.2、Rust 1.99.0、LLVM 22.1.8。第一、二轮配对计时显式设置 `LLVM_SYS_221_PREFIX=/opt/homebrew/opt/llvm@22`；PATH 中默认 LLVM 已是 23，不用于这些对照。第二轮完整验收发现该安装缺少仓库所需的 LLVM 补丁，随后改用 `scripts/build_llvm.py` 构建的私有 22.1.8 SDK，并配置同一 SDK 的运行时 rpath。下文保留原环境内的成对测量，不把切换 LLVM 的影响算入结构优化收益。编译器与 Scoop 库均使用 release。
+本机为 Apple M3 Ultra、macOS 27.2、Rust 1.99.0、LLVM 22.1.8。第一、二轮配对计时显式设置 `LLVM_SYS_221_PREFIX=/opt/homebrew/opt/llvm@22`；PATH 中默认 LLVM 已是 23，不用于这些对照。第二轮完整验收发现该安装缺少仓库所需的 LLVM 补丁，随后改用 `scripts/build_llvm.py` 构建的私有 22.1.8 SDK，并配置同一 SDK 的运行时 rpath。下文保留原环境内的成对测量，不把切换 LLVM 的影响算入结构优化收益。编译器使用 release 构建；第一至第九轮测量 Scoop release，从第十轮开始分别测量 Scoop debug／release，保留各自默认调试信息。
 
 以真实的 `scoop.std` 和 `scoop.http.client` 源码执行 `scoop build --release --emit-slib`。每次源码重编译使用独立的新缓存和输出目录，复用同一套预编译依赖；随后用原命令测量输入未变的缓存命中。三组旧／新交替执行，报告中位数并保留全部样本。操作系统文件缓存保持正常，不将其称为整机冷启动；采样运行与正式计时分开。`/usr/bin/time -l -p` 记录墙钟和最大单进程 RSS，计时不包含事后产物比较。
 
@@ -222,7 +222,7 @@ release workspace all-targets Clippy、265 项 slib 测试、4 项真实泛型�
 
 收尾时发现 deployment 的辅助脚本仍假设旧 ar 包装，且不能使用对象字典解压。一并修正为从紧凑容器的真实 CBOR manifest 定位成员，使用可选字典解压，要求同时检查 Scoop 和 Native 对象；runtime、最终 executable 与缓存行为断言保留。开发依赖使用近期维护的 `cbor2==6.1.5`，不手写重复 CBOR reader。3 个 deployment 相关 fixture、4 个 variant、9 次进程调用通过，并使用真实 asyncio 库的 Scoop／Native 对象验证字典解压分支。本轮未运行全量 fixture；到此开始尺寸阶段的统一完整验收。
 
-## 尺寸阶段统一验收（进行中）
+## 尺寸阶段验收记录
 
 共享字典提交后，macOS 完整 release workspace 的 105 个测试组、6,347 项测试全部通过，没有失败、忽略或过滤。fixture runner 规则测试 80 项完成、3 项平台条件跳过，构建脚本测试 32 项完成、6 项平台条件跳过。AArch64 正式 CLI 全量执行 4,327 个 fixture，首次为 4,282 项通过、25 项平台不适用、20 项失败，共 4,502 个 variant、13,374 次进程调用。两个 Darwin 目标的系统库和四种 runtime 均已按 schema 6 准备。
 
@@ -242,19 +242,44 @@ Linux 修复后完整 release workspace 的 105 个测试组、6,377 项测试�
 
 Windows 首批四项 runtime 测试失败定位为验收脚本漏配测试要求的 unwind 路径，已补齐三套 C／unwind 工具配置；修复后 release workspace all-targets Clippy 与五个 CLI 构建通过。新批次发现的 23 项 HIR 快照失败已全部闭合：Windows checkout 将预期文件转换成 CRLF，逐项还原 LF 后内容全部相等。为 HIR 快照目录增加 `*.hir.txt text eol=lf`，在 `core.autocrlf=true` 下核对全部 23 份 Git checkout 投影与原文件逐字节相等；Windows 格式检查、相关 crate 的 release all-targets Clippy 及原 23 项测试定向复测通过，未改动快照正文或比较断言。Windows fixture runner 规则测试 80 项完成、3 项平台条件跳过，构建脚本测试 32 项完成、9 项平台条件跳过。
 
-另有 provider 实例删除用例稳定失败于重新发布：测试仍持有旧 consumer 的 reader，Windows 拒绝覆盖该路径。已将旧消费者检查限定在重建之前的作用域，保留 Code 变化、旧消费者失效与重建后成功链接的断言；macOS 格式检查、相关 crate 的 release all-targets Clippy 和该项复测通过，Windows 格式检查、release workspace all-targets Clippy 与该项定向复测也通过。完整 Windows release workspace 批次和文档测试现已结束，原始日志汇总为 6,198 项通过、上述 24 项失败；失败均已定向闭合，最终没有新增失败。原始汇总包含嵌套子进程结果；两项带 ignored 标记的子进程入口由父测试实际调用，嵌套结果中的三项过滤并非排除正常验收。MSVC、MinGW MSVCRT 的系统库和四种 runtime 均已准备完成，MSVC 全量 CLI 继续执行；MinGW UCRT 仍在完成系统库准备。
+另有 provider 实例删除用例稳定失败于重新发布：测试仍持有旧 consumer 的 reader，Windows 拒绝覆盖该路径。已将旧消费者检查限定在重建之前的作用域，保留 Code 变化、旧消费者失效与重建后成功链接的断言；macOS 格式检查、相关 crate 的 release all-targets Clippy 和该项复测通过，Windows 格式检查、release workspace all-targets Clippy 与该项定向复测也通过。完整 Windows release workspace 批次和文档测试现已结束，原始日志汇总为 6,198 项通过、上述 24 项失败；失败均已定向闭合，最终没有新增失败。原始汇总包含嵌套子进程结果；两项带 ignored 标记的子进程入口由父测试实际调用，嵌套结果中的三项过滤并非排除正常验收。MSVC、MinGW MSVCRT、MinGW UCRT 的系统库和四种 runtime 现均准备完成，MSVC 全量 CLI 继续执行；两个尚未启动的 MinGW 全量 CLI 合并到速度阶段末验收。
 
 两项 `.slib` 长路径发布失败也已闭合。真实 Rust／tempfile 独立复现显示：父目录为 244 字符时，目标文件为 259 字符，临时文件达到 275 字符；父目录为 310 字符时同样失败。两者均在普通路径的发布步骤报 `os error 3`，使用 Windows 完整绝对父目录后成功。`.slib` writer 在实际发布时统一临时文件与目标的目录表示，仍返回请求的产物路径，不改变格式、实体身份或缓存命中规则。macOS 格式检查、release workspace all-targets Clippy 和真实发布失败保护用例通过；Windows 格式检查、release workspace all-targets Clippy、长路径首次发布／覆盖／失败保留与清理的定向测试及五个 CLI 构建通过。原两项 fixture 的三个 variant、22 次进程调用全部通过，保留间接依赖切换 profile 后的重建、定义处编译期环境值、运行结果与缓存命中断言。
 
-另有八项 Windows core 布局 fixture 在重负载下达到既有 300 秒时限。当前任务的后台 Rust 编译／测试和系统库准备调低优先级后，后续同类用例陆续通过；CLI 构建、MSVCRT 准备等任务结束后，以单并发定向复测原八项，八个 variant、八次实际编译全部通过，用时 227.00～240.61 秒。没有修改时限或功能断言，不将验收并发调整计为编译器提速。至此 MSVC 全量已出现的十项失败全部闭合，全量继续执行；后续两个 MinGW 目标的首次全量 CLI 按目标依次执行。
+另有八项 Windows core 布局 fixture 在重负载下达到既有 300 秒时限。当前任务的后台 Rust 编译／测试和系统库准备调低优先级后，后续同类用例陆续通过；CLI 构建、MSVCRT 准备等任务结束后，以单并发定向复测原八项，八个 variant、八次实际编译全部通过，用时 227.00～240.61 秒。没有修改时限或功能断言，不将验收并发调整计为编译器提速。至此 MSVC 全量已出现的十项失败全部闭合，全量继续执行。
 
 原始报告保留在仓库外，已经完成的 macOS、Linux GNU／musl 全量与定向 fixture 工作目录及过期编译缓存已清理；另清理 macOS 第五轮缓存和旧基线工作目录、Linux 第二轮 fixture 缓存与 sysroot 工作目录，以及 Windows 长路径、超时复测工作目录和独立复现程序。SDK、必要的基线产物和正在运行的 Windows 验收继续保留。
+
+## 第十轮：Scoop 对象在内存中交接
+
+进入编译速度阶段后，先对真实 HTTP 客户端的 debug／release 分别采样。对象临时文件的系统调用占主线程样本约 12.29%／15.88%，包括发射、常量与边界处理、driver 再次读取及最终清理；不把空闲信号线程的样本加入分母。Scoop LLVM 对象现在直接生成拥有所有权的原生字节，在内存中完成 Mach-O／ELF／COFF 后处理，再移动给 driver 打包。同时移交已有 foundation，省去一次完整复制。外部 C 编译、真实对象缓存与发布仍按需要使用文件。没有改变对象划分、优化等级、调试级别、GC／EH／ABI 检查或产物格式。
+
+以相同 profile 15 预编译依赖、同一路径和源码分别测量 debug／release，每个组合三组旧／新交替构建；每次源码编译使用新缓存，之后验证原命令命中且没有 child 编译。下表为 macOS M3 Ultra 的中位数；保留 debug 默认 full、release 默认 none。
+
+| 实际源码重编译 | 原版 | 内存交接 | 耗时降低 | 原版／新版范围 |
+| --- | ---: | ---: | ---: | --- |
+| `scoop.std` debug | 9.064 s | 7.383 s | 18.6% | 8.430～9.072 / 7.346～8.814 s |
+| `scoop.std` release | 9.717 s | 8.283 s | 14.8% | 9.608～9.850 / 7.624～8.323 s |
+| `scoop.http.client` debug | 75.530 s | 61.438 s | 18.7% | 75.510～82.584 / 61.354～61.924 s |
+| `scoop.http.client` release | 79.954 s | 67.171 s | 16.0% | 79.149～90.260 / 66.659～67.353 s |
+
+Linux `nuc12` 使用同一份改动、补丁版 LLVM 22.1.8 和 GCC，再对标准库执行三组成对测量：debug 11.707 → 11.146 s（4.8%），release 12.971 → 12.269 s（5.4%）。文件系统与宿主的实际收益不同，不把 macOS 的降幅推广为所有平台结果。
+
+内存代价也计入：macOS 三次运行观测到的最大单进程 RSS，标准库 debug／release 分别增加 30.7／6.3 MiB；HTTP debug 从 13,156,073,472 增至 13,453,574,144 bytes，约增加 283.7 MiB，release 从 11,270,127,616 增至 11,421,990,912 bytes，约增加 144.8 MiB。Linux 标准库峰值基本持平。缓存命中中位数在 macOS 为 20～23.5 ms、Linux 为 12～14 ms；所有命中均没有启动编译 child。
+
+macOS 两库的六组 release 产物与 Linux 标准库的三组 release 产物，完整文件逐字节相同。macOS 单组覆盖 34,946 个 release 原生对象，Linux 为 4,290 个。全部 debug／release 对照的 HIR／MIR／LIR payload 和语义指纹不变；macOS debug 的 39,871 个对象在三组对照中，机器段、重定位和相对于所属 section 的符号位置全部一致。
+
+debug 原始文件存在已有的不确定性：原版标准库连续两次编译有 6 个对象不同，HTTP 有 261 个；差异限于 DWARF 内容及其大小导致的后续 section 基址变化。逐项定位发现 managed 变量失效记录遍历随机 HashMap，使变量、位置表和行表的发射顺序改变。该问题不记作本轮新增行为，也不宣称 debug 产物完全相同；下一项变更立即修复此错误，然后继续共有路径的大项。
+
+macOS 与 Linux 的 release workspace all-targets Clippy 均通过；后端定向测试分别为 22／37 项，覆盖七目标的对象处理以及 Linux 原生链接／运行，两端各有 5 项真实泛型／跨产物测试通过。Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl 各执行 3 个正式 CLI 用例，合计 12 个 fixture、16 个 variant、116 次进程调用，全部通过；覆盖泛型异常控制流、间接依赖 profile 切换后的缓存更新与定义处编译环境值。未重跑全量 fixture，Windows 的原有全量继续收尾。
+
+本轮原始测量与对照报告保留在仓库外。已经清理每次测量的构建缓存，以及完成的定向 fixture 工作目录和缓存；仅保留后续调试确定性修复与性能对照需要的工具及代表产物。
 
 ## 后续优先级
 
 尺寸优化按用户补充要求，优先精简结构、删除不必要或重复的信息；压缩只作为最后的补充，且不采用 CPU／内存消耗过大的算法。
 
-1. 完成尺寸阶段在 macOS、Linux、Windows 适用目标上的统一全量 fixture 与 workspace 验收，修复所有遇到的实际失败；随后切换到编译速度大项。优先实测对象生产中的重复查找与独立 LLVM context 的并行发射，保持确定性和全部 GC／ABI 合同。
+1. 按用户最新要求，尺寸优化告一段落，转入编译速度大项，优先处理 debug／release 共有路径。已启动的 Windows 验收继续收尾并修复实际失败，尚未启动的两个 MinGW 全量 CLI 留到速度大项完成后的统一验收。已消除 Scoop 对象生产的重复临时文件读写；接着修复已有 debug 发射不确定性，再处理共有计算热点与独立 LLVM context 的并行发射，保持全部 GC／ABI 合同。
 2. 当前完整 29 库的 HIR／MIR／LIR 字符串表投影仅省约 1.05～1.06 MiB，其中 LIR 约 0.04～0.08 MiB。注册记录 ABI 去掉重复 group／member hash 输入的投影约省 1.93 MiB，该估算尚保留旧索引，仅用于候选排序。跨三层 metadata 的重复 ID 原始字节上限为 7.03 MiB，尚未扣映射开销；全局 union 会让只请求 HIR 的读取载入大量 LIR 专用 ID，先保留阶段局部读取。这些候选后置。manifest 的全量 ID 表此前反而增加约 2.10 MiB，不采用。
 
 已排除直接复用 LLVM 22.1 的对象发射 pass manager：即使 AsmPrinter／MCStreamer／MachineModuleInfo 有逐模块收尾，带 GC statepoint 与异常展开的第二个函数模块仍残留前一模块的栈映射记录；仅数据流水线在 COFF debug → 无 debug 切换时也残留字符串表空间。独立的连续模块字节对照发现两者，实验实现均已撤下，未进入生产。本轮仅补齐数据发射入口自身的 LLVM pass 注册，并将测试顺序调整为先调用数据入口，避免测试依赖完整代码生成的先行初始化。格式检查、workspace all-targets Clippy 和七目标两配置的数据对象对照通过；不为撤下的实验记录性能收益。

@@ -61,35 +61,33 @@ fn no_gc_calls_with_elided_results_keep_the_planned_compact_unwind_atoms() {
     module.functions = vec![leaf, caller];
     module.output = scoop_lir::LirOutput::Library;
     let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
-    let directory = tempfile::tempdir().unwrap();
     let emitted = emit_object_set(
         &input,
         &scoop_lir::ConeCoordinate::reserved_single_file(),
         &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
-        directory.path(),
         host_profile(),
     )
     .unwrap();
     let mut count = 0;
-    for member in emitted.members() {
+    for member in &emitted.members {
         if !matches!(
-            member.kind(),
+            member.kind,
             EmittedConeObjectMemberKindV1::CallableBody { .. }
         ) {
             continue;
         }
         count += 1;
-        let bytes = std::fs::read(member.path()).unwrap();
+        let bytes = member.bytes.clone();
         let object = object::File::parse(bytes.as_slice()).unwrap();
         assert!(object.section_by_name("__eh_frame").is_none());
         assert!(object.section_by_name("__llvm_stackmaps").is_none());
         assert!(object.section_by_name("__compact_unwind").unwrap().size() > 0);
         let plan = member
-            .units()
+            .units
             .definition_plans()
             .iter()
-            .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+            .filter_map(|id| emitted.production.canonical_definitions().plan(*id))
             .find(|plan| plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody)
             .unwrap();
         let roles = plan

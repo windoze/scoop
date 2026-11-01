@@ -16,7 +16,6 @@ pub(in super::super) fn assemble_with_production(
     let emitted = scoop_codegen::emit_object_set_v2(
         lir,
         production,
-        directory,
         scoop_codegen::ValidatedBackendProfile::from_selection(
             target.lir_target_selection(),
             target.c_bridge_toolchain().profile().contract(),

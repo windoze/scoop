@@ -2,12 +2,11 @@ use super::*;
 use crate::coff_object::{CoffObject, error};
 
 pub(super) fn materialize(
-    path: &std::path::Path,
+    bytes: &mut Vec<u8>,
     surface: &ObjectSymbolSurfaceV1,
     definitions: &[scoop_lir::ObjectDefinitionPlanId],
 ) -> Result<(), CodegenError> {
-    let bytes = std::fs::read(path).map_err(error)?;
-    let mut output = CoffObject::read(&bytes)?;
+    let mut output = CoffObject::read(bytes)?;
     // Callable registrations are emitted in the same member as their body.
     // Their distinct logical definitions must follow that body's native
     // selection, including when duplicate ODR members are discarded.
@@ -44,5 +43,6 @@ pub(super) fn materialize(
         let (primary, linkage) = callable.unwrap_or((primary, plan.primary_symbol().linkage()));
         output.associate(primary, &sections, linkage)?;
     }
-    std::fs::write(path, output.finish()?).map_err(error)
+    *bytes = output.finish()?;
+    Ok(())
 }

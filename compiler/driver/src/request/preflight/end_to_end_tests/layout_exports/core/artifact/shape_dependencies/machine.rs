@@ -211,14 +211,7 @@ pub(super) fn check(
         );
     }
     let directory = tempfile::tempdir().unwrap();
-    let emitted = emit(
-        name,
-        &output,
-        &coordinate,
-        provider,
-        production,
-        directory.path(),
-    );
+    let emitted = emit(name, &output, &coordinate, provider, production);
     artifact::check(
         input,
         &output,
@@ -240,7 +233,6 @@ fn emit(
     coordinate: &ConeCoordinate,
     provider: Provider<'_, '_>,
     production: lir::ConeProductionSectionV2,
-    directory: &Path,
 ) -> scoop_codegen::EmittedConeObjectSetV2 {
     let profile = scoop_codegen::ValidatedBackendProfile::from_selection(
         provider.target.lir_target_selection(),
@@ -277,13 +269,12 @@ fn emit(
             assert!(declaration.contains("external"), "{declaration}");
         }
     }
-    let objects =
-        scoop_codegen::emit_object_set_v2(output, production, directory, profile).unwrap();
+    let objects = scoop_codegen::emit_object_set_v2(output, production, profile).unwrap();
     assert_eq!(
         objects
-            .members()
+            .members
             .iter()
-            .map(|member| member.units())
+            .map(|member| &member.units)
             .collect::<Vec<_>>(),
         rendered
             .iter()

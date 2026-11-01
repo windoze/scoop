@@ -2,7 +2,7 @@ use super::*;
 use std::collections::BTreeMap;
 
 struct PreparedCallableObject {
-    path: std::path::PathBuf,
+    bytes: Vec<u8>,
     plan: CallableCodePlan,
     backend_constants: std::collections::BTreeSet<scoop_lir::CallableConstantKind>,
 }
@@ -14,7 +14,6 @@ pub(super) fn emit_object_set_with_production<
 >(
     input: &scoop_lir::ConeLirOutput,
     mut production: scoop_lir::ConeProductionSection<D, C, I>,
-    temporary_parent: &Path,
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedConeObjectSet<scoop_lir::ConeProductionSection<D, C, I>>, CodegenError> {
     let module = input.module();
@@ -23,21 +22,6 @@ pub(super) fn emit_object_set_with_production<
     let mut callable_safepoints = expected_safepoints.into_functions();
     let declarations = ConeDeclarations::new(module, &production)?;
     let machine = profile.create_target_machine()?;
-    std::fs::create_dir_all(temporary_parent).map_err(|error| {
-        CodegenError(format!(
-            "cannot create object temporary parent {}: {error}",
-            temporary_parent.display()
-        ))
-    })?;
-    let backing = tempfile::Builder::new()
-        .prefix("scoop-lir-")
-        .tempdir_in(temporary_parent)
-        .map_err(|error| {
-            CodegenError(format!(
-                "cannot create object backing under {}: {error}",
-                temporary_parent.display()
-            ))
-        })?;
     let mut callables = BTreeMap::new();
     let symbol_plans = crate::symbol_plan::SymbolPlanIndex::new(production.canonical_definitions());
     let callable_definitions = production
@@ -70,22 +54,21 @@ pub(super) fn emit_object_set_with_production<
             function,
             &declarations,
         )?;
-        let path = backing.path().join(format!("{body}.o"));
-        write_object(&machine, &prepared.llvm, &path)?;
+        let mut bytes = emit_object(&machine, &prepared.llvm)?;
         if profile.lir_target_profile().native_object_format()
             == scoop_lir::NativeObjectFormat::Coff64
         {
-            crate::coff_object::merge_callable_constants(&path)?;
+            crate::coff_object::merge_callable_constants(&mut bytes)?;
         }
         let backend_constants = crate::callable_constants::present(
-            &path,
+            &bytes,
             profile.lir_target_profile(),
             callable_definitions[&body],
         )?;
         callables.insert(
             body,
             PreparedCallableObject {
-                path,
+                bytes,
                 plan: prepared.plan,
                 backend_constants,
             },
@@ -118,19 +101,16 @@ pub(super) fn emit_object_set_with_production<
         metadata_partition::MetadataModule::new(metadata_llvm, production.canonical_definitions())?;
     let mut metadata_members =
         metadata.map_partitions(&machine, profile, &partition, |units, llvm| {
-            let path = backing
-                .path()
-                .join(format!("{}.o", units.definition_plans()[0]));
-            metadata_object::write(&machine, &llvm, &path)?;
+            let mut bytes = metadata_object::emit(&machine, &llvm)?;
             atom_boundaries::materialize_global_linkages_v1(
-                &path,
+                &mut bytes,
                 module.meta.target_profile,
                 production.canonical_definitions(),
                 units.definition_plans(),
             )?;
             Ok(EmittedConeObjectMemberV1 {
                 units: units.clone(),
-                path,
+                bytes,
                 kind: EmittedConeObjectMemberKindV1::NonCallable,
             })
         })?;
@@ -162,7 +142,6 @@ pub(super) fn emit_object_set_with_production<
         production,
         partition,
         members,
-        backing,
     })
 }
 
@@ -173,7 +152,7 @@ fn finish_callable_object(
     profile: ValidatedBackendProfile,
     body: scoop_lir::PersistentCallableBodyId,
 ) -> Result<EmittedConeObjectMemberV1, CodegenError> {
-    let PreparedCallableObject { path, .. } = prepared;
+    let PreparedCallableObject { mut bytes, .. } = prepared;
     let definition = units
         .definition_plans()
         .iter()
@@ -184,13 +163,11 @@ fn finish_callable_object(
                 "callable object for {body} has no canonical symbol plan"
             ))
         })?;
-    if let Err(error) = crate::callable_atom_boundaries::materialize_v1(
-        &path,
+    crate::callable_atom_boundaries::materialize_v1(
+        &mut bytes,
         profile.lir_target_profile(),
         definition,
-    ) {
-        return Err(discard_invalid_object(&path, error));
-    }
+    )?;
     let registrations = units
         .definition_plans()
         .iter()
@@ -198,14 +175,14 @@ fn finish_callable_object(
         .filter(|id| *id != definition.definition_plan())
         .collect::<Vec<_>>();
     atom_boundaries::materialize_global_linkages_v1(
-        &path,
+        &mut bytes,
         profile.lir_target_profile(),
         surface,
         &registrations,
     )?;
     Ok(EmittedConeObjectMemberV1 {
         units: units.clone(),
-        path,
+        bytes,
         kind: EmittedConeObjectMemberKindV1::CallableBody { body },
     })
 }

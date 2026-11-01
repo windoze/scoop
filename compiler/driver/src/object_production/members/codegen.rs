@@ -1,24 +1,18 @@
-//! Copy immutable codegen members while their temporary backing is alive.
+//! Consume Scoop object bytes and read the external C compiler's objects.
 
 use super::*;
 
 pub(in crate::object_production) fn plan_codegen_objects(
     target: LirTargetProfile,
     producer_units: &ProducerUnitPartitionV1,
-    members: &[scoop_codegen::EmittedConeObjectMemberV1],
+    members: Vec<scoop_codegen::EmittedConeObjectMemberV1>,
     generated_c_bridge: &EmittedGeneratedCBridgeObjectSetV1,
 ) -> Result<PlannedObjectBindings, BuiltinObjectProductionError> {
     let mut scoop_lir_sources = Vec::with_capacity(members.len());
     for member in members {
-        let bytes = std::fs::read(member.path()).map_err(|source| {
-            BuiltinObjectProductionError::ReadObject {
-                producer: BuiltinObjectProducerV1::ScoopLir,
-                path: member.path().to_path_buf(),
-                source,
-            }
-        })?;
+        let scoop_codegen::EmittedConeObjectMemberV1 { units, bytes, .. } = member;
         scoop_lir_sources.push(UnboundScoopLirObject {
-            units: member.units().definition_plans().to_vec(),
+            units: units.definition_plans().to_vec(),
             bytes,
         });
     }

@@ -58,13 +58,12 @@ fn windows_debug_functions_retain_source_declarations_in_codeview() {
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
-                directory.path(),
                 profile,
             )
             .unwrap();
             let mut found = false;
-            for member in emitted.members() {
-                let bytes = std::fs::read(member.path()).unwrap();
+            for member in &emitted.members {
+                let bytes = member.bytes.clone();
                 let object = object::File::parse(bytes.as_slice()).unwrap();
                 if !object
                     .symbol_by_name(&symbol)
@@ -93,7 +92,7 @@ fn windows_debug_functions_retain_source_declarations_in_codeview() {
                     directory.path(),
                     target,
                     profile.llvm_triple(),
-                    member.path(),
+                    &member.bytes,
                     &symbol,
                 );
             }
@@ -107,9 +106,11 @@ fn link_and_inspect_pdb(
     directory: &std::path::Path,
     target: TargetProfileId,
     triple: &str,
-    object: &std::path::Path,
+    bytes: &[u8],
     symbol: &str,
 ) {
+    let object = directory.join("debug-input.o");
+    std::fs::write(&object, bytes).unwrap();
     let source = directory.join("debug-consumer.c");
     std::fs::write(&source, format!(
         "extern double value(double) __asm__(\"{symbol}\");\nint main(void) {{ return value(2.0) != -10.0; }}\n"

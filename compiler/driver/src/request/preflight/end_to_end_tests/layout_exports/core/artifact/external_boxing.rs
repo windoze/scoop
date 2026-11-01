@@ -151,17 +151,15 @@ pub(in super::super) fn check(
     )
     .unwrap();
     consumer::check_ir(&rendered, output.module(), &cases);
-    let directory = tempfile::tempdir().unwrap();
     let objects = scoop_codegen::emit_object_set(
         &output,
         &coordinate,
         &[layout.provider()],
         lir::EntryProductionSourceV1::Library,
-        directory.path(),
         profile,
     )
     .unwrap();
-    assert_eq!(objects.members().len(), cases.len() + 1);
+    assert_eq!(objects.members.len(), cases.len() + 1);
 }
 
 fn shape<'a>(
