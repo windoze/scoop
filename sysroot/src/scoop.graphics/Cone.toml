@@ -37,6 +37,8 @@ path = "tests/drawing.scoop"
 [[test.sources]]
 path = "tests/native_canvas.scoop"
 [[test.sources]]
+path = "tests/canvas_scope.scoop"
+[[test.sources]]
 path = "tests/metal.scoop"
 when = { os = "darwin" }
 [[test.sources]]

@@ -11,6 +11,10 @@ public class FrameContext internal constructor(
     public val time: TimeMark,
     private val input: InputFrame
 ) {
+    /** Keeps this frame's input collector while borrowing an isolated child canvas. */
+    public fun <T> withState(block: (FrameContext) -> T): T =
+        canvas.withState { child -> block(FrameContext(window, child, size, time, input)) }
+
     public fun place(area: InputArea, shape: Rect, parent: InputArea? = None) {
         input.place(canvas, area, shape, parent)
     }

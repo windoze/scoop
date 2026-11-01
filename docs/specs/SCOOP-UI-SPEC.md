@@ -320,7 +320,7 @@ MeasureContext 提供本帧 time、子项数量、`measureChild(index, constrain
 
 ### 7.2 绘制及子项呈现
 
-PaintContext 提供本帧 time、元素最终 size 和借用的 `scoop.graphics.Canvas`。原点为元素左上角，单位为逻辑尺寸；框架在进入元素前建立其布局偏移并保存 Canvas 状态，退出时恢复。DPI 转换由渲染目标根部执行一次。元素自己增加的 save／restore 须配对，不能弹出调用方的绘制状态。
+PaintContext 提供本帧 time、元素最终 size 和借用的 `scoop.graphics.Canvas`。原点为元素左上角，单位为逻辑尺寸；框架通过 FrameContext.withState 建立独立借用，再施加布局偏移，退出时恢复。DPI 转换由渲染目标根部执行一次。元素自己增加的 save／restore 正常应配对，不能弹出调用方的绘制状态；异常退出也恢复全部子级保存状态，已结束的子 Canvas 不再可用。
 
 `paintChildren()` 按描述顺序绘制本次已测量、放置的直接子项，跳过未放置子树。有已放置子项时必须调用一次；没有已放置子项时可不调用或调用一次，均不产生子项绘制。重复调用报告状态错误。元素可以在此调用前后绘制背景和前景，并通过 Canvas 的 transform／clip／组透明度包裹子项。子项获得独立的绘制状态作用域；子项的变换不会污染后续兄弟。
 

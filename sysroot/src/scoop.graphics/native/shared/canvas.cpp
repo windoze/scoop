@@ -10,6 +10,13 @@ struct NativeCanvasBorrow final : SGObject {
 } // namespace
 
 extern "C" {
+SGCanvas *scoop_graphics_canvas_scope(SGCanvas *value) {
+  try {
+    return new SGCanvas(*value);
+  } catch (...) {
+    return nullptr;
+  }
+}
 void *scoop_graphics_canvas_borrow(SGCanvas *value) {
   try {
     return new NativeCanvasBorrow(value->canvas);

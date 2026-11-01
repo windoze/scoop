@@ -96,6 +96,8 @@ State 在 Indicator.render 中读取，新的颜色经 Props 更新到原 ColorT
 
 Element 可以单独成为自绘叶子，也可以接收显式 children 实现容器。普通无状态组合函数仍返回 View；需要独立状态时使用 Component，需要测量和绘制时使用 Element，两者按实际需要组合。
 
+每个 Element 的绘制使用 FrameContext.withState 的独立子 Canvas，坐标与 clip 随同一份帧状态进入输入收集；子级结束后画布失效，并在正常及异常退出时恢复父级状态。底层 Canvas.withState 已接入真实 Skia／Metal，自绘框架无需访问 graphics 的内部句柄或维护第二套变换。
+
 ## 4. 普通语言能力、Props 与身份
 
 state 就是普通 State class。成员属性委托的 getValue／setValue 执行读追踪和写失效，不扫描私有字段，不依赖属性名，也不按 hook 调用序号保存状态。闭包捕获组件 this 时保存 class 引用，符合现有语言规则。

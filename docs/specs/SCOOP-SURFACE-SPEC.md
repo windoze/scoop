@@ -26,6 +26,8 @@ PathBuilder 构造 move／line／quadratic／cubic／arc／close，build 产生�
 
 Canvas 是一次绘制作用域内的借用对象，不得跨帧保存或在其他线程调用；作用域结束后使用报状态异常。变换和 clip 的当前几何状态由 graphics 维护，并经低层接入接口提供给 Surface。绘制与区域放置不得分别维护两套可能不一致的变换。
 
+`Canvas.withState<T>(block: (Canvas) -> T): T` 创建同步嵌套借用，继承当前坐标、clip 和组状态，不重复施加 DPI。block 获得独立有效期的子 Canvas；期间只能使用子 Canvas，父 Canvas 的操作及几何捕获报告状态错误。正常返回或抛错均恢复入口状态和保存层级，包括未配对的子级 save／saveLayer；子 Canvas 不能 restore 到入口以下，退出后拒绝操作。已绘制像素不回滚，异常帧是否提交由外层目标决定。
+
 `scoop.graphics.native` 提供当前 Surface renderer 实际需要的公开 Unsafe 接入：原生渲染目标、受控的 Canvas 借用、提交／中止，以及几何状态快照。Skia C++ 类型不进入普通公共 API；Metal 等句柄只出现在按目标选择的 native 子包。跨 Cone 调用不能依赖另一 Cone 的 internal 构造器。
 
 独立文本库使用同一 package 的 `@Unsafe fun <T> Canvas.withSkiaCanvas(block: (Ptr<Unit>) -> T): T`。它在当前有效 Canvas 的 owner 线程同步借出实际 SkCanvas 指针，调用前保存原生画布状态，正常返回或异常退出都恢复原状态；不施加第二次 DPI 变换。指针只在 block 内有效，不能保存、释放、跨线程或挂起使用。block 只通过该指针进行 Skia 绘制，不重入同一 Canvas 的 Scoop 操作或几何捕获，不恢复到借用入口保存层以下，不自行提交目标或变更 GPU context。调用方承担这项 Unsafe 约束；graphics 的私有包装、资源析构和 clip 记录不向另一 Cone 开放。
@@ -53,6 +55,8 @@ SurfaceHost 必须在 Closing／Exiting 及用户回调失败时关闭相关 Sur
 平台适配接收窗口配置与帧需求，通知下一次可尝试绘制的机会，并返回 Ready(Frame) 或 Deferred。Deferred 是正常暂不可绘制状态；保留 dirty，等待后续原生机会或窗口状态改变，不忙重试。隐藏、遮挡、零尺寸、待配置及关闭状态不得申请或提交无效帧。
 
 帧开始使用 MonotonicTimeSource 的 TimeMark，一帧内所有动画消费同一个采样时间。平台的预测呈现时间留在呈现层，不冒充输入时间或通用 FrameClock 时间。
+
+`FrameContext.withState<T>(block: (FrameContext) -> T): T` 沿用 Canvas.withState，为子绘制提供拥有相同窗口、尺寸、时间及本帧输入收集器的 FrameContext。子 context 的 place 使用其子 Canvas 的当前几何；子作用域结束只恢复绘制状态，输入 placement 仍随整个帧成功提交后发布。
 
 一帧依次完成：取得可用目标、采样动画、执行必要文本布局及绘制、建立 Area placement、提交渲染、发布本帧命中几何。失败／中止不发布半帧几何；中止必须释放已取得的目标。帧内新增的失效请求保留到下一帧。
 

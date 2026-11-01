@@ -72,6 +72,11 @@ struct SGCanvas : SGObject {
     canvas->save();
     canvas->scale(dpi, dpi);
   }
+  explicit SGCanvas(const SGCanvas &parent)
+      : surface(parent.surface), canvas(parent.canvas), scale(parent.scale),
+        base(canvas->getSaveCount()), clips(1, parent.clips.back()) {
+    canvas->save();
+  }
   ~SGCanvas() override { canvas->restoreToCount(base); }
   SkMatrix logical() const {
     return SkMatrix::Concat(SkMatrix::Scale(1 / scale, 1 / scale),

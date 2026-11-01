@@ -96,3 +96,17 @@ Scoop 格式／类型检查、Objective-C 格式及严格告警编译通过，aa
 | basics 示例 | 4／4 | 现有文本编辑与拖动收尾，新内容根通过类型检查 |
 
 UI 框架和基础控件尚未交付。本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试；x86_64 仍在全部 aarch64 功能完成后补验。
+
+### 3.5 自绘所需的嵌套画布作用域
+
+Canvas.withState 已提供独立有效期的嵌套借用，继承现有坐标及 clip，不重复 DPI；子作用域期间拒绝父画布操作，正常及异常返回恢复全部子级保存状态，子画布随即失效。FrameContext.withState 把同一窗口、帧时间和输入收集器传入子作用域，使区域 placement 使用与子组件绘制相同的几何。未增加另一份 UI 变换栈或暴露 graphics 内部构造器。
+
+Scoop 格式／类型检查、C++ 格式与严格告警编译通过；重新发布 aarch64 graphics 及必要消费者后，release scoop.test：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| scoop.graphics | 16／16 | 嵌套绘制与几何、异常下未配对 saveLayer、子借用失效、线程限制、原有 native 借用及真实 Metal 的单次 DPI |
+| Surface native input Cone | 1／1 | 子 FrameContext 的区域命中、局部坐标、IME caret、同帧时间与关闭 |
+| graphics.text 的 MetalTextTest | 1／1 | 独立文本库继续通过画布原生借用绘制到 Metal |
+
+本轮无编译器、core／std／test 改动，无 fixture 或全量测试；UI 框架继续实施，x86_64 统一留待最后。

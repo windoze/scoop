@@ -23,17 +23,20 @@ private class MetalGraphicsTest {
                                 target.draw {
                                     canvas ->
                                     canvas.clear(Color.Transparent)
-                                    canvas.translate(2.0, 3.0)
-                                    canvas.drawRect(
-                                        Rect(0.0, 0.0, 4.0, 4.0),
-                                        Paint(Color(1.0, 0.0, 0.0))
-                                    )
-                                    @Unsafe
-                                    {
-                                        return@draw captureGeometry(
-                                            canvas,
-                                            Rect(0.0, 0.0, 4.0, 4.0)
+                                    canvas.withState {
+                                        child ->
+                                        child.translate(2.0, 3.0)
+                                        child.drawRect(
+                                            Rect(0.0, 0.0, 4.0, 4.0),
+                                            Paint(Color(1.0, 0.0, 0.0))
                                         )
+                                        @Unsafe
+                                        {
+                                            return@withState captureGeometry(
+                                                child,
+                                                Rect(0.0, 0.0, 4.0, 4.0)
+                                            )
+                                        }
                                     }
                                 }
                             target.submit()

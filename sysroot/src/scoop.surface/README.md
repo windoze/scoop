@@ -32,6 +32,8 @@ fun main() {
 
 `SurfaceWindow.requestFrame()` 合并重绘需求。空闲、隐藏、系统报告遮挡或无有效配置时暂停原生帧请求；恢复可绘制状态后继续处理 dirty。Windows 的遮挡状态遵守 window 合同，只报告最小化或 DWM cloaked，不承诺检测其他顶层窗口的完整覆盖。帧内再次请求重绘会保留到下一帧。`FrameContext.time` 使用平台单调时钟，一帧只采样一次；Canvas 仅在 painter 内有效。
 
+`frame.withState { child -> ... }` 在同一帧中借出隔离的子 Canvas，保留窗口、尺寸、采样时间和输入收集器。child.place 使用子坐标与 clip，输入几何仍随整帧提交；正常或异常退出均恢复父绘制状态，子 Canvas 随即失效。
+
 持有 Path／Image／文本等资源的内容可实现 `SurfaceContent : Closeable`，通过 `attach(window, content)` 把整个内容根交给 SurfaceWindow。content 提供 `paint(FrameContext)` 和幂等 `close()`；通过 owner 线程检查后即转移所有权，后续附着失败也由 Surface 关闭 content 并回滚资源。错误线程调用在接收所有权前拒绝。直接 painter 重载仍可用于不需要拥有内容资源的绘图。
 
 关闭 SurfaceWindow 只卸载绘制层，Window 可继续存在或重新 attach。关闭 Window 或 Application 则由 SurfaceHost 自动退休 Surface 资源。SurfaceHost 事件处理器、paint 或输入回调内关闭先进入 Closing，整个业务回调和 Canvas 借用结束后，依次关闭 content、renderer 和 lease；不会在回调内等待自己。内容清理失败仍继续释放其余窗口与底层资源，并沿 Application 的既有异常通路传播。

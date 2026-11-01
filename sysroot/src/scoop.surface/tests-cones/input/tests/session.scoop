@@ -145,9 +145,18 @@ private class InputSession: Closeable {
         frame.canvas.clear(Color.White)
         frame.canvas.drawRect(Rect(0.0, 0.0, 200.0, 80.0), Paint(Color(0.8, 0.9, 1.0)))
         frame.place(first!!, Rect(0.0, 0.0, 200.0, 80.0))
-        frame.canvas.translate(0.0, 100.0)
-        frame.canvas.drawRect(Rect(0.0, 0.0, 200.0, 80.0), Paint(Color(0.9, 0.8, 1.0)))
-        frame.place(second!!, Rect(0.0, 0.0, 200.0, 80.0))
+        val ended =
+            frame.withState {
+                child ->
+                assertEquals(frame.time, child.time)
+                assertEquals(frame.size, child.size)
+                assertTrue(frame.window === child.window)
+                child.canvas.translate(0.0, 100.0)
+                child.canvas.drawRect(Rect(0.0, 0.0, 200.0, 80.0), Paint(Color(0.9, 0.8, 1.0)))
+                child.place(second!!, Rect(0.0, 0.0, 200.0, 80.0))
+                child
+            }
+        assertFailsWith<IllegalStateException> { ended.canvas.save() }
     }
 
     private fun receive(area: InputArea, event: AreaEvent, isFirst: Boolean): InputResult {

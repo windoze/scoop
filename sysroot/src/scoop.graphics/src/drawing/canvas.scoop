@@ -1,7 +1,31 @@
 package scoop.graphics
 
 /** A canvas borrowed by a render callback. Every operation checks the active scope and owner. */
-public class Canvas internal constructor(internal val resource: GraphicsResource) {
+public class Canvas internal constructor(private val handle: GraphicsResource) {
+    private var borrowed = false
+    internal val resource: GraphicsResource get() {
+        if (borrowed)
+            throw IllegalStateException(Some("canvas has an active child scope"))
+        return handle
+    }
+    /** Borrows a child canvas and restores all state, including on exceptional exit. */
+    public fun <T> withState(block: (Canvas) -> T): T {
+        val pointer = resource.get()
+        @Unsafe
+        {
+            val child = Canvas(ownedGraphics(canvasScope(pointer), "scope canvas"))
+            borrowed = true
+            try {
+                return block(child)
+            } finally {
+                try {
+                    child.handle.close()
+                } finally {
+                    borrowed = false
+                }
+            }
+        }
+    }
     public fun clear(color: Color) {
         checkColor(color)
         @Unsafe
@@ -140,6 +164,9 @@ internal fun checkOpacity(value: Double) {
 
 @Extern(name = "scoop_graphics_canvas_clear")
 private fun canvasClear(canvas: Ptr<Unit>, color: Color): Int
+
+@Extern(name = "scoop_graphics_canvas_scope")
+private fun canvasScope(canvas: Ptr<Unit>): Ptr<Unit>?
 
 @Extern(name = "scoop_graphics_canvas_save")
 private fun canvasSave(canvas: Ptr<Unit>, opacity: Double, layer: Boolean): Int

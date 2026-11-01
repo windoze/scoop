@@ -28,6 +28,8 @@ RasterSurface(320, 180).use { surface ->
 
 Canvas 支持 save／restore、仿射变换、矩形／Path 裁剪、基本形状、描边、线性／径向渐变、Image 及组透明度。`saveLayer(opacity)` 对整个组的合成结果应用透明度，`restore()` 结束该组。PathBuilder 的 `build()` 返回不可变快照；Path 的 contains、bounds 和 PathMeasure 使用相同几何与填充规则。
 
+`canvas.withState { child -> ... }` 提供可嵌套的绘制作用域，子 Canvas 继承当前坐标和 clip，正常返回或异常退出都恢复全部子级保存状态。子回调只使用 child，父 Canvas 暂时不可用；退出后 child 失效，父 Canvas 恢复可用。该入口可用于自绘子组件，几何快照与绘制共享相同坐标且不会重复施加 DPI。
+
 SkSL runtime effect、uniform／输入 shader、Paint 着色及子树图层效果列为[后续增强设计](../../../docs/graphics/sksl/DESIGN.md)，目前未提供 Scoop 接口。计划复用 Skia 现有后端，程序与参数分开管理，动画显式驱动 uniform；持有效果不自动启动帧循环。
 
 Path、PathBuilder、PathMeasure、Image、RasterSurface 与底层目标均显式 close／use。原生资源限创建线程使用，Canvas 只在一次 draw 回调内有效，异常退出也会结束借用并恢复状态。Geometry 快照保留原生 Path 数据，可以在原 Path 或绘制作用域结束后继续使用；关闭快照后不可再查询。

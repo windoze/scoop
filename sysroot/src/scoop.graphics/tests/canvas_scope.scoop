@@ -1,0 +1,135 @@
+package scoop.graphics
+
+import scoop.graphics.native.*
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+
+@Test
+private class CanvasScopeTest {
+    @Test
+    fun `nested drawing shares coordinates and input clips then restores its parent`() {
+        RasterSurface(40, 40).use {
+            surface ->
+            surface.draw {
+                parent ->
+                parent.clear(Color.Transparent)
+                parent.translate(2.0, 3.0)
+                parent.clipRect(Rect(0.0, 0.0, 20.0, 20.0))
+                val expired =
+                    parent.withState {
+                        child ->
+                        assertFailsWith<IllegalStateException> { parent.save() }
+                        assertFailsWith<IllegalStateException> {
+                            @Unsafe
+                            {
+                                captureGeometry(parent, Rect(0.0, 0.0, 1.0, 1.0))
+                            }
+                        }
+                        assertFailsWith<IllegalArgumentException> { child.restore() }
+                        child.translate(4.0, 5.0)
+                        child.clipRect(Rect(0.0, 0.0, 10.0, 10.0))
+                        child.drawRect(Rect(0.0, 0.0, 14.0, 14.0), Paint(Color(1.0, 0.0, 0.0)))
+                        val geometry =
+                            child.withState {
+                                nested ->
+                                nested.translate(2.0, 2.0)
+                                nested.drawRect(
+                                    Rect(0.0, 0.0, 2.0, 2.0),
+                                    Paint(Color(0.0, 0.0, 1.0))
+                                )
+                                @Unsafe
+                                {
+                                    return@withState captureGeometry(
+                                        nested,
+                                        Rect(0.0, 0.0, 20.0, 20.0)
+                                    )
+                                }
+                            }
+                        geometry.use {
+                            current ->
+                            assertEquals(Some(Point(1.0, 1.0)), current.toLocal(Point(9.0, 11.0)))
+                            assertTrue(current.hitTest(Point(15.0, 17.0)))
+                            assertFalse(current.hitTest(Point(17.0, 17.0)))
+                        }
+                        child
+                    }
+                assertFailsWith<IllegalStateException> { expired.clear(Color.White) }
+                parent.drawRect(Rect(0.0, 0.0, 2.0, 2.0), Paint(Color(0.0, 1.0, 0.0)))
+                @Unsafe
+                {
+                    captureGeometry(parent, Rect(0.0, 0.0, 24.0, 24.0)).use {
+                        geometry ->
+                        assertEquals(Some(Point(1.0, 1.0)), geometry.toLocal(Point(3.0, 4.0)))
+                        assertTrue(geometry.hitTest(Point(20.0, 21.0)))
+                        assertFalse(geometry.hitTest(Point(23.0, 24.0)))
+                    }
+                }
+            }
+            val pixels = surface.readPixels()
+            assertEquals(255, channel(pixels, 40, 3, 4, 1))
+            assertEquals(255, channel(pixels, 40, 7, 9, 0))
+            assertEquals(255, channel(pixels, 40, 9, 11, 2))
+            assertEquals(0, channel(pixels, 40, 17, 18, 3))
+        }
+    }
+
+    @Test
+    fun `throwing child restores unbalanced layers and expires only its own canvas`() {
+        val saved = ArrayList<Canvas>()
+        val error = IllegalStateException(Some("child paint failed"))
+        RasterSurface(24, 16).use {
+            surface ->
+            surface.draw {
+                parent ->
+                parent.clear(Color.Transparent)
+                parent.translate(2.0, 3.0)
+                parent.clipRect(Rect(0.0, 0.0, 16.0, 10.0))
+                val failure =
+                    assertFailsWith<IllegalStateException> {
+                        parent.withState<Unit> {
+                            child ->
+                            saved.add(child)
+                            child.saveLayer(0.5)
+                            child.save()
+                            child.translate(5.0, 0.0)
+                            child.clipRect(Rect(0.0, 0.0, 4.0, 4.0))
+                            child.drawRect(Rect(0.0, 0.0, 8.0, 8.0), Paint(Color(1.0, 0.0, 0.0)))
+                            throw error
+                        }
+                    }
+                assertTrue(failure === error)
+                assertFailsWith<IllegalStateException> { saved[0L].save() }
+                assertFailsWith<IllegalArgumentException> { parent.restore() }
+                parent.drawRect(Rect(0.0, 0.0, 2.0, 2.0), Paint(Color(0.0, 1.0, 0.0)))
+            }
+            val pixels = surface.readPixels()
+            assertEquals(255, channel(pixels, 24, 2, 3, 1))
+            assertEquals(255, channel(pixels, 24, 2, 3, 3))
+            assertEquals(128, channel(pixels, 24, 8, 4, 3))
+            assertEquals(0, channel(pixels, 24, 12, 4, 3))
+        }
+    }
+
+    @Test
+    fun `foreign and expired scopes cannot enter callbacks or draw`() {
+        val expired =
+            RasterSurface(8, 8).use {
+                surface -> surface.draw {
+                    canvas -> canvas.withState {
+                        child ->
+                        Thread.start {
+                            assertFailsWith<IllegalStateException> { child.clear(Color.White) }
+                            assertFailsWith<IllegalStateException> {
+                                child.withState { _ -> fail(Some("foreign child callback ran")) }
+                            }
+                        }.use { thread -> thread.join() }
+                        child.clear(Color.Black)
+                        child
+                    }
+                }
+            }
+        assertFailsWith<IllegalStateException> {
+            expired.withState { _ -> fail(Some("expired child callback ran")) }
+        }
+    }
+}
