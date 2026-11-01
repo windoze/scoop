@@ -434,6 +434,8 @@ macOS 完整 release workspace 的 105 个测试组共 6,353 项通过，无失�
 
 Windows 完整 release workspace 原始汇总为 106 个测试组、6,229 项通过、零失败，包含嵌套子进程结果。两个标记 ignored 的子进程入口由父测试实际执行，三项过滤来自该次子进程的入口选择；没有排除正常测试。fixture runner 规则为 78 项通过、3 项平台条件跳过，构建脚本为 23 项通过、9 项平台条件跳过。同步本阶段收尾修复后，Windows 格式检查、release workspace all-targets Clippy 和 61 项包管理器测试均通过，包含新增的三个真实 HTTP 回归测试。最终五个 CLI 已重新冻结，三个 Windows 目标的完整 fixture 验收按顺序执行。
 
+MinGW MSVCRT 首轮完整 CLI 的 4,322 个 fixture 中，3,444 项通过、878 项平台不适用、零失败，共 3,475 个 variant、9,730 次进程调用和 1 项 stage／plan golden 检查。完整报告包含实际编译和运行；五工具版本及已有长路径修复相关用例均通过，不需要复跑。878 项不适用来自 fixture 的既有平台条件，未计入通过数。`constructor-this` Cone 在 MSVCRT、MinGW UCRT 各有 10 项真实行为测试通过；UCRT 与 MSVC 的完整 CLI 验收继续顺序执行。
+
 Darwin AArch64 首轮完整 CLI 为 4,290 项通过、25 项平台不适用、8 项失败，共 4,514 个 variant、13,391 次进程调用。已逐项闭合这些失败：
 
 - 主线允许构造期间使用普通 `this` 后，`@NoGC` 构造结果用例漏记 receiver local／value 的两条既有类型诊断，现补齐精确期望。原来拒绝继承计算属性初始化的用例已经不符合语言规则，将其迁入 `constructor-this` Cone，以真实 provider 产物和实际运行断言验证继承 getter 求值；删除退役的 negative fixture，当前集合因此为 4,322 项。
