@@ -352,16 +352,19 @@ fn removing_a_provider_instance_requires_new_object_selection() {
     );
     let updated_file =
         ArtifactFile::open(updated.artifact().path(), target.lir_target_selection()).unwrap();
-    let consumer_file =
-        ArtifactFile::open(consumer.artifact().path(), target.lir_target_selection()).unwrap();
-    assert!(
-        scoop_slib::read_program_link_closure(
-            &consumer_file,
-            &[&core_file, &updated_file],
-            target.lir_target_selection()
-        )
-        .is_err()
-    );
+    // Release the old reader before replacing its path on Windows.
+    {
+        let consumer_file =
+            ArtifactFile::open(consumer.artifact().path(), target.lir_target_selection()).unwrap();
+        assert!(
+            scoop_slib::read_program_link_closure(
+                &consumer_file,
+                &[&core_file, &updated_file],
+                target.lir_target_selection()
+            )
+            .is_err()
+        );
+    }
     let rebuilt = compile_consumer();
     let rebuilt_file =
         ArtifactFile::open(rebuilt.artifact().path(), target.lir_target_selection()).unwrap();
