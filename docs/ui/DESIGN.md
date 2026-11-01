@@ -1,6 +1,6 @@
 # scoop.ui：自绘框架与独立控件库设计
 
-日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架已在 macOS aarch64 交付，公共文本适配、`scoop.ui.component` 及组合验证继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
+日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配已在 macOS aarch64 交付，`scoop.ui.component` 及组合验证继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
 
 ## 1. 分层目标
 

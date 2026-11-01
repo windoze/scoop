@@ -1,0 +1,73 @@
+package scoop.ui.text
+
+import scoop.collections.HashMap
+import scoop.graphics.Size
+import scoop.graphics.text.*
+import scoop.ui.*
+
+/** Uses a child's reported baseline, or an explicit paragraph alignment. */
+public enum InlineViewAlignment {
+    Baseline(TextBaseline), Explicit(InlineAlignment)
+}
+
+/** One occurrence; the view and any resources used by it retain their normal owners. */
+public class InlineView public constructor(
+    public val key: InlineKey,
+    public val view: View,
+    public val size: Size? = None,
+    public val alignment: InlineViewAlignment =
+        InlineViewAlignment.Baseline(TextBaseline.Alphabetic)
+)
+
+/** Keeps occurrence identity separate from the child view's own key. */
+public fun inlineChildren(content: StyledText, inlines: Array<InlineView>): Array<View> {
+    val ordered = orderedInlines(content, inlines)
+    return Array<View>(ordered.size) {
+        index ->
+        val item = ordered[index]
+        val key =
+            when (item.key) {
+                case Text(value) -> ViewKey.Text(value)
+                case Number(value) -> ViewKey.Number(value)
+            }
+        component(item.view, { props -> InlineChild(props) }, key)
+    }
+}
+
+private class InlineChild(private val props: Props<View>): Component {
+    public override fun render(): View = props.value
+}
+
+internal fun orderedInlines(content: StyledText, inlines: Array<InlineView>): Array<InlineView> {
+    requireUi(
+        inlines.size == content.inlineObjects.size,
+        "inline views must cover every text object"
+    )
+    val values = HashMap<InlineKey, InlineView>()
+    for (item in inlines) {
+        when (values.put(item.key, item)) {
+            case Some(_) -> throw IllegalArgumentException(Some("duplicate inline view key"))
+            case None -> {}
+        }
+    }
+    return Array<InlineView>(content.inlineObjects.size) {
+        index -> values[content.inlineObjects[index].key] ?:
+            throw IllegalArgumentException(Some("missing inline view key"))
+    }
+}
+
+internal fun InlineView.metrics(measured: LayoutMetrics): InlineMetrics {
+    val resolved =
+        when (alignment) {
+            case Baseline(kind) -> {
+                val value =
+                    if (kind == TextBaseline.Alphabetic)
+                        measured.alphabeticBaseline
+                    else
+                        measured.ideographicBaseline
+                InlineAlignment.Baseline(kind, value ?: measured.size.height)
+            }
+            case Explicit(value) -> value
+        }
+    return InlineMetrics(key, measured.size, resolved)
+}

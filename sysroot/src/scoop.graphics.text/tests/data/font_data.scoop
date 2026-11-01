@@ -1,0 +1,8 @@
+package scoop.tests.textfonts
+
+import scoop.compiler.includeBytes
+
+/** Fixed Skia test font bytes, shared by text and UI test consumers. */
+public val testSansBytes: Array<Byte> = includeBytes("Roboto-Regular.ttf")
+
+public val testCjkBytes: Array<Byte> = includeBytes("NotoSansCJK-VF-subset.otf.ttc")

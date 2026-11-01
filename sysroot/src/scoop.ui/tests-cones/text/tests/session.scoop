@@ -1,0 +1,238 @@
+package scoop.tests.ui.text
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.math.abs
+import scoop.platform.time.MonotonicTimeSource
+import scoop.surface.AnimationState
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.text.ParagraphHost
+import scoop.window.*
+
+@Test
+private class PublicParagraphHostTest {
+    @Test
+    fun `styled text images and interactive children share layout and retain identity through elision`() {
+        FontCollection().use {
+            fonts ->
+            fonts.register(testSansBytes, "UI Sans")
+            val probe = TextProbe(fonts)
+            val application = Application()
+            val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+            try {
+                host.use { owner -> application.run(owner) }
+                assertTrue(probe.finished)
+                assertTrue(host.isClosed)
+                assertTrue(probe.paragraph!!.isClosed)
+                assertTrue(probe.layout!!.isClosed)
+                assertFalse(fonts.isClosed)
+                assertTrue(probe.view!!.restored())
+                for (counter in probe.counters) {
+                    assertEquals(1, counter.mounts);
+                    assertEquals(1, counter.unmounts)
+                }
+                assertEquals(1L, probe.photos.size)
+                assertEquals(1, probe.photos[0L].unmounts)
+                assertTrue(probe.photos[0L].image!!.isClosed)
+            } finally {
+                host.close()
+                probe.view?.close()
+            }
+        }
+    }
+}
+
+private enum TextPhase {
+    Starting, Clicking, Tinting, Truncated, Restored, Reordered, Rekeyed, Done
+}
+
+internal class TextProbe(val fonts: FontCollection) {
+    val generation = state(0)
+    val original =
+        StyledText(
+            [
+                TextSpan.text("A sample paragraph "),
+                TextSpan.span(
+                    SpanStyle(fontSize = Some(28.0), weight = Some(700)),
+                    [TextSpan.text("big ")]
+                ),
+                TextSpan.inlineObject(actionKey, "counter"),
+                TextSpan.text(" + "),
+                TextSpan.inlineObject(imageKey, "image")
+            ],
+            TextStyle(["UI Sans"], 18.0)
+        )
+    val reordered =
+        StyledText(
+            [
+                TextSpan.text("שלום "),
+                TextSpan.inlineObject(imageKey, "image"),
+                TextSpan.text(" "),
+                TextSpan.inlineObject(actionKey, "counter"),
+                TextSpan.text(" עולם")
+            ],
+            TextStyle(["UI Sans"], 18.0)
+        )
+    val counters = ArrayList<InlineCounter>()
+    val inks = ArrayList<CounterInk>()
+    val photos = ArrayList<InlinePhoto>()
+    var paragraph: ParagraphHost? = None
+    var layout: TextLayout? = None
+    var paintedGeneration = -1
+    var rootRenders = 0
+    var paints = 0
+    var finished = false
+    var window: Window? = None
+    var ui: UiWindow? = None
+    var view: ViewProbe? = None
+    private var phase = TextPhase.Starting
+    private var firstLayout: TextLayout? = None
+    private var stableLayout: TextLayout? = None
+    private var hiddenPaints = 0
+
+    fun event(host: UiHost, application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val native =
+                    application.createWindow(
+                        WindowAttributes("Scoop inline text", LogicalSize(600.0, 240.0))
+                    )
+                window = Some(native)
+                native.setWindowLevel(WindowLevel.AlwaysOnTop)
+                native.requestFocus()
+                view = Some(observeWindow(native))
+                ui = Some(host.attach(native, { TextScene(this) }))
+                deadline(application)
+            }
+            case AboutToWait -> advance(application)
+            case NewEvents(StartCause.Deadline) -> fail(
+                Some("UI inline test deadline: generation=" + paintedGeneration.toString())
+            )
+            else -> {}
+        }
+    }
+    private fun deadline(application: ActiveApplication) {
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(20L))
+        )
+    }
+    private fun box(key: InlineKey): InlineBox {
+        for (item in layout!!.inlineObjects)
+            if (item.key == key)
+                return item.box!!
+        throw IllegalStateException(Some("inline key missing from layout"))
+    }
+    private fun assertPositions() {
+        val action = box(actionKey)
+        val photo = box(imageKey)
+        val ink = inks[inks.size - 1L]
+        assertTrue(abs(action.rect.y + 24.0 - layout!!.alphabeticBaseline) < 0.02)
+        assertTrue(abs(ink.origin.x - action.rect.x - 20.0) < 0.02)
+        assertTrue(abs(ink.origin.y - action.rect.y - 20.0) < 0.02)
+        assertTrue(abs(photos[0L].origin.x - photo.rect.x - 20.0) < 0.02)
+        assertEquals(22.0, photo.rect.width)
+        assertEquals(28.0, photo.rect.height)
+    }
+    private fun advance(application: ActiveApplication) {
+        when (phase) {
+            case Starting -> {
+                if (paintedGeneration == 0 && window!!.isFocused) {
+                    assertPositions()
+                    firstLayout = layout
+                    val rect = box(actionKey).rect
+                    phase = TextPhase.Clicking
+                    assertTrue(view!!.button(rect.x + 25.0, rect.y + 25.0, true))
+                    assertTrue(view!!.button(rect.x + 25.0, rect.y + 25.0, false))
+                }
+            }
+            case Clicking -> {
+                if (
+                    inks[0L].width!!.state ==
+                        AnimationState.Finished &&
+                        inks[0L].size.width ==
+                        100.0
+                ) {
+                    assertEquals(1, counters[0L].count)
+                    assertEquals(1, rootRenders)
+                    assertTrue(firstLayout!!.isClosed)
+                    assertTrue(inks[0L].area!!.hasFocus)
+                    assertPositions()
+                    stableLayout = layout
+                    generation.value = 1
+                    phase = TextPhase.Tinting
+                }
+            }
+            case Tinting -> {
+                if (paintedGeneration == 1) {
+                    assertSame(stableLayout!!, layout!!)
+                    hiddenPaints = inks[0L].paints
+                    generation.value = 2
+                    phase = TextPhase.Truncated
+                }
+            }
+            case Truncated -> {
+                if (paintedGeneration == 2) {
+                    assertTrue(layout!!.didExceedMaxLines)
+                    for (item in layout!!.inlineObjects)
+                        assertEquals(None, item.box)
+                    assertEquals(hiddenPaints, inks[0L].paints)
+                    assertTrue(inks[0L].scope!!.isMounted)
+                    assertFalse(inks[0L].area!!.hasFocus)
+                    assertFalse(inks[0L].area!!.requestFocus())
+                    counters[0L].count = 2
+                    phase = TextPhase.Restored
+                    assertTrue(
+                        application.proxy().post {
+                            _ ->
+                            assertEquals(2, inks[0L].observed)
+                            assertEquals(hiddenPaints, inks[0L].paints)
+                            generation.value = 3
+                        }
+                    )
+                }
+            }
+            case Restored -> {
+                if (paintedGeneration == 3 && inks[0L].width!!.state == AnimationState.Finished) {
+                    assertEquals(1L, counters.size)
+                    assertEquals(2, counters[0L].count)
+                    assertEquals(140.0, box(actionKey).rect.width)
+                    assertFalse(inks[0L].area!!.hasFocus)
+                    assertPositions()
+                    generation.value = 4
+                    phase = TextPhase.Reordered
+                }
+            }
+            case Reordered -> {
+                if (paintedGeneration == 4) {
+                    assertEquals(1L, counters.size)
+                    assertEquals(1L, photos.size)
+                    assertEquals(2, counters[0L].count)
+                    assertEquals(imageKey, layout!!.inlineObjects[0L].key)
+                    assertTrue(box(imageKey).rect.x > box(actionKey).rect.x)
+                    assertPositions()
+                    generation.value = 5
+                    phase = TextPhase.Rekeyed
+                }
+            }
+            case Rekeyed -> {
+                if (paintedGeneration == 5) {
+                    assertEquals(2L, counters.size)
+                    assertEquals(1, counters[0L].unmounts)
+                    assertEquals(0, counters[1L].count)
+                    assertTrue(inks[0L].area!!.isClosed)
+                    assertEquals(1L, photos.size)
+                    assertPositions()
+                    finished = true
+                    phase = TextPhase.Done
+                    window!!.requestDestroy()
+                    application.requestExit()
+                }
+            }
+            else -> {}
+        }
+    }
+}

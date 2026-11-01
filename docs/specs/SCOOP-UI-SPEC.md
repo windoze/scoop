@@ -1,6 +1,6 @@
 # Scoop 自绘 UI 框架规范
 
-日期：2026-11-02。状态：自绘框架主体已在 macOS aarch64 实现，第 7.5 节的公共文本适配、独立控件库及其后续组合验证继续分批接入。本文件规定框架公开合同；公共文本能力另见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，基础控件另见 [控件库规范](SCOOP-UI-COMPONENT-SPEC.md)，取舍、内部组织及实施顺序见 [UI 设计](../ui/DESIGN.md)。现有底层库以 `scoop.surface` 命名，已实现的绘图、窗口呈现及输入合同见 [Surface 规范](SCOOP-SURFACE-SPEC.md)。
+日期：2026-11-02。状态：自绘框架主体及公共文本适配已在 macOS aarch64 实现，独立控件库及后续组合验证继续分批接入。本文件规定框架公开合同；公共文本能力另见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，基础控件另见 [控件库规范](SCOOP-UI-COMPONENT-SPEC.md)，取舍、内部组织及实施顺序见 [UI 设计](../ui/DESIGN.md)。现有底层库以 `scoop.surface` 命名，已实现的绘图、窗口呈现及输入合同见 [Surface 规范](SCOOP-SURFACE-SPEC.md)。
 
 ## 1. 定位与依赖
 
@@ -25,7 +25,7 @@ SkSL runtime effect 同样列为后续 graphics 增强，见[接入设计](../gr
 | `scoop.ui` | Component／Element、State／Props／Binding、挂载树、测量与绘制接入、输入／动画的挂载归属；text 子包提供公共段落适配 |
 | `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame、基础样式与对应组合函数 |
 
-表中是目标分层；字体与 Paragraph／TextLayout 已迁入 graphics.text，富文本／行内对象和独立自绘框架已完成。公共适配 `scoop.ui.text` 接入时增加对 graphics.text 的直接依赖，只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
+表中是目标分层；字体与 Paragraph／TextLayout 已迁入 graphics.text，富文本／行内对象、独立自绘框架及公共适配 `scoop.ui.text` 已完成。适配直接依赖 graphics.text，只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
 
 组件、状态及描述使用普通 class／interface／泛型／属性委托。首期不增加 `@Composable`、result builder、属性宏、关联类型、UI 专用 IR 或 runtime 入口。`scoop.ui` 的类型身份查询复用语言规范 9.6 的 `typeInfo<T>()`，不遍历组件字段，不按名称访问私有属性。
 
@@ -356,6 +356,8 @@ update 在逻辑阶段修改处理器和 enabled 等属性，不等 paint 才应
 
 InlineView 是不拥有资源的描述，保存 InlineKey、View、自然或固定 Size 的测量策略，以及对齐选择。默认采用子项 alphabetic baseline；调用方可选择 ideographic baseline，所选基线缺失时使用盒子底边，也可显式给出文本 InlineAlignment。固定尺寸不自动按段落宽度缩小。图片可由普通自绘 Element 包装成 View，沿同一协议接入。
 
+公开构造器为 `InlineView(key, view, size: Size? = None, alignment: InlineViewAlignment = Baseline(TextBaseline.Alphabetic))`。None 尺寸表示自然测量；`InlineViewAlignment.Baseline(kind)` 使用子项相应基线，`Explicit(value)` 直接采用 graphics.text 的 InlineAlignment。两种形式都由文本库参与同一次排版，不在 UI 层另算文字行高。
+
 `inlineChildren(content, inlines): Array<View>` 按 StyledText 中对象的逻辑顺序生成普通 keyed 子描述。它根据 InlineKey 建立对应，不根据文字偏移、视觉顺序或数组下标推断身份；缺失、重复或多余绑定报告参数错误。每个对象用普通 keyed 包装节点保存其出现身份，传入 View 自己的 key 继续作用于包装节点内的子位置。包装只使用普通 Component／Props；Span 不生成挂载节点，同段落的全部对象共享该 Element 的直接父级。
 
 ParagraphHost 是普通 Closeable 辅助对象，由使用它的 Element 在 onMount 中通过 scope.resource 登记。它不拥有子组件，也不自行调用工厂或创建输入区域。创建 Element 描述的 Component 或普通组合函数把 inlineChildren 的结果传入 element.children，并通过 Props 传入同一份内容和绑定；Element 的 measure／paint 分别委托给宿主：
@@ -370,6 +372,10 @@ measure 在零最小值、段落最大宽度及无界高度下测量每个自然
 宿主返回受 Constraints 约束的段落尺寸及相对首行基线，文字原点为元素左上角。paint 使用同一 TextLayout 先画文字，再调用 paintChildren 绘制已放置对象；parent 与 paintChildren 的可选父区域规则相同，省略时继承当前输入父区域。没有可见对象时仍可正常绘制文字。宿主不隐式裁剪外框，调用方需要裁剪时在同一个 Canvas 作用域内包住文字、子项和输入放置。对象在父段落中不可拆分，其自身超出测量框的绘制遵守普通 Element 的显式 clip 规则。
 
 内容或字体／样式变化重建 Paragraph，宽度和对象 metrics 改变时创建新 TextLayout；实际输入不变时复用缓存。子控件颜色等不改变 metrics 的更新不要求重排；尺寸／基线动画在 Surface 同帧采样后进入测量。关闭或替换文本缓存不卸载行内子项；只有正常的描述匹配、移除和宿主关闭改变挂载。
+
+缓存以不可变 StyledText 的对象身份、FontCollection 的身份及 revision、ParagraphStyle 的字段值识别段落输入；新的 StyledText 描述可以触发重建，不要求 UI 重新解析或比较文本层私有的规范化结果。相同段落的宽度和按逻辑 key 排列的 InlineMetrics 按值比较。只改变约束下限或父级放置不重排，仍按本次 Constraints 返回外框。调用方可复用内容描述；String 便利控件负责在自身输入不变时保留该描述。
+
+`ParagraphHost.layout` 借出最近一次成功测量的 TextLayout，以供自绘控件命中、caret、selection 或位置查询；首次测量前或关闭后访问报告状态错误。调用方不关闭该借用；下次替换或宿主关闭后旧布局资源失效。新 Paragraph／TextLayout 成功取得后才替换缓存；失败时释放新取得的资源并保留原缓存，随后仍遵守框架的回调失败与关闭规则。ParagraphHost 只能在创建它的 owner 线程使用，close 幂等；不关闭传入的字体来源。
 
 所有内容查询、metrics 和 placement 通过文本库的 public API 取得。公共适配不读取 graphics.text 的 internal 缓存，不把无匹配 box 的对象悄悄移除出 children，也不需要基础控件库来实现。
 

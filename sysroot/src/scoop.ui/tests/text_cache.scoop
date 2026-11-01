@@ -1,0 +1,155 @@
+package scoop.ui.text
+
+import scoop.graphics.Size
+import scoop.graphics.text.*
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.ui.*
+
+private class UnbuiltInline: Component {
+    public override fun render(): View = empty()
+}
+
+@Test
+private class UiTextCacheTest {
+    @Test
+    fun `inline binding validates occurrence keys without constructing components`() {
+        val content =
+            StyledText(
+                [
+                    TextSpan.inlineObject(InlineKey.Text("a"), "A"),
+                    TextSpan.inlineObject(InlineKey.Number(1L), "B")
+                ]
+            )
+        val view = component<UnbuiltInline>({ throw IllegalStateException(Some("must stay lazy")) })
+        val first = InlineView(InlineKey.Text("a"), view)
+        val second = InlineView(InlineKey.Number(1L), view)
+        assertEquals(2L, inlineChildren(content, [second, first]).size)
+        assertFailsWith<IllegalArgumentException> { inlineChildren(content, [first]) }
+        assertFailsWith<IllegalArgumentException> { inlineChildren(content, [first, first]) }
+        assertFailsWith<IllegalArgumentException> {
+            inlineChildren(content, [first, InlineView(InlineKey.Text("other"), view)])
+        }
+        assertFailsWith<IllegalArgumentException> { inlineChildren(StyledText([]), [first]) }
+    }
+
+    @Test
+    fun `unchanged paragraph inputs reuse layout and metric changes retire the old snapshot`() {
+        adapterFonts().use {
+            fonts ->
+            val key = InlineKey.Text("image")
+            val content =
+                StyledText(
+                    [TextSpan.text("A "), TextSpan.inlineObject(key, "image")],
+                    TextStyle(["UI Test"], 20.0)
+                )
+            ParagraphCache().use {
+                cache ->
+                val first =
+                    cache.update(
+                        fonts,
+                        content,
+                        ParagraphStyle(),
+                        Some(160.0),
+                        [InlineMetrics(key, Size(20.0, 24.0))]
+                    )
+                val same =
+                    cache.update(
+                        fonts,
+                        content,
+                        ParagraphStyle(),
+                        Some(160.0),
+                        [InlineMetrics(key, Size(20.0, 24.0))]
+                    )
+                assertSame(first, same)
+                val larger =
+                    cache.update(
+                        fonts,
+                        content,
+                        ParagraphStyle(),
+                        Some(160.0),
+                        [InlineMetrics(key, Size(36.0, 24.0))]
+                    )
+                assertTrue(first.isClosed)
+                assertEquals(36.0, larger.inlineObjects[0L].box!!.rect.width)
+                val unwrapped =
+                    cache.update(
+                        fonts,
+                        content,
+                        ParagraphStyle(),
+                        None,
+                        [InlineMetrics(key, Size(36.0, 24.0))]
+                    )
+                assertTrue(larger.isClosed)
+                assertTrue(unwrapped.size.width < 160.0)
+                cache.close()
+                assertTrue(unwrapped.isClosed)
+                assertFalse(fonts.isClosed)
+                assertFailsWith<IllegalStateException> { cache.layout }
+            }
+        }
+    }
+
+    @Test
+    fun `failed paragraph or layout replacement keeps the previous cache usable`() {
+        adapterFonts().use {
+            fonts -> ParagraphCache().use {
+                cache ->
+                val content = StyledText([TextSpan.text("Original")], TextStyle(["UI Test"], 18.0))
+                val first = cache.update(fonts, content, ParagraphStyle(), Some(200.0), [])
+                assertFailsWith<IllegalArgumentException> {
+                    cache.update(
+                        fonts,
+                        content,
+                        ParagraphStyle(maxLines = Some(0L)),
+                        Some(200.0),
+                        []
+                    )
+                }
+                val invalid = StyledText([TextSpan.inlineObject(InlineKey.Number(4L), "missing")])
+                assertFailsWith<IllegalArgumentException> {
+                    cache.update(fonts, invalid, ParagraphStyle(), Some(200.0), [])
+                }
+                assertSame(first, cache.layout)
+                assertFalse(first.isClosed)
+                assertSame(first, cache.update(fonts, content, ParagraphStyle(), Some(200.0), []))
+                val replacement = StyledText([TextSpan.text("Replacement")], content.style)
+                val next = cache.update(fonts, replacement, ParagraphStyle(), Some(200.0), [])
+                assertTrue(first.isClosed)
+                assertSame(replacement, next.content)
+                fonts.register(testSansBytes, "UI Other")
+                val afterFont = cache.update(fonts, replacement, ParagraphStyle(), Some(200.0), [])
+                assertTrue(next.isClosed)
+                assertFalse(afterFont.isClosed)
+            }
+        }
+    }
+
+    @Test
+    fun `public paragraph host has explicit owner and borrowed layout lifetime`() {
+        val host = ParagraphHost()
+        assertFalse(host.isClosed)
+        assertFailsWith<IllegalStateException> { host.layout }
+        Thread.start {
+            assertFailsWith<IllegalStateException> { host.isClosed }
+            assertFailsWith<IllegalStateException> { host.layout }
+            assertFailsWith<IllegalStateException> { host.close() }
+        }.use { thread -> thread.join() }
+        host.close()
+        host.close()
+        assertTrue(host.isClosed)
+        assertFailsWith<IllegalStateException> { host.layout }
+    }
+}
+
+private fun adapterFonts(): FontCollection {
+    val fonts = FontCollection(false)
+    try {
+        fonts.register(testSansBytes, "UI Test")
+        return fonts
+    } catch (error: Throwable) {
+        fonts.close()
+        throw error
+    }
+}

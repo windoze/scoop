@@ -1,0 +1,12 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "text-fonts"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "font_data.scoop"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"

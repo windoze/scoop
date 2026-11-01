@@ -1,0 +1,271 @@
+package scoop.tests.ui.text
+
+import scoop.graphics.*
+import scoop.graphics.native.captureGeometry
+import scoop.graphics.text.*
+import scoop.surface.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.text.*
+import scoop.window.*
+
+internal val actionKey = InlineKey.Number(7L)
+
+internal val imageKey = InlineKey.Text("picture")
+
+internal class TextScene(private val probe: TextProbe): Component {
+    public override fun render(): View {
+        probe.rootRenders += 1
+        val generation = probe.generation.value
+        val content =
+            if (generation >= 4)
+                probe.reordered
+            else
+                probe.original
+        val action =
+            InlineView(
+                actionKey,
+                component(
+                    generation,
+                    { props -> InlineCounter(props, probe) },
+                    ViewKey.Number(
+                        if (generation >= 5)
+                            1L
+                        else
+                            0L
+                    )
+                )
+            )
+        val photo =
+            InlineView(
+                imageKey,
+                element({ InlinePhoto(probe) }),
+                Some(Size(22.0, 28.0)),
+                InlineViewAlignment.Explicit(InlineAlignment.Middle)
+            )
+        // Binding order is intentionally different from the first content's logical order.
+        val inlines = [photo, action]
+        return element(
+            ParagraphInput(content, inlines, generation),
+            { props -> SelfDrawnParagraph(props, probe) },
+            inlineChildren(content, inlines)
+        )
+    }
+}
+
+private class ParagraphInput(
+    val content: StyledText,
+    val inlines: Array<InlineView>,
+    val generation: Int
+)
+
+private class SelfDrawnParagraph(
+    private val props: Props<ParagraphInput>,
+    private val probe: TextProbe
+): Element {
+    private var host: ParagraphHost? = None
+    public override fun onMount(scope: ComponentScope) {
+        host = Some(scope.resource { ParagraphHost() })
+        probe.paragraph = host
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val input = props.value
+        val narrow = input.generation == 2
+        val settings =
+            ParagraphStyle(
+                direction =
+                    if (input.generation >= 4)
+                        TextDirection.Rtl
+                    else
+                        TextDirection.Ltr,
+                maxLines =
+                    if (narrow)
+                        Some(1L)
+                    else
+                        None
+            )
+        val metrics =
+            host!!.measure(
+                context,
+                Constraints(
+                    maxWidth =
+                        Some(
+                            if (narrow)
+                                40.0
+                            else
+                                520.0
+                        )
+                ),
+                probe.fonts,
+                input.content,
+                settings,
+                input.inlines
+            )
+        return LayoutMetrics(
+            constraints.constrain(Size(metrics.size.width + 40.0, metrics.size.height + 40.0)),
+            Some(metrics.alphabeticBaseline!! + 20.0),
+            Some(metrics.ideographicBaseline!! + 20.0)
+        )
+    }
+    public override fun paint(context: PaintContext) {
+        context.canvas.clear(Color.White)
+        context.canvas.translate(20.0, 20.0)
+        host!!.paint(context)
+        probe.layout = Some(host!!.layout)
+        probe.paintedGeneration = props.value.generation
+        probe.paints += 1
+    }
+}
+
+internal class InlineCounter(
+    private val props: Props<Int>,
+    private val probe: TextProbe
+): Component {
+    var count: Int by state(0)
+    var mounts = 0
+    var unmounts = 0
+    var renders = 0
+    init {
+        probe.counters.add(this)
+    }
+    public override fun onMount(scope: ComponentScope) {
+        mounts += 1
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+    }
+    public override fun render(): View {
+        renders += 1
+        return element(
+            CounterInput(count, props.value > 0, { count += 1 }),
+            { input -> CounterInk(input, probe) }
+        )
+    }
+}
+
+internal class CounterInput(val count: Int, val green: Boolean, val click: () -> Unit)
+
+internal class CounterInk(
+    private val props: Props<CounterInput>,
+    private val probe: TextProbe
+): Element {
+    var scope: ComponentScope? = None
+    var area: InputArea? = None
+    var width: Animatable<Double>? = None
+    var origin = Point(0.0, 0.0)
+    var size = Size(0.0, 0.0)
+    var paints = 0
+    var observed = 0
+    private var down = false
+    public override fun onMount(scope: ComponentScope) {
+        this.scope = Some(scope)
+        probe.inks.add(this)
+        width = Some(scope.animation(60.0))
+        area =
+            Some(
+                scope.createArea(focusable = true) {
+                    current, event ->
+                    when (event) {
+                        case Pointer(
+                            AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Pressed, _)
+                        ) -> {
+                            down = true
+                            current.requestFocus()
+                        }
+                        case Pointer(
+                            AreaPointerEvent.Button(
+                                pointer,
+                                MouseButton.Left,
+                                ElementState.Released,
+                                _
+                            )
+                        ) -> {
+                            val activate =
+                                down &&
+                                    Rect(0.0, 0.0, size.width, size.height).contains(
+                                        pointer.localPosition
+                                    )
+                            down = false
+                            if (activate)
+                                props.value.click()
+                        }
+                        case Pointer(AreaPointerEvent.Cancelled(_, _)) -> down = false
+                        case FocusChanged(focused) -> {
+                            if (!focused)
+                                down = false
+                        }
+                        else -> {}
+                    }
+                    InputResult.Handled
+                }
+            )
+    }
+    public override fun update() {
+        observed = props.value.count
+        val target = 60.0 + props.value.count.toDouble() * 40.0
+        if (width!!.target != target)
+            width!!.animateTo(target, AnimationSpec.Tween(Duration.milliseconds(80L)))
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        assertEquals(None, constraints.maxHeight)
+        size = constraints.constrain(Size(width!!.value, 32.0))
+        return LayoutMetrics(size, Some(24.0), Some(29.0))
+    }
+    public override fun paint(context: PaintContext) {
+        @Unsafe
+        {
+            captureGeometry(context.canvas, Rect(0.0, 0.0, size.width, size.height)).use {
+                geometry -> origin = geometry.toWindow(Point(0.0, 0.0))
+            }
+        }
+        context.canvas.drawRect(
+            Rect(0.0, 0.0, size.width, size.height),
+            Paint(
+                if (props.value.green)
+                    Color(0.1, 0.7, 0.2)
+                else
+                    Color(0.1, 0.3, 0.9)
+            )
+        )
+        context.place(area!!, Rect(0.0, 0.0, size.width, size.height))
+        paints += 1
+    }
+}
+
+internal class InlinePhoto(private val probe: TextProbe): Element {
+    var image: Image? = None
+    var origin = Point(0.0, 0.0)
+    var unmounts = 0
+    public override fun onMount(scope: ComponentScope) {
+        probe.photos.add(this)
+        image =
+            Some(
+                scope.resource {
+                    RasterSurface(3, 3).use {
+                        raster ->
+                        raster.draw { canvas -> canvas.clear(Color(0.9, 0.1, 0.3)) }
+                        raster.snapshot()
+                    }
+                }
+            )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        assertEquals(Constraints.tight(Size(22.0, 28.0)), constraints)
+        return LayoutMetrics(constraints.constrain(Size(90.0, 70.0)))
+    }
+    public override fun paint(context: PaintContext) {
+        @Unsafe
+        {
+            captureGeometry(
+                context.canvas,
+                Rect(0.0, 0.0, context.size.width, context.size.height)
+            ).use { geometry -> origin = geometry.toWindow(Point(0.0, 0.0)) }
+        }
+        context.canvas.drawImage(image!!, Rect(0.0, 0.0, context.size.width, context.size.height))
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+        assertFalse(image!!.isClosed)
+    }
+}

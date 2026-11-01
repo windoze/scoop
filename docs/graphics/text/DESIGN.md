@@ -1,6 +1,6 @@
 # scoop.graphics.text：富文本排版与行内对象设计
 
-日期：2026-11-01。状态：独立字体和段落、StyledText／TextSpan／SpanStyle、行内对象已在 macOS aarch64 实现；UI 接入继续实施，x86_64 最后补验，进展见 [UI 实施记录](../../ui/PROGRESS.md)。目标合同见 [文本排版规范](../../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)，UI 对接见 [UI 规范第 7.5 节](../../specs/SCOOP-UI-SPEC.md#75-公共文本接入)，整体分层见 [UI 设计](../../ui/DESIGN.md)。
+日期：2026-11-02。状态：独立字体和段落、StyledText／TextSpan／SpanStyle、行内对象及公共 UI 适配已在 macOS aarch64 实现；基础控件组合继续实施，x86_64 最后补验，进展见 [UI 实施记录](../../ui/PROGRESS.md)。目标合同见 [文本排版规范](../../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)，UI 对接见 [UI 规范第 7.5 节](../../specs/SCOOP-UI-SPEC.md#75-公共文本接入)，整体分层见 [UI 设计](../../ui/DESIGN.md)。
 
 ## 1. 从现有能力演进
 

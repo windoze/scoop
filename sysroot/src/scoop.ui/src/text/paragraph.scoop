@@ -1,0 +1,86 @@
+package scoop.ui.text
+
+import scoop.graphics.Point
+import scoop.graphics.text.*
+import scoop.platform.concurrent.currentThreadId
+import scoop.surface.InputArea
+import scoop.ui.*
+
+/** Public text/child adapter for any Element; it owns layouts but not fonts or children. */
+public class ParagraphHost public constructor(): Closeable {
+    private val thread = currentThreadId()
+    private val cache = ParagraphCache()
+    private var closed = false
+
+    public val isClosed: Boolean get() {
+        checkUiThread(thread)
+        return closed
+    }
+    private fun checkOpen() {
+        checkUiThread(thread)
+        if (closed)
+            throw IllegalStateException(Some("paragraph host is closed"))
+    }
+
+    /** Borrowed until replacement or close; callers must not close this layout. */
+    public val layout: TextLayout get() {
+        checkOpen()
+        return cache.layout
+    }
+
+    public fun measure(
+        context: MeasureContext,
+        constraints: Constraints,
+        fonts: FontCollection,
+        content: StyledText,
+        settings: ParagraphStyle = ParagraphStyle(),
+        inlines: Array<InlineView> = []
+    ): LayoutMetrics {
+        checkOpen()
+        constraints.check()
+        val ordered = orderedInlines(content, inlines)
+        requireUi(
+            context.childCount == ordered.size,
+            "paragraph children do not match inline views"
+        )
+        val metrics =
+            Array<InlineMetrics>(ordered.size) {
+                index ->
+                val item = ordered[index]
+                val limits =
+                    when (item.size) {
+                        case Some(size) -> Constraints.tight(size)
+                        case None -> Constraints(maxWidth = constraints.maxWidth)
+                    }
+                item.metrics(context.measureChild(index, limits))
+            }
+        val result = cache.update(fonts, content, settings, constraints.maxWidth, metrics)
+        var index = 0L
+        for (placement in result.inlineObjects) {
+            when (placement.box) {
+                case Some(box) -> context.placeChild(index, Point(box.rect.x, box.rect.y))
+                case None -> {}
+            }
+            index += 1L
+        }
+        return LayoutMetrics(
+            constraints.constrain(result.size),
+            Some(result.alphabeticBaseline),
+            Some(result.ideographicBaseline)
+        )
+    }
+
+    public fun paint(context: PaintContext, parent: InputArea? = None) {
+        checkOpen()
+        context.canvas.drawText(cache.layout)
+        context.paintChildren(parent)
+    }
+
+    public override fun close() {
+        checkUiThread(thread)
+        if (closed)
+            return
+        closed = true
+        cache.close()
+    }
+}

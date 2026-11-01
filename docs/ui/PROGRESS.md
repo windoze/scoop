@@ -9,7 +9,7 @@
 | 0. 已确认设计与平台范围 | 已记录 | 自绘分层、State／Context／Binding、资源所有权、静止停帧、macOS 首期与后续增强 |
 | 1. 文本公共能力 | aarch64 已完成 | 独立 graphics.text、Canvas 借用、StyledText／SpanStyle、行内 metrics／placement、位置与替代文字 |
 | 2. 独立自绘闭环 | aarch64 已完成 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入、UiHost 与独立自绘示例 |
-| 3. 公共文本适配与简单控件 | 待实施 | ParagraphHost／InlineView、Label／Button／Checkbox |
+| 3. 公共文本适配与简单控件 | aarch64 接入中 | ParagraphHost／InlineView 已完成；Label／Button／Checkbox 待实施 |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
 | 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
 
@@ -129,3 +129,18 @@ Scoop 格式检查和生产／测试类型检查通过；当前 Scoop CLI 无独
 [自绘 Counter](../../sysroot/src/scoop.ui/examples/custom/README.md) 已通过生产类型检查和 aarch64 release 构建，只依赖 UI 及下层公开接口，实现成员 State、Path、输入和 spring 宽度动画。真实窗口交互由 drawing Cone 验证，未把示例构建计为额外运行测试。
 
 本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试。多种容器、公共文本和 asyncio／HTTP 的组合仍在后续批次验收；x86_64 在 aarch64 全部功能完成后补验。
+
+### 3.7 公共段落与行内子项适配
+
+scoop.ui.text 已提供 InlineView、InlineViewAlignment、inlineChildren 和 ParagraphHost。行内出现以 InlineKey 创建普通 keyed 包装组件，内层 View 的 key 保留自身作用；ParagraphHost 只通过公开文本／UI 接口测量和放置，不增加 View 分支。自然尺寸、固定尺寸、子项基线或显式对齐均进入同一 TextLayout。
+
+ParagraphHost 拥有可替换的 Paragraph／TextLayout，借用字体来源；内容身份、字体身份／revision、段落设置、宽度和实际 metrics 决定复用。成功取得新布局后关闭旧值，构造或排版失败保留原缓存。公开 layout 借用允许第三方控件复用文本查询；宿主关闭后不可继续访问。
+
+Scoop 格式与生产／测试类型检查通过，aarch64 release scoop.test：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| UiTextCacheTest | 4／4 | 绑定校验及延迟构造、布局复用与尺寸变更、失败替换、字体 revision、借用关闭与 owner 线程 |
+| UI text Cone | 1／1 | 公开适配、多字号文字、图片／交互子项、基线与固定尺寸、动画重排、换色复用、截断失焦与恢复状态、RTL／key 重排、内层 key 更换、资源所有权 |
+
+固定字体由原数据目录新增的普通 text-fonts 测试 Cone 提供，避免复制字体或跨 Cone includeBytes。生产 UI 已重新构建到 aarch64 sysroot；未修改编译器、core／std／test，未使用 fixture 或运行全量测试。下一步接入独立基础控件库，x86_64 仍统一留待最后。

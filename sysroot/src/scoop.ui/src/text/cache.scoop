@@ -1,0 +1,121 @@
+package scoop.ui.text
+
+import scoop.graphics.text.*
+import scoop.ui.cleanupUi
+import scoop.ui.throwUi
+
+/** Owns the two native snapshots; replacement publishes only fully built results. */
+internal class ParagraphCache: Closeable {
+    private var current: CachedParagraph? = None
+
+    val layout: TextLayout get() =
+        (current ?: throw IllegalStateException(Some("paragraph has not been measured"))).layout
+
+    fun update(
+        fonts: FontCollection,
+        content: StyledText,
+        settings: ParagraphStyle,
+        width: Double?,
+        metrics: Array<InlineMetrics>
+    ): TextLayout {
+        when (current) {
+            case Some(previous) -> {
+                if (previous.matches(fonts, content, settings)) {
+                    if (previous.width == width && equalMetrics(previous.metrics, metrics))
+                        return previous.layout
+                    val next = createLayout(previous.paragraph, width, metrics)
+                    val old = previous.layout
+                    previous.layout = next
+                    previous.width = width
+                    previous.metrics = metrics
+                    old.close()
+                    return next
+                }
+            }
+            case None -> {}
+        }
+        val paragraph = Paragraph(fonts, content, settings)
+        val next =
+            try {
+                CachedParagraph(
+                    fonts,
+                    fonts.revision,
+                    content,
+                    settings,
+                    paragraph,
+                    createLayout(paragraph, width, metrics),
+                    width,
+                    metrics
+                )
+            } catch (error: Throwable) {
+                throwUi(cleanupUi(Some(error)) { paragraph.close() })
+                throw error
+            }
+        val previous = current
+        current = Some(next)
+        previous?.close()
+        return next.layout
+    }
+
+    public override fun close() {
+        val previous = current
+        current = None
+        previous?.close()
+    }
+}
+
+private class CachedParagraph(
+    val fonts: FontCollection,
+    val revision: Long,
+    val content: StyledText,
+    val settings: ParagraphStyle,
+    val paragraph: Paragraph,
+    var layout: TextLayout,
+    var width: Double?,
+    var metrics: Array<InlineMetrics>
+): Closeable {
+    fun matches(source: FontCollection, text: StyledText, style: ParagraphStyle): Boolean =
+        fonts ===
+            source &&
+            revision ==
+            source.revision &&
+            content ===
+            text &&
+            settings.alignment ==
+            style.alignment &&
+            settings.direction ==
+            style.direction &&
+            settings.maxLines ==
+            style.maxLines &&
+            settings.ellipsis ==
+            style.ellipsis
+
+    public override fun close() {
+        var failure: Throwable? = None
+        failure = cleanupUi(failure) { layout.close() }
+        failure = cleanupUi(failure) { paragraph.close() }
+        throwUi(failure)
+    }
+}
+
+private fun createLayout(
+    paragraph: Paragraph,
+    width: Double?,
+    metrics: Array<InlineMetrics>
+): TextLayout =
+    when (width) {
+        case Some(value) -> paragraph.layout(value, metrics)
+        case None -> paragraph.layoutUnwrapped(metrics)
+    }
+
+private fun equalMetrics(left: Array<InlineMetrics>, right: Array<InlineMetrics>): Boolean {
+    if (left.size != right.size)
+        return false
+    var index = 0L
+    while (index < left.size) {
+        if (left[index] != right[index])
+            return false
+        index += 1L
+    }
+    return true
+}
