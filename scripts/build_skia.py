@@ -101,12 +101,13 @@ OPTIONS = {
 def prepare(args):
     vendor = ROOT / "sysroot/vendor/skia"
     windows = args.target in WINDOWS_TARGETS
-    patch = (
-        vendor / "patches" / ("windows-toolchain.patch" if windows else "macos-deployment.patch")
-    )
+    patches = [
+        vendor / "patches" / ("windows-toolchain.patch" if windows else "macos-deployment.patch"),
+        vendor / "patches/text-baselines.patch",
+    ]
     packages = (*PACKAGES, *build_skia_windows.PACKAGES) if windows else PACKAGES
     archives = [vendor / f"{name}.tar.xz" for name, _, _ in packages]
-    sources = [metadata(path) for path in (*archives, patch)]
+    sources = [metadata(path) for path in (*archives, *patches)]
     inputs = {
         "sources": sources,
         "scripts": [
@@ -172,7 +173,10 @@ def prepare(args):
                 with tarfile.open(archive) as package:
                     package.extractall(output, filter="data")
         subprocess.run(
-            [git, "apply", str(patch)], cwd=source, env=source_patch_environment(source), check=True
+            [git, "apply", *map(str, patches)],
+            cwd=source,
+            env=source_patch_environment(source),
+            check=True,
         )
         source_record.write_text(json.dumps(sources) + "\n")
 

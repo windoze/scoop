@@ -1,0 +1,103 @@
+--- a/modules/skparagraph/src/Run.h
++++ b/modules/skparagraph/src/Run.h
+@@ -3,4 +3,5 @@
+ #define Run_DEFINED
+
++#include <optional>
+ #include "include/core/SkFont.h"
+ #include "include/core/SkFontMetrics.h"
+@@ -453,4 +454,5 @@
+
+     void clean() {
++        fInlineBaselineOffset.reset();
+         fAscent = SK_ScalarMax;
+         fDescent = SK_ScalarMin;
+@@ -512,4 +514,12 @@
+     SkScalar ideographicBaseline() const { return fDescent - fAscent + fLeading; }
+     SkScalar deltaBaselines() const { return fLeading / 2 + fDescent; }
++    void freezeInlineBaseline() { fInlineBaselineOffset = deltaBaselines(); }
++    SkScalar inlineBaselineOffset() const {
++        return fInlineBaselineOffset.value_or(deltaBaselines());
++    }
++    SkScalar paintAlphabeticBaseline() const { return alphabeticBaseline() + delta(); }
++    SkScalar paintIdeographicBaseline() const {
++        return paintAlphabeticBaseline() + inlineBaselineOffset();
++    }
+     SkScalar baseline() const { return fLeading / 2 - fAscent; }
+     SkScalar ascent() const { return fAscent; }
+@@ -536,4 +546,5 @@
+
+     bool fForceStrut;
++    std::optional<SkScalar> fInlineBaselineOffset;
+ };
+ }  // namespace textlayout
+--- a/modules/skparagraph/src/Run.cpp
++++ b/modules/skparagraph/src/Run.cpp
+@@ -245,5 +245,5 @@
+
+         case TextBaseline::kIdeographic:
+-            baselineAdjustment = endlineMetrics->deltaBaselines() / 2;
++            baselineAdjustment = endlineMetrics->inlineBaselineOffset();
+             break;
+     }
+--- a/modules/skparagraph/src/TextLine.h
++++ b/modules/skparagraph/src/TextLine.h
+@@ -88,6 +88,6 @@
+     SkVector offset() const;
+
+-    SkScalar alphabeticBaseline() const { return fSizes.alphabeticBaseline(); }
+-    SkScalar ideographicBaseline() const { return fSizes.ideographicBaseline(); }
++    SkScalar alphabeticBaseline() const { return offset().fY + fSizes.paintAlphabeticBaseline(); }
++    SkScalar ideographicBaseline() const { return offset().fY + fSizes.paintIdeographicBaseline(); }
+     SkScalar baseline() const { return fSizes.baseline(); }
+
+--- a/modules/skparagraph/src/TextLine.cpp
++++ b/modules/skparagraph/src/TextLine.cpp
+@@ -1319,6 +1319,6 @@
+     }
+     result.fLeft = this->offset().fX;
+-    // This is Flutter definition of a baseline
+-    result.fBaseline = this->offset().fY + this->height() - this->sizes().descent();
++    // Use the same baseline as glyph and placeholder painting.
++    result.fBaseline = this->alphabeticBaseline();
+     result.fLineNumber = this - fOwner->lines().data();
+
+--- a/modules/skparagraph/src/TextWrapper.cpp
++++ b/modules/skparagraph/src/TextWrapper.cpp
+@@ -446,4 +446,7 @@
+             fEndLine.setMetrics(parent->getEmptyMetrics());
+         }
++
++        // Every placeholder on the line uses the same text baseline reference.
++        fEndLine.metrics().freezeInlineBaseline();
+
+         // Deal with placeholder clusters == runs[@size==1]
+--- a/modules/skparagraph/src/ParagraphImpl.cpp
++++ b/modules/skparagraph/src/ParagraphImpl.cpp
+@@ -186,6 +186,6 @@
+                     fHeight = fStrutMetrics.height();
+                 }
+-                fAlphabeticBaseline = fEmptyMetrics.alphabeticBaseline();
+-                fIdeographicBaseline = fEmptyMetrics.ideographicBaseline();
++                fAlphabeticBaseline = fEmptyMetrics.paintAlphabeticBaseline();
++                fIdeographicBaseline = fEmptyMetrics.paintIdeographicBaseline();
+                 fLongestLine = FLT_MIN - FLT_MAX;  // That is what flutter has
+                 fMinIntrinsicWidth = 0;
+@@ -755,6 +755,6 @@
+         fMaxIntrinsicWidth = run.advance().fX;
+         fMinIntrinsicWidth = advance.fX;
+-        fAlphabeticBaseline = fLines.empty() ? fEmptyMetrics.alphabeticBaseline() : fLines.front().alphabeticBaseline();
+-        fIdeographicBaseline = fLines.empty() ? fEmptyMetrics.ideographicBaseline() : fLines.front().ideographicBaseline();
++        fAlphabeticBaseline = fLines.empty() ? fEmptyMetrics.paintAlphabeticBaseline() : fLines.front().alphabeticBaseline();
++        fIdeographicBaseline = fLines.empty() ? fEmptyMetrics.paintIdeographicBaseline() : fLines.front().ideographicBaseline();
+         fExceededMaxLines = false;
+         return;
+@@ -792,6 +792,6 @@
+     fMaxIntrinsicWidth = textWrapper.maxIntrinsicWidth();
+     fMinIntrinsicWidth = textWrapper.minIntrinsicWidth();
+-    fAlphabeticBaseline = fLines.empty() ? fEmptyMetrics.alphabeticBaseline() : fLines.front().alphabeticBaseline();
+-    fIdeographicBaseline = fLines.empty() ? fEmptyMetrics.ideographicBaseline() : fLines.front().ideographicBaseline();
++    fAlphabeticBaseline = fLines.empty() ? fEmptyMetrics.paintAlphabeticBaseline() : fLines.front().alphabeticBaseline();
++    fIdeographicBaseline = fLines.empty() ? fEmptyMetrics.paintIdeographicBaseline() : fLines.front().ideographicBaseline();
+     fExceededMaxLines = textWrapper.exceededMaxLines();
+ }

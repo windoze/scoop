@@ -66,12 +66,17 @@ struct STTextStyle : STObject {
 struct STRichRun {
   std::string text;
   sgt::TextStyle style;
+  bool placeholder = false;
+};
+struct STRange {
+  int64_t start, end;
 };
 struct STParagraphBuilder : STObject {
   sk_sp<sgt::FontCollection> fonts;
   sgt::ParagraphStyle style;
   std::string text;
   std::vector<STRichRun> runs;
+  std::vector<STRange> inlines;
   explicit STParagraphBuilder(sk_sp<sgt::FontCollection> source)
       : fonts(std::move(source)) {}
 };
@@ -80,7 +85,8 @@ struct STTextData {
   sk_sp<SkUnicode> unicode;
   std::vector<size_t> to16, to8;
   std::vector<int64_t> graphemes;
-  explicit STTextData(std::string value);
+  std::vector<STRange> inlines;
+  STTextData(std::string value, std::vector<STRange> objects);
   bool scalar(int64_t index) const {
     return index >= 0 && (size_t)index < to16.size() &&
            to16[index] != std::numeric_limits<size_t>::max();
@@ -97,10 +103,7 @@ struct STParagraph : STObject {
   std::shared_ptr<STTextData> data;
   explicit STParagraph(const STParagraphBuilder &builder)
       : fonts(builder.fonts), style(builder.style), runs(builder.runs),
-        data(std::make_shared<STTextData>(builder.text)) {}
-};
-struct STRange {
-  int64_t start, end;
+        data(std::make_shared<STTextData>(builder.text, builder.inlines)) {}
 };
 struct STTextLine {
   STRange range, content, visible;
@@ -132,13 +135,25 @@ struct STSelection {
   void *pointer;
   int32_t status;
 };
+struct STInlineMetrics {
+  double width, height, offset;
+  int32_t alignment, baseline;
+};
+struct STInlineBox {
+  STRect rect;
+  int64_t line;
+  int32_t direction, visible;
+};
 struct STTextLayout : STObject {
   std::unique_ptr<sgt::Paragraph> paragraph;
   std::shared_ptr<STTextData> data;
   sgt::ParagraphStyle style;
   std::vector<STTextLine> lines;
+  std::vector<STInlineBox> inlines;
   STLayoutInfo info;
-  STTextLayout(const STParagraph &source, double width, bool wrap);
+  STTextLayout(const STParagraph &source, double width, bool wrap,
+               const STInlineMetrics *metrics, size_t count);
+  void place_inlines();
   size_t visible_end() const;
   int line_at(size_t byte, bool upstream) const;
 };

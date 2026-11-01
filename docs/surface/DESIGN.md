@@ -4,7 +4,7 @@
 
 当前进入 Windows 阶段，方案与验收见第 13 节；第 1～12 节的“本期／第一期”保留为已交付的共享架构与 macOS 范围。Linux 留待后续。
 
-2026-11-01 按[文本排版设计](../graphics/text/DESIGN.md)将字体、Paragraph／TextLayout 迁入独立 `scoop.graphics.text`，通过公开画布借用绘制，保留独立资源所有权，并实现 StyledText／SpanStyle 内容描述。本文下述 graphics 文本层现归该 Cone。行内对象与 [UI](../ui/DESIGN.md) 的基线、可选子项放置和公共段落宿主继续分批实施，结果见 [UI 实施记录](../ui/PROGRESS.md)。
+2026-11-01 按[文本排版设计](../graphics/text/DESIGN.md)将字体、Paragraph／TextLayout 迁入独立 `scoop.graphics.text`，通过公开画布借用绘制，保留独立资源所有权，并实现 StyledText／SpanStyle 与行内对象。本文下述 graphics 文本层现归该 Cone。[UI](../ui/DESIGN.md) 的基线、可选子项放置和公共段落宿主继续分批实施，结果见 [UI 实施记录](../ui/PROGRESS.md)。
 
 同日补充的 [GPU／3D／视频调研](../ui/DESIGN.md#13-后续增强gpu-互操作3d-与视频)列为更后续的增强：graphics 接入外部目标与图像，surface 衔接离屏宿主、帧和输入，3D／媒体逻辑由独立库或应用承担。当前 Metal／D3D12 目标包装已有基础，但外部 GPU 图像导入、离屏 UI 根及视频选帧与播放时钟接入尚未实现，不改变本文已交付的窗口呈现合同。
 

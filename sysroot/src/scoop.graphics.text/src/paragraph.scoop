@@ -21,17 +21,34 @@ public class Paragraph public constructor(
     : this(fonts, StyledText([TextSpan.text(text)], style), settings) {}
 
     /** Lays out in finite logical width, preserving prior results. */
-    public fun layout(width: Double): TextLayout {
+    public fun layout(width: Double, inlines: Array<InlineMetrics> = []): TextLayout {
         checkTextScalar(width)
         requireText(width >= 0.0, "negative paragraph width")
-        return createLayout(width, true)
+        return createLayout(width, true, inlines)
     }
     /** Uses natural width; explicit line breaks are preserved. */
-    public fun layoutUnwrapped(): TextLayout = createLayout(0.0, false)
-    private fun createLayout(width: Double, wrap: Boolean): TextLayout {
+    public fun layoutUnwrapped(inlines: Array<InlineMetrics> = []): TextLayout =
+        createLayout(0.0, false, inlines)
+    private fun createLayout(
+        width: Double,
+        wrap: Boolean,
+        inlines: Array<InlineMetrics>
+    ): TextLayout {
+        val pointer = resource.get()
+        val metrics = resolveInlineMetrics(content, inlines)
         @Unsafe
         {
-            val native = ownedText(textLayout(resource.get(), width, wrap), "layout paragraph")
+            val native =
+                metrics.withDataPointer {
+                    data,
+                    count -> @Unsafe
+                    {
+                        return@withDataPointer ownedText(
+                            textLayout(pointer, width, wrap, data, count),
+                            "layout paragraph"
+                        )
+                    }
+                }
             try {
                 return TextLayout(native, content)
             }
@@ -89,18 +106,26 @@ private fun makeParagraph(
         current ->
         val pointer = current.get()
         for (run in content.runs) {
-            run.style.withNative {
-                style -> @Unsafe
-                {
-                    run.text.withUtf8Bytes {
-                        bytes,
-                        count -> @Unsafe
-                        {
-                            textResult(
-                                paragraphRun(pointer, style, bytes, count),
-                                "append paragraph run"
-                            )
+            when (run) {
+                case Text(text, value) -> value.withNative {
+                    style -> @Unsafe
+                    {
+                        text.withUtf8Bytes {
+                            bytes,
+                            count -> @Unsafe
+                            {
+                                textResult(
+                                    paragraphRun(pointer, style, bytes, count),
+                                    "append paragraph run"
+                                )
+                            }
                         }
+                    }
+                }
+                case Object(value) -> value.withNative {
+                    style -> @Unsafe
+                    {
+                        textResult(paragraphInline(pointer, style), "append inline object")
                     }
                 }
             }
@@ -152,5 +177,14 @@ private fun paragraphRun(builder: Ptr<Unit>, style: Ptr<Unit>, text: Ptr<UInt8>,
 @Extern(name = "scoop_graphics_text_paragraph_finish")
 private fun paragraphFinish(builder: Ptr<Unit>): Ptr<Unit>?
 
+@Extern(name = "scoop_graphics_text_paragraph_inline")
+private fun paragraphInline(builder: Ptr<Unit>, style: Ptr<Unit>): Int
+
 @Extern(name = "scoop_graphics_text_layout")
-private fun textLayout(paragraph: Ptr<Unit>, width: Double, wrap: Boolean): Ptr<Unit>?
+private fun textLayout(
+    paragraph: Ptr<Unit>,
+    width: Double,
+    wrap: Boolean,
+    metrics: Ptr<NativeInlineMetrics>,
+    count: Long
+): Ptr<Unit>?

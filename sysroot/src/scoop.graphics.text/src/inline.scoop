@@ -1,0 +1,136 @@
+package scoop.graphics.text
+
+import scoop.collections.HashMap
+import scoop.graphics.Rect
+import scoop.graphics.Size
+
+/** Identifies one occurrence in a StyledText, independently of its byte position. */
+public enum InlineKey: Equals<InlineKey>, Hash {
+    Text(String), Number(Long)
+
+    public override operator fun equals(other: InlineKey): Boolean =
+        when (this) {
+            case Text(value) -> when (other) {
+                case Text(right) -> value == right;
+                else -> false
+            }
+            case Number(value) -> when (other) {
+                case Number(right) -> value == right;
+                else -> false
+            }
+        }
+    public override fun hash(): Long =
+        when (this) {
+            case Text(value) -> value.hash()
+            case Number(value) -> value.hash().xor(-1L)
+        }
+}
+
+public enum TextBaseline {
+    Alphabetic, Ideographic
+}
+
+public enum InlineAlignment {
+    Baseline(TextBaseline, Double), AboveBaseline(TextBaseline), BelowBaseline(TextBaseline),
+    Top, Bottom, Middle
+}
+
+/** Content metadata; alternate text does not participate in shaping or position counting. */
+public struct InlineObject(val key: InlineKey, val range: TextRange, val alternateText: String)
+
+/** Complete measurements for one layout request; the text library owns no child resources. */
+public struct InlineMetrics(
+    val key: InlineKey,
+    val size: Size,
+    val alignment: InlineAlignment = InlineAlignment.AboveBaseline(TextBaseline.Alphabetic)
+)
+
+public struct InlineBox(val rect: Rect, val lineIndex: Long, val direction: TextDirection)
+
+/** None means elided; a zero-sized visible object still has Some(box). */
+public struct InlinePlacement(val key: InlineKey, val range: TextRange, val box: InlineBox?)
+
+@CLayout
+internal struct NativeInlineMetrics(
+    val width: Double,
+    val height: Double,
+    val offset: Double,
+    val alignment: Int,
+    val baseline: Int
+)
+
+internal fun resolveInlineMetrics(content: StyledText, values: Array<InlineMetrics>): Array<
+    NativeInlineMetrics
+> {
+    requireText(values.size == content.inlineObjects.size, "inline metrics must cover every object")
+    val byKey = HashMap<InlineKey, NativeInlineMetrics>()
+    for (value in values) {
+        checkTextScalar(value.size.width)
+        checkTextScalar(value.size.height)
+        requireText(value.size.width >= 0.0 && value.size.height >= 0.0, "negative inline size")
+        val(alignment, kind, offset) =
+            when (value.alignment) {
+                case Baseline(kind, offset) -> (0, kind, offset)
+                case AboveBaseline(kind) -> (1, kind, 0.0)
+                case BelowBaseline(kind) -> (2, kind, 0.0)
+                case Top -> (3, TextBaseline.Alphabetic, 0.0)
+                case Bottom -> (4, TextBaseline.Alphabetic, 0.0)
+                case Middle -> (5, TextBaseline.Alphabetic, 0.0)
+            }
+        checkTextScalar(offset)
+        val metrics =
+            NativeInlineMetrics(
+                value.size.width,
+                value.size.height,
+                offset,
+                alignment,
+                if (kind == TextBaseline.Alphabetic)
+                    0
+                else
+                    1
+            )
+        requireText(byKey.put(value.key, metrics) == None, "duplicate inline metrics key")
+    }
+    return Array<NativeInlineMetrics>(content.inlineObjects.size) {
+        index -> byKey[content.inlineObjects[index].key] ?:
+            throw IllegalArgumentException(Some("missing inline metrics key"))
+    }
+}
+
+internal fun readInlinePlacements(pointer: Ptr<Unit>, content: StyledText): Array<InlinePlacement> =
+    Array<InlinePlacement>(content.inlineObjects.size) {
+        index ->
+        val item = content.inlineObjects[index]
+        @Unsafe
+        {
+            val value = textInlineBox(pointer, index)
+            return@Array InlinePlacement(
+                item.key,
+                item.range,
+                if (value.visible == 0)
+                    None
+                else
+                    Some(
+                        InlineBox(
+                            value.rect,
+                            value.lineIndex,
+                            if (value.direction == 1)
+                                TextDirection.Ltr
+                            else
+                                TextDirection.Rtl
+                        )
+                    )
+            )
+        }
+    }
+
+@CLayout
+private struct NativeInlineBox(
+    val rect: Rect,
+    val lineIndex: Long,
+    val direction: Int,
+    val visible: Int
+)
+
+@Extern(name = "scoop_graphics_text_inline_box")
+private fun textInlineBox(pointer: Ptr<Unit>, index: Long): NativeInlineBox

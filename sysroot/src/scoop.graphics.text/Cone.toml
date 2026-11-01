@@ -26,6 +26,8 @@ path = "tests/text.scoop"
 [[test.sources]]
 path = "tests/styled.scoop"
 [[test.sources]]
+path = "tests/inline.scoop"
+[[test.sources]]
 path = "tests/metal.scoop"
 when = { os = "darwin" }
 

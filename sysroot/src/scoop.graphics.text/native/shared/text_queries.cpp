@@ -5,6 +5,17 @@ STTextHit scoop_graphics_text_hit(void *pointer, STPoint point) {
   try {
     auto layout = static_cast<STTextLayout *>(pointer);
     auto &data = *layout->data;
+    for (size_t i = 0; i < layout->inlines.size(); ++i) {
+      const auto &box = layout->inlines[i];
+      const auto &rect = box.rect;
+      if (box.visible && point.x >= rect.x && point.x < rect.x + rect.width &&
+          point.y >= rect.y && point.y < rect.y + rect.height) {
+        bool trailing =
+            (point.x >= rect.x + rect.width / 2) == (box.direction == 1);
+        const auto &range = data.inlines[i];
+        return {trailing ? range.end : range.start, trailing ? 0 : 1, 1};
+      }
+    }
     auto hit = layout->paragraph->getGlyphPositionAtCoordinate((float)point.x,
                                                                (float)point.y);
     size_t byte =
@@ -56,6 +67,20 @@ STCaret scoop_graphics_text_caret(void *pointer, int64_t byte, int32_t affinity,
     int64_t end = trailing
                       ? byte
                       : (edge + 1 != data.graphemes.end() ? *(edge + 1) : byte);
+    auto object =
+        std::lower_bound(data.inlines.begin(), data.inlines.end(), start,
+                         [](const STRange &range, int64_t position) {
+                           return range.start < position;
+                         });
+    if (object != data.inlines.end() && object->start == start &&
+        object->end == end) {
+      const auto &box = layout->inlines[object - data.inlines.begin()];
+      if (!box.visible)
+        return {{}, 0};
+      bool right = trailing == (box.direction == 1);
+      x = box.rect.x + (right ? box.rect.width : 0);
+      return {{x, line.rect.y, thickness, line.rect.height}, 1};
+    }
     auto boxes = layout->paragraph->getRectsForRange(
         (unsigned)data.to16[start], (unsigned)data.to16[end],
         sgt::RectHeightStyle::kMax, sgt::RectWidthStyle::kTight);
@@ -87,9 +112,34 @@ STSelection scoop_graphics_text_selection(void *pointer, int64_t start,
       return {nullptr, -1};
     }
     auto result = std::make_unique<STTextBoxes>();
-    result->values = layout->paragraph->getRectsForRange(
-        (unsigned)layout->data->to16[start], (unsigned)layout->data->to16[end],
-        sgt::RectHeightStyle::kMax, sgt::RectWidthStyle::kTight);
+    auto append_text = [&](int64_t from, int64_t to) {
+      if (from == to)
+        return;
+      const auto boxes = layout->paragraph->getRectsForRange(
+          (unsigned)layout->data->to16[from], (unsigned)layout->data->to16[to],
+          sgt::RectHeightStyle::kMax, sgt::RectWidthStyle::kTight);
+      result->values.insert(result->values.end(), boxes.begin(), boxes.end());
+    };
+    int64_t position = start;
+    for (size_t i = 0; i < layout->data->inlines.size(); ++i) {
+      const auto &range = layout->data->inlines[i];
+      if (range.start < start)
+        continue;
+      if (range.end > end)
+        break;
+      append_text(position, range.start);
+      const auto &box = layout->inlines[i];
+      if (box.visible) {
+        const auto &rect = box.rect;
+        result->values.emplace_back(
+            SkRect::MakeXYWH((float)rect.x, (float)rect.y, (float)rect.width,
+                             (float)rect.height),
+            box.direction == 1 ? sgt::TextDirection::kLtr
+                               : sgt::TextDirection::kRtl);
+      }
+      position = range.end;
+    }
+    append_text(position, end);
     return {result.release(), 1};
   } catch (...) {
     return {nullptr, 0};

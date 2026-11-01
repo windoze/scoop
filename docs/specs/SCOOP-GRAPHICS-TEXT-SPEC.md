@@ -1,6 +1,6 @@
 # Scoop 文本排版库规范
 
-日期：2026-11-01。状态：分批实施。独立 `scoop.graphics.text` 已交付字体、StyledText／TextSpan／SpanStyle、Paragraph／TextLayout 和文字绘制查询，验证及后续批次见 [UI 实施记录](../ui/PROGRESS.md)。行内对象扩展尚未交付。本文件同时规定其目标合同；取舍、迁移和调研依据见 [文本排版设计](../graphics/text/DESIGN.md)。UI 接入见 [UI 规范第 7.5 节](SCOOP-UI-SPEC.md#75-公共文本接入)。
+日期：2026-11-01。状态：独立文本能力已在 macOS aarch64 实现，包括字体、StyledText／TextSpan／SpanStyle、Paragraph／TextLayout、行内对象及文字绘制查询。x86_64 在本期 aarch64 功能完成后统一补验，UI 接入继续实施，见 [UI 实施记录](../ui/PROGRESS.md)。取舍、迁移和调研依据见 [文本排版设计](../graphics/text/DESIGN.md)。UI 接入见 [UI 规范第 7.5 节](SCOOP-UI-SPEC.md#75-公共文本接入)。
 
 ## 1. 定位与依赖
 
@@ -65,6 +65,8 @@ InlineAlignment 的含义为：
 
 尺寸是有限非负逻辑值，基线偏移为有限有符号值；外框裁剪不要求基线一定落在外框内。零尺寸对象仍是实际内容，不代表被隐藏。对象的 ascent／descent 参与行高计算，不能仅在完成普通文字排版后叠画图片。
 
+同一行的所有对象共用基线参照。两条基线之间的距离由该行文字的字体／行高度量决定，在计入对象高度前确定；没有文字时使用段落基础样式。对象可以扩大行盒子的 ascent／descent，但不能通过自身高度改变后续对象选择的基线距离。TextLayout 的首行基线与 TextLine.baseline、文字绘制及 InlineBox 使用同一实际坐标，包含排版引擎对行高的舍入结果；不能直接混用引擎未舍入的字体度量 getter 与绘制坐标。
+
 对象前后的断行与双向排序交给段落引擎，采用对象替换字符的 Unicode 语义；本期不增加任意回调式断行策略。超过可用行宽的对象仍不可拆分，按段落的换行／截断规则处理，不自动缩小对象。需要限制尺寸的调用方在提供 metrics 前完成约束。
 
 图片调用方可以由图片尺寸或显式目标尺寸给出 metrics，并在返回的位置调用 Canvas.drawImage。UI 可以先测量子控件，再提供同样的 metrics；两种路径使用相同的段落排版接口。
@@ -78,8 +80,8 @@ FontCollection、TextStyle、ParagraphStyle、TextRange／TextPosition 等文本
 排版入口的签名形状为：
 
 ```text
-fun layout(width: Double, inlines: Array<InlineMetrics> = arrayOf()): TextLayout
-fun layoutUnwrapped(inlines: Array<InlineMetrics> = arrayOf()): TextLayout
+fun layout(width: Double, inlines: Array<InlineMetrics> = []): TextLayout
+fun layoutUnwrapped(inlines: Array<InlineMetrics> = []): TextLayout
 ```
 
 width 是有限非负逻辑宽度；无界请求用 layoutUnwrapped，保留显式换行，不把 Infinity 传给引擎。对象尺寸属于此次排版输入，不固化在 Paragraph 的内容快照中。对象尺寸变化可以复用内容与字体快照，再创建新 TextLayout。
@@ -134,7 +136,7 @@ FontCollection、Paragraph 和 TextLayout 在创建线程串行使用与关闭�
 
 ## 8. 实施与验收
 
-基础拆分已包含独立 Cone、字体和段落资源所有权、公开 Canvas 借用、测试和 Surface 示例迁移，不保留旧 package 别名。Paragraph 的内容输入已统一为 StyledText，保留 String／TextStyle 的便利构造；TextSpan.text／span 和 SpanStyle 已实现，TextRun 仅作为内部展开结果，不保留公开 run 作者接口。Paragraph／TextLayout 公开同一内容快照，toPlainText 支持 UTF-8 标量边界范围。第 3 至 6 节中的行内对象描述、metrics、placement 和相关查询仍待下一批交付，具体验证范围以实施记录为准。
+独立 Cone、字体和段落资源所有权、公开 Canvas 借用、统一内容描述、样式继承、行内 metrics／placement 和相关查询已实现，并完成测试与 Surface 示例迁移，不保留旧 package 别名或公开 run 作者接口。Paragraph 的输入为 StyledText 或 String／TextStyle 的便利构造，Paragraph／TextLayout 公开同一内容快照；toPlainText 按 UTF-8 标量边界替换对象的 alternateText。Skia 的基线补丁由正常目标资源准备过程应用，具体验证范围以实施记录为准。
 
 普通行为测试使用所属 Cone 的 scoop.test，至少覆盖：
 

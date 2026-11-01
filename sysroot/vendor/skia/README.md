@@ -23,6 +23,8 @@ Windows 同一入口将 Metal 换为 Ganesh Direct3D 12，字体使用 DirectWri
 
 Darwin ARM64 与 x86_64 分别在独立工作目录构建。部署目标和 CPU 来自 `scripts/release.toml`；SDK 默认使用当前 Xcode 的 macosx，也可用 `--sdk` 显式选择。`patches/macos-deployment.patch` 将 Skia 硬编码的 macOS 11 target 改为 GN 参数，让 C++／Objective-C++ 与 C／assembly 使用同一部署版本。没有屏蔽 SDK 可用性错误。
 
+`patches/text-baselines.patch` 修正 SkParagraph 的公共基线与实际绘制坐标差异，并让同一行的 ideographic placeholder 使用计入对象高度前确定的文字基线距离。对象改变行高时仍共用同一参照，不因前一个对象的高度改变后一个对象的基线。补丁在公共文本层生效，Scoop 和 UI 无需移动已排好的对象作补偿；回归归属 graphics.text 的 scoop.test，平台验证范围见 [UI 实施记录](../../../docs/ui/PROGRESS.md)。
+
 发布一个 `libscoop_skia.a`，合并实际构建的 Skia／段落／shaping／Unicode／codec 静态依赖；头文件位于目标资源的 `include/skia`。这些都是普通 Cone native 输入，不进入编译器或 runtime。缓存命中只判断输入更新与输出存在，发生更新后才解包、探测工具和构建。
 
 graphics 绑定使用 `SK_RELEASE`，与预编译的 release Skia 保持相同头文件布局；应用的 Scoop profile 不改变该依赖的 C++ ABI。原生 C++ 标准使用 Cone driver 的 C++20 默认值，公共 Clang warning 选项使用 `-Wmost`，避免 clang-cl 将 `-Wall` 解释为 Microsoft 的全部 warning 等级。

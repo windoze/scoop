@@ -1,0 +1,637 @@
+package scoop.graphics.text
+
+import scoop.graphics.*
+import scoop.math.abs
+import scoop.test.*
+
+@Test
+private class InlineTextTest {
+    @Test
+    fun `object metadata uses UTF8 ranges and alternate text preserves literal replacement characters`() {
+        val photo = InlineKey.Text("photo")
+        val empty = InlineKey.Number(2L)
+        val content =
+            StyledText(
+                [
+                    TextSpan.text("A😀"),
+                    TextSpan.span(
+                        SpanStyle(fontSize = Some(32.0)),
+                        [TextSpan.inlineObject(photo, "[photo]")]
+                    ),
+                    TextSpan.text("\u{fffc}"),
+                    TextSpan.inlineObject(empty, "")
+                ]
+            )
+        assertEquals("A😀\u{fffc}\u{fffc}\u{fffc}", content.text)
+        assertEquals(2L, content.inlineObjects.size)
+        assertEquals(InlineObject(photo, TextRange(5L, 8L), "[photo]"), content.inlineObjects[0L])
+        assertEquals(InlineObject(empty, TextRange(11L, 14L), ""), content.inlineObjects[1L])
+        assertEquals("A😀[photo]\u{fffc}", content.toPlainText())
+        assertEquals("[photo]", content.toPlainText(TextRange(5L, 8L)))
+        assertEquals("\u{fffc}", content.toPlainText(TextRange(8L, 11L)))
+        assertEquals("", content.toPlainText(TextRange(11L, 14L)))
+        assertFailsWith<IllegalArgumentException> { content.toPlainText(TextRange(6L, 8L)) }
+        assertFailsWith<IllegalArgumentException> {
+            StyledText(
+                [
+                    TextSpan.inlineObject(photo, "a"),
+                    TextSpan.span(
+                        SpanStyle(),
+                        [TextSpan.inlineObject(InlineKey.Text("photo"), "b")]
+                    )
+                ]
+            )
+        }
+        assertEquals(
+            2L,
+            StyledText(
+                [TextSpan.inlineObject(InlineKey.Text("2"), "a"), TextSpan.inlineObject(empty, "b")]
+            ).inlineObjects.size
+        )
+    }
+
+    @Test
+    fun `metrics match stable keys and invalid requests leave paragraph usable`() {
+        testFonts().use {
+            fonts ->
+            val a = InlineKey.Text("a")
+            val b = InlineKey.Text("b")
+            val content =
+                inlineContent([TextSpan.inlineObject(a, "a"), TextSpan.inlineObject(b, "b")])
+            Paragraph(fonts, content).use {
+                paragraph ->
+                val first = InlineMetrics(a, Size(20.0, 30.0))
+                val second = InlineMetrics(b, Size(40.0, 10.0))
+                assertFailsWith<IllegalArgumentException> { paragraph.layout(100.0) }
+                assertFailsWith<IllegalArgumentException> { paragraph.layout(100.0, [first]) }
+                assertFailsWith<IllegalArgumentException> {
+                    paragraph.layout(100.0, [first, first])
+                }
+                assertFailsWith<IllegalArgumentException> {
+                    paragraph.layout(
+                        100.0,
+                        [first, InlineMetrics(InlineKey.Number(9L), Size(1.0, 1.0))]
+                    )
+                }
+                for (
+                    size in [
+                        Size(-1.0, 1.0),
+                        Size(1.0, -1.0),
+                        Size(Double.NaN, 1.0),
+                        Size(1.0, Double.POSITIVE_INFINITY)
+                    ]
+                ) {
+                    assertFailsWith<IllegalArgumentException> {
+                        paragraph.layout(100.0, [InlineMetrics(a, size), second])
+                    }
+                }
+                assertFailsWith<IllegalArgumentException> {
+                    paragraph.layout(
+                        100.0,
+                        [
+                            InlineMetrics(
+                                a,
+                                first.size,
+                                InlineAlignment.Baseline(TextBaseline.Alphabetic, Double.NaN)
+                            ),
+                            second
+                        ]
+                    )
+                }
+                paragraph.layout(100.0, [second, first]).use {
+                    layout ->
+                    assertEquals(a, layout.inlineObjects[0L].key)
+                    assertEquals(b, layout.inlineObjects[1L].key)
+                    assertNear(20.0, layout.inlineObjects[0L].box!!.rect.width)
+                    assertNear(40.0, layout.inlineObjects[1L].box!!.rect.width)
+                }
+            }
+            Paragraph(fonts, "plain").use {
+                paragraph -> assertFailsWith<IllegalArgumentException> {
+                    paragraph.layout(100.0, [InlineMetrics(a, Size(1.0, 1.0))])
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `inline image and custom box use measured positions from one paragraph`() {
+        testFonts().use {
+            fonts ->
+            val photo = InlineKey.Text("photo")
+            val control = InlineKey.Text("control")
+            val content =
+                inlineContent(
+                    [
+                        TextSpan.text("H"),
+                        TextSpan.inlineObject(photo, "photo"),
+                        TextSpan.text("H"),
+                        TextSpan.inlineObject(control, "control"),
+                        TextSpan.text("H")
+                    ]
+                )
+            Image.fromRgba(1, 1, [-1, 0, 0, -1]).use {
+                image ->
+                Paragraph(fonts, content).use {
+                    paragraph -> paragraph.layout(
+                        200.0,
+                        [
+                            InlineMetrics(
+                                photo,
+                                Size(32.0, 48.0),
+                                InlineAlignment.Baseline(TextBaseline.Alphabetic, 36.0)
+                            ),
+                            InlineMetrics(control, Size(24.0, 16.0))
+                        ]
+                    ).use {
+                        layout ->
+                        val first = layout.inlineObjects[0L].box!!
+                        val second = layout.inlineObjects[1L].box!!
+                        assertEquals(0L, first.lineIndex)
+                        assertNear(layout.lines[0L].baseline, first.rect.y + 36.0)
+                        assertNear(layout.lines[0L].baseline, second.rect.y + 16.0)
+                        assertTrue(layout.size.height >= 48.0)
+                        assertTrue(first.rect.x + first.rect.width < second.rect.x)
+                        RasterSurface(220, 100).use {
+                            surface ->
+                            surface.draw {
+                                canvas ->
+                                canvas.clear(Color.White)
+                                canvas.drawText(layout)
+                                canvas.drawImage(image, first.rect)
+                                canvas.drawRect(second.rect, Paint(Color(0.0, 0.0, 1.0)))
+                            }
+                            val pixels = surface.readPixels()
+                            assertPixel(pixels, 220, first.rect, 255, 0, 0)
+                            assertPixel(pixels, 220, second.rect, 0, 0, 255)
+                        }
+                        assertObjectQueries(layout, 0L)
+                        assertObjectQueries(layout, 1L)
+                    }
+                }
+                assertFalse(image.isClosed)
+            }
+        }
+    }
+
+    @Test
+    fun `baseline variants and vertical alignments contribute to line geometry`() {
+        testFonts().use {
+            fonts ->
+            val key = InlineKey.Number(1L)
+            val content =
+                inlineContent(
+                    [TextSpan.text("H"), TextSpan.inlineObject(key, "object"), TextSpan.text("H")]
+                )
+            Paragraph(fonts, content).use {
+                paragraph ->
+                for (kind in [TextBaseline.Alphabetic, TextBaseline.Ideographic]) {
+                    paragraph.layoutUnwrapped(
+                        [InlineMetrics(key, Size(20.0, 10.0), InlineAlignment.Baseline(kind, 7.0))]
+                    ).use {
+                        layout ->
+                        val box = layout.inlineObjects[0L].box!!.rect
+                        val baseline =
+                            if (kind == TextBaseline.Alphabetic)
+                                layout.alphabeticBaseline
+                            else
+                                layout.ideographicBaseline
+                        assertNear(baseline, box.y + 7.0)
+                    }
+                    for (
+                        alignment in [
+                            InlineAlignment.AboveBaseline(kind),
+                            InlineAlignment.BelowBaseline(kind)
+                        ]
+                    ) {
+                        paragraph.layoutUnwrapped(
+                            [InlineMetrics(key, Size(20.0, 10.0), alignment)]
+                        ).use {
+                            layout ->
+                            val box = layout.inlineObjects[0L].box!!.rect
+                            assertNear(10.0, box.height)
+                            val baseline =
+                                if (kind == TextBaseline.Alphabetic)
+                                    layout.alphabeticBaseline
+                                else
+                                    layout.ideographicBaseline
+                            val edge =
+                                when (alignment) {
+                                    case AboveBaseline(_) -> box.y + box.height
+                                    else -> box.y
+                                }
+                            assertNear(baseline, edge)
+                            assertTrue(box.y + box.height <= layout.size.height + 0.01)
+                        }
+                    }
+                }
+                for (
+                    alignment in [
+                        InlineAlignment.Top,
+                        InlineAlignment.Bottom,
+                        InlineAlignment.Middle,
+                        InlineAlignment.Baseline(TextBaseline.Alphabetic, -5.0),
+                        InlineAlignment.Baseline(TextBaseline.Alphabetic, 55.0)
+                    ]
+                ) {
+                    paragraph.layoutUnwrapped(
+                        [InlineMetrics(key, Size(20.0, 40.0), alignment)]
+                    ).use {
+                        layout ->
+                        val box = layout.inlineObjects[0L].box!!.rect
+                        assertNear(40.0, box.height)
+                        assertTrue(layout.size.height >= 40.0)
+                        assertObjectQueries(layout, 0L)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `ideographic objects share a baseline even after earlier objects expand the descent`() {
+        testFonts().use {
+            fonts ->
+            val a = InlineKey.Text("tall")
+            val b = InlineKey.Text("short")
+            for (objectsFirst in [false, true]) {
+                val objects = [TextSpan.inlineObject(a, "a"), TextSpan.inlineObject(b, "b")]
+                val content =
+                    inlineContent(
+                        if (objectsFirst)
+                            [TextSpan.span(SpanStyle(), objects), TextSpan.text("H")]
+                        else
+                            [TextSpan.text("H"), TextSpan.span(SpanStyle(), objects)]
+                    )
+                Paragraph(fonts, content).use {
+                    paragraph -> paragraph.layoutUnwrapped(
+                        [
+                            InlineMetrics(
+                                a,
+                                Size(20.0, 80.0),
+                                InlineAlignment.Baseline(TextBaseline.Ideographic, 5.0)
+                            ),
+                            InlineMetrics(
+                                b,
+                                Size(20.0, 10.0),
+                                InlineAlignment.Baseline(TextBaseline.Ideographic, 5.0)
+                            )
+                        ]
+                    ).use {
+                        layout ->
+                        assertNear(layout.alphabeticBaseline, layout.lines[0L].baseline)
+                        for (placement in layout.inlineObjects) {
+                            assertNear(layout.ideographicBaseline, placement.box!!.rect.y + 5.0)
+                        }
+                        assertTrue(layout.size.height >= 80.0)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `mixed bidi preserves key geometry and object hit direction`() {
+        testFonts(true).use {
+            fonts ->
+            val a = InlineKey.Number(1L)
+            val b = InlineKey.Number(2L)
+            val c = InlineKey.Number(3L)
+            val content =
+                inlineContent(
+                    [
+                        TextSpan.text("אב "),
+                        TextSpan.inlineObject(a, "a"),
+                        TextSpan.text(" גד "),
+                        TextSpan.inlineObject(b, "b"),
+                        TextSpan.text(" הו AB "),
+                        TextSpan.inlineObject(c, "c")
+                    ]
+                )
+            val metrics =
+                [
+                    InlineMetrics(c, Size(33.0, 16.0)),
+                    InlineMetrics(a, Size(11.0, 16.0)),
+                    InlineMetrics(b, Size(22.0, 16.0))
+                ]
+            for (direction in [TextDirection.Ltr, TextDirection.Rtl]) {
+                Paragraph(fonts, content, ParagraphStyle(direction = direction)).use {
+                    paragraph -> paragraph.layoutUnwrapped(metrics).use {
+                        layout ->
+                        assertEquals(3L, layout.inlineObjects.size)
+                        for (index in 0L ..< 3L) {
+                            assertEquals(
+                                content.inlineObjects[index].key,
+                                layout.inlineObjects[index].key
+                            )
+                            assertNear(
+                                11.0 * (index + 1L).toDouble(),
+                                layout.inlineObjects[index].box!!.rect.width
+                            )
+                            assertObjectQueries(layout, index)
+                        }
+                        assertTrue(
+                            layout.inlineObjects[0L].box!!.rect.x >
+                                layout.inlineObjects[1L].box!!.rect.x
+                        )
+                        assertEquals(TextDirection.Rtl, layout.inlineObjects[0L].box!!.direction)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `ellipsis and maxLines retain every key without assigning hidden objects a box`() {
+        testFonts(true).use {
+            fonts ->
+            val spans = ArrayList<TextSpan>()
+            val metrics = ArrayList<InlineMetrics>()
+            for (index in 0L ..< 8L) {
+                val key = InlineKey.Number(index)
+                spans.add(
+                    TextSpan.text(
+                        if (index % 2L == 0L)
+                            "אב "
+                        else
+                            "AB "
+                    )
+                )
+                spans.add(TextSpan.inlineObject(key, "object"))
+                metrics.add(InlineMetrics(key, Size(12.0 + index.toDouble(), 14.0)))
+            }
+            val content = inlineContent(spans.toArray())
+            for (direction in [TextDirection.Ltr, TextDirection.Rtl]) {
+                for (ellipsis in ["…", ""]) {
+                    Paragraph(
+                        fonts,
+                        content,
+                        ParagraphStyle(
+                            direction = direction,
+                            maxLines = Some(2L),
+                            ellipsis = ellipsis
+                        )
+                    ).use {
+                        paragraph -> for (width in [0.0, 50.0, 100.0, 200.0, 600.0]) {
+                            paragraph.layout(width, metrics.toArray()).use {
+                                layout ->
+                                assertEquals(8L, layout.inlineObjects.size)
+                                var hidden = 0L
+                                for (index in 0L ..< 8L) {
+                                    val placement = layout.inlineObjects[index]
+                                    assertEquals(content.inlineObjects[index].key, placement.key)
+                                    assertEquals(
+                                        content.inlineObjects[index].range,
+                                        placement.range
+                                    )
+                                    when (placement.box) {
+                                        case Some(box) -> {
+                                            assertNear(12.0 + index.toDouble(), box.rect.width)
+                                            assertTrue(box.lineIndex < 2L)
+                                            assertObjectQueries(layout, index)
+                                        }
+                                        case None -> {
+                                            hidden += 1L
+                                            assertEquals(0L, layout.selection(placement.range).size)
+                                            assertEquals(
+                                                None,
+                                                layout.caret(
+                                                    TextPosition(
+                                                        placement.range.end,
+                                                        TextAffinity.Upstream
+                                                    )
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                                if (width == 600.0)
+                                    assertEquals(0L, hidden)
+                                if (width == 50.0)
+                                    assertTrue(hidden > 0L)
+                                Unit
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `zero size and oversized objects remain actual visible content`() {
+        testFonts().use {
+            fonts ->
+            val a = InlineKey.Number(0L)
+            val b = InlineKey.Number(1L)
+            val c = InlineKey.Number(2L)
+            val content =
+                inlineContent(
+                    [
+                        TextSpan.inlineObject(a, "a"),
+                        TextSpan.inlineObject(b, "b"),
+                        TextSpan.inlineObject(c, "c")
+                    ]
+                )
+            Paragraph(fonts, content).use {
+                paragraph ->
+                paragraph.layoutUnwrapped(
+                    [
+                        InlineMetrics(a, Size(0.0, 0.0)),
+                        InlineMetrics(b, Size(0.0, 0.0)),
+                        InlineMetrics(c, Size(0.0, 0.0))
+                    ]
+                ).use {
+                    layout -> for (index in 0L ..< 3L) {
+                        val box = layout.inlineObjects[index].box!!
+                        assertNear(0.0, box.rect.width)
+                        assertNear(0.0, box.rect.height)
+                        assertEquals(1L, layout.selection(layout.inlineObjects[index].range).size)
+                    }
+                }
+                paragraph.layout(
+                    20.0,
+                    [
+                        InlineMetrics(a, Size(0.0, 20.0)),
+                        InlineMetrics(b, Size(120.0, 0.0)),
+                        InlineMetrics(c, Size(0.0, 0.0))
+                    ]
+                ).use {
+                    layout ->
+                    for (placement in layout.inlineObjects)
+                        assertTrue(placement.box != None)
+                    assertNear(120.0, layout.inlineObjects[1L].box!!.rect.width)
+                    assertTrue(layout.inlineObjects[1L].box!!.rect.width > layout.size.width)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `objects keep atomic boundaries next to combining marks and emoji`() {
+        testFonts(true).use {
+            fonts ->
+            val a = InlineKey.Number(1L)
+            val b = InlineKey.Number(2L)
+            val content =
+                inlineContent(
+                    [
+                        TextSpan.text("e\u{301}"),
+                        TextSpan.inlineObject(a, "a"),
+                        TextSpan.text("\u{301}"),
+                        TextSpan.inlineObject(b, "b"),
+                        TextSpan.text("😀")
+                    ]
+                )
+            Paragraph(fonts, content).use {
+                paragraph -> paragraph.layoutUnwrapped(
+                    [InlineMetrics(a, Size(20.0, 25.0)), InlineMetrics(b, Size(30.0, 15.0))]
+                ).use {
+                    layout ->
+                    val expected: Array<Long> = [0L, 3L, 6L, 8L, 11L, 15L]
+                    assertEquals(expected.size, layout.graphemeBoundaries.size)
+                    for (index in 0L ..< expected.size) {
+                        assertEquals(expected[index], layout.graphemeBoundaries[index])
+                        assertTrue(layout.caret(TextPosition(expected[index])) != None)
+                    }
+                    assertFailsWith<IllegalArgumentException> { layout.caret(TextPosition(4L)) }
+                    assertFailsWith<IllegalArgumentException> {
+                        layout.selection(TextRange(3L, 5L))
+                    }
+                    assertObjectQueries(layout, 0L)
+                    assertObjectQueries(layout, 1L)
+                    val first = layout.inlineObjects[0L].box!!.rect
+                    val second = layout.inlineObjects[1L].box!!.rect
+                    assertNear(
+                        first.x + first.width,
+                        layout.caret(TextPosition(6L, TextAffinity.Downstream))!!.x
+                    )
+                    assertNear(second.x, layout.caret(TextPosition(8L, TextAffinity.Upstream))!!.x)
+                    val accent = layout.selection(TextRange(6L, 8L))
+                    assertTrue(accent.size > 0L)
+                    for (box in accent) {
+                        assertTrue(box.rect.x >= first.x + first.width - 0.05)
+                        assertTrue(box.rect.x + box.rect.width <= second.x + 0.05)
+                    }
+                    assertEquals("e\u{301}a\u{301}b😀", content.toPlainText())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `new object sizes create independent layouts that survive source closure`() {
+        val retained = ArrayList<TextLayout>()
+        testFonts().use {
+            fonts ->
+            val key = InlineKey.Text("item")
+            val content =
+                inlineContent(
+                    [TextSpan.text("HH"), TextSpan.inlineObject(key, "item"), TextSpan.text("HH")]
+                )
+            Paragraph(fonts, content).use {
+                paragraph ->
+                val small = paragraph.layout(100.0, [InlineMetrics(key, Size(10.0, 12.0))])
+                retained.add(small)
+                val old = small.inlineObjects[0L]
+                paragraph.layout(100.0, [InlineMetrics(key, Size(90.0, 50.0))]).use {
+                    large ->
+                    assertTrue(large.size.height > small.size.height)
+                    assertEquals(old, small.inlineObjects[0L])
+                    assertSame(content, small.content)
+                    assertNear(90.0, large.inlineObjects[0L].box!!.rect.width)
+                }
+            }
+        }
+        retained[0L].use {
+            layout ->
+            assertObjectQueries(layout, 0L)
+            RasterSurface(120, 80).use {
+                surface ->
+                surface.draw {
+                    canvas ->
+                    canvas.clear(Color.Transparent);
+                    canvas.drawText(layout)
+                }
+                assertTrue(hasInk(surface.readPixels()))
+            }
+        }
+    }
+}
+
+private fun inlineContent(spans: Array<TextSpan>): StyledText =
+    StyledText(spans, TextStyle(["Test Sans", "Test CJK"], 20.0))
+
+private fun assertNear(expected: Double, actual: Double) {
+    assertTrue(
+        abs(expected - actual) < 0.05,
+        Some("expected " + expected.toString() + ", got " + actual.toString())
+    )
+}
+
+private fun assertObjectQueries(layout: TextLayout, index: Long) {
+    val placement = layout.inlineObjects[index]
+    val box = placement.box!!
+    val rect = box.rect
+    val ltr = box.direction == TextDirection.Ltr
+    val before = layout.caret(TextPosition(placement.range.start, TextAffinity.Downstream))!!
+    val after = layout.caret(TextPosition(placement.range.end, TextAffinity.Upstream))!!
+    assertNear(
+        rect.x +
+            (
+                if (ltr)
+                    0.0
+                else
+                    rect.width
+            ),
+        before.x
+    )
+    assertNear(
+        rect.x +
+            (
+                if (ltr)
+                    rect.width
+                else
+                    0.0
+            ),
+        after.x
+    )
+    if (rect.width > 0.0 && rect.height > 0.0) {
+        val left = layout.hitTest(Point(rect.x + rect.width * 0.2, rect.y + rect.height * 0.5))
+        val right = layout.hitTest(Point(rect.x + rect.width * 0.8, rect.y + rect.height * 0.5))
+        assertEquals(
+            if (ltr)
+                placement.range.start
+            else
+                placement.range.end,
+            left.byteOffset
+        )
+        assertEquals(
+            if (ltr)
+                placement.range.end
+            else
+                placement.range.start,
+            right.byteOffset
+        )
+    }
+    val selected = layout.selection(placement.range)
+    assertEquals(1L, selected.size)
+    assertEquals(rect, selected[0L].rect)
+    assertEquals(box.direction, selected[0L].direction)
+}
+
+private fun assertPixel(
+    pixels: Array<Byte>,
+    width: Int,
+    rect: Rect,
+    red: Int,
+    green: Int,
+    blue: Int
+) {
+    val x = (rect.x + rect.width / 2.0).toInt()
+    val y = (rect.y + rect.height / 2.0).toInt()
+    val offset = (y.toLong() * width.toLong() + x.toLong()) * 4L
+    assertEquals(red, pixels[offset].toUByte().toInt())
+    assertEquals(green, pixels[offset + 1L].toUByte().toInt())
+    assertEquals(blue, pixels[offset + 2L].toUByte().toInt())
+}

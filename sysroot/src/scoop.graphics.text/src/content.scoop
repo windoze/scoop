@@ -1,16 +1,20 @@
 package scoop.graphics.text
 
+import scoop.collections.HashSet
+
 /** A reusable immutable text description, without native resources or UI ownership. */
 public class TextSpan private constructor(internal val content: SpanContent) {
     public companion object {
         public fun text(text: String): TextSpan = TextSpan(SpanContent.Plain(text))
         public fun span(style: SpanStyle, children: Array<TextSpan>): TextSpan =
             TextSpan(SpanContent.Styled(style, children))
+        public fun inlineObject(key: InlineKey, alternateText: String): TextSpan =
+            TextSpan(SpanContent.Object(key, alternateText))
     }
 }
 
 internal enum SpanContent {
-    Plain(String), Styled(SpanStyle, Array<TextSpan>)
+    Plain(String), Styled(SpanStyle, Array<TextSpan>), Object(InlineKey, String)
 }
 
 /** Resolves inherited styles once; every Paragraph can reuse the same content. */
@@ -18,61 +22,97 @@ public class StyledText public constructor(
     public val spans: Array<TextSpan>,
     public val style: TextStyle = TextStyle()
 ) {
-    internal val runs: Array<TextRun> = flattenSpans(spans, style)
-    public val text: String = joinRuns(runs)
+    private val normalized = normalizeText(spans, style)
+    internal val runs: Array<TextRun> = normalized.runs
+    public val text: String = normalized.text
+    public val inlineObjects: Array<InlineObject> = normalized.inlines
 
-    public fun toPlainText(): String = text
-    public fun toPlainText(range: TextRange): String = sliceText(text, range)
+    public fun toPlainText(): String = toPlainText(TextRange(0L, text.byteLength))
+    public fun toPlainText(range: TextRange): String {
+        checkTextRange(text, range)
+        if (inlineObjects.size == 0L)
+            return sliceText(text, range)
+        val output = StringBuilder()
+        var start = range.start
+        for (item in inlineObjects) {
+            if (item.range.start < range.start)
+                continue
+            if (item.range.end > range.end)
+                break
+            output.append(sliceText(text, TextRange(start, item.range.start)))
+            output.append(item.alternateText)
+            start = item.range.end
+        }
+        output.append(sliceText(text, TextRange(start, range.end)))
+        return output.toString()
+    }
 }
 
-internal struct TextRun(val text: String, val style: TextStyle)
-
-private fun flattenSpans(spans: Array<TextSpan>, style: TextStyle): Array<TextRun> {
-    val result = ArrayList<TextRun>()
-    appendSpans(spans, style, result)
-    return result.toArray()
+internal enum TextRun {
+    Text(String, TextStyle), Object(TextStyle)
 }
 
-private fun appendSpans(spans: Array<TextSpan>, style: TextStyle, output: ArrayList<TextRun>) {
-    for (span in spans) {
-        when (span.content) {
-            case Plain(value) -> {
-                if (value.byteLength > 0L)
-                    output.add(TextRun(value, style))
+private class NormalizedText(
+    val text: String,
+    val runs: Array<TextRun>,
+    val inlines: Array<InlineObject>
+)
+
+private fun normalizeText(spans: Array<TextSpan>, style: TextStyle): NormalizedText {
+    val builder = TextContentBuilder()
+    builder.append(spans, style)
+    return NormalizedText(
+        builder.text.toString(),
+        builder.runs.toArray(),
+        builder.inlines.toArray()
+    )
+}
+
+private class TextContentBuilder {
+    val text = StringBuilder()
+    val runs = ArrayList<TextRun>()
+    val inlines = ArrayList<InlineObject>()
+    private val keys = HashSet<InlineKey>()
+    private var length = 0L
+
+    fun append(spans: Array<TextSpan>, style: TextStyle) {
+        for (span in spans) {
+            when (span.content) {
+                case Plain(value) -> {
+                    if (value.byteLength > 0L) {
+                        appendText(value)
+                        runs.add(TextRun.Text(value, style))
+                    }
+                }
+                case Styled(overrides, children) -> append(children, overrides.resolve(style))
+                case Object(key, alternateText) -> {
+                    requireText(keys.add(key), "duplicate inline object key")
+                    val start = length
+                    appendText("\u{fffc}")
+                    runs.add(TextRun.Object(style))
+                    inlines.add(InlineObject(key, TextRange(start, length), alternateText))
+                }
             }
-            case Styled(overrides, children) -> appendSpans(
-                children,
-                overrides.resolve(style),
-                output
-            )
         }
     }
-}
-
-private fun joinRuns(runs: Array<TextRun>): String {
-    val result = StringBuilder()
-    var length = 0L
-    for (run in runs) {
+    private fun appendText(value: String) {
         requireText(
-            run.text.byteLength <= 2147483647L - length,
+            value.byteLength <= 2147483647L - length,
             "paragraph exceeds native text index range"
         )
-        length += run.text.byteLength
-        result.append(run.text)
+        length += value.byteLength
+        text.append(value)
     }
-    return result.toString()
 }
 
-internal fun sliceText(text: String, range: TextRange): String {
+private fun checkTextRange(text: String, range: TextRange) {
     requireText(
         range.start >= 0L && range.start <= range.end && range.end <= text.byteLength,
         "invalid UTF-8 text range"
     )
-    if (range.start == 0L && range.end == text.byteLength)
-        return text
     @Unsafe
     {
-        return text.withUtf8Bytes {
+        text.withUtf8Bytes {
             bytes,
             length -> @Unsafe
             {
@@ -81,10 +121,23 @@ internal fun sliceText(text: String, range: TextRange): String {
                         (range.end == length || bytes.load(range.end).toInt().and(192) != 128),
                     "text range must use UTF-8 scalar boundaries"
                 )
-                return@withUtf8Bytes if (range.start == range.end)
-                    ""
-                else
-                    String.fromUtf8(bytes + range.start, range.end - range.start)
+            }
+        }
+    }
+}
+
+private fun sliceText(text: String, range: TextRange): String {
+    if (range.start == 0L && range.end == text.byteLength)
+        return text
+    if (range.start == range.end)
+        return ""
+    @Unsafe
+    {
+        return text.withUtf8Bytes {
+            bytes,
+            _ -> @Unsafe
+            {
+                return@withUtf8Bytes String.fromUtf8(bytes + range.start, range.end - range.start)
             }
         }
     }

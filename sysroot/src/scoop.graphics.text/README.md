@@ -40,7 +40,13 @@ val content = StyledText([
 ], TextStyle(fontSize = 20.0))
 ```
 
-Paragraph／TextLayout 的 `content` 保留同一描述。`content.toPlainText()` 导出全文，也可以传入 UTF-8 标量边界的 TextRange。行内对象描述、尺寸与位置将在下一批按[文本排版设计](../../../docs/graphics/text/DESIGN.md)加入，目前尚未提供。
+Paragraph／TextLayout 的 `content` 保留同一描述。`content.toPlainText()` 导出全文，也可以传入 UTF-8 标量边界的 TextRange。
+
+`TextSpan.inlineObject(key, alternateText)` 声明行内对象；InlineKey.Text／Number 在同一 StyledText 中唯一。`content.inlineObjects` 提供按逻辑顺序保存的 key、UTF-8 range 和 alternateText；规范化文字以一个 U+FFFC 表示对象，导出纯文本时才替换为 alternateText。
+
+`paragraph.layout(width, inlines)` 或 `layoutUnwrapped(inlines)` 接收 `Array<InlineMetrics>`，必须按 key 完整覆盖对象，可以以任意顺序提供。metrics 包含 Size 和 InlineAlignment；默认底边贴 alphabetic baseline，也可选显式 baseline offset、AboveBaseline／BelowBaseline、Top／Bottom／Middle。尺寸允许为零，超宽对象不自动缩小。TextLayout.inlineObjects 保留全部 key；其 box 为 None 表示被 maxLines／ellipsis 截掉，Some 则给出局部矩形、行号和方向。
+
+Canvas.drawText 只绘制文字；调用方按 box 绘制 Image 或放置自绘控件。文本层不拥有图片或 UI 对象。两类基线与行内对象的详细合同、后续高级排版范围见[文本排版设计](../../../docs/graphics/text/DESIGN.md)；当前基线行为需要目标资源准备时应用 [Skia 补丁](../../vendor/skia/README.md)。
 
 TextRange 和 TextPosition 使用 **UTF-8 字节偏移**，与 String 的标量索引不同。selection 的端点必须是标量边界，caret 的端点必须是 `graphemeBoundaries` 中的位置。hitTest 返回可见内容的 grapheme 边界；affinity 区分软换行和双向 run 的两侧。被截断的位置没有 caret；selection 可以返回多个带方向的矩形。各行保存 range、contentRange、visibleRange、baseline 与尺寸，查询结果相对布局原点。
 

@@ -13,9 +13,10 @@ sk_sp<sgt::FontCollection> STFonts::snapshot() const {
   return result;
 }
 
-STTextData::STTextData(std::string value)
+STTextData::STTextData(std::string value, std::vector<STRange> objects)
     : text(std::move(value)), unicode(SkUnicodes::ICU::Make()),
-      to16(text.size() + 1, std::numeric_limits<size_t>::max()) {
+      to16(text.size() + 1, std::numeric_limits<size_t>::max()),
+      inlines(std::move(objects)) {
   if (!unicode)
     throw std::runtime_error("ICU initialization failed");
   const char *cursor = text.data(), *end = cursor + text.size();
@@ -41,6 +42,13 @@ STTextData::STTextData(std::string value)
     graphemes.insert(graphemes.begin(), 0);
   if ((size_t)graphemes.back() != text.size())
     graphemes.push_back(text.size());
+  for (const auto &object : inlines) {
+    graphemes.push_back(object.start);
+    graphemes.push_back(object.end);
+  }
+  std::sort(graphemes.begin(), graphemes.end());
+  graphemes.erase(std::unique(graphemes.begin(), graphemes.end()),
+                  graphemes.end());
 }
 
 extern "C" {
@@ -165,6 +173,22 @@ void *scoop_graphics_text_paragraph_finish(void *pointer) {
     return new STParagraph(*static_cast<STParagraphBuilder *>(pointer));
   } catch (...) {
     return nullptr;
+  }
+}
+int32_t scoop_graphics_text_paragraph_inline(void *pointer,
+                                             void *style_pointer) {
+  try {
+    auto builder = static_cast<STParagraphBuilder *>(pointer);
+    auto &style = static_cast<STTextStyle *>(style_pointer)->style;
+    const auto start = (int64_t)builder->text.size();
+    if (start > INT32_MAX - 3)
+      return -1;
+    builder->text.append("\xef\xbf\xbc", 3);
+    builder->runs.push_back({{}, style, true});
+    builder->inlines.push_back({start, start + 3});
+    return 1;
+  } catch (...) {
+    return 0;
   }
 }
 }

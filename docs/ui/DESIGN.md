@@ -17,7 +17,7 @@ UI 框架提供构建完全自绘控件的能力，应用可以只使用框架�
 
 主要依赖方向为 `scoop.ui.component → scoop.ui → scoop.surface → scoop.window + scoop.graphics`，文本支路为 `scoop.ui → scoop.graphics.text → scoop.graphics`。使用下层类型的 Cone 同时声明实际直接依赖。框架不依赖或转导出控件库，不根据 Label／Button 等具体类型做分派，不提供只有该库可以访问的控件入口。
 
-这是目标分层；基础字体、布局 API 和 StyledText／SpanStyle 已在 graphics.text 实现，行内对象和 UI 接入按实施批次继续推进。`scoop.ui.text` 是 UI Cone 中的公共适配包，不是额外的库或控件集合。它复用 graphics.text 的段落算法，连接子项测量与放置，第三方自绘元素可以直接使用。
+这是目标分层；基础字体、布局、StyledText／SpanStyle 和行内对象已在 graphics.text 实现，UI 接入按实施批次继续推进。`scoop.ui.text` 是 UI Cone 中的公共适配包，不是额外的库或控件集合。它复用 graphics.text 的段落算法，连接子项测量与放置，第三方自绘元素可以直接使用。
 
 Row／Column／Stack 的布局策略也放在控件库。框架提供约束、基线、子项测量和放置协议；文字换行由 graphics.text 处理，点击语义、默认字体、背景、边框和主题不进入框架。`empty` 只表示结构上的空内容。
 

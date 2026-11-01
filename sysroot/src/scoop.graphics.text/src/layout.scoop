@@ -41,6 +41,7 @@ public class TextLayout internal constructor(
     public val unresolvedGlyphCount: Int = info.unresolved
     public val lines: Array<TextLine> = readLines(resource.get(), info.lines)
     public val graphemeBoundaries: Array<Long> = readGraphemes(resource.get(), info.graphemes)
+    public val inlineObjects: Array<InlinePlacement> = readInlinePlacements(resource.get(), content)
     public val isClosed: Boolean get() = resource.isClosed
 
     public fun hitTest(point: Point): TextPosition {

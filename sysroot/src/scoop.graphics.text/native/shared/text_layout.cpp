@@ -1,14 +1,26 @@
 #include "text.h"
 
-STTextLayout::STTextLayout(const STParagraph &source, double width, bool wrap)
+STTextLayout::STTextLayout(const STParagraph &source, double width, bool wrap,
+                           const STInlineMetrics *inline_metrics, size_t count)
     : data(source.data), style(source.style) {
   auto builder =
       sgt::ParagraphBuilder::make(style, source.fonts, data->unicode);
   if (!builder)
     throw std::runtime_error("paragraph builder failed");
+  size_t next_inline = 0;
   for (const auto &run : source.runs) {
     builder->pushStyle(run.style);
-    builder->addText(run.text.data(), run.text.size());
+    if (run.placeholder) {
+      if (next_inline >= count)
+        throw std::invalid_argument("missing inline metrics");
+      const auto &value = inline_metrics[next_inline++];
+      builder->addPlaceholder(sgt::PlaceholderStyle(
+          (float)value.width, (float)value.height,
+          (sgt::PlaceholderAlignment)value.alignment,
+          (sgt::TextBaseline)value.baseline, (float)value.offset));
+    } else {
+      builder->addText(run.text.data(), run.text.size());
+    }
     builder->pop();
   }
   paragraph = builder->Build();
@@ -65,6 +77,30 @@ STTextLayout::STTextLayout(const STParagraph &source, double width, bool wrap)
   }
   if (!std::isfinite(info.width) || !std::isfinite(info.height))
     throw std::runtime_error("text layout overflow");
+  place_inlines();
+}
+
+void STTextLayout::place_inlines() {
+  // This SkParagraph version sorts placeholders by UTF-8 position within each
+  // line. Only visible objects consume a box; zero-area boxes must still be
+  // retained.
+  const auto boxes = paragraph->getRectsForPlaceholders();
+  size_t next = 0;
+  for (const auto &range : data->inlines) {
+    int index = paragraph->getLineNumberAt((size_t)range.start);
+    if (index < 0 || range.start < lines[index].visible.start ||
+        range.end > lines[index].visible.end) {
+      inlines.push_back({{}, -1, 0, 0});
+      continue;
+    }
+    if (next == boxes.size())
+      throw std::runtime_error("missing visible placeholder box");
+    const auto &box = boxes[next++];
+    inlines.push_back({st_rect(box.rect), index,
+                       box.direction == sgt::TextDirection::kLtr ? 1 : 0, 1});
+  }
+  if (next != boxes.size())
+    throw std::runtime_error("unmatched placeholder box");
 }
 
 size_t STTextLayout::visible_end() const {
@@ -86,9 +122,12 @@ int STTextLayout::line_at(size_t byte, bool upstream) const {
 }
 
 extern "C" {
-void *scoop_graphics_text_layout(void *pointer, double width, bool wrap) {
+void *scoop_graphics_text_layout(void *pointer, double width, bool wrap,
+                                 const STInlineMetrics *metrics,
+                                 int64_t count) {
   try {
-    return new STTextLayout(*static_cast<STParagraph *>(pointer), width, wrap);
+    return new STTextLayout(*static_cast<STParagraph *>(pointer), width, wrap,
+                            metrics, (size_t)count);
   } catch (...) {
     return nullptr;
   }
@@ -98,6 +137,9 @@ STLayoutInfo scoop_graphics_text_info(void *pointer) {
 }
 STTextLine scoop_graphics_text_line(void *pointer, int64_t index) {
   return static_cast<STTextLayout *>(pointer)->lines[(size_t)index];
+}
+STInlineBox scoop_graphics_text_inline_box(void *pointer, int64_t index) {
+  return static_cast<STTextLayout *>(pointer)->inlines[(size_t)index];
 }
 void scoop_graphics_text_graphemes(void *pointer, int64_t *output) {
   const auto &values = static_cast<STTextLayout *>(pointer)->data->graphemes;

@@ -8,7 +8,7 @@
 
 基础 Cone 统一使用 `scoop.surface` 名称，类型为 SurfaceHost／SurfaceWindow／SurfaceWindowState，原生入口以 `scoop_surface_` 为前缀，不提供旧名称的兼容入口。上层由 [`scoop.ui` 自绘框架](SCOOP-UI-SPEC.md)和独立的 [`scoop.ui.component` 控件库](SCOOP-UI-COMPONENT-SPEC.md)组成；两者尚未实现，其设计未改变本文件的已实现 API。
 
-字体和 Paragraph／TextLayout 已迁入独立 [`scoop.graphics.text`](SCOOP-GRAPHICS-TEXT-SPEC.md)，内容输入已统一为 StyledText／SpanStyle；行内对象按该规范继续实施。Surface 的帧、动画、输入区域与 Rect caret 不反向依赖 graphics.text 或 UI；使用文本的示例和测试直接声明依赖。
+字体和 Paragraph／TextLayout 已迁入独立 [`scoop.graphics.text`](SCOOP-GRAPHICS-TEXT-SPEC.md)，内容输入统一为 StyledText／SpanStyle，并提供行内对象的测量输入和位置结果。Surface 的帧、动画、输入区域与 Rect caret 不反向依赖 graphics.text 或 UI；使用文本的示例和测试直接声明依赖。
 
 - `scoop.graphics` 是普通 Cone，提供几何、Canvas、Path、Image 及绘图目标，允许离屏使用，不依赖 `scoop.window`。绘图由 Skia 实现，文本由独立 graphics.text 接入。
 - `scoop.surface` 是普通 Cone，依赖 graphics、window 及实际使用的 core／std／math／platform，提供 SurfaceHost、SurfaceWindow、帧调度、动画、InputArea 与区域焦点。两库的几何与动画所需数学函数复用 scoop.math。

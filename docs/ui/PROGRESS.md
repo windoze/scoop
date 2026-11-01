@@ -7,7 +7,7 @@
 | 批次 | 状态 | 交付范围 |
 | --- | --- | --- |
 | 0. 已确认设计与平台范围 | 已记录 | 自绘分层、State／Context／Binding、资源所有权、静止停帧、macOS 首期与后续增强 |
-| 1. 文本公共能力 | 样式描述完成，行内对象待实施 | 已独立 graphics.text 与公开 Canvas 借用，完成 StyledText／SpanStyle；下一步实现行内 metrics 与布局结果 |
+| 1. 文本公共能力 | aarch64 已完成 | 独立 graphics.text、Canvas 借用、StyledText／SpanStyle、行内 metrics／placement、位置与替代文字 |
 | 2. 独立自绘闭环 | 待实施 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入及 UiHost |
 | 3. 公共文本适配与简单控件 | 待实施 | ParagraphHost／InlineView、Label／Button／Checkbox |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
@@ -46,7 +46,7 @@ Surface 主体仍只接收 Rect caret；使用文本的示例和焦点测试已�
 
 StyledText／TextSpan.text／TextSpan.span 与 SpanStyle 已实现。嵌套片段在内容创建时展开并复用，未指定属性继承父样式，数组属性整体替换；lineHeight 区分继承、显式设置和清除。Paragraph 以基础 TextStyle 初始化默认属性，使空内容仍有正确的行高和起始 caret。公开 TextRun 输入已移除，Paragraph／TextLayout 保存同一不可变内容快照，String 便利构造继续可用。
 
-toPlainText 支持完整导出及以 UTF-8 字节表示的标量边界范围；行内对象与替代文字将在下一批扩展。片段不拥有 native 资源，调用方无需逐片段 use。
+toPlainText 支持完整导出及以 UTF-8 字节表示的标量边界范围；行内对象与替代文字的扩展见第 3.3 节。片段不拥有 native 资源，调用方无需逐片段 use。
 
 macOS aarch64 的 Scoop 格式／类型检查和 C++ 格式／告警检查通过，release scoop.test 结果如下：
 
@@ -56,4 +56,22 @@ macOS aarch64 的 Scoop 格式／类型检查和 C++ 格式／告警检查通过
 | Surface caret 接入 | 1／1 | 排版 caret 的区域几何与所有权 |
 | basics 的 DemoEditorTest | 2／2 | grapheme 编辑、组合输入与排版复用 |
 
-本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试；行内对象尚未交付，x86_64 统一补验仍在全部 aarch64 功能之后。
+本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试；x86_64 统一补验仍在全部 aarch64 功能之后。
+
+### 3.3 行内对象与共同基线
+
+TextSpan.inlineObject 以 InlineKey 标识每次出现，StyledText 保存规范化 U+FFFC 的 UTF-8 范围与替代文字，普通文字中的 U+FFFC 不成为对象。每次 layout 接收完整 metrics，按 key 校验并排序；对象的尺寸、六种对齐及两类基线参与真实 SkParagraph 排版。TextLayout 为每个对象保留 placement，可见项包含矩形、行号与方向，被截断项为 None，零尺寸项仍可见。
+
+对象前后保留原子定位边界，hitTest 根据方向和位置选择两端，caret 与 selection 使用同一布局的实际对象盒子。toPlainText 按原 UTF-8 范围导出替代文字；更改尺寸生成独立布局，关闭字体来源或 Paragraph 不使旧结果失效。绘图调用方按位置绘制 Image 或自绘盒子，文本层不接管其资源。
+
+运行验证发现 SkParagraph 的 baseline getter 与实际绘制坐标有舍入差异，ideographic placeholder 还会受前一对象扩大的行度量影响。已先修订文本合同，在 Skia 增加公共基线与共同文字参照的补丁，并让正常资源准备脚本应用。重新生成 aarch64 Skia 后，基线和多对象高度组合通过；bidi 用例同时修正了对 RTL／LTR 交界中性对象方向的错误预期。
+
+Scoop／C++ 格式、类型和 native 告警检查，以及准备脚本的 Ruff 格式／lint 通过。aarch64 release scoop.test：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| scoop.graphics.text | 27／27 | 原文字／Metal，加对象 metadata、metrics 错误、图片绘制、两类基线、混合 bidi、maxLines／ellipsis、零尺寸与超宽、组合字符两侧定位、快照独立性 |
+| Surface 的 InputFocusTest | 5／5 | caret 接入、区域变换、IME／焦点及关闭 |
+| Surface basics 示例 | 4／4 | 编辑、布局缓存和拖动收尾 |
+
+本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试。公共文本层已完成，下一步接入 SurfaceContent 所有权和独立自绘 UI 框架。x86_64 资源更新与补验仍在全部 aarch64 功能之后。
