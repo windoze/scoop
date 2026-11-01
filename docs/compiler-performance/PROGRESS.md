@@ -234,7 +234,11 @@ release workspace all-targets Clippy、265 项 slib 测试、4 项真实泛型�
 
 release workspace all-targets Clippy、264 项 slib、75 项 scoop 和 4 项真实泛型／ODR 测试完成；更新固定向量及配套工具后仅复测原失败项。12 个定向 fixture、15 个 variant、113 次进程调用全部通过，包括原来失败的五项、间接依赖缓存、泛型发布／读取与 ODR 选择。ODR 选择用例同步检查依赖 Code 改变后的重编译、重新链接和新产物的后续命中，不再错误要求消费者保持旧的物理成员集合。AArch64 29 库与四种 runtime 重新准备完成；独立检查确认全部 165,487 个原生对象及 296,503,136 bytes 原始内容、230,044 条 ODR 记录与物理 bundle 保持一致。总尺寸为 258,702,533 bytes，指纹改变后的 manifest 压缩波动比第九轮少 14 bytes，不计为新的优化收益。
 
-AArch64 首次全量的 20 项失败均已闭合，没有重跑整套 fixture。其他目标继续阶段验收。Linux 首次 Rust 测试遇到一次临时脚本执行的 ETXTBSY，原测试独立复测通过，后续完整批次继续覆盖；Windows 首批四项 runtime 测试失败定位为验收脚本漏配测试要求的 unwind 路径，已补齐三套 C／unwind 工具配置，等待完整复测。原始报告保留在仓库外，已经完成的 AArch64 全量与定向 fixture 工作目录及过期编译缓存已清理。
+AArch64 首次全量的 20 项失败均已闭合，没有重跑整套 fixture。macOS x86_64 使用修复后的 profile 15 与配套五个 CLI 完成全量：4,328 个 fixture 中 4,303 项通过、25 项平台不适用，没有失败，共 4,525 个 variant、13,417 次进程调用、55 份 stage／plan golden。两个 Darwin 目标的 29 库与四种 runtime 均已更新为 profile 15。
+
+Linux 修复后完整 release workspace 的 105 个测试组、6,377 项测试全部通过，没有失败、忽略或过滤；包含此前遇到临时脚本执行 ETXTBSY 的原测试。fixture runner 规则测试 80 项完成、3 项平台条件跳过，构建脚本测试 32 项完成、5 项平台条件跳过。GNU／musl 的系统库与四种 runtime 均已准备完成，两个目标正在执行全量 CLI。Windows 首批四项 runtime 测试失败定位为验收脚本漏配测试要求的 unwind 路径，已补齐三套 C／unwind 工具配置；修复后 release workspace all-targets Clippy 与五个 CLI 构建通过，完整 Rust 测试与 profile 15 系统库准备继续执行。新批次发现 23 项 HIR 快照失败，逐项确认仅为 Windows checkout 将预期文件转换成 CRLF，内容在恢复 LF 后全部相等；该问题继续修复和定向复测。
+
+原始报告保留在仓库外，已经完成的 macOS 全量与定向 fixture 工作目录及过期编译缓存已清理；正在运行的其他平台验收继续保留其工作目录。
 
 ## 后续优先级
 
