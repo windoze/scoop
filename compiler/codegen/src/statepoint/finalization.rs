@@ -10,7 +10,7 @@ pub(super) fn finalize(
     let metadata = module
         .get_context()
         .get_kind_id(STATEPOINT_ROOT_IDENTITY_METADATA);
-    let mut sites = BTreeSet::new();
+    let mut sites = BTreeMap::new();
     let mut identities = BTreeMap::<u64, BTreeSet<(u8, u32, u64)>>::new();
     for function in module.get_functions() {
         let function_name = function
@@ -63,7 +63,10 @@ pub(super) fn finalize(
                         "optimized SafepointId {id} changed its callable owner"
                     )));
                 }
-                if !sites.insert(id) {
+                let terminal = instruction
+                    .get_next_instruction()
+                    .is_some_and(|next| next.get_opcode() == InstructionOpcode::Unreachable);
+                if sites.insert(id, terminal).is_some() {
                     return Err(CodegenError(format!(
                         "optimization duplicated SafepointId {id}"
                     )));
@@ -71,17 +74,20 @@ pub(super) fn finalize(
             }
         }
     }
-    for id in &sites {
+    for (id, terminal) in &sites {
         let site = &expected.sites[id];
         let ExpectedStatepoint::Relocating(initial) = &site.statepoint else {
             continue;
         };
         let actual = identities.remove(id).unwrap_or_default();
-        if actual != initial.identities() {
+        let required = initial.identities();
+        // LLVM may discard every continuation use after a call that now ends
+        // directly in unreachable. Returning and exceptional paths still need
+        // all restorations; a terminal site cannot introduce unplanned roots.
+        if actual != required && (!*terminal || !actual.is_subset(&required)) {
             return Err(CodegenError(format!(
                 "optimized statepoint {id} in {} has incomplete typed leaf restorations: expected {:?}, observed {actual:?}",
-                site.function,
-                initial.identities()
+                site.function, required
             )));
         }
     }

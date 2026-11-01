@@ -249,3 +249,9 @@ Scoop 格式与生产／含测试类型检查通过，aarch64 开发 sysroot 已
 Rust 格式、release clippy 的全部 target 检查及分配器定向测试 1／1 通过，覆盖普通／过度对齐、清零、增长／缩小和内容保留。重新准备 aarch64 原生归档及两个 Cone 后，release scoop.test 的 scoop.idna 11／11、scoop.charset 18／18 通过。原生 C 消费者连续执行 1000 次文本操作通过；完整下载应用已通过系统链接器，最终符号只含 Scoop、C++ 和 Objective-C personality，没有 Rust personality 或 panic unwind 引用。归档内未选中的 compiler_builtins 成员不算作实际消费者依赖。
 
 本轮未改编译器、core／std／test，未新增 fixture 或执行全量测试。新下载示例的普通模型／真实线程测试已通过，原生 UI 组合继续独立调试和验收，不在本节计为交付。x86_64 仍留到 aarch64 功能完成后统一补验，Windows 新归档留待后续验证。
+
+### 3.16 终止路径的 GC 恢复标记
+
+下载测试服务器增加完整子任务作用域后，真实编译暴露无正常结果的协程适配入口：LLVM 删除入口 poll 后的无用读取和恢复标记，保留的调用紧接 unreachable。codegen 的定稿检查此前仍要求初始逻辑标记全部存在。现只允许这种没有后续指令的终止调用缺少原标记；正常返回调用继续检查完整性，额外／重复身份仍报错，invoke 与 native 的显式根合同不变。物理根数继续使用 RS4GC 结果及实际机器 stackmap，不重新插入无用保活，也不修改 runtime ABI。
+
+先同步实现规范，再用从实际 LLVM IR 缩小的用例确认原检查失败。Rust 格式、codegen 全部 target 的 clippy 和 statepoint 定向测试 62／62 通过；新增用例在 aarch64 的 debug／release 生成实际机器对象并核对根数量，同时验证正常返回调用缺少标记仍被拒绝。完整下载测试产物已重新构建成功，模型／真实线程 4 项测试通过；UI 挂载错误继续在示例中处理，不计入本次编译器修复结果。未新增文件 fixture，未执行全量测试。
