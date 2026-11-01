@@ -427,7 +427,7 @@ Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl、Windows M
 
 ## 编译速度阶段验收（进行中）
 
-Linux 完整 release workspace 的 105 个测试组首次为 6,383 项通过、1 项失败，失败项为 `child::tests::production_runner_preserves_linux_tools_and_uses_private_scratch`。测试仍把 child 的第 4 个参数当成临时目录，第十五轮精简协议参数后该位置已是 jobs 数值。测试现按实际 `TMPDIR` 和独立指定的 scratch 根检查路径，保留 GNU／musl 工具环境、真实调用、目录存在与结束清理检查。macOS、Linux 的格式与 release workspace all-targets Clippy 通过；Linux 原失败用例的两个目标分支定向复测通过，未重跑完整 workspace。fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 27 项通过、5 项平台条件跳过。Linux GNU 的完整 CLI 验收及其失败项闭合已完成，musl 全量继续执行。
+Linux 完整 release workspace 的 105 个测试组首次为 6,383 项通过、1 项失败，失败项为 `child::tests::production_runner_preserves_linux_tools_and_uses_private_scratch`。测试仍把 child 的第 4 个参数当成临时目录，第十五轮精简协议参数后该位置已是 jobs 数值。测试现按实际 `TMPDIR` 和独立指定的 scratch 根检查路径，保留 GNU／musl 工具环境、真实调用、目录存在与结束清理检查。macOS、Linux 的格式与 release workspace all-targets Clippy 通过；Linux 原失败用例的两个目标分支定向复测通过，未重跑完整 workspace。fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 27 项通过、5 项平台条件跳过。Linux GNU／musl 的完整 CLI 验收及其失败项闭合现已完成。
 
 
 macOS 完整 release workspace 的 105 个测试组共 6,353 项通过，无失败或忽略；fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 26 项通过、6 项平台条件跳过。Windows 正在执行完整 workspace。CLI 均使用各宿主冻结的最终五个工具，每目标只执行一次全量，原始失败记录保留，修复后只复测相关项。
@@ -449,7 +449,11 @@ Darwin x86_64 首轮完整 CLI 为 4,296 项通过、25 项平台不适用、1 �
 
 新增原生回归测试直接链接实际 Darwin VM 实现，以 30 次异步一次性信号交付覆盖 handler、signal mask、页重用、相邻页和无效输入。测试在可用时实际探测并运行 Rosetta；本机两个架构均完成。使用旧实现编译同一个最终测试稳定失败，新实现通过。格式检查、release workspace all-targets Clippy 和该 Rust 测试通过。只重新准备两种 Darwin 目标的四种 runtime 配置；GC／终端定向 CLI 每目标为 80 项通过、3 项平台不适用、159 个 variant、531 次进程调用。补齐地址对齐检查后的页回收／终端复测每目标为 14 项通过、1 项平台不适用、18 个 variant、74 次进程调用，最终终端程序每目标连续 12 次运行通过。本项为已有正确性错误修复，不计入编译提速收益。
 
-原始全量报告、失败日志、独立复现及定向复测记录保留在仓库外。已经退役的尺寸／速度对照工具、重复库和缓存清理约 20.5 GiB；Darwin 验收及诊断工作目录在修复完成后清理，保留 SDK、配套 sysroot 与后续验收所需工具。
+Linux musl 首轮完整 CLI 为 4,275 项通过、46 项平台不适用、1 项失败，共 4,494 个 variant、13,214 次进程调用。唯一失败发生在 `pm-static-registry-build` 读取静态注册表的包索引时，HTTP 客户端返回 `Peer disconnected`，尚未进入编译。受控 HTTP/1.0 服务器在发送带 Content-Length 的响应后，等客户端复用连接再关闭它，稳定复现相同错误。
+
+注册表 JSON 与归档 GET 共用一个局部处理函数：仅在完整响应头到达前遇到 EOF、连接重置或断管时，用新连接重试一次。普通连接继续复用；第二次失败、HTTP 状态错误和正文截断照常报告，未增加依赖、重新求解或缓存命中时的网络请求。新增三项真实 TCP 测试分别验证关闭时序恢复、只重试一次，以及 HTTP 错误／截断正文不重试。macOS、Linux 的格式检查、release workspace all-targets Clippy 和各 62 项包管理器测试通过。两种 Darwin 与 GNU／musl 的静态注册表消费及五工具版本检查共八项定向 CLI 全部通过；musl 又用三个独立目录重复完整下载／构建／锁定缓存流程，均通过。
+
+原始全量报告、失败日志、独立复现及定向复测记录保留在仓库外。已经退役的尺寸／速度对照工具、重复库和缓存清理约 20.5 GiB；Darwin 验收及诊断工作目录在修复完成后清理，保留 SDK、配套 sysroot 与后续验收所需工具。 Linux 全量、定向复测及退役基线目录也已清理；LLVM 安装保留，已不再使用的 LLVM／unwind 构建目录与源码压缩包删除。四个非 Windows 目标的全量失败均已闭合，Windows 验收继续进行。
 
 ## 后续优先级
 
