@@ -1,0 +1,2 @@
+# HIR dumps use LF and are compared byte for byte with these snapshots.
+*.hir.txt text eol=lf
