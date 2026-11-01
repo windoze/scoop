@@ -29,7 +29,6 @@ impl Lowerer {
                     scope::LiteralKind::Lambda,
                     label,
                     is_suspend,
-                    receiver.is_some(),
                     span,
                     |state, _, _| {
                         state.bind_literal_receiver(receiver, label, span);
@@ -67,7 +66,6 @@ impl Lowerer {
                     scope::LiteralKind::AnonymousFunction,
                     label,
                     is_suspend,
-                    signature.receiver.is_some(),
                     span,
                     |state, _, _| {
                         state.current_return_ty = signature.result.unwrap_or(state.unit);

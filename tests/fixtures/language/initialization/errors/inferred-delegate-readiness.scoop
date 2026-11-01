@@ -1,0 +1,10 @@
+class Delegate(val value: Int) {
+    operator fun getValue(owner: Any): Int = value
+}
+
+class InferredForwardRead {
+    val first = later
+    val later by Delegate(1)
+}
+
+fun main() {}

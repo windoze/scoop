@@ -1,0 +1,35 @@
+class Delegate<T>(var value: T) {
+    operator fun getValue(owner: Any): T = value
+    operator fun setValue(owner: Any, next: T) { value = next }
+}
+
+class ForwardRead {
+    val first: Int = this.later
+    val later: Int by Delegate(1)
+}
+
+class SelfRead {
+    val value: Int by Delegate(this.value)
+}
+
+class ForwardWrite {
+    init { this.later = 2 }
+    var later: Int by Delegate(1)
+}
+
+class ForwardUpdate {
+    init { this.later++ }
+    var later: Int by Delegate(1)
+}
+
+class ForwardInvoke {
+    val first: Int = this.callback()
+    val callback: () -> Int = { 1 }
+}
+
+class ForwardDelegateInvoke {
+    val first: Int = callback()
+    val callback: () -> Int by Delegate({ 1 })
+}
+
+fun main() {}

@@ -1,2 +1,0 @@
-class Box { val value = 1; val read = { value } }
-fun main() {}

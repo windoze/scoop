@@ -13,7 +13,6 @@ impl Lowerer {
         kind: LiteralKind,
         label: Option<&ast::Ident>,
         is_suspend: bool,
-        has_receiver: bool,
         span: Span,
         lower: impl FnOnce(&mut Self, hir::ExpressionOrigin, &StructuralDefinitionPath) -> R,
     ) -> R {
@@ -42,11 +41,7 @@ impl Lowerer {
         let outer_source_context = self.current_source_context;
         let outer_owner = self.current_owner;
         let outer_this = self.current_this.take();
-        let outer_initialization = if has_receiver {
-            self.initialization_context.take()
-        } else {
-            None
-        };
+        let outer_initialization = self.initialization_context.take();
         let outer_receivers = self.receiver_scopes.len();
         let outer_smart_casts = self.smart_casts.clone();
         self.capture_contexts.push(CaptureContext {
@@ -100,9 +95,7 @@ impl Lowerer {
         self.definition_paths = outer_definition_paths;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
-        if let Some(initialization) = outer_initialization {
-            self.initialization_context = Some(initialization);
-        }
+        self.initialization_context = outer_initialization;
         self.receiver_scopes.truncate(outer_receivers);
         self.smart_casts = outer_smart_casts;
         debug_assert!(self.loop_targets.is_empty());

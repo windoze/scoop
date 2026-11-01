@@ -9,6 +9,10 @@ open class MovingBase(val base: String) {
 }
 
 class MovingDerived(seed: String) : MovingBase("base-" + seed) {
+    val self: MovingDerived = this
+    val state: OwnedState = makeState("state-" + seed)
+    val readLater: () -> String = { this.derived }
+    val target: () -> String = this::read
     val derived: String = "derived-" + seed
 
     init {
@@ -24,6 +28,26 @@ class MovingDerived(seed: String) : MovingBase("base-" + seed) {
     }
 
     fun verify(): Boolean = this is MovingDerived
+    fun makeState(value: String): OwnedState = OwnedState(this, value)
+    fun read(): String = derived
+}
+
+class OwnedState(val owner: MovingDerived, val value: String) {
+    init { gcCollect() }
+}
+
+var retained: Failed? = None
+
+class Failed(seed: String) {
+    val ready: String = "retained-" + seed
+
+    init {
+        retained = Some(this)
+        gcCollect()
+        throw UnwrapException()
+    }
+
+    val later: String = "not reached"
 }
 
 fun main() {
@@ -33,4 +57,17 @@ fun main() {
     println(moving.baseCopy)
     println(moving.derived)
     println(moving.verify())
+    println(moving.self === moving)
+    println(moving.state.owner === moving)
+    println(moving.state.value)
+    println(moving.readLater())
+    println(moving.target())
+
+    try {
+        val failed = Failed("seed")
+    } catch (error: UnwrapException) {
+        gcCollect()
+        println(retained!!.ready)
+    }
+    retained = None
 }

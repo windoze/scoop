@@ -1,9 +1,0 @@
-schema = 1
-[cone]
-group = "dev.example"
-name = "bad-capture-this"
-version = "0.1.0"
-kind = "library"
-[dependencies]
-"scoop:scoop.core" = "0.1.0"
-"dev.example:generic-member-provider" = { version = "=0.1.0", artifact = "../../artifacts/dev.example/generic-member-provider/0.1.0/cone.slib" }

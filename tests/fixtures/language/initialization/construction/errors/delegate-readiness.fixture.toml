@@ -1,0 +1,15 @@
+schema = 1
+name = "initialization-errors-delegate-readiness"
+root = "../../errors/delegate-readiness.scoop"
+inputs = ["../../errors/delegate-readiness.scoop"]
+tools = ["scoop", "scoopc"]
+tags = ["single-file", "negative", "language"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "delegate-readiness.diagnostics.json"}

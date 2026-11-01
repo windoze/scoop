@@ -1,0 +1,99 @@
+package scoop.tests.constructor_this.tests
+
+import scoop.test.*
+import scoop.tests.constructor_this.provider.*
+import scoop.tests.constructor_this.bridge.forwarded
+
+private fun CounterBase.extendedSeed(): Int = seed + 10
+
+private class ReadOnlyCounter : CounterBase(0) {
+    val count: Int by state(0)
+}
+
+private class Counter(seed: Int) : CounterBase(seed) {
+    val self = this
+    val saved: State<Int> = this.state(seed)
+    var count: Int by state(seed)
+    val readLater: () -> Int = { this.later }
+    val target: () -> Int = this::read
+    val extended: Int = extendedSeed()
+    val inherited: Int = super.initialValue()
+    val computed: Int get() = count * 2
+    val eager: Int = computed
+    val later: Int = count + 1
+    val anonymous: Reader<Int> = object : Reader<Int> {
+        public override fun read(): Int = this@Counter.count
+    }
+
+    init {
+        count += 2
+        this.count++
+    }
+
+    constructor() : this(4) {
+        changed()
+    }
+
+    fun read(): Int = count
+
+    inner class Inner {
+        val self: Inner = this
+        val owner: Counter = this@Counter
+    }
+
+    val inner: Inner = this.Inner()
+}
+
+@Test
+private class StateTest {
+    @Test
+    fun `member factory retains owner during delegate initialization`() {
+        assertEquals(0, ReadOnlyCounter().count)
+        val counter = Counter(3)
+        assertSame<StateOwner>(counter, counter.saved.owner)
+        assertSame(counter, counter.self)
+        assertEquals(6, counter.count)
+        assertEquals(2, counter.changes)
+        counter.count = 20
+        assertEquals(3, counter.changes)
+        assertEquals(20, counter.target())
+    }
+
+    @Test
+    fun `initialization uses computed extension and super members`() {
+        val counter = Counter(3)
+        assertEquals(13, counter.extended)
+        assertEquals(3, counter.inherited)
+        assertEquals(6, counter.eager)
+        assertEquals(4, counter.readLater())
+        assertEquals(6, counter.anonymous.read())
+    }
+
+    @Test
+    fun `secondary and inner constructors use ordinary receivers`() {
+        val counter = Counter()
+        assertEquals(7, counter.count)
+        assertEquals(3, counter.changes)
+        assertSame(counter, counter.inner.owner)
+        assertSame(counter.inner, counter.inner.self)
+    }
+
+    @Test
+    fun `generic constructor receiver survives dependency templates`() {
+        val direct = Holder(41)
+        assertSame(direct, direct.self)
+        assertEquals(41, direct.readBack())
+        assertEquals(41, direct.nested()())
+        assertEquals(41, direct.target())
+        assertEquals(41, direct.anonymous())
+        assertFalse(direct.secondaryRan)
+
+        val indirect = forwarded("through bridge")
+        assertSame(indirect, indirect.self)
+        assertEquals("through bridge", indirect.readBack())
+        assertEquals("through bridge", indirect.nested()())
+        assertEquals("through bridge", indirect.target())
+        assertEquals("through bridge", indirect.anonymous())
+        assertTrue(indirect.secondaryRan)
+    }
+}

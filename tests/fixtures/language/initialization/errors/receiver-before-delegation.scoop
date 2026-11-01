@@ -1,0 +1,11 @@
+class DefaultReceiver(val value: DefaultReceiver = this)
+
+open class Parent(val value: Int)
+
+class BeforeBase(val seed: Int) : Parent(this.seed)
+
+class BeforeThis(val seed: Int) {
+    constructor() : this(this.seed) {}
+}
+
+fun main() {}

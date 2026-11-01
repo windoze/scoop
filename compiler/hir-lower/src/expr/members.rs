@@ -75,13 +75,6 @@ impl Lowerer {
         name: &ast::Ident,
         span: Span,
     ) -> Option<hir::Expr> {
-        if self.initialization_context.is_some() {
-            self.error(
-                span,
-                "initializing receiver cannot escape before construction completes".into(),
-            );
-            return None;
-        }
         let Some(receiver) = self.lower_current_this(span) else {
             self.error(
                 span,
@@ -109,26 +102,19 @@ impl Lowerer {
         Some(self.adapt_to(receiver, base))
     }
 
-    /// `this` (M6): only inside member functions, where it is
-    /// parameter 0 (`lower_body` registers it as a local).
+    /// Read the ordinary receiver binding of a member or constructor body.
     pub(super) fn lower_this(
         &mut self,
         label: Option<&ast::Ident>,
         span: Span,
     ) -> Option<hir::Expr> {
-        if self.is_initializing_this_label(label) {
-            self.check_initializing_receiver_label(label)?;
-            if self.reject_initializing_this(span) {
-                return None;
-            }
-        }
         if let Some(label) = label {
             return self.lower_labelled_this(label, span);
         }
         let Some(this) = self.lower_current_this(span) else {
             self.error(
                 span,
-                "`this` is only allowed inside member functions".to_string(),
+                "no `this` receiver is available in this context".to_string(),
             );
             return None;
         };
@@ -173,43 +159,6 @@ impl Lowerer {
                 expected,
                 RequiredCallableModifiers::default(),
             );
-        }
-        if let ast::Expr::This { label, .. } = receiver
-            && self.is_initializing_this_label(label.as_ref())
-        {
-            self.check_initializing_receiver_label(label.as_ref())?;
-            if !self.initializing_receiver_has_field(&name.text) {
-                self.error(
-                    call.span,
-                    "initializing receiver cannot escape before construction completes".into(),
-                );
-                return None;
-            }
-            let property =
-                self.initializing_field(name, call.span, hir::EditingPropertyAccess::Read)?;
-            return match self.probe_property_member_invoke_partition(
-                property.read,
-                call,
-                expected,
-                false,
-            ) {
-                PropertyExtensionInvokeOutcome::Resolved(layer) => {
-                    Some(self.commit_expr_layer(layer, sink))
-                }
-                PropertyExtensionInvokeOutcome::Blocked => None,
-                PropertyExtensionInvokeOutcome::Failed(failure)
-                | PropertyExtensionInvokeOutcome::NoApplicable(Some(failure)) => {
-                    self.commit_layer_diagnostics(&failure);
-                    None
-                }
-                PropertyExtensionInvokeOutcome::NoApplicable(None) => {
-                    self.error(
-                        call.span,
-                        "initializing receiver cannot escape before construction completes".into(),
-                    );
-                    None
-                }
-            };
         }
         if let Some((alias, index)) = self.resolve_alias_variant(receiver, name).ok()? {
             return self.lower_alias_variant_construct(&alias, index, name, call, sink, expected);

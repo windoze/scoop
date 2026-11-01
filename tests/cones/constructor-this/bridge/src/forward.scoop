@@ -1,0 +1,5 @@
+package scoop.tests.constructor_this.bridge
+
+import scoop.tests.constructor_this.provider.Holder
+
+public fun <T> forwarded(value: T): Holder<T> = Holder(value, Unit)

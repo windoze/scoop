@@ -1,0 +1,55 @@
+package scoop.tests.constructor_this.provider
+
+public interface StateOwner {
+    public fun changed(): Unit
+}
+
+public class State<T> public constructor(public val owner: StateOwner, initial: T) {
+    private var stored: T = initial
+
+    public operator fun getValue(thisRef: StateOwner): T = stored
+
+    public operator fun setValue(thisRef: StateOwner, value: T) {
+        stored = value
+        owner.changed()
+    }
+}
+
+public open class CounterBase public constructor(public val seed: Int) : StateOwner {
+    public var changes: Int = 0
+
+    public override fun changed() {
+        changes += 1
+    }
+
+    public fun <T> state(initial: T): State<T> = State(this, initial)
+
+    public fun initialValue(): Int = seed
+}
+
+public interface Reader<T> {
+    public fun read(): T
+}
+
+public interface DefaultReader {
+    public fun initial(): Int = 31
+}
+
+public class Holder<T> public constructor(public val value: T) : Reader<T> {
+    public val self: Holder<T> = this
+    public val readBack: () -> T = { this.value }
+    public val nested: () -> () -> T = {
+        val read: () -> T = { this.value }
+        read
+    }
+    public val target: () -> T = this::read
+    public val anonymous: () -> T = fun(): T { return this.value }
+    public var secondaryRan: Boolean = false
+
+    public constructor(value: T, marker: Unit) : this(value) {
+        this.secondaryRan = true
+        this.read()
+    }
+
+    public override fun read(): T = value
+}

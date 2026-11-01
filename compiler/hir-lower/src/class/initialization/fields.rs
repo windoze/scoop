@@ -147,18 +147,8 @@ impl Lowerer {
         access: hir::EditingPropertyAccess,
     ) -> Option<InitializingField> {
         let context = self.initialization_context.clone()?;
-        if self.capture_contexts.len() > context.capture_depth {
-            self.error(
-                span,
-                "initializing receiver cannot escape before construction completes".into(),
-            );
-            return None;
-        }
         match context.receiver {
-            InitializingReceiver::Class {
-                application,
-                initialized,
-            } => {
+            InitializingReceiver::Class { application, .. } => {
                 let class = self.class_applications[application].template;
                 let Some((field, ty, mutable, property)) =
                     self.find_initializing_class_field(application, &name.text)
@@ -175,16 +165,8 @@ impl Lowerer {
                 };
                 if let Some(declaration) =
                     self.field_identity_builder.class_declaration(field.field)
-                    && !initialized.contains(&declaration)
                 {
-                    self.error(
-                        name.span,
-                        format!(
-                            "field `{}` is not initialized during {}; initializing receiver cannot observe a field before its store completes",
-                            name.text, context.step
-                        ),
-                    );
-                    return None;
+                    self.require_initialized_class_field(declaration, &name.text, name.span)?;
                 }
                 self.observe_property_reference(span, property, ty, access);
                 let read = hir::Expr {
@@ -266,14 +248,93 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn reject_initializing_this(&mut self, span: ast::Span) -> bool {
-        if self.initialization_context.is_none() {
-            return false;
+    pub(crate) fn is_initializing_receiver(&self, receiver: Option<&hir::Expr>) -> bool {
+        self.initialization_context.is_some()
+            && matches!(
+                receiver.map(|receiver| &receiver.kind),
+                Some(hir::ExprKind::Local(local))
+                    if self.current_this.is_some_and(|(current, _)| current == *local)
+            )
+    }
+
+    pub(crate) fn check_initializing_named_property(&mut self, name: &ast::Ident) -> Option<()> {
+        if let Some(receiver) = self.initializing_receiver_type()
+            && let Some((property, _, _)) =
+                self.find_accessible_nominal_property(receiver, &name.text)
+        {
+            self.check_initializing_property(property, name.span)?;
         }
+        Some(())
+    }
+
+    pub(crate) fn check_initializing_property(
+        &mut self,
+        property: hir::PropertyId,
+        span: ast::Span,
+    ) -> Option<()> {
+        let declaration = &self.properties[property];
+        let field = match &declaration.representation {
+            hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                backing: hir::PropertyBacking::ClassField { field, .. },
+            }) => Some(*field),
+            hir::PropertyRepresentation::Delegated { storage } => {
+                match self.delegate_storages[*storage].location {
+                    hir::DelegateStorageLocation::ClassField(field) => Some(field),
+                    hir::DelegateStorageLocation::ManagedGlobal(_) => None,
+                }
+            }
+            hir::PropertyRepresentation::AccessorOnly
+                if matches!(
+                    declaration.owner,
+                    hir::PropertyOwner::Class(_) | hir::PropertyOwner::Object(_)
+                ) && self.property_accessor_sources.iter().any(|source| {
+                    source.property == property
+                        && source.body_kind == crate::properties::PropertyAccessorBodyKind::Delegate
+                }) =>
+            {
+                // The delegate field is allocated only after its initializer
+                // establishes the effective storage type.
+                let name = declaration.name.clone();
+                return self.uninitialized_field_error(&name, span);
+            }
+            _ => None,
+        };
+        if let Some(field) = field {
+            let name = declaration.name.clone();
+            self.require_initialized_class_field(field, &name, span)?;
+        }
+        Some(())
+    }
+
+    fn require_initialized_class_field(
+        &mut self,
+        field: hir::ClassFieldId,
+        name: &str,
+        span: ast::Span,
+    ) -> Option<()> {
+        if let Some(crate::InitializationContext {
+            receiver: InitializingReceiver::Class { initialized, .. },
+            ..
+        }) = &self.initialization_context
+            && !initialized.contains(&field)
+        {
+            return self.uninitialized_field_error(name, span);
+        }
+        Some(())
+    }
+
+    fn uninitialized_field_error(&mut self, name: &str, span: ast::Span) -> Option<()> {
+        let step = &self
+            .initialization_context
+            .as_ref()
+            .expect("field readiness is checked in an initialization context")
+            .step;
         self.error(
             span,
-            "initializing receiver cannot escape before construction completes".into(),
+            format!(
+                "field `{name}` is not initialized during {step}; initializing receiver cannot observe a field before its store completes"
+            ),
         );
-        true
+        None
     }
 }

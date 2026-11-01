@@ -1,6 +1,6 @@
 # M19 设计：构造与初始化
 
-版本：0.2（草案）
+版本：0.3（同步构造期间普通 receiver 语义）
 
 对应 `docs/ROADMAP.md` 的 M19。目标是在 M16 统一调用决议、M17 完整 source argument protocol、M18 callable 表面之上，补齐 class / struct 的构造闭环：普通 primary parameter、secondary constructor、class stored body property、`init`、基类构造委托与 `super.method()`，并把初始化顺序、半初始化对象边界、异常及 moving GC 契约一次锁定。
 
@@ -14,7 +14,7 @@ M19 不是给现有单主构造路径增加几个语法分支。当前 MIR 把�
 - 构造器形成有向委托图。class 有 primary 时每个 secondary 必须经 `this(...)` 终止于 primary；无 primary 时必须经 `this(...)` 链终止于一次 `super(...)`；struct 必须终止于 primary。自环与多节点环都是定义处错误；
 - class allocation 在调用处全部构造实参完成后发生且只发生一次。primary / secondary / base constructor initializer 都在同一 object identity 上执行；基类 initializer 不重新分配、不重写最派生 TypeDescriptor；
 - base 初始化先于 derived 自有字段。primary property store 先于 class body；body property initializer 与 `init` 按 class body 源码顺序交错执行；secondary body 在其委托目标完整返回后执行，`this` 链的 body 从最内层向最外层执行；
-- 初始化上下文中的 `this` 是 HIR 内部的受限 `InitializingThis`，不是可逃逸普通值。它只允许直接访问已经初始化的字段；不能被传参、返回、存储、捕获、装箱、转换、取 callable reference，也不能作为普通 / extension / virtual / interface / `super` 方法 receiver。由此从结构上禁止发布半初始化对象和基类构造期间的虚调用；
+- 基类委派完成后的初始化上下文绑定普通 `this`，可按普通类型、可见性及效果规则调用、传参、存储、捕获和转换。HIR 仍检查当前初始化序列中的直接字段就绪；经方法、闭包或别名间接读取未初始化字段属于未定义行为，不引入跨函数初始化效果或 runtime 检查。基类构造期间的虚调用使用实际最派生类型；
 - `super.name(args...)` 只表示直接基类成员方法调用：以 direct base application 建候选，只收集 class member，不收集 extension / property-like 候选，winner 以 direct dispatch 调用实际基类实现。`super` 本身不是表达式；`super.field`、`super::name`、`super<T>` 和 interface-qualified super 不在 M19；
 - 所有初始化体、constructor body 与 delegation 都是 ordinary safe managed 上下文，不能 `suspend`，也不能带 `@NoGC` / `@Extern` / operator / infix / modality。显式构造实参仍属于 caller；因此 suspend caller 中 `C(awaitValue())` 合法，`awaitValue()` 完成后才进入同步构造；
 - 分配后的完整对象 payload 在任何 safepoint 前清零，initializing receiver 是普通精确 GC root。尚未写入的 managed field 只能以全 0 非引用形态被扫描，不能用未初始化字节、poison 或 `Option<Type>` 掩盖字段状态；
@@ -140,7 +140,7 @@ class Derived : Base() {
 
 只收集 class member declaration / inherited implementation；extension、property-like invoke、字段读取和 interface default 都不参与。目标是 base 静态视图中该 virtual family 的实际实现，最终调用强制 direct，即使同一对象最派生类型覆写了该方法也不能重新进入 vtable。abstract 且不存在 concrete base implementation的目标不可调用。
 
-`super` 不是一等值，不能裸用、赋值、传参、捕获、safe-call、下标、invoke 或形成 callable reference。初始化上下文中也不能用 `super.method()` 绕过 `InitializingThis` 的禁止调用规则。
+`super` 不是一等值，不能裸用、赋值、传参、捕获、safe-call、下标、invoke 或形成 callable reference。基类委派完成后的初始化上下文可以调用 `super.method()`，仍选择确定的基类实现。
 
 ## 2. 初始化语义
 
@@ -169,7 +169,7 @@ HIR 在 lower class initialization 时维护非可选的 `InitializedFieldSet`�
 - 每个 body property 只有自己的 initializer 正常求值并完成 store 后才就绪；
 - `init` 可以读写 inherited field、primary property和此前已经就绪的 body property；它不能读写当前步骤之后的字段；
 - self read、forward read、通过 `this.name` 绕过顺序以及提前写 later `var` 都是定义处错误。编译器不能用分配时的全零字节当作合法 Scoop 默认值；
-- secondary body 开始时本 class 与全部 base field 已就绪；它可以按普通 mutability规则读字段、写 `var`，但仍受 2.3 的 initializing-receiver限制。
+- secondary body 开始时本 class 与全部 base field 已就绪；它可以按普通 mutability 规则读字段、写 `var`，并按 2.3 使用普通 receiver。
 
 primary parameter 作用域覆盖 header base delegation与 common initialization sequence。普通成员方法、secondary constructor 的 parameter/default/delegation/body都看不到 primary parameter；它们只能看到真正 stored property。secondary parameter 在自身 default 的前序参数规则、delegation 和 body 中可见，词法 binding 优先于同名 field；字段必须显式写 `this.name` 消歧。
 
@@ -177,24 +177,19 @@ primary base delegation只可读取primary parameter、owner type parameter与�
 
 所有 class field identity 在 initializer lowering 前完成声明和类型解析，但“已声明”不等于“已初始化”。readiness 使用独立 typed state检查，不能靠从成员表暂时隐藏 later field、靠 arena 下标比较或在后端插入 null check实现。
 
-### 2.3 `InitializingThis`、完成与失败
+### 2.3 构造期间的 receiver、完成与失败
 
-为落实 spec 8.2 “不得发布部分初始化对象”，class / struct constructor、class property initializer 与 `init` 使用独立上下文：
+class / object 的 property initializer、delegate 表达式、`init` 及 secondary body 在基类委派完成后绑定普通、不可重新赋值的 `this`。struct secondary body 在取得完整 delegated value 后绑定普通值 receiver。默认实参与 `this(...)` / `super(...)` 委派实参不取得正在构造的 receiver。
 
-```text
-ReceiverContext = OrdinaryThis | InitializingThis(InitializedFieldSet)
-```
+`this` 可以传参、保存、捕获、转换、比较、形成 callable reference，并作为普通 / extension / virtual / interface / `super` 方法 receiver。例如成员工厂 `state(initial)` 可以返回保存当前 owner 的 delegate。所有操作继续遵守普通类型、可见性、可写性及效果规则；struct 的传递和捕获保持值语义。
 
-`InitializingThis` 只允许作为已经就绪 field 的 direct read / mutable write receiver。它不能转换为普通 `Expr`，因此从类型结构上排除：
+后续诊断计划（本次不实现）：构造尚未完成时的 `this` 逃逸应产生编译警告，并与用于显式抑制警告的 `@SuppressWarning` 注解一同实现。该警告不将已允许的逃逸改成编译错误；具体判定范围及注解参数、作用域在后续实施时定义。当前不添加警告或注解实现。
 
-- 作为实参或返回值、写入 local / global / field / array / aggregate；
-- 被 lambda / anonymous / local function 捕获；
-- boxing、upcast、`is` / `as`、`===`、operator / invoke receiver、callable reference或 `addressOf`；
-- ordinary member、extension、virtual、interface 或 `super` method call，包括裸 member-call拼写。
+HIR 的 `InitializedFieldSet` 只负责当前初始化序列中的直接字段访问。直接 stored property 读写访问实际 backing storage；直接 delegated property 访问先要求 delegate storage 就绪，再调用协议。computed property 按普通 accessor 调用处理。嵌套 lambda、anonymous function 与 local function 不继承外层就绪快照，允许先保存闭包、待后续字段完成后调用。
 
-读取一个已经就绪的 field 后，所得值是普通值，可以参与调用和存储；例如 `println(name)` 合法，但 `println(this)` 不合法，`this.handler()` 中 receiver 是已就绪 field 时可先正规化为 field read再调用。该边界不依赖 whole-program escape analysis或“final method大概不会泄漏”的猜测；未来若需要 init-safe callable，必须以新的 typed effect单独设计。
+经方法、accessor、闭包或别名间接读取尚未初始化的字段属于未定义行为。编译器不做跨函数初始化效果推导，也不为字段增加 runtime 就绪检查。虚调用保持对象实际最派生类型；调用者负责使被调用实现不读取尚未就绪的 derived state。
 
-任一步骤抛异常时，后续 field / init / body与外层 secondary body都不执行，构造表达式不产生值；此前外部副作用不回滚。因为 `InitializingThis` 不可发布，失败对象只能从 constructor root变为不可达并由 GC 回收，不需要析构、回滚写入或 runtime invalid-object状态。struct 构造失败同样不产生值。
+任一步骤抛异常时，后续 field / init / body 与外层 secondary body 都不执行，构造表达式不产生值；此前外部副作用不回滚。已经传出或保存的 receiver 引用仍然存在，对象按普通可达性保活和回收，不需要析构、回滚写入或 runtime invalid-object 状态。失败不使未初始化字段成为合法值。struct 构造失败也不产生结果，但此前已经传出的值副本继续存在。
 
 ### 2.4 origin 与只求值一次
 
@@ -300,7 +295,7 @@ Export HIR显式保存 constructor / field / initialization实体及各自typed 
 
 所有 constructor parameter interface使用 M17封闭calling-shape metadata。default在定义处绑定，delegation在目标winner确定后保存全量位置参数template；初始化体与普通generic body一样保存typed implementation依赖，但不伪装为 public method或 function value。
 
-`super.method()` 保存 direct-base application和唯一callable；不能只保存同名 method或普通virtual family后让MIR猜“这是super”。初始化readiness与 `InitializingThis`只属于 hir-lower检查状态，成功Export HIR中的field read已经是typed field identity，失败状态不输出。
+`super.method()` 保存 direct-base application和唯一callable；不能只保存同名 method或普通virtual family后让MIR猜“这是super”。初始化 readiness 只属于 hir-lower 检查状态；constructor receiver 沿普通局部 binding 与捕获关系进入模板，成功 Export HIR 中的 field read 已经是 typed field identity，失败状态不输出。
 
 ### 4.3 HIR lowering内部计划
 
@@ -308,7 +303,7 @@ Export HIR显式保存 constructor / field / initialization实体及各自typed 
 
 - `ConstructorCandidateSession`与 delegation graph builder；
 - `ClassInitializationPlan`、`InitializedFieldSet`及source-order member cursor；
-- `InitializingThis` receiver capability；
+- 当前 constructor receiver 的普通局部 binding 及 receiver scope；
 - primary parameter / field name分层scope；
 - common sequence复制或共享的commit计划。
 
@@ -325,7 +320,7 @@ StructConstructorCall { constructor, arguments }
 DirectSuperMethodCall { receiver, callable, arguments }
 ```
 
-也可以把最后一项正规化为携带强制direct target的普通method call，但不得丢失direct证明。LocalConcrete HIR中不允许出现 source constructor name、`this`/`super` delegation语法、未验证graph、body member顺序、未实例化default/vararg、`InitializingThis`、field readiness或“稍后运行common init”的flag。
+也可以把最后一项正规化为携带强制direct target的普通method call，但不得丢失direct证明。LocalConcrete HIR中不允许出现 source constructor name、`this`/`super` delegation语法、未验证graph、body member顺序、未实例化default/vararg、field readiness或“稍后运行common init”的flag。
 
 每个 concrete class initializer结构上说明它是 `This` delegating还是 terminal；terminal非可选地携带已展开的base call、field store和common initialization，delegating分支不携带第二份common sequence。abstract class也生成可由derived `super`调用的initializer，但没有合法 `ClassNew`入口。
 
@@ -361,7 +356,7 @@ runtime不增加constructor API或初始化状态位。managed allocator已有�
 - `this` / `super` delegation无匹配、歧义、duplicate constructor signature、abstract class普通实例化；diagnostic列出constructor kind、完整signature、候选层和M16结构化失败原因；
 - constructor delegation自环 / 多节点环，显示有序signature edge链；edge无target时不再运行cycle pass制造二次错误；
 - field self / forward read或write，指出当前初始化步骤与尚未就绪field；primary parameter在method / secondary中不可见；
-- `InitializingThis`逃逸、捕获、普通/extension/virtual/interface/`super`调用、cast/box/addressOf等，统一说明“initializing receiver cannot escape before construction completes”；
+- constructor default 与 `this` / `super` 委派实参中使用当前 `this`，按 receiver 不可用诊断；当前实现不产生专门的逃逸警告，后续与 `@SuppressWarning` 一同加入，见 2.3；
 - 裸 `super`、无base的 `super.name`、不存在 / 不适用 / ambiguous base member、abstract target、`super.field`、`super::name`、safe或qualified interface super；
 - initializer / constructor中的挂起调用或 `return`；异常本身合法，不产生“字段可能未初始化”的后续伪诊断；
 - base header与secondary `super`组合错误、interface带constructor arguments、多个base class或base constructor缺失。
@@ -391,7 +386,7 @@ parser在每个type member恢复，HIR在无效field / constructor上保留typed
 - primary plain parameter用于base args / property initializer / init，但在method与secondary不可见；与body field同名时无receiver名称取parameter、`this.name`取field；
 - inherited、primary、earlier body fields可读，self/later field读写拒绝；body `var`后续赋值与body `val`只读；
 - property initializer和多个 `init`按源码交错，method / constructor声明不影响顺序；
-- 每一种 `InitializingThis`合法field read/write与非法逃逸/capture/call/cast/addressOf；field value上的后续调用保持合法；
+- 普通 receiver 的传参、保存、capture、call、cast、callable reference 及 ready field 读写；闭包延后读取字段、owner-bound delegate、构造期间虚调用与跨 Cone generic constructor template；不运行间接未初始化读取的未定义行为；
 - property/base/init/secondary任一点throw时后续步骤不执行，catch到原异常且没有construction result。
 
 ### 6.4 `super.method()`
@@ -399,7 +394,7 @@ parser在每个type member恢复，HIR在无效field / constructor上保留typed
 - base overload/generic/default/`vararg`选择；base的base继承实现；final/open/final-override direct目标；
 - derived override调用super得到base实现，golden确认不走vtable；
 - extension/property-like同名不参与，abstract/no-base/ambiguous/非法postfix诊断；
-- 初始化上下文中的super调用被受限receiver规则拒绝。
+- 基类委派完成后可在初始化上下文调用 super，保持 direct dispatch。
 
 ### 6.5 golden 与端到端
 
@@ -418,15 +413,15 @@ AST / ExportHir / LocalConcreteHir / MIR / LIR golden分别锁定：
 1. 同步语言 / runtime / 实现spec，加入typed constructor / field / initialization identity，拆开parameter、field与layout index；
 2. 完成primary普通参数、ordered type member、secondary / init / body property / supertype / `super.method` AST与parser恢复；
 3. 把class / struct全部constructor接入M16/M17候选、default与generic nominal inference，完成duplicate、delegation target与cycle检查；
-4. 实现class body property / `init` common sequence、field readiness、primary parameter scope与 `InitializingThis`限制；
+4. 实现 class body property / `init` common sequence、直接 field readiness、primary parameter scope 与基类委派后的普通 receiver binding；
 5. 生成LocalConcrete class initializer，替换MIR flattened-constructor捷径为一次allocation + same-receiver base/this initializer call，补齐异常与GC roots；
 6. 实现struct secondary constructor的typed value-returning链与validation body；
 7. 实现 `super.method()` direct-base resolution、强制direct target与generic/default/dispatch组合；
 8. 补齐全量golden、fixture、moving stress及M1至M18回归。
 
-每个编号都是可独立提交的功能切片。完成一批变更后先执行 `cargo fmt --all` 与 `cargo clippy --workspace`，再运行对应crate测试、stage golden和fixture；全部通过并单独提交后才进入下一切片。每个提交必须保持workspace可构建、既有fixture通过，不保留旧flattened ctor与新initializer双轨、按名称找constructor / super、临时 `Option<FieldType>`、未检查 `this`逃逸或等待后续提交补齐的root plan。
+每个编号都是可独立提交的功能切片。完成一批变更后先执行 `cargo fmt --all` 与 `cargo clippy --workspace`，再运行对应crate测试、stage golden和fixture；全部通过并单独提交后才进入下一切片。每个提交必须保持workspace可构建、既有fixture通过，不保留旧flattened ctor与新initializer双轨、按名称找constructor / super、临时 `Option<FieldType>`或等待后续提交补齐的root plan。
 
-M19只有在以下条件同时满足时完成：每个construction / delegation都引用唯一typed constructor；base / derived在同一object identity上按规范顺序各执行一次；body property与 `init`不能观察未初始化field；半初始化 `this`不能逃逸或动态调用；普通实参/default/exception/suspend-caller/moving GC保持既有契约；LocalConcrete HIR以后不再含source初始化计划，MIR不再递归拼接继承字段模拟构造。
+M19只有在以下条件同时满足时完成：每个construction / delegation都引用唯一typed constructor；base / derived在同一object identity上按规范顺序各执行一次；body property与 `init`的直接访问不能观察未初始化field；构造期间的普通 `this` 调用、保存与捕获沿现有值语义和GC协议处理；普通实参/default/exception/suspend-caller/moving GC保持既有契约；LocalConcrete HIR以后不再含source初始化计划，MIR不再递归拼接继承字段模拟构造。
 
 ## 8. 明确不做
 
