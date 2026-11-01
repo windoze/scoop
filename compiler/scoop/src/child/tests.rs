@@ -1,4 +1,3 @@
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use scoop_protocol::{
@@ -98,8 +97,7 @@ fn fake_compiler_body(path: &Path, body: &str) {
     let script = format!(
         "#!/bin/sh\nif [ \"$1\" = \"__machine-capability\" ]; then\n  printf '{capability}'\n  exit 0\nfi\n{body}\n"
     );
-    std::fs::write(path, script).unwrap();
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    crate::test_compiler::write(path, script.as_bytes());
 }
 
 fn resolve_fake(path: &Path) -> ResolvedPairedScoopc {

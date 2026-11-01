@@ -238,7 +238,9 @@ AArch64 首次全量的 20 项失败均已闭合，没有重跑整套 fixture。
 
 Linux 修复后完整 release workspace 的 105 个测试组、6,377 项测试全部通过，没有失败、忽略或过滤；包含此前遇到临时脚本执行 ETXTBSY 的原测试。fixture runner 规则测试 80 项完成、3 项平台条件跳过，构建脚本测试 32 项完成、5 项平台条件跳过。GNU／musl 的系统库与四种 runtime 均已准备完成，两个目标正在执行全量 CLI。
 
-Windows 首批四项 runtime 测试失败定位为验收脚本漏配测试要求的 unwind 路径，已补齐三套 C／unwind 工具配置；修复后 release workspace all-targets Clippy 与五个 CLI 构建通过，完整 Rust 测试与 profile 15 系统库准备继续执行。新批次发现的 23 项 HIR 快照失败已全部闭合：Windows checkout 将预期文件转换成 CRLF，逐项还原 LF 后内容全部相等。为 HIR 快照目录增加 `*.hir.txt text eol=lf`，在 `core.autocrlf=true` 下核对全部 23 份 Git checkout 投影与原文件逐字节相等；Windows 格式检查、相关 crate 的 release all-targets Clippy 及原 23 项测试定向复测通过，未改动快照正文或比较断言。Windows fixture runner 规则测试 80 项完成、3 项平台条件跳过，构建脚本测试 32 项完成、9 项平台条件跳过。
+追加核查 ETXTBSY：原测试并发重放 30 轮未再失败，受控 fork 实验则稳定复现了可写脚本句柄被其他子进程继承时的相同错误，即使写入线程已经关闭自己的句柄。三个测试假编译器的脚本创建与更新统一交给独立子进程，待写入进程退出再执行，测试主进程不持有该可写句柄；脚本内容、可执行权限、协议与缓存断言保留。macOS 格式检查、相关 crate 的 release all-targets Clippy 与 27 项定向测试通过；Linux 格式检查、release workspace all-targets Clippy 通过，29 项定向测试连续执行 30 轮、共 870 次全部通过。受控实验中的临时文件与子进程已清理，原始日志保留在仓库外。
+
+Windows 首批四项 runtime 测试失败定位为验收脚本漏配测试要求的 unwind 路径，已补齐三套 C／unwind 工具配置；修复后 release workspace all-targets Clippy 与五个 CLI 构建通过，完整 Rust 测试与 profile 15 系统库准备继续执行。新批次发现的 23 项 HIR 快照失败已全部闭合：Windows checkout 将预期文件转换成 CRLF，逐项还原 LF 后内容全部相等。为 HIR 快照目录增加 `*.hir.txt text eol=lf`，在 `core.autocrlf=true` 下核对全部 23 份 Git checkout 投影与原文件逐字节相等；Windows 格式检查、相关 crate 的 release all-targets Clippy 及原 23 项测试定向复测通过，未改动快照正文或比较断言。Windows fixture runner 规则测试 80 项完成、3 项平台条件跳过，构建脚本测试 32 项完成、9 项平台条件跳过。另有 provider 实例删除用例在完整批次中失败，正在定向诊断。
 
 原始报告保留在仓库外，已经完成的 macOS 全量与定向 fixture 工作目录及过期编译缓存已清理；另清理 macOS 第五轮缓存和旧基线工作目录、Linux 第二轮 fixture 缓存与 sysroot 工作目录。SDK、必要的基线产物和正在运行的其他平台验收继续保留。
 

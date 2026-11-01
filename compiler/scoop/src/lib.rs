@@ -45,5 +45,8 @@ pub use snapshot::*;
 #[cfg(test)]
 mod test_artifacts;
 
+#[cfg(all(test, unix))]
+mod test_compiler;
+
 #[cfg(test)]
 mod test_package;
