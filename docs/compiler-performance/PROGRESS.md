@@ -430,7 +430,9 @@ Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl、Windows M
 Linux 完整 release workspace 的 105 个测试组首次为 6,383 项通过、1 项失败，失败项为 `child::tests::production_runner_preserves_linux_tools_and_uses_private_scratch`。测试仍把 child 的第 4 个参数当成临时目录，第十五轮精简协议参数后该位置已是 jobs 数值。测试现按实际 `TMPDIR` 和独立指定的 scratch 根检查路径，保留 GNU／musl 工具环境、真实调用、目录存在与结束清理检查。macOS、Linux 的格式与 release workspace all-targets Clippy 通过；Linux 原失败用例的两个目标分支定向复测通过，未重跑完整 workspace。fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 27 项通过、5 项平台条件跳过。Linux GNU／musl 的完整 CLI 验收及其失败项闭合现已完成。
 
 
-macOS 完整 release workspace 的 105 个测试组共 6,353 项通过，无失败或忽略；fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 26 项通过、6 项平台条件跳过。Windows 正在执行完整 workspace。CLI 均使用各宿主冻结的最终五个工具，每目标只执行一次全量，原始失败记录保留，修复后只复测相关项。
+macOS 完整 release workspace 的 105 个测试组共 6,353 项通过，无失败或忽略；fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 26 项通过、6 项平台条件跳过。CLI 均使用各宿主冻结的最终五个工具，每目标只执行一次全量，原始失败记录保留，修复后只复测相关项。
+
+Windows 完整 release workspace 原始汇总为 106 个测试组、6,229 项通过、零失败，包含嵌套子进程结果。两个标记 ignored 的子进程入口由父测试实际执行，三项过滤来自该次子进程的入口选择；没有排除正常测试。fixture runner 规则为 78 项通过、3 项平台条件跳过，构建脚本为 23 项通过、9 项平台条件跳过。同步本阶段收尾修复后，Windows 格式检查、release workspace all-targets Clippy 和 61 项包管理器测试均通过，包含新增的三个真实 HTTP 回归测试。最终五个 CLI 已重新冻结，三个 Windows 目标的完整 fixture 验收按顺序执行。
 
 Darwin AArch64 首轮完整 CLI 为 4,290 项通过、25 项平台不适用、8 项失败，共 4,514 个 variant、13,391 次进程调用。已逐项闭合这些失败：
 
