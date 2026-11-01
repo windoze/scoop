@@ -102,7 +102,7 @@ pub(super) struct BuildOptions {
     pub generators: Vec<OsString>,
     #[arg(long)]
     pub cache_dir: Option<PathBuf>,
-    /// Maximum concurrent compiler processes; defaults to available CPUs.
+    /// Maximum concurrent compiler workers across Cones and code generation; defaults to available CPUs.
     #[arg(short = 'j', long)]
     pub jobs: Option<std::num::NonZeroUsize>,
     #[arg(long)]

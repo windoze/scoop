@@ -8,7 +8,7 @@ use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError}
 
 mod validation;
 pub use validation::DigestPlanError;
-use validation::{first_duplicate_input, validate_node_order, validate_plan};
+use validation::{first_duplicate_input, validate_plan};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DigestInputRefV1 {
@@ -220,6 +220,8 @@ impl WireDecode for DecodedDigestNodeV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DigestFinalizationPlanV1 {
     nodes: Vec<DigestNodeV1>,
+    // Positions sorted by the complete typed key, independent of emission order.
+    by_key: Vec<usize>,
 }
 
 impl DigestFinalizationPlanV1 {
@@ -235,6 +237,7 @@ impl DigestFinalizationPlanV1 {
             node.direct_inputs
                 .retain(|input| !removed.contains(&input.node()));
         }
+        self.rebuild_key_index();
     }
 
     pub fn new(
@@ -242,13 +245,31 @@ impl DigestFinalizationPlanV1 {
         foundation: &crate::ConeLirFoundation,
     ) -> Result<Self, DigestPlanBuildError> {
         nodes.sort_unstable_by_key(DigestNodeV1::sort_key);
-        validate_node_order(&nodes).map_err(DigestPlanBuildError::Plan)?;
         validate_plan(&nodes, foundation).map_err(DigestPlanBuildError::Plan)?;
-        Ok(Self { nodes })
+        let mut plan = Self {
+            nodes,
+            by_key: Vec::new(),
+        };
+        plan.rebuild_key_index();
+        Ok(plan)
     }
 
     pub fn nodes(&self) -> &[DigestNodeV1] {
         &self.nodes
+    }
+
+    pub(crate) fn node(&self, key: &DigestNodeKey) -> Option<&DigestNodeV1> {
+        self.by_key
+            .binary_search_by(|&index| self.nodes[index].key().cmp(key))
+            .ok()
+            .map(|index| &self.nodes[self.by_key[index]])
+    }
+
+    fn rebuild_key_index(&mut self) {
+        self.by_key.clear();
+        self.by_key.extend(0..self.nodes.len());
+        self.by_key
+            .sort_unstable_by_key(|&index| *self.nodes[index].key());
     }
 
     pub fn validate_against(

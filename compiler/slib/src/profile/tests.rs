@@ -7,9 +7,6 @@ mod strong_version;
 
 #[test]
 fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
-    let code_runtime_link = FingerprintSinkSet::CODE
-        .union(FingerprintSinkSet::RUNTIME_IMAGE)
-        .union(FingerprintSinkSet::LINK_VALIDATION_ONLY);
     let code_runtime = FingerprintSinkSet::CODE.union(FingerprintSinkSet::RUNTIME_IMAGE);
     let code_link = FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY);
     for (capability, location, purpose, sinks) in [
@@ -32,10 +29,10 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
             code_link,
         ),
         (
-            manifest_single_cone_production_capability(),
+            manifest_test_directory_capability(),
             SectionLocation::Manifest,
-            MemberPurposeSet::LINK,
-            code_runtime_link,
+            MemberPurposeSet::NONE,
+            FingerprintSinkSet::ENVELOPE_ONLY,
         ),
         (
             hir_core_bootstrap_interface_capability(),
@@ -97,23 +94,9 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
 
 #[test]
 fn manifest_inventory_is_closed_by_artifact_profile() {
-    let production = crate::ManifestSection::new(
-        manifest_single_cone_production_capability(),
-        MemberPurposeSet::LINK,
-        Vec::new(),
-    )
-    .unwrap();
-    assert_eq!(
-        ArtifactCapabilityProfile::CROSS_CONE_GENERIC.validate_link_manifest_inventory(&[]),
-        Err(ArtifactProfileInventoryError::MissingRequiredCapability {
-            view: ArtifactProfileView::Link,
-            location: SectionLocation::Manifest,
-            capability: manifest_single_cone_production_capability()
-        })
-    );
     assert!(
         ArtifactCapabilityProfile::CROSS_CONE_GENERIC
-            .validate_link_manifest_inventory(std::slice::from_ref(&production))
+            .validate_link_manifest_inventory(&[])
             .is_ok()
     );
     let optional = crate::ManifestSection::new(
@@ -124,7 +107,7 @@ fn manifest_inventory_is_closed_by_artifact_profile() {
     .unwrap();
     assert!(
         ArtifactCapabilityProfile::CROSS_CONE_GENERIC
-            .validate_link_manifest_inventory(&[production, optional])
+            .validate_link_manifest_inventory(&[optional])
             .is_ok()
     );
 }

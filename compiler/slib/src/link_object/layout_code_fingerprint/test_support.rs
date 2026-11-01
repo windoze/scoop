@@ -13,7 +13,8 @@ use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, HirFingerprint, LirFingerprint,
-    MirFingerprint, SlibMember, finalize_layout_partitioned_undefined_symbol_requirements_v1,
+    MirFingerprint, UncompressedObjectMember,
+    finalize_layout_partitioned_undefined_symbol_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_dependency_strong_requirements_v1,
     verify_external_shape_requirements_v1, verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_after_external_shape_v1,
@@ -26,7 +27,7 @@ pub(crate) struct EmptyLayoutCodeFixture<'a> {
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layout: &'a CrossConeLayoutAbiSectionV1<'a>,
     pub code: CrossConeLayoutCodeDataV1,
-    pub link_objects: Vec<SlibMember>,
+    pub link_objects: Vec<UncompressedObjectMember>,
 }
 
 pub(crate) fn with_empty_layout_code_fixture<R>(
@@ -42,10 +43,10 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         .builtins()
         .member_plan()
         .scoop_lir_members()[0];
-    let link_member = SlibMember::new(
+    let link_member = UncompressedObjectMember::new(
         producer,
         member_plan.stable_key().clone(),
-        member_plan.role().clone(),
+        crate::SlibMemberRole::LinkObject,
         objects.final_objects().objects()[0].bytes().to_vec(),
     )
     .unwrap();

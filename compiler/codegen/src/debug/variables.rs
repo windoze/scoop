@@ -102,14 +102,25 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
                 // LLVM 22 returns a DbgRecord, not an InstructionValue. Keep
                 // the native record API rather than casting its return value.
                 unsafe {
-                    inkwell::llvm_sys::debuginfo::LLVMDIBuilderInsertDeclareRecordAtEnd(
-                        self.context.builder.as_mut_ptr(),
-                        pointer.as_value_ref(),
-                        variable.variable.as_mut_ptr(),
-                        expression.as_mut_ptr(),
-                        variable.location.as_mut_ptr(),
-                        block.as_mut_ptr(),
-                    );
+                    if let Some(terminator) = block.get_terminator() {
+                        inkwell::llvm_sys::debuginfo::LLVMDIBuilderInsertDeclareRecordBefore(
+                            self.context.builder.as_mut_ptr(),
+                            pointer.as_value_ref(),
+                            variable.variable.as_mut_ptr(),
+                            expression.as_mut_ptr(),
+                            variable.location.as_mut_ptr(),
+                            terminator.as_value_ref(),
+                        );
+                    } else {
+                        inkwell::llvm_sys::debuginfo::LLVMDIBuilderInsertDeclareRecordAtEnd(
+                            self.context.builder.as_mut_ptr(),
+                            pointer.as_value_ref(),
+                            variable.variable.as_mut_ptr(),
+                            expression.as_mut_ptr(),
+                            variable.location.as_mut_ptr(),
+                            block.as_mut_ptr(),
+                        );
+                    }
                 }
             }
         }
@@ -180,14 +191,28 @@ impl<'ctx> FunctionDebug<'_, 'ctx> {
         block: BasicBlock<'ctx>,
     ) {
         unsafe {
-            inkwell::llvm_sys::debuginfo::LLVMDIBuilderInsertDbgValueRecordAtEnd(
-                self.context.builder.as_mut_ptr(),
-                value.as_value_ref(),
-                variable.variable.as_mut_ptr(),
-                expression.as_mut_ptr(),
-                variable.location.as_mut_ptr(),
-                block.as_mut_ptr(),
-            );
+            // Invoke cleanup already ends in a branch when its observations
+            // arrive. A record after that terminator would remain detached in
+            // LLVMContext and can leak into a later module reusing this block.
+            if let Some(terminator) = block.get_terminator() {
+                inkwell::llvm_sys::debuginfo::LLVMDIBuilderInsertDbgValueRecordBefore(
+                    self.context.builder.as_mut_ptr(),
+                    value.as_value_ref(),
+                    variable.variable.as_mut_ptr(),
+                    expression.as_mut_ptr(),
+                    variable.location.as_mut_ptr(),
+                    terminator.as_value_ref(),
+                );
+            } else {
+                inkwell::llvm_sys::debuginfo::LLVMDIBuilderInsertDbgValueRecordAtEnd(
+                    self.context.builder.as_mut_ptr(),
+                    value.as_value_ref(),
+                    variable.variable.as_mut_ptr(),
+                    expression.as_mut_ptr(),
+                    variable.location.as_mut_ptr(),
+                    block.as_mut_ptr(),
+                );
+            }
         }
     }
 }

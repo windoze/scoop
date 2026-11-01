@@ -1,11 +1,11 @@
-//! Exercise the shared manifest writer and reader with real generic objects.
+//! Exercise the shared link directory with real generic objects.
 
 use std::collections::BTreeSet;
 
 use scoop_identity::OdrMemberId;
 use scoop_slib::{
-    CodeFingerprintDataV2, CrossConeLayoutProductionManifestV1,
-    DecodedCanonicalOdrMemberDirectoryV1, DecodedSingleConeProductionManifestV1,
+    CodeFingerprintDataV2, DecodedCanonicalOdrMemberDirectoryV1,
+    DecodedLinkIdentityClosureSectionV1, LinkIdentityClosureSectionV1,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -31,9 +31,13 @@ pub(super) fn check(code: &CodeFingerprintDataV2, expected: &BTreeSet<OdrMemberI
     suffix.extend_from_slice(&encode(&projection.optimization()).unwrap());
     assert!(projection_bytes.ends_with(&suffix));
 
-    let manifest = CrossConeLayoutProductionManifestV1::from_verified_code(code.clone());
-    let bytes = encode(&manifest).unwrap();
-    assert_eq!(bytes[0], 0xa1);
-    let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
+    let closure = LinkIdentityClosureSectionV1::from_verified_layout_code(code);
+    assert_eq!(closure.odr_members(), directory);
+    let mut suffix = vec![6];
+    suffix.extend_from_slice(&bytes);
+    let bytes = encode(&closure).unwrap();
+    assert_eq!(bytes[0], 0xa4);
+    assert!(bytes.ends_with(&suffix));
+    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }

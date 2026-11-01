@@ -1,14 +1,11 @@
 //! Keep LLVM constant pools in the same selection unit as their callable.
 
-use std::path::Path;
-
 use object::{RelocationFlags, RelocationTarget, SectionFlags};
 
 use super::*;
 
-pub(crate) fn merge_callable_constants(path: &Path) -> Result<(), CodegenError> {
-    let bytes = std::fs::read(path).map_err(error)?;
-    let mut output = CoffObject::read(&bytes)?;
+pub(crate) fn merge_callable_constants(bytes: &mut Vec<u8>) -> Result<(), CodegenError> {
+    let mut output = CoffObject::read(bytes)?;
     let mut sections = output
         .file
         .sections()
@@ -68,7 +65,8 @@ pub(crate) fn merge_callable_constants(path: &Path) -> Result<(), CodegenError> 
     }
     output.relocate_constant_symbols(primary, &bases)?;
     output.replace_constant_sections(primary, &sections, &data, &relocations, alignment)?;
-    std::fs::write(path, output.finish()?).map_err(error)
+    *bytes = output.finish()?;
+    Ok(())
 }
 
 impl CoffObject<'_> {

@@ -1,0 +1,5 @@
+package dev.performance.lazyobjects
+
+public fun answer(): Int = 42
+
+public fun unused(): String = "unselected library body"

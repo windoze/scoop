@@ -26,7 +26,7 @@ fn elf_type_registrations_hash_descriptor_diagnostic_and_itable_data() {
                 sites,
                 fixture
                     .emitted
-                    .production()
+                    .production
                     .registration_production()
                     .types()
                     .clone(),
@@ -38,7 +38,7 @@ fn elf_type_registrations_hash_descriptor_diagnostic_and_itable_data() {
             )));
             let fingerprints = compute_strong_type_fingerprints_v1(
                 data,
-                fixture.emitted.production().canonical_shape_definitions(),
+                fixture.emitted.production.canonical_shape_definitions(),
                 &candidates(&fixture.objects),
             )
             .unwrap();

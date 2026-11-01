@@ -169,28 +169,29 @@ fn directory() -> CanonicalOdrMemberDirectoryV1 {
     .unwrap()
 }
 
+fn exact(name: &str) -> PersistentExactTypeId {
+    let declaration = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(name).unwrap(),
+        SourceNominalKind::Struct,
+        0,
+    );
+    let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap();
+    PersistentExactTypeId::from_key(&ExactTypeKey::Tuple(NonEmptyVec::from_first(
+        exact,
+        [exact],
+    )))
+    .unwrap()
+}
+
 fn entries() -> [(OdrGroupId, OdrMemberDirectoryEntryV1); 3] {
-    let exact = |name: &str| {
-        let declaration = SourceDeclarationKey::nominal(
-            SourceDeclarationSite::new(
-                ConeIdentity::CORE,
-                PackagePath::root(),
-                DefinitionOwnerChain::top_level(),
-                DeclarationScope::ConeWide,
-            )
-            .unwrap(),
-            CanonicalIdentifier::new(name).unwrap(),
-            SourceNominalKind::Struct,
-            0,
-        );
-        let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
-        let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap();
-        PersistentExactTypeId::from_key(&ExactTypeKey::Tuple(NonEmptyVec::from_first(
-            exact,
-            [exact],
-        )))
-        .unwrap()
-    };
     let first = exact("First");
     let second = exact("Second");
     let group = |exact_type| {

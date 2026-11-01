@@ -12,12 +12,10 @@ fn write_fake_compiler(path: &Path, frame: &[u8]) {
         .iter()
         .map(|byte| format!("\\{:03o}", byte))
         .collect::<String>();
-    std::fs::write(
+    crate::test_compiler::write(
         path,
-        format!("#!/bin/sh\nprintf 'probe\n' >> probes\nprintf '{escaped}'\n"),
-    )
-    .unwrap();
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        format!("#!/bin/sh\nprintf 'probe\n' >> probes\nprintf '{escaped}'\n").as_bytes(),
+    );
 }
 
 #[test]
@@ -45,7 +43,8 @@ fn resolves_only_the_exact_shared_machine_identity() {
 fn reports_spawn_errors_and_mismatched_tools() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
-    std::fs::write(&compiler, b"not executable").unwrap();
+    crate::test_compiler::write(&compiler, b"not executable");
+    std::fs::set_permissions(&compiler, std::fs::Permissions::from_mode(0o600)).unwrap();
     let locator = PairedScoopcLocator::new(&compiler).unwrap();
     assert!(matches!(
         ResolvedPairedScoopc::resolve(&locator, &cache(directory.path())),
@@ -75,8 +74,6 @@ fn cache(directory: &Path) -> ArtifactCacheRoot {
 
 #[test]
 fn reuses_capabilities_until_tool_inputs_change() {
-    use std::io::Write;
-
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let expected = scoop_toolchain::paired_compiler_machine_capability().unwrap();
@@ -96,12 +93,9 @@ fn reuses_capabilities_until_tool_inputs_change() {
         "probe\n"
     );
 
-    let mut file = std::fs::OpenOptions::new()
-        .append(true)
-        .open(&compiler)
-        .unwrap();
-    file.write_all(b"# Updated compiler input.\n").unwrap();
-    drop(file);
+    let mut script = std::fs::read(&compiler).unwrap();
+    script.extend_from_slice(b"# Updated compiler input.\n");
+    crate::test_compiler::write(&compiler, &script);
     let changed = ResolvedPairedScoopc::resolve(&locator, &cache).unwrap();
     assert_ne!(changed.fingerprint(), first.fingerprint());
     assert_eq!(

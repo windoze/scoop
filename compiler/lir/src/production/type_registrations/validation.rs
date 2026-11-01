@@ -114,8 +114,6 @@ pub(super) fn require_digest_node(
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongTypeRegistrationPlanBuildError> {
     digests
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &key)
+        .node(&key)
         .ok_or(StrongTypeRegistrationPlanBuildError::MissingDigestNode(key))
 }

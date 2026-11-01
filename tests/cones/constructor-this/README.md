@@ -1,6 +1,6 @@
 # 构造期间的 this
 
-普通行为测试通过 scoop.test 验证 owner 型属性委托、已就绪属性与方法调用、闭包和函数引用、inner／匿名对象／单例、值类型次构造及失败后的已保存引用。provider 和 bridge 使用真实路径依赖产物，覆盖泛型构造正文与捕获 receiver 的跨 Cone 消费。
+普通行为测试通过 scoop.test 验证 owner 型属性委托、已就绪属性与方法调用、闭包和函数引用、inner／匿名对象／单例、值类型次构造及失败后的已保存引用。provider 和 bridge 使用真实路径依赖产物，覆盖继承的计算属性在构造期间求值、泛型构造正文与捕获 receiver 的跨 Cone 消费。
 
 在仓库根目录使用已准备的开发 sysroot 运行：
 

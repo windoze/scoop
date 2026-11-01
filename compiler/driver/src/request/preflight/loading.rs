@@ -17,7 +17,7 @@ impl SingleConeBuildRequest {
             purpose,
             native_inputs,
             generators,
-            object_cache_root,
+            jobs,
         } = self;
         let current = load_current_input(current)?;
         if let TrustedCoreInput::Artifact(input) = &trusted_core {
@@ -69,7 +69,7 @@ impl SingleConeBuildRequest {
             purpose,
             native_inputs,
             generators,
-            object_cache_root,
+            jobs,
         })
     }
 }

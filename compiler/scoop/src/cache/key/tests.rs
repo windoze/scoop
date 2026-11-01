@@ -201,7 +201,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
             semantic.hir(),
             semantic.mir(),
             semantic.lir(),
-            OptionalCoreCodeFingerprintV1::None,
+            CodeFingerprint::from_array([10; 32]),
         )],
         PairedCompilerFingerprintV1::from_parts(
             sha256(b"paired-scoopc-v1"),
@@ -233,10 +233,10 @@ fn assert_mutation_misses(
 fn compile_cache_key_has_a_fixed_canonical_vector() {
     let input = input(1, "paired-scoopc-v1");
 
-    // The vector includes the directory-input cache domain, runtime ABI and machine protocol.
+    // The vector includes the directory-input cache domain, runtime ABI, artifact profile and machine protocol.
     assert_eq!(
         input.key().unwrap().to_string(),
-        "a91281903e362f2fdcdf503568be8fb358c3d8aa8d31e505983510c96a346f71"
+        "54e0a889117f98fc8d576a01697e7e48bb0ca83f4c84dee915d9e94e7eaeee83"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xb0));
 }
@@ -256,10 +256,22 @@ fn source_metadata_and_compiler_inputs_are_independent_key_dimensions() {
 }
 
 #[test]
-fn absent_optional_core_code_has_the_frozen_wire_shape() {
+fn dependency_code_changes_the_cache_key_without_changing_semantic_requirements() {
+    let original = rich_input();
+    let mut changed = original.clone();
+    changed.dependencies[0].code = CodeFingerprint::from_array([11; 32]);
+    assert_ne!(original.key().unwrap(), changed.key().unwrap());
     assert_eq!(
-        encode(&OptionalCoreCodeFingerprintV1::None).unwrap(),
-        [0xa1, 0x00, 0x01]
+        original.dependencies[0].hir(),
+        changed.dependencies[0].hir()
+    );
+    assert_eq!(
+        original.dependencies[0].mir(),
+        changed.dependencies[0].mir()
+    );
+    assert_eq!(
+        original.dependencies[0].lir(),
+        changed.dependencies[0].lir()
     );
 }
 

@@ -1,5 +1,11 @@
 //! Deterministic archive assembly for the cross-Cone layout strong profile.
 
+use crate::{
+    ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, CanonicalSlibArchive,
+    CompatibilityRecord, ConeRecord, CrossConeLayoutCodeDataV1, DependencyRecord,
+    FingerprintAvailability, LinkIdentityClosureSectionV1, ProducerRecord,
+    SemanticFingerprintRecord, UncompressedObjectMember,
+};
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
     CrossConeTypeSemanticsSectionV1,
@@ -11,21 +17,12 @@ use scoop_lir::{
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirTypeBridgeSectionV1,
 };
-use scoop_wire::encode;
-
-use super::StrongArtifactSectionV1;
-use crate::{
-    ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, CanonicalSlibArchive,
-    CompatibilityRecord, ConeRecord, CrossConeLayoutCodeDataV1,
-    CrossConeLayoutProductionManifestV1, DependencyRecord, LinkIdentityClosureSectionV1,
-    ManifestSection, MemberPurposeSet, ProducerRecord, SemanticFingerprintRecord, SlibMember,
-    manifest_single_cone_production_capability,
-};
 
 mod error;
 pub use error::CrossConeLayoutArtifactWriteError;
 mod sections;
 use sections::{LayoutMetadataInput, assemble_metadata};
+mod odr_reuse;
 
 /// Complete typed input for one `CrossConeLayoutStrong` archive.
 ///
@@ -47,13 +44,22 @@ pub struct CrossConeLayoutArtifactInputV1<'ir> {
     lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
     lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
     layout_code: CrossConeLayoutCodeDataV1,
-    link_objects: Vec<SlibMember>,
+    link_objects: Vec<UncompressedObjectMember>,
     test_directory: Option<crate::TestDirectory>,
+    dependencies: Option<&'ir crate::ValidatedCrossConeArtifactClosure>,
 }
 
 impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
     pub fn with_test_directory(mut self, directory: Option<crate::TestDirectory>) -> Self {
         self.test_directory = directory;
+        self
+    }
+
+    pub fn with_dependencies(
+        mut self,
+        dependencies: Option<&'ir crate::ValidatedCrossConeArtifactClosure>,
+    ) -> Self {
+        self.dependencies = dependencies;
         self
     }
 
@@ -74,7 +80,7 @@ impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
         lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
         lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
         layout_code: CrossConeLayoutCodeDataV1,
-        link_objects: Vec<SlibMember>,
+        link_objects: Vec<UncompressedObjectMember>,
     ) -> Self {
         Self {
             producer,
@@ -94,6 +100,7 @@ impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
             layout_code,
             link_objects,
             test_directory: None,
+            dependencies: None,
         }
     }
 }
@@ -125,8 +132,9 @@ impl AssembledCrossConeLayoutArtifactV1 {
             lir_cross_cone,
             lir_layout_abi,
             layout_code,
-            link_objects,
+            mut link_objects,
             test_directory,
+            dependencies,
         } = input;
         let identity = cone.identity();
         let (code, link_support) = layout_code.into_parts();
@@ -137,7 +145,18 @@ impl AssembledCrossConeLayoutArtifactV1 {
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         )
         .map_err(CrossConeLayoutArtifactWriteError::Compatibility)?;
-        let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_layout_code(&code);
+        let mut link_identity_closure =
+            LinkIdentityClosureSectionV1::from_verified_layout_code(&code);
+        if let Some(dependencies) = dependencies {
+            let removed = odr_reuse::select(
+                &link_objects,
+                &link_identity_closure,
+                code.production().projection().odr_members(),
+                dependencies,
+            );
+            link_objects.retain(|object| !removed.contains(&object.content().id()));
+            link_identity_closure.remove_members(&removed);
+        }
 
         let metadata = assemble_metadata(LayoutMetadataInput {
             hir_foundation,
@@ -156,7 +175,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
             link_support: &link_support,
         })?;
 
-        let production_manifest = CrossConeLayoutProductionManifestV1::from_verified_code(code);
         let foundation_fingerprints = SemanticFingerprintRecord::from_metadata_sections(
             &compatibility,
             &direct_dependencies,
@@ -165,30 +183,25 @@ impl AssembledCrossConeLayoutArtifactV1 {
             &metadata.lir.sections,
         )
         .map_err(CrossConeLayoutArtifactWriteError::SemanticFingerprints)?;
-        let semantic_fingerprints = SemanticFingerprintRecord::from_layout_production_manifest(
+        let semantic_fingerprints = SemanticFingerprintRecord::from_digests(
             foundation_fingerprints.hir(),
             foundation_fingerprints.mir(),
             foundation_fingerprints.lir(),
-            &production_manifest,
+            FingerprintAvailability::Available(code.fingerprint()),
+            FingerprintAvailability::Available(
+                code.production().projection().runtime_image_fingerprint(),
+            ),
         );
-        let manifest_section = ManifestSection::new(
-            manifest_single_cone_production_capability(),
-            MemberPurposeSet::LINK,
-            encode(&production_manifest).map_err(|source| {
-                CrossConeLayoutArtifactWriteError::Encoding {
-                    section: StrongArtifactSectionV1::ProductionManifest,
-                    source,
-                }
-            })?,
-        )
-        .map_err(CrossConeLayoutArtifactWriteError::ManifestSection)?;
 
         let mut members = Vec::with_capacity(3 + link_objects.len());
         members.push(metadata.hir.into_member(identity)?);
         members.push(metadata.mir.into_member(identity)?);
         members.push(metadata.lir.into_member(identity)?);
-        members.extend(link_objects);
-        let mut manifest_sections = vec![manifest_section];
+        members.extend(
+            crate::member::encode_object_members(identity, link_objects)
+                .map_err(CrossConeLayoutArtifactWriteError::ObjectMembers)?,
+        );
+        let mut manifest_sections = Vec::new();
         if let Some(directory) = &test_directory {
             manifest_sections.push(
                 directory
@@ -237,10 +250,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
 
     pub fn as_bytes(&self) -> &[u8] {
         self.archive.as_bytes()
-    }
-
-    pub fn object_payloads(&self) -> impl Iterator<Item = (scoop_wire::Digest256, &[u8])> {
-        self.archive.object_payloads()
     }
 }
 

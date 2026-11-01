@@ -3,13 +3,12 @@
 use std::fmt;
 
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
-use scoop_wire::{WireDecode, WireError, decode_canonical};
+use scoop_wire::{WireDecode, WireError};
 
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, DecodedMetadataEnvelope,
-    DecodedSingleConeProductionManifestV1, ManifestSection, MetadataLocation, MetadataReadError,
-    SlibMemberId, SlibMemberRecord, SlibMemberRole, ValidatedGraphArtifact,
-    manifest_single_cone_production_capability,
+    MetadataLocation, MetadataReadError, SlibMemberId, SlibMemberRecord, SlibMemberRole,
+    ValidatedGraphArtifact,
 };
 
 #[cfg(test)]
@@ -31,28 +30,6 @@ fn require_strong_profile(
         });
     }
     Ok(expected)
-}
-
-fn decode_production_manifest(
-    graph: &ValidatedGraphArtifact<'_>,
-    profile: ArtifactCapabilityProfile,
-) -> Result<DecodedSingleConeProductionManifestV1, SingleConeLinkSectionDecodeError> {
-    let manifest = graph.envelope.manifest();
-    profile
-        .validate_link_manifest_inventory(manifest.sections())
-        .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
-    let section = required_manifest_section(
-        manifest.sections(),
-        manifest_single_cone_production_capability(),
-    )?;
-
-    decode_canonical::<DecodedSingleConeProductionManifestV1>(section.payload()).map_err(|source| {
-        SingleConeLinkSectionDecodeError::InnerSection {
-            location: None,
-            capability: manifest_single_cone_production_capability(),
-            source,
-        }
-    })
 }
 
 fn metadata_member_id(
@@ -94,19 +71,6 @@ fn decode_metadata_envelope<'input>(
 ) -> Result<DecodedMetadataEnvelope<'input>, SingleConeLinkSectionDecodeError> {
     DecodedMetadataEnvelope::decode(payload, location)
         .map_err(|source| SingleConeLinkSectionDecodeError::OuterEnvelope { location, source })
-}
-
-fn required_manifest_section(
-    sections: &[ManifestSection],
-    capability: CapabilityId,
-) -> Result<&ManifestSection, SingleConeLinkSectionDecodeError> {
-    sections
-        .iter()
-        .find(|section| section.capability() == &capability)
-        .ok_or(SingleConeLinkSectionDecodeError::MissingSection {
-            location: None,
-            capability,
-        })
 }
 
 fn required_metadata_section<'a, 'input>(

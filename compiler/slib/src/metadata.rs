@@ -8,8 +8,7 @@ use scoop_wire::{
 
 use crate::{CapabilityContractRegistry, MemberPurposeSet, SectionLocation};
 
-pub(crate) const METADATA_SCHEMA: u32 = 3;
-pub(crate) const LIR_METADATA_SCHEMA: u32 = 4;
+pub(crate) const METADATA_SCHEMA: u32 = 4;
 mod storage;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -22,8 +21,7 @@ pub enum MetadataLocation {
 impl MetadataLocation {
     pub(crate) const fn schema(self) -> u32 {
         match self {
-            Self::Hir | Self::Mir => METADATA_SCHEMA,
-            Self::Lir => LIR_METADATA_SCHEMA,
+            Self::Hir | Self::Mir | Self::Lir => METADATA_SCHEMA,
         }
     }
     const fn magic(self) -> &'static [u8; 8] {
@@ -265,29 +263,13 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
 
 impl<'input> BorrowedWireDecode<'input> for UnvalidatedMetadataEnvelope<'input> {
     fn decode(decoder: &mut Decoder<'input>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
+        decoder.expect_map(4)?;
         let magic = decoder.field(1, Decoder::bytes)?;
-        let lir = magic == MetadataLocation::Lir.magic();
-        let expected = if lir { 4 } else { 3 };
-        if fields != expected {
-            return Err(WireError::new(
-                scoop_wire::WireErrorKind::InvalidLength {
-                    expected,
-                    actual: fields,
-                },
-                decoder.path().clone(),
-                Some(decoder.position()),
-            ));
-        }
         let outer_schema = decoder.field(2, Decoder::u32)?;
         let sections = decoder.field(3, |decoder| {
-            decoder.decode_array(|decoder, _| UnvalidatedMetadataSection::decode(decoder, lir))
+            decoder.decode_array(|decoder, _| UnvalidatedMetadataSection::decode(decoder))
         })?;
-        let id_table = if lir {
-            decoder.field(4, Decoder::bytes)?
-        } else {
-            &[]
-        };
+        let id_table = decoder.field(4, Decoder::bytes)?;
         Ok(Self {
             magic,
             outer_schema,
@@ -305,25 +287,21 @@ struct UnvalidatedMetadataSection<'input> {
 }
 
 impl<'input> UnvalidatedMetadataSection<'input> {
-    fn decode(decoder: &mut Decoder<'input>, lir: bool) -> Result<Self, WireError> {
-        decoder.expect_map(if lir { 4 } else { 3 })?;
+    fn decode(decoder: &mut Decoder<'input>) -> Result<Self, WireError> {
+        decoder.expect_map(4)?;
         Ok(Self {
             capability: decoder.field(1, DecodedCapabilityId::decode)?,
             required_for: decoder.field(2, Decoder::u32)?,
             payload: decoder.field(3, Decoder::bytes)?,
-            indexed: if lir {
-                decoder.field(4, |decoder| match decoder.unsigned()? {
-                    0 => Ok(false),
-                    1 => Ok(true),
-                    tag => Err(WireError::new(
-                        scoop_wire::WireErrorKind::UnknownTag { tag },
-                        decoder.path().clone(),
-                        Some(decoder.position()),
-                    )),
-                })?
-            } else {
-                false
-            },
+            indexed: decoder.field(4, |decoder| match decoder.unsigned()? {
+                0 => Ok(false),
+                1 => Ok(true),
+                tag => Err(WireError::new(
+                    scoop_wire::WireErrorKind::UnknownTag { tag },
+                    decoder.path().clone(),
+                    Some(decoder.position()),
+                )),
+            })?,
         })
     }
 
@@ -490,7 +468,10 @@ impl fmt::Display for MetadataReadError {
                 write!(formatter, "metadata magic does not match {expected}")
             }
             Self::UnsupportedSchema { actual } => {
-                write!(formatter, "metadata outer schema must be 1, found {actual}")
+                write!(
+                    formatter,
+                    "metadata outer schema must be {METADATA_SCHEMA}, found {actual}"
+                )
             }
             Self::Section { index, error } => {
                 write!(formatter, "invalid metadata section {index}: {error}")

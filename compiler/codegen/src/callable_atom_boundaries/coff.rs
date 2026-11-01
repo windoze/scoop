@@ -3,9 +3,11 @@ use object::{Object, ObjectSection, ObjectSymbol, SectionIndex};
 use super::*;
 use crate::coff_object::{CoffObject, error};
 
-pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<(), CodegenError> {
-    let bytes = std::fs::read(path).map_err(error)?;
-    let mut output = CoffObject::read(&bytes)?;
+pub(super) fn materialize(
+    bytes: &mut Vec<u8>,
+    plan: &DefinitionSymbolPlanV1,
+) -> Result<(), CodegenError> {
+    let mut output = CoffObject::read(bytes)?;
     let (text, start) = output.extent(plan.primary_symbol().symbol().as_str())?;
     let mut associated = vec![text];
     let lsda = output
@@ -87,7 +89,8 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         associated.push(section);
     }
     output.associate(text, &associated, plan.primary_symbol().linkage())?;
-    std::fs::write(path, output.finish()?).map_err(error)
+    *bytes = output.finish()?;
+    Ok(())
 }
 
 fn unique_section(output: &CoffObject<'_>, name: &str) -> Result<SectionIndex, CodegenError> {

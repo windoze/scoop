@@ -39,6 +39,10 @@ impl ReadyNodes {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.ready.len()
+    }
+
     pub fn pop(&mut self) -> Option<usize> {
         self.ready.pop_first()
     }

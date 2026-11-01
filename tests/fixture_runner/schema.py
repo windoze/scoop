@@ -90,6 +90,7 @@ BUILTINS = {
     "link_args",
     "ar",
     "llc",
+    "zstd",
     "sdk",
     "deployment",
     "runtime",

@@ -17,6 +17,7 @@ public class State<T> public constructor(public val owner: StateOwner, initial: 
 
 public open class CounterBase public constructor(public val seed: Int) : StateOwner {
     public var changes: Int = 0
+    public val doubledSeed: Int get() = seed * 2
 
     public override fun changed() {
         changes += 1

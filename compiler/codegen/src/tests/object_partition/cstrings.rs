@@ -58,7 +58,6 @@ fn message_module(odr: bool) -> (Module, ObjectDefinitionAtomId) {
 
 #[test]
 fn callable_cstring_has_one_disjoint_definition_range() {
-    let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
@@ -79,18 +78,18 @@ fn callable_cstring_has_one_disjoint_definition_range() {
                     &scoop_lir::ConeCoordinate::reserved_single_file(),
                     &[ConeIdentity::CORE],
                     scoop_lir::EntryProductionSourceV1::Library,
-                    directory.path(),
                     profile,
+                    std::num::NonZeroUsize::MIN,
                 )
                 .unwrap();
                 let member = emitted
-                    .members()
+                    .members
                     .iter()
                     .find(|member| {
-                        matches!(member.units().kind(), ScoopLirObjectKindV1::CallableBody(_))
+                        matches!(member.units.kind(), ScoopLirObjectKindV1::CallableBody(_))
                     })
                     .unwrap();
-                let bytes = std::fs::read(member.path()).unwrap();
+                let bytes = member.bytes.clone();
                 let file = object::File::parse(bytes.as_slice()).unwrap();
                 let normalization = input
                     .module()
@@ -99,12 +98,12 @@ fn callable_cstring_has_one_disjoint_definition_range() {
                     .contract()
                     .native_symbol_normalization();
                 let ranges = member
-                    .units()
+                    .units
                     .definition_plans()
                     .iter()
                     .flat_map(|id| {
                         emitted
-                            .production()
+                            .production
                             .canonical_definitions()
                             .plan(*id)
                             .unwrap()

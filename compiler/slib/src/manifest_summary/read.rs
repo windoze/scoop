@@ -3,9 +3,7 @@ use std::io::{self, Read};
 use scoop_lir::ValidatedLirTargetSelection;
 
 use super::{ArtifactManifestSummaryError as Error, ArtifactManifestSummaryV1};
-use crate::archive::{
-    GLOBAL_MAGIC, HEADER_LENGTH, MANIFEST_NAME, decompress_member, read_member_header,
-};
+use crate::archive::{HEADER_LENGTH, decompress_member, read_manifest_header};
 use crate::{ArchiveMemberOrdinal, ArchiveReadError, DecodedBootstrapManifest, SlibReadError};
 
 /// Reads only the archive header and manifest, leaving all member payloads unread.
@@ -24,15 +22,12 @@ pub(crate) fn read_manifest(
     reader: &mut impl Read,
     selection: ValidatedLirTargetSelection,
 ) -> Result<(crate::BootstrapManifest, u64), SlibReadError> {
-    let mut magic = [0; GLOBAL_MAGIC.len()];
-    reader.read_exact(&mut magic).map_err(SlibReadError::Io)?;
-    if &magic != GLOBAL_MAGIC {
-        return Err(SlibReadError::Container(ArchiveReadError::BadMagic));
-    }
     let mut header = [0; HEADER_LENGTH as usize];
     reader.read_exact(&mut header).map_err(SlibReadError::Io)?;
-    let length = read_member_header(&header, MANIFEST_NAME, ArchiveMemberOrdinal::Manifest)
-        .map_err(SlibReadError::Container)?;
+    let length = read_manifest_header(&header).map_err(SlibReadError::Container)?;
+    let next = HEADER_LENGTH
+        .checked_add(length as u64)
+        .ok_or(SlibReadError::Container(ArchiveReadError::LengthOverflow))?;
     let mut bytes = Vec::new();
     reader
         .take(length as u64)
@@ -51,11 +46,6 @@ pub(crate) fn read_manifest(
     let manifest = decoded
         .validate(selection)
         .map_err(|error| SlibReadError::Manifest(Box::new(error)))?;
-    let next = (GLOBAL_MAGIC.len() as u64)
-        .checked_add(HEADER_LENGTH)
-        .and_then(|start| start.checked_add(length as u64))
-        .and_then(|end| end.checked_add((length & 1) as u64))
-        .ok_or(SlibReadError::Container(ArchiveReadError::LengthOverflow))?;
     Ok((manifest, next))
 }
 
@@ -64,16 +54,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn summary_rejects_overflow_before_reading_a_manifest_payload() {
+        let mut bytes = crate::archive::GLOBAL_MAGIC.to_vec();
+        bytes.extend_from_slice(&u64::MAX.to_le_bytes());
+        let mut reader = io::Cursor::new(bytes);
+        assert!(matches!(
+            read_manifest(&mut reader, scoop_target_data::DARWIN_AARCH64_LLVM_22_1),
+            Err(SlibReadError::Container(ArchiveReadError::LengthOverflow))
+        ));
+        assert_eq!(reader.position(), HEADER_LENGTH);
+    }
+
+    #[test]
     fn summary_reads_only_the_manifest_of_a_complete_artifact() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test();
-        let start = GLOBAL_MAGIC.len();
-        let header_end = start + HEADER_LENGTH as usize;
-        let length = read_member_header(
-            &bytes[start..header_end],
-            MANIFEST_NAME,
-            ArchiveMemberOrdinal::Manifest,
-        )
-        .unwrap();
+        let header_end = HEADER_LENGTH as usize;
+        let length = read_manifest_header(&bytes[..header_end]).unwrap();
         let end = header_end + length;
         let mut reader = io::Cursor::new(bytes.as_slice());
         let summary = read_artifact_manifest_summary_from_reader(

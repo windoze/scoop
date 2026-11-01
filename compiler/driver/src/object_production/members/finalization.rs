@@ -6,7 +6,7 @@ pub(in crate::object_production) fn final_members(
     member_plan: &PlannedLinkObjectMemberSetV1,
     generated_c_bridge_members: &[PlannedGeneratedCBridgeObjectInputV1],
     objects: &[scoop_slib::FinalScoopLirObjectV1],
-) -> Result<Vec<SlibMember>, BuiltinObjectProductionError> {
+) -> Result<Vec<UncompressedObjectMember>, BuiltinObjectProductionError> {
     let producer = member_plan.producer();
     let mut members = Vec::with_capacity(objects.len() + generated_c_bridge_members.len());
     for object in objects {
@@ -17,10 +17,10 @@ pub(in crate::object_production) fn final_members(
             .ok_or(BuiltinObjectProductionError::MissingFinalMemberPlan(
                 object.member(),
             ))?;
-        let member = SlibMember::new(
+        let member = UncompressedObjectMember::new(
             producer,
             plan.stable_key().clone(),
-            plan.role().clone(),
+            scoop_slib::SlibMemberRole::LinkObject,
             scoop_slib::remove_production_end_symbols(object.bytes())
                 .map_err(BuiltinObjectProductionError::ProductionSymbols)?,
         )
@@ -29,10 +29,10 @@ pub(in crate::object_production) fn final_members(
         members.push(member);
     }
     for object in generated_c_bridge_members {
-        let member = SlibMember::new(
+        let member = UncompressedObjectMember::new(
             producer,
             object.plan.stable_key().clone(),
-            object.plan.role().clone(),
+            scoop_slib::SlibMemberRole::LinkObject,
             scoop_slib::remove_production_end_symbols(&object.bytes)
                 .map_err(BuiltinObjectProductionError::ProductionSymbols)?,
         )
@@ -40,15 +40,15 @@ pub(in crate::object_production) fn final_members(
         require_final_member_id(&member, object.plan.member_id())?;
         members.push(member);
     }
-    members.sort_unstable_by_key(|member| member.record().id());
+    members.sort_unstable_by_key(|member| member.content().id());
     Ok(members)
 }
 
 fn require_final_member_id(
-    member: &SlibMember,
+    member: &UncompressedObjectMember,
     expected: SlibMemberId,
 ) -> Result<(), BuiltinObjectProductionError> {
-    let actual = member.record().id();
+    let actual = member.content().id();
     if actual == expected {
         Ok(())
     } else {

@@ -72,26 +72,33 @@ fn actual_duplicate_generic_members_accept_different_optimization() {
         );
         identities.push(identity);
     }
-    let first = closures[0].artifact(identities[0]).unwrap();
     let second = closures[1].artifact(identities[1]).unwrap();
-    let first = (
-        first.0.identity_graph(),
-        first.1.defined_symbols(),
-        first.1.odr_members(),
-    );
-    let second = (
-        second.0.identity_graph(),
-        second.1.defined_symbols(),
-        second.1.odr_members(),
-    );
-    let merged = scoop_slib::merge_cross_cone_odr_definitions([first, second]).unwrap();
+    let mut inputs = closures[0]
+        .dependency_first()
+        .chain(std::iter::once(second))
+        .map(|(artifact, symbols)| {
+            (
+                artifact.identity_graph(),
+                symbols.defined_symbols(),
+                symbols.odr_members(),
+                artifact.manifest().direct_dependencies(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let merged = scoop_slib::merge_cross_cone_odr_definitions(inputs.iter().copied()).unwrap();
     assert!(
         merged
             .members()
             .any(|member| member.candidates().count() == 2)
     );
+    let duplicate = inputs
+        .iter()
+        .find(|input| input.1.producer() == identities[0])
+        .copied()
+        .unwrap();
+    inputs.push(duplicate);
     assert!(matches!(
-        scoop_slib::merge_cross_cone_odr_definitions([first, first]),
+        scoop_slib::merge_cross_cone_odr_definitions(inputs),
         Err(scoop_slib::OdrDefinitionMergeError::DuplicateArtifact(provider))
             if provider == identities[0]
     ));

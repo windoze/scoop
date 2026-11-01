@@ -13,10 +13,7 @@ use scoop_mir::{
     DecodedCrossConeMirTypeBridgeSectionV1, DecodedMirFoundation,
 };
 
-use crate::{
-    DecodedLinkIdentityClosureSectionV1, DecodedSingleConeProductionManifestV1,
-    ValidatedGraphArtifact,
-};
+use crate::{DecodedLinkIdentityClosureSectionV1, ValidatedGraphArtifact};
 
 mod accessors;
 mod decode;
@@ -28,8 +25,7 @@ pub use decode::CrossConeLayoutLinkSectionDecodeError;
 pub use shared::DecodedCrossConeLayoutLinkOnlySections;
 pub(crate) use shared::DecodedLayoutView;
 
-/// Canonically decoded payloads from one exact
-/// `cross-cone-generic/3` Link view.
+/// Decoded payloads from the current cross-cone generic Link view.
 ///
 /// Compile sections needed for Link relations are retained alongside physical
 /// data. Subsequent validation joins their typed identities, signatures, and
@@ -37,7 +33,6 @@ pub(crate) use shared::DecodedLayoutView;
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutLinkSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
-    production_manifest: DecodedSingleConeProductionManifestV1,
     hir_foundation: DecodedHirFoundation,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: DecodedCrossConeHirInterfaceSectionV1,

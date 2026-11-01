@@ -1,4 +1,4 @@
-//! The manifest directory of physical ODR definitions emitted by one Cone.
+//! The manifest directory of ODR definitions and implementation requirements.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -195,6 +195,26 @@ impl CanonicalOdrMemberDirectoryV1 {
 
     pub fn groups(&self) -> &[OdrMemberDirectoryGroupV1] {
         &self.groups
+    }
+
+    pub(crate) fn retain_registration_definitions(
+        &mut self,
+        defined: &super::CanonicalDefinedLinkSymbolOwnerSetV1,
+    ) {
+        let local = defined
+            .owners()
+            .iter()
+            .filter_map(|definition| match definition.owner() {
+                super::LinkDefinitionOwnerV1::OdrDefinition(member) => Some(member),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        for group in &mut self.groups {
+            group.members.retain(|entry| {
+                entry.role != OdrMemberRole::RegistrationRecord || local.contains(&entry.member)
+            });
+        }
+        self.groups.retain(|group| !group.members.is_empty());
     }
 
     fn from_members(

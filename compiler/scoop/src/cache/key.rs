@@ -19,7 +19,7 @@ use crate::PairedCompilerFingerprintV1;
 mod testing;
 pub use testing::TestCompileConfiguration;
 
-const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v10";
+const CACHE_KEY_DOMAIN: &str = "scoop-cone-compile-cache-v11";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConeCompileCacheKeyV1([u8; 32]);
@@ -100,38 +100,13 @@ impl WireEncode for SourceCacheInputV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum OptionalCoreCodeFingerprintV1 {
-    None,
-    Some(CodeFingerprint),
-}
-
-impl WireEncode for OptionalCoreCodeFingerprintV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::None => {
-                encoder.map(1)?;
-                encoder.field(0)?;
-                encoder.unsigned(1)
-            }
-            Self::Some(fingerprint) => {
-                encoder.map(2)?;
-                encoder.field(0)?;
-                encoder.unsigned(2)?;
-                encoder.field(1)?;
-                fingerprint.encode(encoder)
-            }
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CompileDependencyInputV1 {
     cone: ConeRecord,
     hir: HirFingerprint,
     mir: MirFingerprint,
     lir: LirFingerprint,
-    single_file_core_code: OptionalCoreCodeFingerprintV1,
+    code: CodeFingerprint,
 }
 
 impl CompileDependencyInputV1 {
@@ -140,14 +115,14 @@ impl CompileDependencyInputV1 {
         hir: HirFingerprint,
         mir: MirFingerprint,
         lir: LirFingerprint,
-        single_file_core_code: OptionalCoreCodeFingerprintV1,
+        code: CodeFingerprint,
     ) -> Self {
         Self {
             cone,
             hir,
             mir,
             lir,
-            single_file_core_code,
+            code,
         }
     }
 
@@ -167,8 +142,8 @@ impl CompileDependencyInputV1 {
         self.lir
     }
 
-    pub const fn single_file_core_code(&self) -> OptionalCoreCodeFingerprintV1 {
-        self.single_file_core_code
+    pub const fn code(&self) -> CodeFingerprint {
+        self.code
     }
 }
 
@@ -184,7 +159,7 @@ impl WireEncode for CompileDependencyInputV1 {
         encoder.field(4)?;
         self.lir.encode(encoder)?;
         encoder.field(5)?;
-        self.single_file_core_code.encode(encoder)
+        self.code.encode(encoder)
     }
 }
 

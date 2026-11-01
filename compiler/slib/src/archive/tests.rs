@@ -21,7 +21,7 @@ fn open_archive(input: &[u8]) -> Result<ManifestArchive<'_>, ArchiveReadError> {
 }
 
 #[test]
-fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes() {
+fn object_storage_is_compressed_and_readers_return_native_bytes() {
     let capability = CapabilityId::new("org.scoop-lang.test", "object", 1).unwrap();
     let mut members = vec![diagnostic_member(b"log", b"diagnostic").unwrap()];
     let mut expected = std::collections::BTreeMap::new();
@@ -33,21 +33,12 @@ fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes
                 verifier_capability: capability.clone(),
                 logical_key: crate::LogicalMemberKey::new(bytes.to_vec()).unwrap(),
             },
-            SlibMemberRole::LinkObject {
-                target_profile: scoop_identity::TargetProfileWireId::new(
-                    scoop_target_data::DARWIN_AARCH64_ID,
-                ),
-                object_format: scoop_identity::ObjectFormatId::macho_relocatable(),
-                verifier_capability: capability.clone(),
-            },
+            SlibMemberRole::LinkObject,
             bytes.to_vec(),
         )
         .unwrap();
         assert_ne!(member.payload(), bytes);
-        assert_eq!(
-            member.record().sha256(),
-            scoop_wire::sha256(member.payload())
-        );
+        assert_eq!(member.record().sha256(), scoop_wire::sha256(bytes));
         expected.insert(member.record().sha256(), bytes);
         records.push(member.record().clone());
         members.push(member);
@@ -55,17 +46,11 @@ fn object_storage_is_compressed_while_cache_outputs_and_readers_use_native_bytes
     records.extend(
         members
             .iter()
-            .filter(|member| !matches!(member.record().role(), SlibMemberRole::LinkObject { .. }))
+            .filter(|member| !member.record().role().is_object())
             .map(|member| member.record().clone()),
     );
     records.sort_unstable_by_key(SlibMemberRecord::id);
     let archive = CanonicalSlibArchive::write(b"m", members).unwrap();
-    assert_eq!(
-        archive
-            .object_payloads()
-            .collect::<std::collections::BTreeMap<_, _>>(),
-        expected
-    );
     let decoded = open_archive(archive.as_bytes())
         .unwrap()
         .validate_directory(&records)
@@ -90,7 +75,7 @@ fn validate_archive<'input>(
 }
 
 #[test]
-fn archive_sorts_members_by_typed_id_and_derives_physical_names() {
+fn archive_sorts_members_and_stores_payloads_without_per_member_headers() {
     let first_input = diagnostic_member(b"z", b"second").unwrap();
     let second_input = diagnostic_member(b"a", b"first").unwrap();
     let expected = if first_input.record().id() < second_input.record().id() {
@@ -98,30 +83,21 @@ fn archive_sorts_members_by_typed_id_and_derives_physical_names() {
     } else {
         vec![second_input.clone(), first_input.clone()]
     };
-
     let reverse_archive =
         CanonicalSlibArchive::write(b"m", vec![second_input.clone(), first_input.clone()]).unwrap();
     let archive = CanonicalSlibArchive::write(b"m", vec![first_input, second_input]).unwrap();
     assert_eq!(archive, reverse_archive);
     let bytes = archive.as_bytes();
-    let first_header = open_archive(bytes).unwrap().next_header;
-    assert_eq!(&bytes[first_header..first_header + 16], b"m00000000/      ");
-    let first_payload = first_header + 60;
+    assert_eq!(&bytes[..8], b"SCOOPSLB");
+    let manifest_length = u64::from_le_bytes(bytes[8..16].try_into().unwrap()) as usize;
+    let first_payload = 16 + manifest_length;
+    assert_eq!(first_payload, open_archive(bytes).unwrap().next_payload);
     assert_eq!(
         &bytes[first_payload..first_payload + expected[0].payload().len()],
         expected[0].payload()
     );
-    let second_header =
-        first_payload + expected[0].payload().len() + (expected[0].payload().len() & 1);
-    assert_eq!(
-        &bytes[second_header..second_header + 16],
-        b"m00000001/      "
-    );
-    let second_payload = second_header + 60;
-    assert_eq!(
-        &bytes[second_payload..second_payload + expected[1].payload().len()],
-        expected[1].payload()
-    );
+    let second_payload = first_payload + expected[0].payload().len();
+    assert_eq!(&bytes[second_payload..], expected[1].payload());
 }
 
 #[test]
@@ -139,14 +115,21 @@ fn archive_rejects_duplicate_semantic_member_ids() {
 }
 
 #[test]
-fn physical_member_names_cover_the_complete_directory_range() {
-    assert_eq!(member_name(0), Some(*b"m00000000"));
-    assert_eq!(member_name(9), Some(*b"m00000009"));
-    assert_eq!(member_name(10), Some(*b"m00000010"));
-    assert_eq!(member_name(65_535), Some(*b"m00065535"));
-    assert_eq!(member_name(65_536), Some(*b"m00065536"));
-    assert_eq!(member_name(99_999_999), Some(*b"m99999999"));
-    assert_eq!(member_name(100_000_000), None);
+fn empty_directory_uses_only_the_fixed_header_and_manifest() {
+    for manifest in [b"".as_slice(), b"odd", b"even"] {
+        let archive = CanonicalSlibArchive::write(manifest, Vec::new()).unwrap();
+        let bytes = archive.as_bytes();
+        assert_eq!(
+            bytes.len(),
+            16 + u64::from_le_bytes(bytes[8..16].try_into().unwrap()) as usize
+        );
+        let decoded = open_archive(bytes)
+            .unwrap()
+            .validate_directory(&[])
+            .unwrap();
+        assert_eq!(decoded.manifest(), manifest);
+        assert_eq!(decoded.member_ids().len(), 0);
+    }
 }
 
 #[test]
@@ -173,59 +156,59 @@ fn reader_validates_manifest_directory_and_member_ranges() {
 }
 
 #[test]
-fn reader_rejects_noncanonical_container_bytes() {
+fn reader_rejects_invalid_magic_truncation_and_overflow() {
     let archive = CanonicalSlibArchive::write(b"xy", Vec::new()).unwrap();
-
-    let mut bad_magic = archive.as_bytes().to_vec();
-    bad_magic[0] = b'?';
-    assert_eq!(open_archive(&bad_magic), Err(ArchiveReadError::BadMagic));
-
-    let mut bad_header = archive.as_bytes().to_vec();
-    bad_header[8 + 16] = b'1';
+    let mut bytes = archive.as_bytes().to_vec();
+    bytes[0] = b'?';
+    assert_eq!(open_archive(&bytes), Err(ArchiveReadError::BadMagic));
+    assert_eq!(open_archive(b"!<arch>\n"), Err(ArchiveReadError::BadMagic));
     assert_eq!(
-        open_archive(&bad_header),
-        Err(ArchiveReadError::NonCanonicalHeader {
-            member: ArchiveMemberOrdinal::Manifest,
+        open_archive(&archive.as_bytes()[..15]),
+        Err(ArchiveReadError::TruncatedHeader {
+            member: ArchiveMemberOrdinal::Manifest
         })
     );
-
-    let mut bad_padding = archive.as_bytes().to_vec();
-    *bad_padding.last_mut().unwrap() = b' ';
     assert_eq!(
-        open_archive(&bad_padding),
-        Err(ArchiveReadError::InvalidPadding {
-            member: ArchiveMemberOrdinal::Manifest,
+        open_archive(&archive.as_bytes()[..archive.as_bytes().len() - 1]),
+        Err(ArchiveReadError::TruncatedPayload {
+            member: ArchiveMemberOrdinal::Manifest
         })
+    );
+    let mut overflowing = archive.as_bytes().to_vec();
+    overflowing[8..16].copy_from_slice(&u64::MAX.to_le_bytes());
+    assert_eq!(
+        open_archive(&overflowing),
+        Err(ArchiveReadError::LengthOverflow)
     );
 }
 
 #[test]
-fn reader_indexes_the_directory_and_checks_requested_headers() {
+fn reader_indexes_the_directory_and_checks_only_requested_payload_ranges() {
     let first = diagnostic_member(b"first", b"one").unwrap();
     let second = diagnostic_member(b"second", b"two").unwrap();
     let mut records = vec![first.record().clone(), second.record().clone()];
     records.sort_unstable_by_key(SlibMemberRecord::id);
     let archive = CanonicalSlibArchive::write(b"manifest", vec![first, second]).unwrap();
-
     let mut reversed = records.clone();
     reversed.reverse();
     assert_eq!(
-        validate_archive(archive.as_bytes(), &reversed),
-        Err(ArchiveReadError::NonIncreasingDirectory {
+        validate_archive(archive.as_bytes(), &reversed).unwrap_err(),
+        ArchiveReadError::NonIncreasingDirectory {
             first_index: 0,
-            second_index: 1,
-        })
+            second_index: 1
+        }
     );
-
-    let mut bad_name = archive.as_bytes().to_vec();
-    let first_header = open_archive(&bad_name).unwrap().next_header;
-    bad_name[first_header] = b'x';
     assert_eq!(
-        validate_archive(&bad_name, &records)
-            .unwrap()
-            .member(records[0].id()),
-        Err(ArchiveReadError::NonCanonicalHeader {
-            member: ArchiveMemberOrdinal::Directory(0),
+        member_positions(&records, u64::MAX),
+        Err(ArchiveReadError::LengthOverflow)
+    );
+    let truncated = &archive.as_bytes()[..archive.as_bytes().len() - 1];
+    let decoded = validate_archive(truncated, &records).unwrap();
+    assert!(decoded.member(records[0].id()).unwrap().is_some());
+    assert_eq!(
+        decoded.member(records[1].id()),
+        Err(ArchiveReadError::TruncatedPayload {
+            member: ArchiveMemberOrdinal::Directory(1)
         })
     );
 }

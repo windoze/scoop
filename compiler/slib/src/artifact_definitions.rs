@@ -19,14 +19,15 @@ impl ArtifactDefinitionData {
         manifest: &BootstrapManifest,
         identities: &mut ValidatedIdentityGraph,
         target: scoop_lir::ValidatedLirTargetSelection,
+        foundation: &scoop_lir::ConeLirFoundation,
     ) -> Result<Self, String> {
         let defined = link.link_identity_closure_wire().read_defined_symbols(
-            manifest.cone().identity(),
+            foundation,
             identities,
             target.target().contract().native_symbol_normalization(),
         )?;
         let odr = link
-            .production_manifest_wire()
+            .link_identity_closure_wire()
             .read_odr_members(identities)
             .map_err(|error| error.to_string())?;
         let directory =

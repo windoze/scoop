@@ -9,13 +9,12 @@ use super::*;
 use crate::{
     ArtifactCapabilityProfile, BootstrapManifest, CanonicalSlibArchive, CodeFingerprint,
     CompatibilityRecord, ConeKind, ConeRecord, ConeSourceForm, FingerprintAvailability,
-    HirFingerprint, ManifestSection, MemberPurposeSet, MemberStableKey, MetadataEnvelope,
-    MetadataLocation, MetadataSection, ProducerRecord, RuntimeImageFingerprint,
-    SemanticFingerprintRecord, SlibMember, SlibMemberRole, hir_core_bootstrap_interface_capability,
+    HirFingerprint, MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataLocation,
+    MetadataSection, ProducerRecord, RuntimeImageFingerprint, SemanticFingerprintRecord,
+    SlibMember, SlibMemberRole, hir_core_bootstrap_interface_capability,
     hir_identity_foundation_capability, lir_identity_foundation_capability,
     lir_link_identity_closure_capability, lir_strong_production_capability,
-    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_identity_foundation_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
 
 pub(crate) fn required_sections() -> (
@@ -192,12 +191,6 @@ pub(crate) fn build_artifact_for_profile_with_dependencies(
             lir_sections,
         ),
     ];
-    let production = ManifestSection::new(
-        manifest_single_cone_production_capability(),
-        MemberPurposeSet::LINK,
-        crate::encoded_library_production_manifest_for_test(),
-    )
-    .unwrap();
     let manifest = BootstrapManifest::new(
         ProducerRecord::new("test").unwrap(),
         compatibility,
@@ -205,7 +198,7 @@ pub(crate) fn build_artifact_for_profile_with_dependencies(
         dependencies,
         &members,
         semantic,
-        vec![production],
+        Vec::new(),
     )
     .unwrap();
     CanonicalSlibArchive::write_bootstrap(&manifest, members)

@@ -4,11 +4,18 @@ pub(crate) fn prepare(
     emitted: EmittedConeObjectSetV2,
     generated: &EmittedGeneratedCBridgeObjectSetV1,
 ) -> Result<PreparedLayoutObjects, BuiltinObjectProductionError> {
-    let production = emitted.production();
+    let EmittedConeObjectSetV2 {
+        target_selection,
+        foundation,
+        production,
+        partition,
+        members,
+        ..
+    } = emitted;
     let bindings = plan_codegen_objects(
-        emitted.target_selection().target(),
-        emitted.partition().producer_units(),
-        emitted.members(),
+        target_selection.target(),
+        partition.producer_units(),
+        members,
         generated,
     )?;
     let candidates = bindings
@@ -30,7 +37,7 @@ pub(crate) fn prepare(
     )
     .map_err(BuiltinObjectProductionError::CBridgeEnvelopes)?;
     let symbols = PlannedStrongObjectSymbolSetV1::new(
-        emitted.target(),
+        target_selection.target(),
         production.canonical_definitions(),
         &bindings.member_plan,
     )
@@ -51,9 +58,9 @@ pub(crate) fn prepare(
     )
     .map_err(BuiltinObjectProductionError::Stackmaps)?;
     Ok(PreparedLayoutObjects {
-        target_selection: emitted.target_selection(),
-        foundation: emitted.foundation().clone(),
-        production: emitted.into_production(),
+        target_selection,
+        foundation,
+        production,
         builtins,
         stackmaps,
         bindings,

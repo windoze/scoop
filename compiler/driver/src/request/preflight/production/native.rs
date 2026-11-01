@@ -10,7 +10,7 @@ pub(super) fn compile(
     request: &ValidatedSingleConeBuildRequest<'_>,
     cone: ConeIdentity,
     temporary_parent: &Path,
-) -> Result<Vec<scoop_slib::SlibMember>, ToolchainError> {
+) -> Result<Vec<scoop_slib::UncompressedObjectMember>, ToolchainError> {
     let ValidatedCurrentConeInput::Manifest { manifest } = request.current() else {
         if let NativeInputOrigin::Objects(inputs) = &request.request.native_inputs
             && !inputs.is_empty()
@@ -67,7 +67,6 @@ pub(super) fn compile(
             let source = NormalizedNativeSourcePath::new(source.as_str()).map_err(error)?;
             scoop_slib::native_link_object_member(
                 cone,
-                target.lir_target(),
                 &source,
                 std::fs::read(object).map_err(error)?,
             )

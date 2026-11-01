@@ -1,7 +1,5 @@
 //! Materialize stable symbols for LLVM-owned callable atoms in Mach-O.
 
-use std::path::Path;
-
 use scoop_lir::{DefinitionAtomRole, DefinitionSymbolPlanV1, LirTargetProfile};
 
 pub(crate) use self::macho::{BoundaryDefinitionV1, MachOLayout};
@@ -12,24 +10,18 @@ mod elf;
 mod macho;
 
 pub(crate) fn materialize_v1(
-    path: &Path,
+    bytes: &mut Vec<u8>,
     target: LirTargetProfile,
     plan: &DefinitionSymbolPlanV1,
 ) -> Result<(), CodegenError> {
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
-        return elf::materialize(path, plan);
+        return elf::materialize(bytes, plan);
     }
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Coff64 {
-        return coff::materialize(path, plan);
+        return coff::materialize(bytes, plan);
     }
 
-    let mut bytes = std::fs::read(path).map_err(|error| {
-        CodegenError(format!(
-            "cannot read callable object {} for atom boundary materialization: {error}",
-            path.display()
-        ))
-    })?;
-    let layout = MachOLayout::parse(&bytes, target)?;
+    let layout = MachOLayout::parse(bytes, target)?;
     let normalization = target.contract().native_symbol_normalization();
     let primary_name = normalization
         .compiler_generated_object_symbol(plan.primary_symbol().symbol().as_str())
@@ -49,7 +41,7 @@ pub(crate) fn materialize_v1(
             .into_bytes();
         if boundary.atom() == constants_atom {
             let section = layout.require_section(b"__DATA", b"__const")?;
-            section.place_callable_constants(&mut bytes);
+            section.place_callable_constants(bytes);
             additions.push(BoundaryDefinitionV1::new(
                 start_name,
                 section.ordinal(),
@@ -103,8 +95,8 @@ pub(crate) fn materialize_v1(
             | DefinitionAtomRole::ContextKeyCell
             | DefinitionAtomRole::ContextKeyTable => {
                 if plan.primary_symbol().linkage() == scoop_lir::LinkageClass::OdrWeak {
-                    layout.materialize_odr_definition(&mut bytes, &start_name)?;
-                    layout.materialize_odr_definition(&mut bytes, &end_name)?;
+                    layout.materialize_odr_definition(bytes, &start_name)?;
+                    layout.materialize_odr_definition(bytes, &end_name)?;
                 }
             }
             DefinitionAtomRole::WindowsUnwindTable | DefinitionAtomRole::WindowsUnwindInfo => {
@@ -112,13 +104,7 @@ pub(crate) fn materialize_v1(
             }
         }
     }
-    layout.add_external_definitions(&mut bytes, additions)?;
-    std::fs::write(path, bytes).map_err(|error| {
-        CodegenError(format!(
-            "cannot write callable atom boundaries to {}: {error}",
-            path.display()
-        ))
-    })
+    layout.add_external_definitions(bytes, additions)
 }
 
 const BACKEND_SECTIONS: [(&[u8], &[u8]); 4] = [

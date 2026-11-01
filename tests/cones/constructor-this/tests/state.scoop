@@ -18,6 +18,7 @@ private class Counter(seed: Int) : CounterBase(seed) {
     val target: () -> Int = this::read
     val extended: Int = extendedSeed()
     val inherited: Int = super.initialValue()
+    val inheritedComputed: Int = this.doubledSeed
     val computed: Int get() = count * 2
     val eager: Int = computed
     val later: Int = count + 1
@@ -64,6 +65,7 @@ private class StateTest {
         val counter = Counter(3)
         assertEquals(13, counter.extended)
         assertEquals(3, counter.inherited)
+        assertEquals(6, counter.inheritedComputed)
         assertEquals(6, counter.eager)
         assertEquals(4, counter.readLater())
         assertEquals(6, counter.anonymous.read())

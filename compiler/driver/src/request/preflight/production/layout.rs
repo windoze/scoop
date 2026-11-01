@@ -289,7 +289,7 @@ pub(super) fn assemble(
     .map_err(Error::Codegen)?
     .with_optimization(request.optimization())
     .with_debug_info(request.debug_info());
-    let objects = scoop_codegen::emit_object_set_v2(&lir, registration, temporary_parent, backend)
+    let objects = scoop_codegen::emit_object_set_v2(&lir, registration, backend, request.jobs())
         .map_err(Error::Codegen)?;
     let generated = crate::generated_c::emit_c_bridge_object_set(
         &lir,
@@ -322,6 +322,7 @@ pub(super) fn assemble(
         .cloned()
         .collect::<Vec<_>>();
     crate::CrossConeLayoutArtifactMetadataInputV1::new(metadata, &source, &mir_section, &section)
+        .with_dependencies(&machine_dependencies)
         .with_test_directory(hir.test_directory)
         .with_native_objects(native_objects)
         .with_native_libraries(

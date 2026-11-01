@@ -40,6 +40,19 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` constructor `Bad` local `this` has non-GC-free type Bad",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 67,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 31
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
     "message": "value of non-GC-free type String is not allowed in `@NoGC` code",
     "notes": [],
     "origin": {
@@ -87,6 +100,19 @@
       "kind": "source",
       "path": "main.scoop",
       "start": 52
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Bad is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 67,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 31
     },
     "severity": "error"
   }

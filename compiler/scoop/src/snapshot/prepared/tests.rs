@@ -1,7 +1,6 @@
 // Prepared-graph fixtures use a POSIX shell compiler for protocol responses.
 #![cfg(unix)]
 
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
@@ -132,8 +131,7 @@ fn write_fake_compiler(path: &Path) {
         .map(|byte| format!("\\{:03o}", byte))
         .collect::<String>();
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(path, format!("#!/bin/sh\nprintf '{escaped}'\n")).unwrap();
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    crate::test_compiler::write(path, format!("#!/bin/sh\nprintf '{escaped}'\n").as_bytes());
 }
 
 fn request(root: &Path, workspace: &Path) -> BuildGraphRequest {

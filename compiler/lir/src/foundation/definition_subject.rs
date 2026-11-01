@@ -4,7 +4,7 @@ use super::{ConeLirFoundation, DefinitionPlanRecord};
 use scoop_identity::{
     CallableBodyKeyKind, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, OdrMemberDiscriminator as D, OdrMemberKey,
-    OdrMemberRole as R, StrongDefinitionEntity, StrongDefinitionRole as S,
+    OdrMemberRole as R, PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole as S,
 };
 
 impl ConeLirFoundation {
@@ -20,15 +20,30 @@ impl ConeLirFoundation {
             (
                 ObjectDefinitionPlanOwner::Odr { member },
                 ObjectDefinitionPlanRole::OdrMemberPrimary,
-            ) => self
-                .odr_callable_body(member)
-                .map(|body| (StrongDefinitionEntity::callable_body(body), S::CallableBody))
-                .or_else(|| {
-                    self.odr_member(member)
-                        .and_then(|record| member_subject(record.key()))
-                }),
+            ) => self.odr_definition_subject(member),
             _ => None,
         }
+    }
+
+    /// The primary symbol follows the member's actual typed subject, including ODR bodies.
+    pub fn odr_definition_symbol(
+        &self,
+        member: scoop_identity::OdrMemberId,
+    ) -> Option<PersistentSymbolKey> {
+        let (entity, role) = self.odr_definition_subject(member)?;
+        entity.primary_symbol_key(role)
+    }
+
+    fn odr_definition_subject(
+        &self,
+        member: scoop_identity::OdrMemberId,
+    ) -> Option<(StrongDefinitionEntity, S)> {
+        self.odr_callable_body(member)
+            .map(|body| (StrongDefinitionEntity::callable_body(body), S::CallableBody))
+            .or_else(|| {
+                self.odr_member(member)
+                    .and_then(|record| member_subject(record.key()))
+            })
     }
 
     pub(crate) fn definition_for(

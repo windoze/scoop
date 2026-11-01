@@ -227,18 +227,18 @@ fn actual_generic_library_emits_shared_odr_objects() {
         let objects = scoop_codegen::emit_object_set_v2(
             &lir,
             production.clone(),
-            sysroot.path(),
             scoop_codegen::ValidatedBackendProfile::from_selection(
                 target.lir_target_selection(),
                 target.c_bridge_toolchain().profile().contract(),
             )
             .unwrap(),
+            std::num::NonZeroUsize::MIN,
         )
         .unwrap();
         let mut actual_bodies = objects
-            .members()
+            .members
             .iter()
-            .filter_map(|member| match member.kind() {
+            .filter_map(|member| match member.kind {
                 scoop_codegen::EmittedConeObjectMemberKindV1::CallableBody { body, .. } => {
                     Some(body)
                 }
@@ -300,18 +300,18 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 ],
             };
             for &role in roles {
-                let changed = scoop_codegen::emit_object_set_v2(
+                let mut changed = scoop_codegen::emit_object_set_v2(
                     &lir,
                     production.clone(),
-                    sysroot.path(),
                     scoop_codegen::ValidatedBackendProfile::from_selection(
                         target.lir_target_selection(),
                         target.c_bridge_toolchain().profile().contract(),
                     )
                     .unwrap(),
+                    std::num::NonZeroUsize::MIN,
                 )
                 .unwrap();
-                let changed_body = objects::change_associated_atom(&changed, role);
+                let changed_body = objects::change_associated_atom(&mut changed, role);
                 let changed = objects::verify(
                     changed,
                     &generated,

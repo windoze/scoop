@@ -1,163 +1,11 @@
 use std::fmt;
 
 use scoop_identity::{
-    CapabilityIdError, CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId,
-    TargetProfileWireId,
+    CapabilityIdError, DecodedCapabilityId, NormalizedNativeSourcePath, NormalizedSourcePathError,
 };
 use scoop_wire::{Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use super::{
-    ExtensionRequirement, LogicalMemberKey, LogicalMemberKeyError, MemberStableKey, SlibMemberId,
-    SlibMemberRecord, SlibMemberRecordError, SlibMemberRole, WIRE_SCHEMA, validate_key_role,
-};
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedLogicalMemberKey(Vec<u8>);
-
-impl DecodedLogicalMemberKey {
-    fn validate(self) -> Result<LogicalMemberKey, LogicalMemberKeyError> {
-        LogicalMemberKey::new(self.0)
-    }
-}
-
-impl WireEncode for DecodedLogicalMemberKey {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.bytes(&self.0)
-    }
-}
-
-impl WireDecode for DecodedLogicalMemberKey {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.owned_bytes().map(Self)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DecodedMemberStableKey {
-    HirMetadata,
-    MirMetadata,
-    LirMetadata,
-    LinkObject {
-        verifier_capability: DecodedCapabilityId,
-        logical_key: DecodedLogicalMemberKey,
-    },
-    DiagnosticAttachment {
-        capability: DecodedCapabilityId,
-        logical_key: DecodedLogicalMemberKey,
-    },
-    ExtensionBlob {
-        capability: DecodedCapabilityId,
-        logical_key: DecodedLogicalMemberKey,
-    },
-}
-
-impl DecodedMemberStableKey {
-    fn validate(self) -> Result<MemberStableKey, MemberStableKeyValidationError> {
-        match self {
-            Self::HirMetadata => Ok(MemberStableKey::HirMetadata),
-            Self::MirMetadata => Ok(MemberStableKey::MirMetadata),
-            Self::LirMetadata => Ok(MemberStableKey::LirMetadata),
-            Self::LinkObject {
-                verifier_capability,
-                logical_key,
-            } => Ok(MemberStableKey::LinkObject {
-                verifier_capability: verifier_capability
-                    .validate()
-                    .map_err(MemberStableKeyValidationError::Capability)?,
-                logical_key: logical_key
-                    .validate()
-                    .map_err(MemberStableKeyValidationError::LogicalKey)?,
-            }),
-            Self::DiagnosticAttachment {
-                capability,
-                logical_key,
-            } => Ok(MemberStableKey::DiagnosticAttachment {
-                capability: capability
-                    .validate()
-                    .map_err(MemberStableKeyValidationError::Capability)?,
-                logical_key: logical_key
-                    .validate()
-                    .map_err(MemberStableKeyValidationError::LogicalKey)?,
-            }),
-            Self::ExtensionBlob {
-                capability,
-                logical_key,
-            } => Ok(MemberStableKey::ExtensionBlob {
-                capability: capability
-                    .validate()
-                    .map_err(MemberStableKeyValidationError::Capability)?,
-                logical_key: logical_key
-                    .validate()
-                    .map_err(MemberStableKeyValidationError::LogicalKey)?,
-            }),
-        }
-    }
-}
-
-impl WireEncode for DecodedMemberStableKey {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::HirMetadata => encode_empty_sum(encoder, 1),
-            Self::MirMetadata => encode_empty_sum(encoder, 2),
-            Self::LirMetadata => encode_empty_sum(encoder, 3),
-            Self::LinkObject {
-                verifier_capability,
-                logical_key,
-            } => encode_capability_key(encoder, 4, verifier_capability, logical_key),
-            Self::DiagnosticAttachment {
-                capability,
-                logical_key,
-            } => encode_capability_key(encoder, 5, capability, logical_key),
-            Self::ExtensionBlob {
-                capability,
-                logical_key,
-            } => encode_capability_key(encoder, 6, capability, logical_key),
-        }
-    }
-}
-
-impl WireDecode for DecodedMemberStableKey {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
-        let tag = decoder.field(0, Decoder::unsigned)?;
-        match tag {
-            1 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::HirMetadata)
-            }
-            2 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::MirMetadata)
-            }
-            3 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::LirMetadata)
-            }
-            4 => {
-                expect_sum_length(decoder, fields, 3)?;
-                Ok(Self::LinkObject {
-                    verifier_capability: decoder.field(1, DecodedCapabilityId::decode)?,
-                    logical_key: decoder.field(2, DecodedLogicalMemberKey::decode)?,
-                })
-            }
-            5 => {
-                expect_sum_length(decoder, fields, 3)?;
-                Ok(Self::DiagnosticAttachment {
-                    capability: decoder.field(1, DecodedCapabilityId::decode)?,
-                    logical_key: decoder.field(2, DecodedLogicalMemberKey::decode)?,
-                })
-            }
-            6 => {
-                expect_sum_length(decoder, fields, 3)?;
-                Ok(Self::ExtensionBlob {
-                    capability: decoder.field(1, DecodedCapabilityId::decode)?,
-                    logical_key: decoder.field(2, DecodedLogicalMemberKey::decode)?,
-                })
-            }
-            tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
-        }
-    }
-}
+use super::{ExtensionRequirement, SlibMemberId, SlibMemberRecord, SlibMemberRole, WIRE_SCHEMA};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedSlibMemberRole {
@@ -170,10 +18,10 @@ pub enum DecodedSlibMemberRole {
     LirMetadata {
         wire_schema: u32,
     },
-    LinkObject {
-        target_profile: DecodedCapabilityId,
-        object_format: DecodedCapabilityId,
-        verifier_capability: DecodedCapabilityId,
+    LinkObject,
+    ObjectDictionary,
+    NativeObject {
+        source: String,
     },
     DiagnosticAttachment {
         capability: DecodedCapabilityId,
@@ -199,34 +47,12 @@ impl DecodedSlibMemberRole {
                 validate_wire_schema(wire_schema)?;
                 Ok(SlibMemberRole::LirMetadata)
             }
-            Self::LinkObject {
-                target_profile,
-                object_format,
-                verifier_capability,
-            } => {
-                let target_profile = target_profile
-                    .validate()
-                    .map_err(SlibMemberRoleValidationError::Capability)
-                    .and_then(|capability| {
-                        TargetProfileWireId::refine(capability)
-                            .map_err(SlibMemberRoleValidationError::TargetProfile)
-                    })?;
-                let object_format = object_format
-                    .validate()
-                    .map_err(SlibMemberRoleValidationError::Capability)
-                    .and_then(|capability| {
-                        ObjectFormatId::refine(capability)
-                            .map_err(SlibMemberRoleValidationError::ObjectFormat)
-                    })?;
-                let verifier_capability = verifier_capability
-                    .validate()
-                    .map_err(SlibMemberRoleValidationError::Capability)?;
-                Ok(SlibMemberRole::LinkObject {
-                    target_profile,
-                    object_format,
-                    verifier_capability,
-                })
-            }
+            Self::LinkObject => Ok(SlibMemberRole::LinkObject),
+            Self::ObjectDictionary => Ok(SlibMemberRole::ObjectDictionary),
+            Self::NativeObject { source } => Ok(SlibMemberRole::NativeObject {
+                source: NormalizedNativeSourcePath::new(&source)
+                    .map_err(SlibMemberRoleValidationError::NativeSource)?,
+            }),
             Self::DiagnosticAttachment { capability } => Ok(SlibMemberRole::DiagnosticAttachment {
                 capability: capability
                     .validate()
@@ -262,19 +88,13 @@ impl WireEncode for DecodedSlibMemberRole {
             Self::HirMetadata { wire_schema } => encode_schema_role(encoder, 1, *wire_schema),
             Self::MirMetadata { wire_schema } => encode_schema_role(encoder, 2, *wire_schema),
             Self::LirMetadata { wire_schema } => encode_schema_role(encoder, 3, *wire_schema),
-            Self::LinkObject {
-                target_profile,
-                object_format,
-                verifier_capability,
-            } => {
-                encoder.map(4)?;
-                encode_tag(encoder, 4)?;
+            Self::LinkObject => encode_empty_sum(encoder, 4),
+            Self::ObjectDictionary => encode_empty_sum(encoder, 8),
+            Self::NativeObject { source } => {
+                encoder.map(2)?;
+                encode_tag(encoder, 7)?;
                 encoder.field(1)?;
-                target_profile.encode(encoder)?;
-                encoder.field(2)?;
-                object_format.encode(encoder)?;
-                encoder.field(3)?;
-                verifier_capability.encode(encoder)
+                encoder.text(source)
             }
             Self::DiagnosticAttachment { capability } => {
                 encoder.map(2)?;
@@ -321,11 +141,13 @@ impl WireDecode for DecodedSlibMemberRole {
                 })
             }
             4 => {
-                expect_sum_length(decoder, fields, 4)?;
-                Ok(Self::LinkObject {
-                    target_profile: decoder.field(1, DecodedCapabilityId::decode)?,
-                    object_format: decoder.field(2, DecodedCapabilityId::decode)?,
-                    verifier_capability: decoder.field(3, DecodedCapabilityId::decode)?,
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::LinkObject)
+            }
+            7 => {
+                expect_sum_length(decoder, fields, 2)?;
+                Ok(Self::NativeObject {
+                    source: decoder.field(1, Decoder::owned_text)?,
                 })
             }
             5 => {
@@ -341,21 +163,16 @@ impl WireDecode for DecodedSlibMemberRole {
                     required_for: decoder.field(2, Decoder::u32)?,
                 })
             }
+            8 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::ObjectDictionary)
+            }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct DecodedSlibMemberId([u8; 32]);
-
-impl WireEncode for DecodedSlibMemberId {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.bytes(&self.0)
-    }
-}
-
-impl WireDecode for DecodedSlibMemberId {
+impl WireDecode for SlibMemberId {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let bytes = decoder.bytes()?;
         let fixed = <&[u8; 32]>::try_from(bytes).map_err(|_| {
@@ -373,53 +190,30 @@ impl WireDecode for DecodedSlibMemberId {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedSlibMemberRecord {
-    id: DecodedSlibMemberId,
-    stable_key: DecodedMemberStableKey,
+    id: SlibMemberId,
     role: DecodedSlibMemberRole,
     byte_length: u64,
     sha256: Digest256,
 }
 
 impl DecodedSlibMemberRecord {
-    pub fn validate(
-        self,
-        cone: scoop_identity::ConeIdentity,
-    ) -> Result<SlibMemberRecord, SlibMemberRecordValidationError> {
-        let stable_key = self
-            .stable_key
-            .validate()
-            .map_err(SlibMemberRecordValidationError::StableKey)?;
-        let role = self
-            .role
-            .validate()
-            .map_err(SlibMemberRecordValidationError::Role)?;
-        validate_key_role(&stable_key, &role).map_err(SlibMemberRecordValidationError::KeyRole)?;
-
-        let expected = SlibMemberId::from_stable_key(cone, &stable_key)
-            .map_err(SlibMemberRecordValidationError::Hash)?;
-        if self.id.0 != *expected.as_array() {
-            return Err(SlibMemberRecordValidationError::IdMismatch {
-                expected,
-                actual: self.id.0,
-            });
-        }
+    pub fn validate(self) -> Result<SlibMemberRecord, SlibMemberRoleValidationError> {
         Ok(SlibMemberRecord {
-            id: expected,
-            stable_key,
-            role,
+            content: super::SlibMemberContent {
+                id: self.id,
+                role: self.role.validate()?,
+                sha256: self.sha256,
+            },
             byte_length: self.byte_length,
-            sha256: self.sha256,
         })
     }
 }
 
 impl WireEncode for DecodedSlibMemberRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.id.encode(encoder)?;
-        encoder.field(2)?;
-        self.stable_key.encode(encoder)?;
         encoder.field(3)?;
         self.role.encode(encoder)?;
         encoder.field(4)?;
@@ -431,10 +225,9 @@ impl WireEncode for DecodedSlibMemberRecord {
 
 impl WireDecode for DecodedSlibMemberRecord {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(5)?;
+        decoder.expect_map(4)?;
         Ok(Self {
-            id: decoder.field(1, DecodedSlibMemberId::decode)?,
-            stable_key: decoder.field(2, DecodedMemberStableKey::decode)?,
+            id: decoder.field(1, SlibMemberId::decode)?,
             role: decoder.field(3, DecodedSlibMemberRole::decode)?,
             byte_length: decoder.field(4, Decoder::unsigned)?,
             sha256: decoder.field(5, Digest256::decode)?,
@@ -443,28 +236,10 @@ impl WireDecode for DecodedSlibMemberRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MemberStableKeyValidationError {
-    Capability(CapabilityIdError),
-    LogicalKey(LogicalMemberKeyError),
-}
-
-impl fmt::Display for MemberStableKeyValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Capability(error) => error.fmt(formatter),
-            Self::LogicalKey(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for MemberStableKeyValidationError {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SlibMemberRoleValidationError {
     UnsupportedWireSchema { actual: u32 },
     Capability(CapabilityIdError),
-    TargetProfile(CapabilityRefinementError),
-    ObjectFormat(CapabilityRefinementError),
+    NativeSource(NormalizedSourcePathError),
     InvalidExtensionRequirement { bits: u32 },
 }
 
@@ -475,8 +250,7 @@ impl fmt::Display for SlibMemberRoleValidationError {
                 write!(formatter, "metadata wire schema must be 1, found {actual}")
             }
             Self::Capability(error) => error.fmt(formatter),
-            Self::TargetProfile(error) => write!(formatter, "invalid target profile: {error}"),
-            Self::ObjectFormat(error) => write!(formatter, "invalid object format: {error}"),
+            Self::NativeSource(error) => write!(formatter, "invalid native source path: {error}"),
             Self::InvalidExtensionRequirement { bits } => write!(
                 formatter,
                 "extension required_for must be 0 or Link (4), found {bits:#x}"
@@ -486,43 +260,6 @@ impl fmt::Display for SlibMemberRoleValidationError {
 }
 
 impl std::error::Error for SlibMemberRoleValidationError {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum SlibMemberRecordValidationError {
-    StableKey(MemberStableKeyValidationError),
-    Role(SlibMemberRoleValidationError),
-    KeyRole(SlibMemberRecordError),
-    Hash(scoop_wire::HashError),
-    Resource(WireError),
-    IdMismatch {
-        expected: SlibMemberId,
-        actual: [u8; 32],
-    },
-}
-
-impl fmt::Display for SlibMemberRecordValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::StableKey(error) => error.fmt(formatter),
-            Self::Role(error) => error.fmt(formatter),
-            Self::KeyRole(error) => error.fmt(formatter),
-            Self::Hash(error) => error.fmt(formatter),
-            Self::Resource(error) => error.fmt(formatter),
-            Self::IdMismatch { expected, actual } => {
-                write!(
-                    formatter,
-                    "member id does not match canonical key: expected {expected}, found "
-                )?;
-                for byte in actual {
-                    write!(formatter, "{byte:02x}")?;
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
-impl std::error::Error for SlibMemberRecordValidationError {}
 
 fn validate_wire_schema(wire_schema: u32) -> Result<(), SlibMemberRoleValidationError> {
     if u64::from(wire_schema) == WIRE_SCHEMA {
@@ -552,20 +289,6 @@ fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
 fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(1)?;
     encode_tag(encoder, tag)
-}
-
-fn encode_capability_key(
-    encoder: &mut Encoder,
-    tag: u64,
-    capability: &DecodedCapabilityId,
-    logical_key: &DecodedLogicalMemberKey,
-) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(3)?;
-    encode_tag(encoder, tag)?;
-    encoder.field(1)?;
-    capability.encode(encoder)?;
-    encoder.field(2)?;
-    logical_key.encode(encoder)
 }
 
 fn encode_schema_role(

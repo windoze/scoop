@@ -5,29 +5,30 @@ use super::*;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct MemberPosition {
     pub(crate) ordinal: u32,
-    pub(crate) header: u64,
+    pub(crate) offset: u64,
     pub(crate) length: u64,
-    pub(crate) compressed: bool,
+    pub(crate) encoding: MemberEncoding,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum MemberEncoding {
+    Stored,
+    Zstd,
+    Object,
 }
 
 impl MemberPosition {
-    pub(crate) fn name(self) -> Result<[u8; 9], ArchiveReadError> {
-        member_name(self.ordinal as usize).ok_or(ArchiveReadError::LengthOverflow)
-    }
-
     pub(crate) fn ordinal(self) -> ArchiveMemberOrdinal {
         ArchiveMemberOrdinal::Directory(self.ordinal)
     }
 
-    pub(crate) fn check_length(self, actual: usize) -> Result<(), ArchiveReadError> {
-        if actual as u64 != self.length {
-            return Err(ArchiveReadError::MemberLengthMismatch {
-                member: self.ordinal(),
-                declared: self.length,
-                actual: actual as u64,
-            });
-        }
-        Ok(())
+    pub(crate) fn range(self) -> Result<Range<usize>, ArchiveReadError> {
+        let start = usize::try_from(self.offset).map_err(|_| ArchiveReadError::LengthOverflow)?;
+        let length = usize::try_from(self.length).map_err(|_| ArchiveReadError::LengthOverflow)?;
+        let end = start
+            .checked_add(length)
+            .ok_or(ArchiveReadError::LengthOverflow)?;
+        Ok(start..end)
     }
 }
 
@@ -47,16 +48,19 @@ pub(crate) fn member_positions(
             record.id(),
             MemberPosition {
                 ordinal: u32::try_from(index).map_err(|_| ArchiveReadError::LengthOverflow)?,
-                header: cursor,
+                offset: cursor,
                 length: record.byte_length(),
-                compressed: record.role().is_compressed(),
+                encoding: if record.role().is_object() {
+                    MemberEncoding::Object
+                } else if record.role().is_compressed() {
+                    MemberEncoding::Zstd
+                } else {
+                    MemberEncoding::Stored
+                },
             },
         ));
         cursor = cursor
-            .checked_add(
-                encoded_member_length(record.byte_length())
-                    .ok_or(ArchiveReadError::LengthOverflow)?,
-            )
+            .checked_add(record.byte_length())
             .ok_or(ArchiveReadError::LengthOverflow)?;
     }
     Ok(positions)

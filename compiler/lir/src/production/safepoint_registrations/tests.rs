@@ -48,6 +48,39 @@ fn joins_every_semantic_site_to_its_registration_and_content_nodes() {
 }
 
 #[test]
+fn removed_safepoints_update_digest_lookup_and_retained_input_edges() {
+    let mut fixture = Fixture::new(FixtureOptions::default());
+    let removed = fixture.digests.nodes()[0].clone();
+    let retained = fixture.digests.nodes()[1].clone();
+    assert_eq!(removed.kind(), scoop_identity::DigestKind::StackmapRecord);
+    assert_eq!(retained.kind(), scoop_identity::DigestKind::StackmapRecord);
+    fixture
+        .digests
+        .remove_safepoint_records(&std::collections::BTreeSet::from([removed.id()]));
+
+    assert_eq!(fixture.digests.nodes().len(), 2);
+    assert_eq!(fixture.digests.node(removed.key()), None);
+    assert_eq!(fixture.digests.node(retained.key()), Some(&retained));
+    let image = fixture
+        .digests
+        .node(&DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE))
+        .unwrap();
+    assert_eq!(
+        image.direct_inputs(),
+        &[crate::DigestInputRefV1::from_node(&retained)]
+    );
+    fixture
+        .digests
+        .validate_against(&fixture.foundation)
+        .unwrap();
+    assert!(matches!(
+        fixture.build(),
+        Err(StrongSafepointRegistrationPlanBuildError::MissingDigestNode(key))
+            if &key == removed.key()
+    ));
+}
+
+#[test]
 fn rejects_foreign_semantics_before_using_any_registration_identity() {
     let fixture = Fixture::new(FixtureOptions {
         semantic_producer: ConeIdentity::CORE,

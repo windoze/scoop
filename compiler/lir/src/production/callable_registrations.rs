@@ -293,9 +293,7 @@ fn require_digest_node(
     key: DigestNodeKey,
 ) -> Result<&DigestNodeV1, StrongCallableRegistrationPlanBuildError> {
     digests
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &key)
+        .node(&key)
         .ok_or(StrongCallableRegistrationPlanBuildError::MissingDigestNode(
             key,
         ))

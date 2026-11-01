@@ -238,13 +238,8 @@ impl SlibDiagnostic for ArchiveReadError {
             Self::TruncatedHeader { member } | Self::TruncatedPayload { member } => {
                 archive_member_diagnostic(SlibErrorCode::ContainerTruncated, *member)
             }
-            Self::NonCanonicalHeader { member }
-            | Self::InvalidPadding { member }
-            | Self::Compression { member, .. } => {
+            Self::Compression { member, .. } => {
                 archive_member_diagnostic(SlibErrorCode::ContainerNonCanonical, *member)
-            }
-            Self::InvalidSize { member } | Self::MemberLengthMismatch { member, .. } => {
-                archive_member_diagnostic(SlibErrorCode::ContainerInvalidLength, *member)
             }
             Self::LengthOverflow => root_diagnostic(
                 SlibErrorCode::ContainerInvalidLength,
@@ -257,7 +252,6 @@ impl SlibDiagnostic for ArchiveReadError {
                     .index(u64::try_from(*second_index).unwrap_or(u64::MAX)),
             )
             .with_origin(SlibPrimaryOrigin::Manifest),
-            Self::Allocation(error) => error.diagnostic().with_origin(SlibPrimaryOrigin::Container),
         }
     }
 }
@@ -468,7 +462,9 @@ fn manifest_build_diagnostic(error: &BootstrapManifestError) -> SlibDiagnosticRe
             Some(SlibPrimaryOrigin::Member(*id)),
         ),
 
-        BootstrapManifestError::MissingMetadata { .. } => (
+        BootstrapManifestError::MissingMetadata { .. }
+        | BootstrapManifestError::DuplicateMetadata { .. }
+        | BootstrapManifestError::DuplicateObjectDictionary => (
             SlibErrorCode::DirectoryMismatch,
             WirePath::root().field(8),
             Some(SlibPrimaryOrigin::Manifest),

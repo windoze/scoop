@@ -17,7 +17,7 @@ pub struct DebugBinding {
     pub parameter: Option<std::num::NonZeroU32>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DebugStorage {
     Local(crate::LocalId),
     Parameter(u32),

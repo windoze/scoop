@@ -59,7 +59,13 @@ impl DynamicInputs {
 
     pub fn dump(&self, bindings: &BTreeMap<String, DynamicBinding>) -> String {
         let mut text = String::new();
-        for provider in self.providers.values() {
+        let mut providers = self.providers.values().collect::<Vec<_>>();
+        providers.sort_unstable_by(|left, right| {
+            left.install_name
+                .cmp(&right.install_name)
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        for provider in providers {
             // Keep the established basic plan compact; native bindings below
             // still record their actual SDK owner in the canonical encoding.
             if provider.install_name == scoop_toolchain::LIBSYSTEM_INSTALL_NAME {

@@ -1,0 +1,62 @@
+schema = 1
+name = "compiler-performance-lazy-object-cache"
+inputs = ["provider", "consumer"]
+tools = ["scoop", "scoopc"]
+tags = ["compiler-performance", "build-cache", "artifacts", "run", "compiler-correctness"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json"]
+library_args = ["${fixture}/provider", "--emit-slib", "--lockfile", "${work}/provider.lock", "--target-dir", "${work}/provider-target", "-o", "${work}/library.slib"]
+consumer_args = ["${work}/consumer", "--target-dir", "${work}/consumer-target"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/consumer", to = "${work}/consumer"}}]
+
+[[steps]]
+name = "library"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${options}"}, {each = "${library_args}"}, "--profile", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${library.result.observations.child_invocations.length}", equals = 1}, {glob = "${work}/cache/objects-v1/*", equals = []}]
+
+[[steps]]
+name = "library_warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${options}"}, {each = "${library_args}"}, "--profile", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${library_warm.result.observations.child_invocations}", equals = []}, {glob = "${work}/cache/objects-v1/*", equals = []}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${options}"}, {each = "${consumer_args}"}, "--profile", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${consumer.result.observations.child_invocations.length}", equals = 1}, {glob = "${work}/cache/objects-v1/*.o", not_equals = []}]
+
+[[steps]]
+name = "run"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "consumer_warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${options}"}, {each = "${consumer_args}"}, "--profile", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${consumer_warm.result.observations.child_invocations}", equals = []}, {actual = "${consumer_warm.result.link_plan_fingerprint}", equals = "${consumer.result.link_plan_fingerprint}"}]

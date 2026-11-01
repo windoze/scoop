@@ -7,9 +7,11 @@ use crate::elf_object::{ElfObject, error};
 
 mod personality;
 
-pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<(), CodegenError> {
-    let bytes = std::fs::read(path).map_err(error)?;
-    let mut output = ElfObject::read(&bytes)?;
+pub(super) fn materialize(
+    bytes: &mut Vec<u8>,
+    plan: &DefinitionSymbolPlanV1,
+) -> Result<(), CodegenError> {
+    let mut output = ElfObject::read(bytes)?;
     let primary_name = plan.primary_symbol().symbol();
     let primary = output
         .original_symbol(primary_name.as_str())
@@ -115,7 +117,8 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         output.associate_sections(primary_name.as_str(), &associated)?;
     }
     output.relocatable_metadata()?;
-    std::fs::write(path, output.finish()?).map_err(error)
+    *bytes = output.finish()?;
+    Ok(())
 }
 
 fn backend_role(name: &str) -> Option<DefinitionAtomRole> {

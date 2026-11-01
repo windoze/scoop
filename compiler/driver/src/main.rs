@@ -29,8 +29,8 @@ enum Command {
     #[command(name = "__child-protocol", hide = true)]
     ChildProtocol {
         version: u32,
-        #[arg(long)]
-        object_cache_dir: Option<PathBuf>,
+        #[arg(long, default_value_t = std::num::NonZeroUsize::MIN)]
+        jobs: std::num::NonZeroUsize,
     },
 }
 
@@ -56,6 +56,9 @@ struct BuildArgs {
     /// Native source debug information: none, line-tables or full.
     #[arg(long)]
     debug_info: Option<scoop_lir::DebugInfoLevel>,
+    /// Maximum concurrent compiler workers; defaults to the available parallelism.
+    #[arg(short = 'j', long)]
+    jobs: Option<std::num::NonZeroUsize>,
     /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
     #[arg(long)]
     sysroot: Option<PathBuf>,
@@ -123,6 +126,7 @@ fn main() -> ExitCode {
                 generators,
                 profile,
                 debug_info,
+                jobs,
             } = *args;
             build(
                 input,
@@ -145,14 +149,14 @@ fn main() -> ExitCode {
                         native_sysroot,
                     },
                 },
+                jobs.unwrap_or_else(|| {
+                    std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN)
+                }),
             )
         }
         Command::Check(args) => check::run(args),
         Command::MachineCapability => write_machine_capability(),
-        Command::ChildProtocol {
-            version,
-            object_cache_dir,
-        } => child_protocol::run(version, object_cache_dir),
+        Command::ChildProtocol { version, jobs } => child_protocol::run(version, jobs),
     };
     scoop_process::finish_interruption();
     result
@@ -188,6 +192,7 @@ fn build(
     out_slib: PathBuf,
     emit: Option<Emit>,
     options: scoopc::DirectBuildOptions,
+    jobs: std::num::NonZeroUsize,
 ) -> ExitCode {
     let emit = match emit {
         None => scoopc::StageDumpPolicy::None,
@@ -212,7 +217,7 @@ fn build(
         emit,
         options,
     ) {
-        Ok(request) => request,
+        Ok(request) => request.with_jobs(jobs),
         Err(error) => {
             eprintln!("error: {error}");
             return ExitCode::FAILURE;
@@ -338,7 +343,7 @@ mod tests {
             cli.command,
             Command::ChildProtocol {
                 version: 1,
-                object_cache_dir: None
+                jobs: std::num::NonZeroUsize::MIN,
             }
         ));
         assert!(Cli::try_parse_from(["scoopc", "__child-protocol"]).is_err());

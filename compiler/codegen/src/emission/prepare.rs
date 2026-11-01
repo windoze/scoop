@@ -126,24 +126,14 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     })
 }
 
-pub(super) fn write_object(
+pub(super) fn emit_object(
     machine: &TargetMachine,
     llvm: &LlvmModule<'_>,
-    output: &Path,
-) -> Result<(), CodegenError> {
+) -> Result<Vec<u8>, CodegenError> {
     machine
-        .write_to_file(llvm, FileType::Object, output)
-        .map_err(|error| CodegenError(format!("failed to write {}: {error}", output.display())))
-}
-
-pub(super) fn discard_invalid_object(output: &Path, error: CodegenError) -> CodegenError {
-    match std::fs::remove_file(output) {
-        Ok(()) => error,
-        Err(remove_error) => CodegenError(format!(
-            "{error}; also failed to discard invalid object {}: {remove_error}",
-            output.display()
-        )),
-    }
+        .write_to_memory_buffer(llvm, FileType::Object)
+        .map(|buffer| buffer.as_slice().to_vec())
+        .map_err(|error| CodegenError(format!("LLVM cannot emit a callable object: {error}")))
 }
 
 fn optimize_and_lower_module(

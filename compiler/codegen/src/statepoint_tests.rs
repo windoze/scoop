@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use inkwell::context::Context;
 use inkwell::memory_buffer::MemoryBuffer;

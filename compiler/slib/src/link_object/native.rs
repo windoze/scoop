@@ -3,8 +3,8 @@
 use scoop_identity::{CapabilityId, ConeIdentity, NormalizedNativeSourcePath};
 
 use crate::{
-    LogicalMemberKey, MemberStableKey, SlibMember, SlibMemberRecord, SlibMemberRecordError,
-    SlibMemberRole,
+    LogicalMemberKey, MemberStableKey, SlibMemberRecord, SlibMemberRecordError, SlibMemberRole,
+    UncompressedObjectMember,
 };
 
 pub fn native_link_object_capability() -> CapabilityId {
@@ -13,24 +13,24 @@ pub fn native_link_object_capability() -> CapabilityId {
 }
 
 pub fn is_native_link_object(record: &SlibMemberRecord) -> bool {
-    matches!(record.role(), SlibMemberRole::LinkObject { verifier_capability, .. }
-        if verifier_capability == &native_link_object_capability())
+    matches!(record.role(), SlibMemberRole::NativeObject { .. })
 }
 
 pub fn native_link_object_member(
     cone: ConeIdentity,
-    target: scoop_lir::LirTargetProfile,
     source: &NormalizedNativeSourcePath,
     bytes: Vec<u8>,
-) -> Result<SlibMember, SlibMemberRecordError> {
-    SlibMember::new(
+) -> Result<UncompressedObjectMember, SlibMemberRecordError> {
+    UncompressedObjectMember::new(
         cone,
         MemberStableKey::LinkObject {
             verifier_capability: native_link_object_capability(),
             logical_key: LogicalMemberKey::new(source.as_str().as_bytes().to_vec())
                 .expect("normalized source paths are nonempty"),
         },
-        super::link_object_role(target, native_link_object_capability()),
+        SlibMemberRole::NativeObject {
+            source: source.clone(),
+        },
         bytes,
     )
 }

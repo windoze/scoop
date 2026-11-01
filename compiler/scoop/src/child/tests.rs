@@ -1,4 +1,3 @@
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use scoop_protocol::{
@@ -98,8 +97,7 @@ fn fake_compiler_body(path: &Path, body: &str) {
     let script = format!(
         "#!/bin/sh\nif [ \"$1\" = \"__machine-capability\" ]; then\n  printf '{capability}'\n  exit 0\nfi\n{body}\n"
     );
-    std::fs::write(path, script).unwrap();
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    crate::test_compiler::write(path, script.as_bytes());
 }
 
 fn resolve_fake(path: &Path) -> ResolvedPairedScoopc {
@@ -155,6 +153,8 @@ fn production_runner_preserves_linux_tools_and_uses_private_scratch() {
         );
         let directory = tempfile::tempdir().unwrap();
         let compiler = directory.path().join("scoopc");
+        let scratch = directory.path().join("scratch");
+        std::fs::create_dir(&scratch).unwrap();
         let response = shell_bytes(&encode_response_frame(&success([8; 16])).unwrap());
         let gcc_check = if triple.ends_with("-musl") {
             "test -x \"$REALGCC\" || exit 9\n\"$REALGCC\" -dumpmachine >/dev/null || exit 9"
@@ -164,21 +164,14 @@ fn production_runner_preserves_linux_tools_and_uses_private_scratch() {
         fake_compiler_body(
             &compiler,
             &format!(
-                "/bin/cat >/dev/null\ntest -n \"$PATH\" || exit 9\n{gcc_check}\ncase \"$TMPDIR\" in \"$4\"/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\nprintf '{response}'"
+                "/bin/cat >/dev/null\ntest -n \"$PATH\" || exit 9\n{gcc_check}\ncase \"$TMPDIR\" in \"$PWD\"/scratch/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\nprintf '{response}'"
             ),
         );
-        let io = ChildIoPlan::new(directory.path().to_owned())
-            .with_toolchain(target.c_bridge_toolchain());
+        let io = ChildIoPlan::new(scratch.clone()).with_toolchain(target.c_bridge_toolchain());
         ProductionSingleConeCompilerRunner
             .invoke(&resolve_fake(&compiler), &request([8; 16]), &io)
             .unwrap();
-        assert!(!std::fs::read_dir(directory.path()).unwrap().any(|entry| {
-            entry
-                .unwrap()
-                .file_name()
-                .as_encoded_bytes()
-                .starts_with(b".scoop-child-")
-        }));
+        assert!(std::fs::read_dir(&scratch).unwrap().next().is_none());
     }
 }
 

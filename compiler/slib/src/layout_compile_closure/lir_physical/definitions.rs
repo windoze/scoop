@@ -18,20 +18,30 @@ impl<'input> LirDependenciesResolvedCrossConeLayoutClosure<'input> {
             let link = parts.link_sections.ok_or_else(|| {
                 SharedLirPhysicalError::DefinitionData("missing definition metadata".to_owned())
             })?;
-            ArtifactDefinitionData::read(link, parts.manifest, parts.identities, selection)
-                .map_err(SharedLirPhysicalError::DefinitionData)
+            ArtifactDefinitionData::read(
+                link,
+                parts.manifest,
+                parts.identities,
+                selection,
+                parts.lir_foundation,
+            )
+            .map_err(SharedLirPhysicalError::DefinitionData)
         })?;
-        let odr_definitions = merge_cross_cone_odr_definitions(
-            physical
-                .dependency_first()
-                .map(|artifact| artifact.identity_graph())
-                .zip(&symbols)
-                .map(|(identities, data)| (identities, data.defined_symbols(), data.odr_members())),
-        )
-        .map_err(|source| CrossConeLayoutLirPhysicalError {
-            provider: source.provider(),
-            source: Box::new(SharedLirPhysicalError::OdrDefinitions(Box::new(source))),
-        })?;
+        let odr_definitions =
+            merge_cross_cone_odr_definitions(physical.dependency_first().zip(&symbols).map(
+                |(artifact, data)| {
+                    (
+                        artifact.identity_graph(),
+                        data.defined_symbols(),
+                        data.odr_members(),
+                        artifact.manifest().direct_dependencies(),
+                    )
+                },
+            ))
+            .map_err(|source| CrossConeLayoutLirPhysicalError {
+                provider: source.provider(),
+                source: Box::new(SharedLirPhysicalError::OdrDefinitions(Box::new(source))),
+            })?;
         Ok(CrossConeLayoutArtifactData {
             physical,
             symbols,

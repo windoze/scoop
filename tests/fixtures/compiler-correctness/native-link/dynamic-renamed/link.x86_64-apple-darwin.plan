@@ -1,9 +1,9 @@
 link inputs: startup, cone/member order, runtime/object order, libSystem
 native library m23_facade requirement=a26c81af944423c759abcf8464424a47f73c4389447063b3ff133a4ebb0a44b2 input=$NATIVE_INPUT_0 origins=dev.programlink:renamed:0.1.0
-dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_leaf.dylib" imports=0
-  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
-dynamic provider $NATIVE_PROVIDER_2 install="@rpath/libm23_facade.dylib" imports=1
-  re-export "@rpath/libm23_leaf.dylib" -> $NATIVE_PROVIDER_0
-  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_facade.dylib" imports=1
+  re-export "@rpath/libm23_leaf.dylib" -> $NATIVE_PROVIDER_1
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_2
+dynamic provider $NATIVE_PROVIDER_1 install="@rpath/libm23_leaf.dylib" imports=0
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_2
 dynamic binding _m23_renamed -> "@rpath/libm23_facade.dylib" source="@rpath/libm23_leaf.dylib":_m23_add kind=Symbol weak=false
 rpath "$WORK/native"

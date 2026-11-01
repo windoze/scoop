@@ -59,9 +59,10 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObje
     let member = SlibMember::new(
         cone().identity(),
         member_plan.stable_key().clone(),
-        member_plan.role().clone(),
+        crate::SlibMemberRole::LinkObject,
         final_objects.objects()[0].bytes().to_vec(),
     )
     .unwrap();
-    crate::build_code_link_object_members_v2(final_objects, &[member.record().clone()]).unwrap()
+    crate::build_code_link_object_members_v2(final_objects, &[member.record().content().clone()])
+        .unwrap()
 }

@@ -1,30 +1,24 @@
+//! Link needs definition subjects and two trap symbols, not a complete symbol surface.
+
 use super::*;
 use crate::{LinkDataError, link_data::link_error};
-use scoop_identity::{PersistentIdResolver, ValidatedIdentityGraph};
 
-impl DecodedObjectSymbolSurfaceV1 {
+impl ConeLirFoundation {
     pub(crate) fn link_definitions(
         &self,
-        foundation: &ConeLirFoundation,
-        identities: &mut ValidatedIdentityGraph,
     ) -> Result<BTreeMap<ObjectDefinitionPlanId, crate::ProgramLinkDefinition>, LinkDataError> {
-        self.plans
+        self.definition_plans()
             .iter()
-            .map(|plan| {
-                let id = identities
-                    .resolve(plan.definition_plan)
-                    .map_err(link_error)?;
-                let owner = foundation
-                    .definition_plan(id)
-                    .ok_or_else(|| link_error(format!("missing definition {id}")))?
-                    .key()
-                    .owner();
+            .map(|record| {
+                let (entity, role) = self.definition_subject(record).ok_or_else(|| {
+                    link_error(format!("missing definition subject {}", record.id()))
+                })?;
                 Ok((
-                    id,
+                    record.id(),
                     crate::ProgramLinkDefinition {
-                        owner,
-                        entity: plan.owner.resolve(identities).map_err(link_error)?,
-                        role: plan.definition_role,
+                        owner: record.key().owner(),
+                        entity,
+                        role,
                     },
                 ))
             })
@@ -34,18 +28,23 @@ impl DecodedObjectSymbolSurfaceV1 {
     pub(crate) fn link_trap_symbols(
         &self,
         atoms: [ObjectDefinitionAtomId; 2],
-        identities: &mut ValidatedIdentityGraph,
     ) -> Result<[PersistentSymbolRequest; 2], LinkDataError> {
-        let symbol = |atom: ObjectDefinitionAtomId, identities: &mut ValidatedIdentityGraph| {
-            self.plans
-                .iter()
-                .flat_map(|plan| &plan.atom_boundaries)
-                .find(|boundary| boundary.atom.as_array() == atom.as_array())
-                .ok_or_else(|| link_error(format!("missing image trap atom {atom}")))?
-                .start
-                .resolve(identities)
-                .map_err(link_error)
+        let symbol = |atom| {
+            let atom = self
+                .definition_atom(atom)
+                .ok_or_else(|| link_error(format!("missing image trap atom {atom}")))?;
+            let plan = self.definition_plan(atom.key().plan()).ok_or_else(|| {
+                link_error(format!(
+                    "missing image trap definition {}",
+                    atom.key().plan()
+                ))
+            })?;
+            PersistentSymbolRequest::new(
+                PersistentSymbolKey::DefinitionBoundaryStart(atom.id()),
+                super::read::definition_linkage(plan.key().owner()),
+            )
+            .map_err(link_error)
         };
-        Ok([symbol(atoms[0], identities)?, symbol(atoms[1], identities)?])
+        Ok([symbol(atoms[0])?, symbol(atoms[1])?])
     }
 }

@@ -1,14 +1,17 @@
 //! Member assignments and symbol tables consumed by program linking.
 
 use super::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalScoopLirObjectUnitSetV1, CodeFingerprintDataV1,
-    CodeFingerprintDataV2, FinalCodeObjectSetV1, PlannedLinkObjectMemberSetV1,
-    StrongRelocationResolutionV1, VerifiedCurrentConeStrongRelocationClosureV1,
+    CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalOdrMemberDirectoryV1,
+    CanonicalScoopLirObjectUnitSetV1, CodeFingerprintDataV1, CodeFingerprintDataV2,
+    FinalCodeObjectSetV1, PlannedLinkObjectMemberSetV1, StrongRelocationResolutionV1,
+    VerifiedCurrentConeStrongRelocationClosureV1,
 };
 use crate::SlibMemberId;
 use scoop_wire::{Encoder, WireEncode};
 
+mod uses;
 mod wire;
+use uses::{SymbolUseGroup, SymbolUseTarget, symbol_uses};
 pub use wire::DecodedLinkIdentityClosureSectionV1;
 
 #[cfg(test)]
@@ -67,7 +70,8 @@ impl WireEncode for LinkObjectMaterializationV1 {
 pub struct LinkIdentityClosureSectionV1 {
     materializations: Vec<LinkObjectMaterializationV1>,
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
-    symbol_uses: Vec<SymbolUse>,
+    symbol_uses: Vec<SymbolUseGroup>,
+    odr_members: CanonicalOdrMemberDirectoryV1,
 }
 
 impl LinkIdentityClosureSectionV1 {
@@ -79,77 +83,87 @@ impl LinkIdentityClosureSectionV1 {
         &self.defined_symbols
     }
 
+    pub const fn odr_members(&self) -> &CanonicalOdrMemberDirectoryV1 {
+        &self.odr_members
+    }
+
+    pub(crate) fn remove_members(&mut self, removed: &std::collections::BTreeSet<SlibMemberId>) {
+        if removed.is_empty() {
+            return;
+        }
+        let defined = self.defined_symbols.without_members(removed);
+        self.materializations
+            .retain(|entry| !removed.contains(&entry.member()));
+        for group in &mut self.symbol_uses {
+            group.members.retain(|member| !removed.contains(member));
+            let symbol = group
+                .target
+                .symbol(&self.defined_symbols)
+                .expect("producer symbol uses refer to their original definition directory");
+            group.target = match defined
+                .owners()
+                .binary_search_by(|entry| entry.symbol().cmp(symbol))
+            {
+                Ok(index) => SymbolUseTarget::Defined(index as u64),
+                Err(_) => SymbolUseTarget::External(symbol.to_vec()),
+            };
+        }
+        self.symbol_uses.retain(|group| !group.members.is_empty());
+        self.odr_members.retain_registration_definitions(&defined);
+        self.defined_symbols = defined;
+    }
+
     pub fn from_verified_code(code: &CodeFingerprintDataV1) -> Self {
-        Self::from_code_parts(code.production().link_objects(), code.defined_symbols())
+        Self::from_code_parts(
+            code.production().link_objects(),
+            code.defined_symbols(),
+            code.production().projection().odr_members(),
+        )
     }
 
     pub fn from_verified_layout_code(code: &CodeFingerprintDataV2) -> Self {
-        Self::from_code_parts(code.production().link_objects(), code.defined_symbols())
+        Self::from_code_parts(
+            code.production().link_objects(),
+            code.defined_symbols(),
+            code.production().projection().odr_members(),
+        )
     }
 
     fn from_code_parts<D, C, I>(
         objects: &FinalCodeObjectSetV1<D, C, I>,
         defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        odr_members: &CanonicalOdrMemberDirectoryV1,
     ) -> Self
     where
         D: scoop_lir::StrongDescriptorReference,
         C: Clone,
     {
         let builtins = objects.final_objects().entry().builtins();
+        let defined_symbols = defined_symbols.published();
+        let symbol_uses = symbol_uses(builtins.strong_relocations(), &defined_symbols);
+        let mut odr_members = odr_members.clone();
+        odr_members.retain_registration_definitions(&defined_symbols);
         Self {
             materializations: materializations(builtins.member_plan()),
-            defined_symbols: defined_symbols.published(),
-            symbol_uses: symbol_uses(builtins.strong_relocations()),
+            defined_symbols,
+            symbol_uses,
+            odr_members,
         }
     }
 }
 
 impl WireEncode for LinkIdentityClosureSectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         encode_array(encoder, &self.materializations)?;
         encoder.field(4)?;
         self.defined_symbols.encode(encoder)?;
         encoder.field(5)?;
-        encode_array(encoder, &self.symbol_uses)
+        encode_array(encoder, &self.symbol_uses)?;
+        encoder.field(6)?;
+        self.odr_members.encode(encoder)
     }
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct SymbolUse {
-    member: SlibMemberId,
-    symbol: Vec<u8>,
-}
-
-impl WireEncode for SymbolUse {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.member.encode(encoder)?;
-        encoder.field(2)?;
-        encoder.bytes(&self.symbol)
-    }
-}
-
-fn symbol_uses(relocations: &VerifiedCurrentConeStrongRelocationClosureV1) -> Vec<SymbolUse> {
-    let mut uses = relocations
-        .bindings()
-        .iter()
-        .filter(|binding| {
-            !matches!(
-                binding.resolution(),
-                StrongRelocationResolutionV1::ObjectLocalStrong { .. }
-            )
-        })
-        .map(|binding| SymbolUse {
-            member: binding.source_member(),
-            symbol: binding.symbol().to_vec(),
-        })
-        .collect::<Vec<_>>();
-    uses.sort_unstable();
-    uses.dedup();
-    uses
 }
 
 fn materializations(plan: &PlannedLinkObjectMemberSetV1) -> Vec<LinkObjectMaterializationV1> {

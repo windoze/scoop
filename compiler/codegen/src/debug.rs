@@ -1,7 +1,7 @@
 //! Standard DWARF observations. This module never reconstructs source facts.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -178,7 +178,7 @@ impl<'a, 'ctx> DebugContext<'a, 'ctx> {
             lexical_scopes: HashMap::new(),
             inline_functions: HashMap::new(),
             locations: HashMap::new(),
-            variables: HashMap::new(),
+            variables: BTreeMap::new(),
             variable_definitions: HashMap::new(),
         })
     }
@@ -195,7 +195,7 @@ pub(crate) struct FunctionDebug<'a, 'ctx> {
     lexical_scopes: HashMap<(usize, Arc<DebugScope>), DIScope<'ctx>>,
     inline_functions: HashMap<Arc<DebugInlineSite>, DIScope<'ctx>>,
     locations: HashMap<Arc<DebugLocation>, DILocation<'ctx>>,
-    variables: HashMap<scoop_lir::DebugStorage, Vec<Variable<'ctx>>>,
+    variables: BTreeMap<scoop_lir::DebugStorage, Vec<Variable<'ctx>>>,
     variable_definitions: HashMap<
         (
             Arc<scoop_source::DebugDeclaration>,

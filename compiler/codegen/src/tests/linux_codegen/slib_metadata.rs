@@ -14,10 +14,10 @@ fn elf_static_immortal_and_lazy_initialization_registrations() {
             directory.path(),
         );
         let builtins = fixture.builtins(&fixture.objects);
-        let production = fixture.emitted.production().registration_production();
+        let production = fixture.emitted.production.registration_production();
         let immortals = compute_strong_immortal_object_fingerprints_v1(
             production.immortal_objects().clone(),
-            fixture.emitted.production().canonical_shape_definitions(),
+            fixture.emitted.production.canonical_shape_definitions(),
         )
         .expect("ELF immortal String registration ABIs");
         assert_eq!(immortals.fingerprints().len(), 2);
@@ -71,7 +71,7 @@ fn check_storage_records(fixture: &SlibObjects) {
     let builtins = fixture.builtins(&fixture.objects);
     let data = fixture
         .emitted
-        .production()
+        .production
         .registration_production()
         .static_storages()
         .clone();

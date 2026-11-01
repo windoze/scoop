@@ -1,0 +1,38 @@
+schema = 1
+name = "debug-managed-artifact-determinism"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoopc"]
+requires_target_execution = false
+tags = ["debug-info", "artifacts", "compiler-correctness"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[vars]
+options = ["${root}", "--sysroot", "${sysroot}", "--direct-slib", "${sysroot}/lib/${target}/scoop.std.slib", "--debug-info", "full", "--out-slib", "${work}/program.slib"]
+
+[[steps]]
+name = "first"
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}", "--jobs", "1"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save"
+files = [{copy = {from = "${work}/program.slib", to = "${work}/first.slib"}}]
+
+[[steps]]
+name = "second"
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}", "--jobs", "4"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [{file = "${work}/program.slib", same_as = "${work}/first.slib"}]
+
+[[steps]]
+name = "third"
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}", "--jobs", "2"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [{file = "${work}/program.slib", same_as = "${work}/first.slib"}]

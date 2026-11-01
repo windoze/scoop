@@ -11,18 +11,5 @@
       "start": 133
     },
     "severity": "error"
-  },
-  {
-    "code": "SCOOPC_HIR_ERROR",
-    "message": "unknown function `function`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
-    "notes": [],
-    "origin": {
-      "cone": "65561595e43194c433b4b3ba930432871381b3adbb783e8891558cde4ed94be7",
-      "end": 167,
-      "kind": "source",
-      "path": "src/main.scoop",
-      "start": 159
-    },
-    "severity": "error"
   }
 ]

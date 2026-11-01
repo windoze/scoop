@@ -59,7 +59,7 @@ impl DecodedConeProductionSectionV2 {
         layouts: &[&CanonicalExactLayoutExportsV1],
         dependencies: &[&CompileProduction],
     ) -> Result<CompileProduction, LinkDataError> {
-        let definitions = self.canonical_definitions.read(foundation, identities)?;
+        let definitions = ObjectSymbolSurfaceV1::read_foundation(foundation)?;
         let (static_storages, initialization) = self.registration_production.read_compile(
             foundation,
             identities,
