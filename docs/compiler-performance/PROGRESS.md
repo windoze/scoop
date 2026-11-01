@@ -2,7 +2,7 @@
 
 开始日期：2026-11-01。源码基线 `427ef37cccc67ef4b95942ef31ea7c51ec73410c`。先测量实际编译与当前产物，再按收益安排实施；不降低语言检查、生成代码的优化等级、GC／ABI 正确性或调试能力。每轮完成后更新本文、清理无用临时产物、提交并推送，再合并 `origin/main`。
 
-按最新安排，`.slib` 尺寸与编译速度已确认的大项优化均已落地，本次完成统一验收后收尾，不再展开小幅优化。编译速度优先处理了影响大且 debug／release 共有的路径；各轮只做必要的定向验证，阶段末每目标执行一次全量，发现的已有错误一并修复后定向闭合。
+`.slib` 尺寸与编译速度已确认的大项优化均已落地，七目标统一验收与发现问题的修复均已完成，本次按用户要求收尾。编译速度优先处理了影响大且 debug／release 共有的路径；各轮只做必要的定向验证，阶段末覆盖每个目标的完整集合，已有错误修复后只复测相关项。
 
 已有工作见[编译性能修复](../COMPILER-PERFORMANCE.md)和[存储精简与压缩](../slib-storage/DESIGN.md)。本任务从这些优化之后的当前版本继续，不将过去的收益再次计入。
 
@@ -425,18 +425,17 @@ Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl、Windows M
 
 原始测量与七目标报告保存在仓库外。配对构建缓存、临时消费者源码、重复产物、退役基线工具及已完成的定向 fixture 工作目录和缓存已清理；保留本轮五个工具用于阶段末验收。按用户最新要求，本次以已确认有显著收益的大项收尾，接下来完成统一验收并修复发现的问题。
 
-## 编译速度阶段验收（进行中）
+## 编译速度阶段验收（已完成）
 
 Linux 完整 release workspace 的 105 个测试组首次为 6,383 项通过、1 项失败，失败项为 `child::tests::production_runner_preserves_linux_tools_and_uses_private_scratch`。测试仍把 child 的第 4 个参数当成临时目录，第十五轮精简协议参数后该位置已是 jobs 数值。测试现按实际 `TMPDIR` 和独立指定的 scratch 根检查路径，保留 GNU／musl 工具环境、真实调用、目录存在与结束清理检查。macOS、Linux 的格式与 release workspace all-targets Clippy 通过；Linux 原失败用例的两个目标分支定向复测通过，未重跑完整 workspace。fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 27 项通过、5 项平台条件跳过。Linux GNU／musl 的完整 CLI 验收及其失败项闭合现已完成。
 
-
-macOS 完整 release workspace 的 105 个测试组共 6,353 项通过，无失败或忽略；fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 26 项通过、6 项平台条件跳过。CLI 均使用各宿主冻结的最终五个工具，每目标只执行一次全量，原始失败记录保留，修复后只复测相关项。
+macOS 完整 release workspace 的 105 个测试组共 6,353 项通过，无失败或忽略；fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 26 项通过、6 项平台条件跳过。CLI 均使用各宿主冻结的最终五个工具，各目标完整集合均有逐项结果，原始失败记录保留，修复后只复测相关项。
 
 Windows 完整 release workspace 原始汇总为 106 个测试组、6,229 项通过、零失败，包含嵌套子进程结果。两个标记 ignored 的子进程入口由父测试实际执行，三项过滤来自该次子进程的入口选择；没有排除正常测试。fixture runner 规则为 78 项通过、3 项平台条件跳过，构建脚本为 23 项通过、9 项平台条件跳过。同步本阶段收尾修复后，Windows 格式检查、release workspace all-targets Clippy 和 61 项包管理器测试均通过，包含新增的三个真实 HTTP 回归测试。最终五个 CLI 已重新冻结。按用户要求，MinGW UCRT 与 MSVC 先以每目标 2 个 fixture worker 并行验收；UCRT 完成后，MSVC 剩余用例提高到 8 个 worker。本阶段只验证正确性，不将调度变化计为编译提速。
 
 MinGW MSVCRT、MinGW UCRT 两目标的首轮完整 CLI 均覆盖 4,322 个 fixture：每目标 3,444 项通过、878 项平台不适用、零失败，各有 3,475 个 variant、9,730 次进程调用和 1 项 stage／plan golden 检查。完整报告包含实际编译和运行；五工具版本及已有长路径修复相关用例均通过，不需要复跑。878 项不适用来自 fixture 的既有平台条件，未计入通过数。`constructor-this` Cone 在 MSVCRT、MinGW UCRT、MSVC 各有 10 项真实行为测试通过。
 
-MSVC 调整并发前正常保存了完整的逐项结果：2,331 项通过、878 项平台不适用，尚未完成的 1,113 项标记为 interrupted。仓库外的一次性脚本保留这些结果，以原运行器和相同源码、冻结工具、sysroot 及共享缓存按 8 路并发接续未完成项；原报告、原日志和接续清单分别保留。未重跑已通过用例，也没有修改 fixture 规则或断言。MSVC 的剩余验收继续执行。
+MSVC 调整并发前正常保存了完整的逐项结果：2,331 项通过、878 项平台不适用，尚未完成的 1,113 项标记为 interrupted。仓库外的一次性脚本保留这些结果，以原运行器和相同源码、冻结工具、sysroot 及共享缓存按 8 路并发接续未完成项，1,113 项全部通过。最终完整集合为 3,444 项通过、878 项平台不适用、零失败，共 3,475 个 variant、9,730 次进程调用和 1 项 stage／plan golden 检查。原报告、原日志、接续清单与接续结果分别保留，合并时逐项核对覆盖和结果；未遗漏用例或复跑已通过项，fixture 规则与断言均保持原合同。
 
 Darwin AArch64 首轮完整 CLI 为 4,290 项通过、25 项平台不适用、8 项失败，共 4,514 个 variant、13,391 次进程调用。已逐项闭合这些失败：
 
@@ -445,9 +444,9 @@ Darwin AArch64 首轮完整 CLI 为 4,290 项通过、25 项平台不适用、8 
 - `object-files` 改为检查库发布不预填充对象缓存，保留真实源码变更、选中对象提取、重复链接不改写文件和程序结果检查。删除人为破坏对象缓存后的恢复验收；实现规范的链接章节也同步去掉遗漏的生产期预填充描述，与第十五轮及当前实现一致。
 - macOS 验收解释器补装仓库 `tests/requirements-dev.txt` 已固定的 `cbor2==6.1.5`，闭合 deployment 检查的环境缺项，没有增加项目依赖。
 
-修复经过 Python 格式与 lint、TOML 解析及差异检查；两组定向 CLI 共 9 项、10 个 variant、37 次进程调用全部通过，迁移后的构造 Cone 10 项真实行为测试全部通过。原始全量与复测日志、报告保存在仓库外；已完成的 Darwin AArch64 fixture 工作目录清理后，继续其余目标验收。
+修复经过 Python 格式与 lint、TOML 解析及差异检查；两组定向 CLI 共 9 项、10 个 variant、37 次进程调用全部通过，迁移后的构造 Cone 10 项真实行为测试全部通过。原始全量与复测日志、报告保存在仓库外；已完成的 Darwin AArch64 fixture 工作目录已经清理。
 
-Linux GNU 首轮完整 CLI 为 4,273 项通过、43 项平台不适用、7 项失败，共 4,494 个 variant、13,241 次进程调用。七项均为上述构造语义、四个 GC 用例和对象缓存测试问题；修复后六个保留用例、6 个 variant、28 次进程调用全部通过。迁移后的 `constructor-this` Cone 在 GNU、musl 及两种 Darwin 架构各有 10 项真实行为测试通过。GNU 全量与复测工作目录已经清理，保留共享缓存供 musl 验收使用。
+Linux GNU 首轮完整 CLI 为 4,273 项通过、43 项平台不适用、7 项失败，共 4,494 个 variant、13,241 次进程调用。七项均为上述构造语义、四个 GC 用例和对象缓存测试问题；修复后六个保留用例、6 个 variant、28 次进程调用全部通过。迁移后的 `constructor-this` Cone 在 GNU、musl 及两种 Darwin 架构各有 10 项真实行为测试通过。GNU 与 musl 的全量、复测工作目录和验证缓存均已清理。
 
 Darwin x86_64 首轮完整 CLI 为 4,296 项通过、25 项平台不适用、1 项失败，共 4,520 个 variant、13,408 次进程调用。唯一失败为 `terminal-input`：同一个已生成程序在 Rosetta 下重复运行 12 次，有 6 次在 full GC 后漏掉一次性 `SIGWINCH` 处理器调用。未删除 `gcCollect()`、信号断言或 Rosetta 覆盖。
 
@@ -459,15 +458,17 @@ Linux musl 首轮完整 CLI 为 4,275 项通过、46 项平台不适用、1 项�
 
 注册表 JSON 与归档 GET 共用一个局部处理函数：仅在完整响应头到达前遇到 EOF、连接重置或断管时，用新连接重试一次。普通连接继续复用；第二次失败、HTTP 状态错误和正文截断照常报告，未增加依赖、重新求解或缓存命中时的网络请求。新增三项真实 TCP 测试分别验证关闭时序恢复、只重试一次，以及 HTTP 错误／截断正文不重试。macOS、Linux 的格式检查、release workspace all-targets Clippy 和各 62 项包管理器测试通过。两种 Darwin 与 GNU／musl 的静态注册表消费及五工具版本检查共八项定向 CLI 全部通过；musl 又用三个独立目录重复完整下载／构建／锁定缓存流程，均通过。
 
-原始全量报告、失败日志、独立复现及定向复测记录保留在仓库外。已经退役的尺寸／速度对照工具、重复库和缓存清理约 20.5 GiB；Darwin 验收及诊断工作目录在修复完成后清理，保留 SDK、配套 sysroot 与后续验收所需工具。 Linux 全量、定向复测及退役基线目录也已清理；LLVM 安装保留，已不再使用的 LLVM／unwind 构建目录与源码压缩包删除。四个非 Windows 目标的全量失败均已闭合，Windows 验收继续进行。
+原始全量报告、失败日志、独立复现及定向复测记录保留在仓库外。四个非 Windows 目标首轮全量的 17 项失败均已闭合，三个 Windows 目标的完整集合全部通过；七目标没有剩余失败，`constructor-this` Cone 合计 70 项真实行为测试通过。
+
+macOS 已清理约 20.5 GiB 退役尺寸／速度对照工具、重复库和缓存，以及后续 Darwin 验收和诊断工作目录。Linux 全量、定向复测、退役基线目录及不再使用的 LLVM／unwind 构建目录和源码压缩包均已清理。Windows 已清理旧尺寸基线、旧工具、共享验证缓存、全部全量／续跑／构造工作目录和临时控制试验；一次性并行协调文件撤下，外部验收脚本恢复普通入口。三宿主保留可用 LLVM SDK、当前 CLI 和所需终端工具，供开发构建使用。
 
 ## 后续优先级
 
 尺寸优化按用户补充要求，优先精简结构、删除不必要或重复的信息；压缩只作为最后的补充，且不采用 CPU／内存消耗过大的算法。
 
-1. 尺寸阶段已收尾，编译速度阶段已落地 Scoop 对象内存交接、独立 LLVM Context 的 callable 并行发射、链接选中后的对象按需落盘、production digest 查询索引和元数据分区并行化，并修复实际遇到的调试信息、压缩、Windows 路径及 LLVM Context 生命周期错误。按用户最新要求，完成七目标统一验收和发现问题的修复后结束本次任务；两个 MinGW 目标此前尚未执行的全量 CLI 一并完成。依赖读取与链接准备的后续研究，以及下列较小的尺寸候选，留待后续优化。
+1. 尺寸阶段已收尾，编译速度阶段已落地 Scoop 对象内存交接、独立 LLVM Context 的 callable 并行发射、链接选中后的对象按需落盘、production digest 查询索引和元数据分区并行化，并修复实际遇到的调试信息、压缩、Windows 路径及 LLVM Context 生命周期错误。七目标统一验收和发现问题的修复均已完成，包括两个 MinGW 目标的完整 CLI，本次按用户要求结束。依赖读取与链接准备的后续研究，以及下列较小的尺寸候选，留待后续优化。
 2. 当前完整 29 库的 HIR／MIR／LIR 字符串表投影仅省约 1.05～1.06 MiB，其中 LIR 约 0.04～0.08 MiB。注册记录 ABI 去掉重复 group／member hash 输入的投影约省 1.93 MiB，该估算尚保留旧索引，仅用于候选排序。跨三层 metadata 的重复 ID 原始字节上限为 7.03 MiB，尚未扣映射开销；全局 union 会让只请求 HIR 的读取载入大量 LIR 专用 ID，先保留阶段局部读取。这些候选后置。manifest 的全量 ID 表此前反而增加约 2.10 MiB，不采用。
 
 已排除直接复用 LLVM 22.1 的对象发射 pass manager：即使 AsmPrinter／MCStreamer／MachineModuleInfo 有逐模块收尾，带 GC statepoint 与异常展开的第二个函数模块仍残留前一模块的栈映射记录；仅数据流水线在 COFF debug → 无 debug 切换时也残留字符串表空间。独立的连续模块字节对照发现两者，实验实现均已撤下，未进入生产。本轮仅补齐数据发射入口自身的 LLVM pass 注册，并将测试顺序调整为先调用数据入口，避免测试依赖完整代码生成的先行初始化。格式检查、workspace all-targets Clippy 和七目标两配置的数据对象对照通过；不为撤下的实验记录性能收益。
 
-本机原始命令、采样、逐轮计时和验收日志保留在仓库外的 `/Volumes/Data/home/chenxu/scoop-performance-results/compiler-20261101`；Linux 日志在 `~/repos/scoop-work/compiler-20261101`。工作缓存与对照二进制暂放本仓库 `tmp/compile-speed-20261101`，只保留下一轮实际需要的内容。
+本机原始命令、采样、逐轮计时和验收日志保留在仓库外的 `/Volumes/Data/home/chenxu/scoop-performance-results/compiler-20261101`；Linux 日志在 `~/repos/scoop-work/compiler-20261101`，Windows 日志在 `E:\scoop-work\compiler-20261101`。七目标最终验收汇总为仓库外的 `speed-phase-final-closure.json`；临时目录 `tmp/compile-speed-20261101` 中只保留上述 SDK 与当前工具。
