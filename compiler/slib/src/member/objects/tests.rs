@@ -37,7 +37,15 @@ fn directory(members: &[SlibMember]) -> Vec<SlibMemberRecord> {
 
 #[test]
 fn trained_batch_is_deterministic_and_preserves_every_object() {
-    let objects = samples("first");
+    let mut objects = samples("first");
+    // Cover attached dictionaries, copied match tables, and large inputs that
+    // reload the dictionary with different compression parameters.
+    let large = objects
+        .iter()
+        .flat_map(|object| object.payload.iter().copied())
+        .collect::<Vec<_>>();
+    objects.push(object(96, large[..192 * 1024].to_vec()));
+    objects.push(object(97, large));
     let expected = objects
         .iter()
         .map(|object| (object.content.id(), object.payload.clone()))

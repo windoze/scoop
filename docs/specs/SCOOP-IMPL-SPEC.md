@@ -671,7 +671,7 @@ writer 按上述目录与固定头规则生成容器。普通 reader 根据目�
 
 Manifest、三层 metadata 和 DiagnosticAttachment 各自使用单个、无字典且带原始长度的 Zstandard frame；LinkObject／NativeObject 使用单个带原始长度的 frame，可共用本归档唯一的 ObjectDictionary。writer 继续使用标准 compression level `3`，不引入高压缩等级或压缩线程池。ExtensionBlob 与 ObjectDictionary 保存原始 bytes；字典的 stable key 与 role 均为无附加字段的 tag 8，成员身份由 ConeIdentity 和该 key 生成。目录边界检查至多一个字典成员，字典不作为机器对象或 Code contribution。
 
-生产端先完成对象内容摘要、Code 与 ODR 选择，再对保留对象训练一次字典并批量压缩，不先压缩再解压重编码。实现按成员 ID 顺序均匀选取至多 2,048 个样本，每个取前 4 KiB，样本总量不超过 8 MiB；样本不足 64 个或 256 KiB 时使用无字典 frame，训练不适用时同样退回普通 frame。字典上限为 64 KiB，压缩上下文在整批对象间复用。这些阈值只决定本地编码策略，不影响合法程序和格式的接受范围。
+生产端先完成对象内容摘要、Code 与 ODR 选择，再对保留对象训练一次字典并批量压缩，不先压缩再解压重编码。实现按成员 ID 顺序均匀选取至多 2,048 个样本，每个取前 4 KiB，样本总量不超过 8 MiB；样本不足 64 个或 256 KiB 时使用无字典 frame，训练不适用时同样退回普通 frame。字典上限为 64 KiB；有字典时先建立独立拥有字典内容的预编译字典，再与压缩上下文一起在整批对象间复用。相同原生内容和字典产生相同 frame，不受输入缓冲区与字典在内存中是否相邻影响。这些阈值只决定本地编码策略，不影响合法程序和格式的接受范围。
 
 成员 record 的 byte_length 总是实际存储长度；LinkObject／NativeObject 的 sha256 是解压后的原生对象 SHA-256，其余角色为实际存储 bytes 的 SHA-256，不另存第二份摘要。对象缓存使用这一原生内容摘要定位，跨字典复用；成员 ID、语言身份和三层语义仍由既有逻辑内容确定。生产端以独立的完整内容记录表示尚未压缩的对象，只有得到实际 frame 后才构造物理目录记录，不能把同一个长度字段先当原生长度再当存储长度。
 

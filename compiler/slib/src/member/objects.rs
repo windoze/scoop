@@ -50,9 +50,19 @@ pub(crate) fn encode_object_members(
 ) -> Result<Vec<SlibMember>, SlibMemberRecordError> {
     objects.sort_unstable_by_key(|object| object.content.id());
     let dictionary = train_dictionary(&objects);
-    let mut compressor = zstd::bulk::Compressor::with_dictionary(3, &dictionary)
+    // Own the prepared dictionary: a CCtx's raw dictionary copy can become
+    // adjacent to an input allocation, changing zstd's match-finding mode.
+    let prepared = (!dictionary.is_empty())
+        .then(|| zstd::dict::EncoderDictionary::try_copy(&dictionary, 3))
+        .transpose()
         .map_err(crate::CompressionError::from)
         .map_err(SlibMemberRecordError::Compression)?;
+    let mut compressor = match &prepared {
+        Some(dictionary) => zstd::bulk::Compressor::with_prepared_dictionary(dictionary),
+        None => zstd::bulk::Compressor::new(3),
+    }
+    .map_err(crate::CompressionError::from)
+    .map_err(SlibMemberRecordError::Compression)?;
     let mut members = Vec::with_capacity(objects.len() + usize::from(!dictionary.is_empty()));
     for object in objects {
         members.push(object.encode(&mut compressor)?);
