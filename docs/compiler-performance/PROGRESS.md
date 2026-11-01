@@ -427,7 +427,7 @@ Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl、Windows M
 
 ## 编译速度阶段验收（进行中）
 
-Linux 完整 release workspace 已执行结束，唯一失败为 `child::tests::production_runner_preserves_linux_tools_and_uses_private_scratch`：测试仍把 child 的第 4 个参数当成临时目录，第十五轮精简协议参数后该位置已是 jobs 数值。fixture runner 与构建脚本的规则测试均通过；该旧测试假设待修正并定向闭合。完整 CLI 尚未启动。
+Linux 完整 release workspace 的 105 个测试组首次为 6,383 项通过、1 项失败，失败项为 `child::tests::production_runner_preserves_linux_tools_and_uses_private_scratch`。测试仍把 child 的第 4 个参数当成临时目录，第十五轮精简协议参数后该位置已是 jobs 数值。测试现按实际 `TMPDIR` 和独立指定的 scratch 根检查路径，保留 GNU／musl 工具环境、真实调用、目录存在与结束清理检查。macOS、Linux 的格式与 release workspace all-targets Clippy 通过；Linux 原失败用例的两个目标分支定向复测通过，未重跑完整 workspace。fixture runner 规则为 77 项通过、4 项平台条件跳过，构建脚本为 27 项通过、5 项平台条件跳过。完整 CLI 尚未启动。
 
 ## 后续优先级
 

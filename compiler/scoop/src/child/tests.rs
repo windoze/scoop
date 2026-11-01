@@ -153,6 +153,8 @@ fn production_runner_preserves_linux_tools_and_uses_private_scratch() {
         );
         let directory = tempfile::tempdir().unwrap();
         let compiler = directory.path().join("scoopc");
+        let scratch = directory.path().join("scratch");
+        std::fs::create_dir(&scratch).unwrap();
         let response = shell_bytes(&encode_response_frame(&success([8; 16])).unwrap());
         let gcc_check = if triple.ends_with("-musl") {
             "test -x \"$REALGCC\" || exit 9\n\"$REALGCC\" -dumpmachine >/dev/null || exit 9"
@@ -162,21 +164,14 @@ fn production_runner_preserves_linux_tools_and_uses_private_scratch() {
         fake_compiler_body(
             &compiler,
             &format!(
-                "/bin/cat >/dev/null\ntest -n \"$PATH\" || exit 9\n{gcc_check}\ncase \"$TMPDIR\" in \"$4\"/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\nprintf '{response}'"
+                "/bin/cat >/dev/null\ntest -n \"$PATH\" || exit 9\n{gcc_check}\ncase \"$TMPDIR\" in \"$PWD\"/scratch/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\nprintf '{response}'"
             ),
         );
-        let io = ChildIoPlan::new(directory.path().to_owned())
-            .with_toolchain(target.c_bridge_toolchain());
+        let io = ChildIoPlan::new(scratch.clone()).with_toolchain(target.c_bridge_toolchain());
         ProductionSingleConeCompilerRunner
             .invoke(&resolve_fake(&compiler), &request([8; 16]), &io)
             .unwrap();
-        assert!(!std::fs::read_dir(directory.path()).unwrap().any(|entry| {
-            entry
-                .unwrap()
-                .file_name()
-                .as_encoded_bytes()
-                .starts_with(b".scoop-child-")
-        }));
+        assert!(std::fs::read_dir(&scratch).unwrap().next().is_none());
     }
 }
 
