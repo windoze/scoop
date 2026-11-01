@@ -222,6 +222,14 @@ release workspace all-targets Clippy、265 项 slib 测试、4 项真实泛型�
 
 收尾时发现 deployment 的辅助脚本仍假设旧 ar 包装，且不能使用对象字典解压。一并修正为从紧凑容器的真实 CBOR manifest 定位成员，使用可选字典解压，要求同时检查 Scoop 和 Native 对象；runtime、最终 executable 与缓存行为断言保留。开发依赖使用近期维护的 `cbor2==6.1.5`，不手写重复 CBOR reader。3 个 deployment 相关 fixture、4 个 variant、9 次进程调用通过，并使用真实 asyncio 库的 Scoop／Native 对象验证字典解压分支。本轮未运行全量 fixture；到此开始尺寸阶段的统一完整验收。
 
+## 尺寸阶段统一验收（进行中）
+
+共享字典提交后，macOS 完整 release workspace 的 105 个测试组、6,347 项测试全部通过，没有失败、忽略或过滤。fixture runner 规则测试 80 项完成、3 项平台条件跳过，构建脚本测试 32 项完成、6 项平台条件跳过。AArch64 正式 CLI 全量执行 4,327 个 fixture，首次为 4,282 项通过、25 项平台不适用、20 项失败，共 4,502 个 variant、13,374 次进程调用。两个 Darwin 目标的系统库和四种 runtime 均已按 schema 6 准备。
+
+已闭合其中 15 项：六个动态库用例的独立 link 命令遗漏公共 `link_args`，没有使用 build 的显式 C compiler／SDK 配置；补齐后保持原有计划指纹相等、链接、运行及五份专用 plan golden 断言。七个错误诊断用例同步主线已修复的错误恢复行为，移除派生的“未知名字”重复错误，保留首个类型／初始化错误及位置；不可调用整数现在断言明确的不可调用诊断。另同步一项 manifest 错误的新版源码片段显示。工具版本检查的一次失败来自本轮并行 Cargo 测试重建了部分 CLI，统一构建五个工具后闭合；后续 CLI 验收使用同一组工具，并与其重建错开。以上 15 项定向复测全部通过，覆盖 15 个 variant、63 次进程调用。
+
+剩余五项涉及混合优化 profile 和 GC stress 的 ODR 实现可用性指纹，正在修复；不把它们排除为基线问题。Linux／Windows 的完整验收继续记录并处理实际失败，其他目标的全量 CLI 在共同问题闭合后运行，不重复已通过的整套 AArch64 fixture。
+
 ## 后续优先级
 
 尺寸优化按用户补充要求，优先精简结构、删除不必要或重复的信息；压缩只作为最后的补充，且不采用 CPU／内存消耗过大的算法。
