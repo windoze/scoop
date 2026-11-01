@@ -161,7 +161,7 @@ OrNone 仅转换正常输入无效结果，参数和后端运行故障保持既�
 | 遗留多字节编码和状态编码 | 复用 `encoding_rs` 的 decoder／encoder；核对与原固定映射的差异 |
 | US-ASCII | 明确按 7-bit 字符集处理，高位字节／不可表示字符不能被当成 Windows-1252 |
 | ISO-8859-1 | 使用 `encoding_rs::mem` 的 Latin-1 操作或等价的标量转换，保留 U+0080～U+009F 的本义 |
-| UTF-16 字节输出 | 使用 Rust 标准库的 UTF-16 转换及显式字节序；不能使用会选择 UTF-8 输出的 WHATWG encoder 便利行为 |
+| UTF-16 字节输出 | 使用 Rust core 的 UTF-16 转换及显式字节序；不能使用会选择 UTF-8 输出的 WHATWG encoder 便利行为 |
 | UTF-32 | 使用标准库 Unicode 标量转换与显式字节序，检查代理值和超出 U+10FFFF 的值 |
 | NFC | 使用 `icu_normalizer::ComposingNormalizerBorrowed::new_nfc()`，与 IDNA 共用 ICU4X 数据 |
 
@@ -201,7 +201,7 @@ UTF-16／32 的跨块单元、代理项和 BOM 由实际适配状态保存。Con
 
 Rust `staticlib` 仍可能需要目标系统库。准备与链接验证使用 `rustc --print=native-static-libs` 获取实际需求，并通过现有 native 链接配置承载；该探测不进入普通应用的缓存命中路径。GNU／musl 尤其要核对 Rust 支持代码与 Scoop 既有 Level I unwind provider 的关系，不能叠加冲突的 provider，也不能因使用 Rust 而隐式开启 C++ 模式。
 
-默认先使用已验证的普通 Rust 静态库构建方式。只有实际链接或产物尺寸问题证明需要时，才评估 `no_std + alloc`；不预先引入自定义 allocator、panic 运行时或跨平台构建框架。Linux 的最终链接事实以真实目标消费者为准。
+2026-11-02 的实际 GUI／HTTP 闭包同时包含 Scoop、Rust、C++ 和 Objective-C personality，超过 macOS compact unwind 可编码的数量。文本后端并不使用 Rust 展开，现将包装收敛为 `no_std + alloc`，关闭 idna 的默认 std feature，保留现有算法、数据和 panic=abort。系统分配器薄适配与直接 abort 的 panic handler 足以支持已有 String／Box／VecDeque，不增加另一套堆或 panic 运行时，也不切换 Scoop 最终链接器。新资源的实际消费者验证见 [UI 实施记录](../ui/PROGRESS.md)，其他平台不沿用旧归档的验收结论。
 
 迁移完成后，准备脚本与两个 Cone 不再要求原四个 GNU 文本归档；发行包移除仅供这条链使用的源码、补丁与资源，并保留仍适用的第三方通知。不能只替换 NFC 而让 libidn2 继续把原链带入应用。其他后端的许可与资源不随本期改动处理。
 

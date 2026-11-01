@@ -15,7 +15,7 @@
 | 3d. 公共主题绘图 | aarch64 已完成 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
 | 3e. 简单控件 | aarch64 已完成 | Label／Button／Checkbox 消费公共主题，状态／绑定、局部覆盖、实例／焦点保留和真实停帧 |
 | 4. 布局、组合与主题展示 | aarch64 已完成 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合，公共部件和真实控件的完整主题展示 |
-| 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
+| 5. 宿主与生命周期组合 | 实施中 | 独立下载示例、真实后台 SHA-256、asyncio／HTTP 进度、取消／替换、隐藏收尾和多窗口需求隔离；文本后端的 no_std + alloc 链接修复已完成，见 §3.15 |
 
 已有 scoop.surface 的窗口、动画和 InputArea 实现作为基础，独立 UI 框架、公共文本适配、graphics 效果、公共样式／主题及基础控件／容器已交付；宿主和异步进度组合继续按批次推进。下文保存实际验证范围，不把设计示例和文档检查当成已交付功能。
 
@@ -241,3 +241,11 @@ Scoop 格式与生产／含测试类型检查通过，aarch64 开发 sysroot 已
 布局组合初次等待超时记录到 requestFocus 后 focused=false、已有一次呈现；后续正常获得焦点，未改变 window 的请求式合同。另一个测试错误是把定宽行内按钮换行后的基线与首行比较，已用 Frame 明确该组合需要的宽度，再验证同一行实际基线。生产排版未增加估算或补偿路径。
 
 布局和展示组合在安静区间同时断言 render／update／measure／paint、底层帧需求、display-link 暂停以及回调／提交计数停止；资源替换与原生关闭检查实际旧 painter、图片及借用字体的有效期。截图只用于排版检查，不代替这些断言。本轮没有编译器／core／std／test 改动，没有 fixture 或全量测试；原有异步进度与多窗口宿主组合继续推进，x86_64 仍统一留待最后。
+
+### 3.15 文本后端移除未使用的 Rust 展开依赖
+
+真实下载应用同时使用 Scoop、Rust 文本后端、Skia C++ 和 macOS Objective-C，原归档带入第四种 personality，超过系统链接器的 compact unwind 表示能力。确认固定版本的 encoding_rs、idna、ICU4X 与 unicode-width 支持 no_std 后，包装改用 no_std + alloc，关闭 idna 的默认 std feature；版本、算法、Unicode 数据和公共 API 不变。新增系统分配器薄适配和直接 abort 的 panic handler，保留既有 panic／OOM 终止合同；Scoop 最终链接器及其异常机制不变。
+
+Rust 格式、release clippy 的全部 target 检查及分配器定向测试 1／1 通过，覆盖普通／过度对齐、清零、增长／缩小和内容保留。重新准备 aarch64 原生归档及两个 Cone 后，release scoop.test 的 scoop.idna 11／11、scoop.charset 18／18 通过。原生 C 消费者连续执行 1000 次文本操作通过；完整下载应用已通过系统链接器，最终符号只含 Scoop、C++ 和 Objective-C personality，没有 Rust personality 或 panic unwind 引用。归档内未选中的 compiler_builtins 成员不算作实际消费者依赖。
+
+本轮未改编译器、core／std／test，未新增 fixture 或执行全量测试。新下载示例的普通模型／真实线程测试已通过，原生 UI 组合继续独立调试和验收，不在本节计为交付。x86_64 仍留到 aarch64 功能完成后统一补验，Windows 新归档留待后续验证。

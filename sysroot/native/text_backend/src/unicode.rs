@@ -23,7 +23,7 @@ unsafe extern "C" fn scoop_charset_grapheme_breaks(
         return 9;
     }
     // SAFETY: The caller provides a disjoint writable span of size bytes.
-    let output = unsafe { std::slice::from_raw_parts_mut(breaks, text.len()) };
+    let output = unsafe { core::slice::from_raw_parts_mut(breaks, text.len()) };
     output.fill(0);
     for offset in GraphemeClusterSegmenter::new().segment_str(text) {
         if offset < output.len() {

@@ -1,4 +1,5 @@
-use std::{ffi::c_char, ptr, slice, str};
+use alloc::{boxed::Box, string::String};
+use core::{ffi::c_char, ptr, slice, str};
 
 pub const EMPTY: i32 = -1000;
 pub const LABEL: i32 = -1001;

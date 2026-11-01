@@ -1,4 +1,5 @@
-use std::{borrow::Cow, ptr};
+use alloc::{borrow::Cow, string::String};
+use core::ptr;
 
 use idna::uts46::{AsciiDenyList, ErrorPolicy, Hyphens, ProcessingError, ProcessingSuccess, Uts46};
 

@@ -2,6 +2,8 @@
 
 状态：已完成（2026-10-22），readline Unicode 后续迁移也已完成。readline 基线为 `2ac608841`。
 
+2026-11-02 后续调整：实际 GUI／HTTP 链接暴露未使用的 Rust personality，文本后端改用 no_std + alloc。功能、版本和 Unicode 数据不变；新构建与平台验证单独记录在 [UI 实施记录](../ui/PROGRESS.md)，下列历史多平台结果不代替新归档的验收。
+
 ## 实现范围
 
 - IDNA／Punycode 使用 idna 1.1.0，NFC、字素分段、大小写与属性使用 ICU4X 2.3.0，标量宽度使用 unicode-width 0.2.2；固定 Unicode 数据为 17.0.0。

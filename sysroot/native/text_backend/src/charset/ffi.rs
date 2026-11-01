@@ -1,4 +1,5 @@
-use std::{ffi::c_char, slice};
+use alloc::{borrow::ToOwned, boxed::Box};
+use core::{ffi::c_char, slice};
 
 use super::{Engine, Options, Step, names};
 use crate::bytes::{self, TextResult};

@@ -6,6 +6,8 @@
 
 使用内部 Rust 静态库 `scoop_text_backend`：`idna` 1.1.0 提供 UTS #46 与原始 Punycode，`idna_adapter` 1.2.2 使用 ICU4X 2.3.0 的 normalizer 和 properties；完整依赖由独立 Cargo.lock 固定。普通文本 NFC 复用同一 normalizer，不引入 ICU4C、C++ 或第二份 Unicode 规范化实现。
 
+包装及其运行时依赖使用 `no_std + alloc`；idna 关闭默认 features，保留 `alloc` 和 `compiled_data`，ICU4X／encoding_rs／unicode-width 沿用已有算法和数据。Unicode 标量操作来自 Rust core，String／Box／VecDeque 等来自 alloc，不需要 Rust std 的 I/O、线程或 panic 展开。proc macro 是构建宿主工具，不进入目标程序。
+
 固定的 normalizer／properties 数据来自 ICU release-78.1rc，Unicode 版本为 17.0.0。ICU4X 的包版本与 Unicode 数据版本分别记录。数据升级属于本库的正常更新，不在 URL 或 client 中追加另一套字符例外表。
 
 ## 2. 转换合同
@@ -42,6 +44,8 @@
 
 格式失败使用返回状态。能显式返回的参数、长度或后端故障映射为 Backend；上游 Rust 的不可恢复分配失败及内部 panic 按 `panic=abort` 终止进程，不保证转成 Scoop 异常，也不跨 C ABI 展开。此边界不把普通无效域名变成 fatal 错误，不引入通用分配预算或 panic 捕获代理。
 
+内部 GlobalAlloc 是系统分配器的薄适配：Unix 使用 posix_memalign／free，普通对齐的增长可使用 realloc；Windows 使用所选 CRT 的 aligned allocation。保留 Rust Layout 的对齐、重新分配和清零合同。panic handler 直接调用同一系统运行库的 abort，分配失败保持同样的终止语义；结果仍只通过 scoop_text_free 归还，调用方不承担 allocator 选择。
+
 ## 4. DNS、URL 与 TLS 的使用
 
 URL 从已解析的 host 组件调用 IDNA；百分号解码和 IP 识别属于 URL。TLS 只接收已验证的 ASCII／A-label DNS 名或 IP，不从展示文本重算。Cookie 域使用同一 A-label，公共后缀判断由 HTTP 策略数据承担。
@@ -50,7 +54,9 @@ URL 从已解析的 host 组件调用 IDNA；百分号解码和 IP 识别属于 
 
 ## 5. 构建与验收
 
-维护脚本从固定 Rust package 与锁定依赖，为[实现规范](SCOOP-IMPL-SPEC.md)所列的当前完整 target 分别准备 `libscoop_text_backend.a` 和 C 头文件；源码及许可沿 M52 布局交付。目标选择共用静态目录，Darwin AArch64／amd64 的资源分别构建。Windows 使用发行配置固定的 Rust 版本，分别映射到 `x86_64-pc-windows-msvc`、`x86_64-pc-windows-gnu`、`x86_64-pc-windows-gnullvm`，Microsoft COFF archive 以相同的 `.a` 名称发布，各目标产物独立。Windows 原生系统依赖为 kernel32、ntdll、userenv、ws2_32、dbghelp；CRT 与 Scoop 展开辅助库沿完整目标的普通链接配置提供，不另带 GCC DLL 或第二套展开实现。
+维护脚本从固定 Rust package 与锁定依赖，为[实现规范](SCOOP-IMPL-SPEC.md)所列的当前完整 target 分别准备 `libscoop_text_backend.a` 和 C 头文件；源码及许可沿 M52 布局交付。目标选择共用静态目录，Darwin AArch64／amd64 的资源分别构建。Windows 使用发行配置固定的 Rust 版本，分别映射到 `x86_64-pc-windows-msvc`、`x86_64-pc-windows-gnu`、`x86_64-pc-windows-gnullvm`，Microsoft COFF archive 以相同的 `.a` 名称发布，各目标产物独立。系统分配与 abort 由所选目标的普通 CRT 提供，不再引入 Rust std 的 ntdll／userenv／ws2_32／dbghelp 依赖集合；Scoop 的展开实现和最终链接器不变。
+
+release 保持 panic=abort 与 LTO。验收查看实际消费者所需的归档成员和最终链接结果，确认文本后端没有引入 Rust unwind personality；不以未选中 compiler_builtins 成员的符号作为消费者依赖，也不删除归档成员或展开信息来规避链接。此边界支持 GUI／HTTP 闭包同时使用 Scoop、C++ 和 Objective-C 异常机制。
 
 `idna` 使用 MIT／Apache-2.0，ICU4X 与 Unicode 数据使用 Unicode-3.0。普通应用只消费 `.slib` 和静态归档，不执行 Cargo 或探测 Rust 工具链。共同归档复用现有 native library 闭包去重与目标链接规则，见实现规范 §2.8。
 

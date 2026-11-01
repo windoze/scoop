@@ -4,6 +4,10 @@
 //! returned to `scoop_text_free`, never to the caller's C allocator. Upstream
 //! allocation failure and internal panic abort; format errors return statuses.
 
+#![no_std]
+extern crate alloc;
+mod allocation;
+
 mod bytes;
 mod domain;
 mod normalize;

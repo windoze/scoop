@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use alloc::collections::VecDeque;
 
 use encoding_rs::{Decoder, DecoderResult};
 
@@ -69,7 +69,7 @@ impl Source {
                     decoder.decode_to_utf8_without_replacement(input, &mut bytes, end);
                 self.offset += read as i64;
                 // The upstream decoder guarantees valid UTF-8 in its output.
-                let Ok(text) = std::str::from_utf8(&bytes[..written]) else {
+                let Ok(text) = core::str::from_utf8(&bytes[..written]) else {
                     return (read, Some(Failure::new(9, self.offset)));
                 };
                 queue.extend(text.chars().map(|ch| (ch, self.unit_offset)));

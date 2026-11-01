@@ -5,7 +5,7 @@ mod ffi;
 mod kind;
 mod names;
 
-use std::collections::VecDeque;
+use alloc::collections::VecDeque;
 
 use bom::Header;
 use decode::Source;

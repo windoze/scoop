@@ -1,4 +1,5 @@
 use super::kind::Kind;
+use alloc::{string::String, vec::Vec};
 
 struct Entry {
     canonical: &'static str,

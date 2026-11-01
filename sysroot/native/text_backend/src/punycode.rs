@@ -1,4 +1,5 @@
 use crate::bytes::{self, Failure, IdnaResult};
+use alloc::string::String;
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn scoop_idna_punycode(data: *const u8, size: i64, decode: bool) -> IdnaResult {
