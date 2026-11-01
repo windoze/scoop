@@ -73,6 +73,7 @@ ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment
 Windows 执行保留完整 32-bit exit code；`signal` 退出断言只用于 POSIX。
 每个 Windows fixture 进程在开始执行前加入独立 Job，结束、超时或中断时关闭 Job，
 回收该进程及其后代；不设置 CPU／内存配额。参数使用 Windows Unicode 表示，标准流仍按原始字节断言。
+绝对路径可执行文件通过 CreateProcessW 的独立应用名参数启动，长路径不受命令行中程序名的 MAX_PATH 限制；参数和工作目录按声明传递。
 
 每个用例选择一种载体：相邻 `name.fixture.toml`、目录中的 `fixture.toml`，
 或源码开头 `// fixture:begin` 到 `// fixture:end` 之间每行带 `//` 的 TOML。

@@ -1,6 +1,7 @@
 """Own a fixture process tree before any child code can run."""
 
 import ctypes
+import os
 import subprocess
 from ctypes import wintypes
 
@@ -118,8 +119,13 @@ class Job:
         self.close()
 
     def spawn(self, argv, **options):
+        # A program name parsed from the command line is limited to MAX_PATH.
+        # Pass an absolute application name separately to preserve long paths.
         child = subprocess.Popen(
-            argv, creationflags=0x00000004 | subprocess.CREATE_NEW_PROCESS_GROUP, **options
+            argv,
+            executable=argv[0] if os.path.isabs(argv[0]) else None,
+            creationflags=0x00000004 | subprocess.CREATE_NEW_PROCESS_GROUP,
+            **options,
         )
         try:
             if not assign_job(self.handle, int(child._handle)):
