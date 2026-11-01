@@ -1,0 +1,287 @@
+package scoop.graphics
+
+import scoop.graphics.native.*
+import scoop.math.abs
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+
+internal fun effectPixels(filter: ImageFilter, draw: (Canvas) -> Unit): Array<Byte> =
+    RasterSurface(64, 48).use {
+        surface ->
+        surface.draw {
+            canvas ->
+            canvas.clear(Color.Transparent)
+            canvas.saveLayer(filter = Some(filter))
+            draw(canvas)
+            canvas.restore()
+        }
+        surface.readPixels()
+    }
+
+@Test
+private class ImageFilterTest {
+    @Test
+    fun `shadows use actual alpha including transparent holes and preserve source color`() {
+        val bytes =
+            Array<Byte>(8L * 8L * 4L) {
+                index ->
+                val pixel = index / 4L
+                val ring =
+                    pixel % 8L < 2L || pixel % 8L >= 6L || pixel / 8L < 2L || pixel / 8L >= 6L
+                if (index % 4L == 0L)
+                    255.toByte()
+                else
+                    if (index % 4L == 3L && ring)
+                        128.toByte()
+                    else
+                        0.toByte()
+            }
+        Image.fromRgba(8, 8, bytes).use {
+            image ->
+            ImageFilter.dropShadow(Point(20.0, 0.0), 0.0, 0.0, Color(0.0, 0.0, 1.0, 0.5)).use {
+                filter ->
+                val pixels =
+                    effectPixels(filter) {
+                        canvas -> canvas.drawImage(
+                            image,
+                            Rect(8.0, 12.0, 8.0, 8.0),
+                            ImageSampling.Nearest
+                        )
+                    }
+                assertEquals(128, channel(pixels, 64, 8, 12, 3))
+                assertEquals(255, channel(pixels, 64, 8, 12, 0))
+                assertEquals(64, channel(pixels, 64, 28, 12, 3))
+                assertEquals(255, channel(pixels, 64, 28, 12, 2))
+                assertEquals(0, channel(pixels, 64, 31, 15, 3))
+                assertEquals(0, channel(pixels, 64, 20, 15, 3))
+            }
+            ImageFilter.dropShadowOnly(Point(20.0, 0.0), 0.0, 0.0, Color(0.0, 1.0, 0.0)).use {
+                filter ->
+                val pixels =
+                    effectPixels(filter) {
+                        canvas -> canvas.drawImage(
+                            image,
+                            Rect(8.0, 12.0, 8.0, 8.0),
+                            ImageSampling.Nearest
+                        )
+                    }
+                assertEquals(0, channel(pixels, 64, 8, 12, 3))
+                assertEquals(128, channel(pixels, 64, 28, 12, 3))
+                assertEquals(255, channel(pixels, 64, 28, 12, 1))
+                assertEquals(0, channel(pixels, 64, 31, 15, 3))
+            }
+        }
+    }
+
+    @Test
+    fun `Gaussian blur expands beyond content and zero sigma is a valid identity`() {
+        ImageFilter.blur(3.0, 3.0).use {
+            filter ->
+            val pixels =
+                effectPixels(filter) {
+                    canvas -> canvas.drawRect(
+                        Rect(20.0, 14.0, 8.0, 8.0),
+                        Paint(Color(1.0, 0.0, 0.0))
+                    )
+                }
+            assertTrue(channel(pixels, 64, 17, 18, 3) > 10)
+            assertTrue(channel(pixels, 64, 24, 18, 3) > 120)
+            assertTrue(channel(pixels, 64, 24, 18, 3) < 240)
+            assertEquals(255, channel(pixels, 64, 17, 18, 0))
+            assertEquals(0, channel(pixels, 64, 2, 18, 3))
+        }
+        ImageFilter.blur(0.0, 0.0).use {
+            filter ->
+            val pixels =
+                effectPixels(filter) {
+                    canvas -> canvas.drawRect(Rect(20.0, 14.0, 8.0, 8.0), Paint(Color.White))
+                }
+            assertEquals(0, channel(pixels, 64, 19, 18, 3))
+            assertEquals(255, channel(pixels, 64, 20, 18, 3))
+        }
+    }
+
+    @Test
+    fun `filter order changes source-over output and composed filters retain closed inputs`() {
+        val blur = ImageFilter.blur(3.0, 3.0)
+        val shadow = ImageFilter.dropShadow(Point(4.0, 0.0), 1.0, 1.0, Color(0.0, 0.0, 1.0))
+        val first = blur.then(shadow)
+        val second = shadow.then(blur)
+        blur.close()
+        shadow.close()
+        try {
+            val draw: (Canvas) -> Unit =
+                {
+                    canvas -> canvas.drawRect(
+                        Rect(20.0, 14.0, 8.0, 8.0),
+                        Paint(Color(1.0, 0.0, 0.0))
+                    )
+                }
+            val a = effectPixels(first, draw)
+            val b = effectPixels(second, draw)
+            var difference = 0L
+            for (i in 0L until a.size)
+                difference += abs(a[i].toUByte().toInt() - b[i].toUByte().toInt()).toLong()
+            assertTrue(difference > 200L)
+            assertTrue(channel(a, 64, 32, 18, 2) > 0)
+            assertTrue(channel(b, 64, 32, 18, 2) > 0)
+        } finally {
+            first.close()
+            second.close()
+        }
+    }
+
+    @Test
+    fun `output clip and source clip have different filter sampling and expansion`() {
+        ImageFilter.blur(4.0, 4.0).use {
+            filter -> RasterSurface(64, 48).use {
+                surface ->
+                surface.draw {
+                    canvas ->
+                    canvas.clear(Color.Transparent)
+                    canvas.withState {
+                        local ->
+                        local.clipRect(Rect(24.0, 0.0, 24.0, 48.0))
+                        local.saveLayer(filter = Some(filter))
+                        local.drawRect(Rect(14.0, 16.0, 8.0, 8.0), Paint(Color.White))
+                        local.restore()
+                    }
+                }
+                val output = surface.readPixels()
+                assertTrue(channel(output, 64, 24, 20, 3) > 10)
+                assertEquals(0, channel(output, 64, 23, 20, 3))
+                surface.draw {
+                    canvas ->
+                    canvas.clear(Color.Transparent)
+                    canvas.saveLayer(filter = Some(filter))
+                    canvas.clipRect(Rect(24.0, 0.0, 24.0, 48.0))
+                    canvas.drawRect(Rect(14.0, 16.0, 8.0, 8.0), Paint(Color.White))
+                    canvas.restore()
+                }
+                assertEquals(0, channel(surface.readPixels(), 64, 24, 20, 3))
+                surface.draw {
+                    canvas ->
+                    canvas.clear(Color.Transparent)
+                    canvas.saveLayer(filter = Some(filter))
+                    canvas.clipRect(Rect(24.0, 0.0, 24.0, 48.0))
+                    canvas.drawRect(Rect(20.0, 16.0, 12.0, 8.0), Paint(Color.White))
+                    canvas.restore()
+                }
+                assertTrue(channel(surface.readPixels(), 64, 22, 20, 3) > 10)
+            }
+        }
+    }
+
+    @Test
+    fun `layer modes preserve premultiplied alpha and group opacity`() {
+        RasterSurface(16, 16).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color(1.0, 0.0, 0.0))
+                canvas.saveLayer(blendMode = BlendMode.DstIn)
+                canvas.drawRect(Rect(4.0, 4.0, 8.0, 8.0), Paint(Color.White.withAlpha(0.5)))
+                canvas.restore()
+            }
+            val mask = surface.readPixels()
+            assertEquals(128, channel(mask, 16, 8, 8, 3))
+            assertEquals(255, channel(mask, 16, 8, 8, 0))
+            assertEquals(0, channel(mask, 16, 2, 2, 3))
+            surface.draw {
+                canvas ->
+                canvas.clear(Color(0.0, 1.0, 0.0))
+                canvas.saveLayer(opacity = 0.5, blendMode = BlendMode.Src)
+                canvas.drawRect(Rect(4.0, 4.0, 8.0, 8.0), Paint(Color(0.0, 0.0, 1.0)))
+                canvas.restore()
+            }
+            val source = surface.readPixels()
+            assertEquals(128, channel(source, 16, 8, 8, 3))
+            assertEquals(255, channel(source, 16, 8, 8, 2))
+            assertEquals(0, channel(source, 16, 8, 8, 1))
+            surface.draw {
+                canvas ->
+                canvas.clear(Color(0.0, 1.0, 0.0, 0.5))
+                canvas.saveLayer(blendMode = BlendMode.Plus)
+                canvas.drawRect(Rect(4.0, 4.0, 8.0, 8.0), Paint(Color(1.0, 0.0, 0.0, 0.5)))
+                canvas.restore()
+            }
+            val added = surface.readPixels()
+            assertEquals(255, channel(added, 16, 8, 8, 3))
+            assertEquals(128, channel(added, 16, 8, 8, 0))
+            assertEquals(128, channel(added, 16, 8, 8, 1))
+        }
+    }
+
+    @Test
+    fun `closed filters are rejected but active layers retain their references through exceptions`() {
+        val filter = ImageFilter.dropShadowOnly(Point(12.0, 0.0), 0.0, 0.0, Color.White)
+        Thread.start {
+            assertFailsWith<IllegalStateException> { filter.then(filter) }
+            assertFailsWith<IllegalStateException> { filter.close() }
+        }.use { thread -> thread.join() }
+        RasterSurface(32, 24).use {
+            surface ->
+            surface.draw {
+                canvas ->
+                canvas.clear(Color.Transparent)
+                assertFailsWith<GraphicsException> {
+                    canvas.withState<Unit> {
+                        child ->
+                        child.saveLayer(filter = Some(filter))
+                        filter.close()
+                        child.drawRect(Rect(2.0, 4.0, 4.0, 4.0), Paint(Color.White))
+                        child.save()
+                        throw GraphicsException("test filter callback")
+                    }
+                }
+                assertFailsWith<IllegalStateException> { canvas.saveLayer(filter = Some(filter)) }
+                assertFailsWith<IllegalStateException> { filter.then(filter) }
+                canvas.drawRect(Rect(2.0, 12.0, 4.0, 4.0), Paint(Color.White))
+            }
+            val pixels = surface.readPixels()
+            assertEquals(0, channel(pixels, 32, 3, 5, 3))
+            assertEquals(255, channel(pixels, 32, 15, 5, 3))
+            assertEquals(255, channel(pixels, 32, 3, 13, 3))
+        }
+        filter.close()
+        assertTrue(filter.isClosed)
+        assertFailsWith<IllegalArgumentException> { ImageFilter.blur(-1.0, 0.0) }
+        assertFailsWith<IllegalArgumentException> { ImageFilter.blur(1.0 / 0.0, 0.0) }
+        assertFailsWith<IllegalArgumentException> {
+            ImageFilter.dropShadow(Point(0.0, 0.0), 0.0, 0.0, Color(2.0, 0.0, 0.0))
+        }
+    }
+
+    @Test
+    fun `rounded path is shared by pixels clips and logical input geometry`() {
+        val path =
+            PathBuilder().use {
+                builder -> builder.addRoundRect(Rect(8.0, 8.0, 24.0, 16.0), 8.0, 8.0).build()
+            }
+        path.use {
+            outline ->
+            assertFalse(outline.contains(Point(8.1, 8.1)))
+            assertTrue(outline.contains(Point(20.0, 8.5)))
+            RasterSurface(64, 48).use {
+                surface ->
+                surface.draw {
+                    canvas ->
+                    canvas.clear(Color.Transparent)
+                    canvas.clipPath(outline)
+                    canvas.drawRect(Rect(0.0, 0.0, 64.0, 48.0), Paint(Color.White))
+                    @Unsafe
+                    {
+                        captureGeometry(canvas, Rect(0.0, 0.0, 64.0, 48.0)).use {
+                            geometry ->
+                            assertFalse(geometry.hitTest(Point(8.1, 8.1)))
+                            assertTrue(geometry.hitTest(Point(20.0, 8.5)))
+                        }
+                    }
+                }
+                val pixels = surface.readPixels()
+                assertEquals(0, channel(pixels, 64, 8, 8, 3))
+                assertEquals(255, channel(pixels, 64, 20, 9, 3))
+            }
+        }
+    }
+}

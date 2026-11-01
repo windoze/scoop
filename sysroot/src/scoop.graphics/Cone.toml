@@ -39,6 +39,11 @@ path = "tests/native_canvas.scoop"
 [[test.sources]]
 path = "tests/canvas_scope.scoop"
 [[test.sources]]
+path = "tests/effects.scoop"
+[[test.sources]]
+path = "tests/effects_metal.scoop"
+when = { os = "darwin" }
+[[test.sources]]
 path = "tests/metal.scoop"
 when = { os = "darwin" }
 [[test.sources]]
@@ -56,6 +61,8 @@ path = "native/shared/path.cpp"
 path = "native/shared/drawing.cpp"
 [[native.sources]]
 path = "native/shared/geometry.cpp"
+[[native.sources]]
+path = "native/shared/filter.cpp"
 [[native.sources]]
 path = "native/shared/canvas.cpp"
 [[native.sources]]

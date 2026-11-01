@@ -26,14 +26,37 @@ static SGGeometry *geometry(SGCanvas *value, SkPath shape) {
 }
 
 extern "C" {
-int32_t scoop_graphics_canvas_save(SGCanvas *value, double opacity,
-                                   bool layer) {
+int32_t scoop_graphics_canvas_save(SGCanvas *value, double opacity, bool layer,
+                                   SGFilter *filter, int32_t blend) {
+  SkBlendMode mode;
+  switch (blend) {
+  case 0:
+    mode = SkBlendMode::kSrcOver;
+    break;
+  case 1:
+    mode = SkBlendMode::kSrc;
+    break;
+  case 2:
+    mode = SkBlendMode::kDstIn;
+    break;
+  case 3:
+    mode = SkBlendMode::kPlus;
+    break;
+  default:
+    return -1;
+  }
   try {
     value->clips.push_back(value->clips.back());
-    if (layer)
-      value->canvas->saveLayerAlphaf(nullptr, (float)opacity);
-    else
+    if (layer) {
+      SkPaint paint;
+      paint.setAlphaf((float)opacity);
+      paint.setBlendMode(mode);
+      if (filter)
+        paint.setImageFilter(filter->filter);
+      value->canvas->saveLayer(nullptr, &paint);
+    } else {
       value->canvas->save();
+    }
     return 1;
   } catch (...) {
     return 0;

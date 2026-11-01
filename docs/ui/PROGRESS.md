@@ -10,7 +10,7 @@
 | 1. 文本公共能力 | aarch64 已完成 | 独立 graphics.text、Canvas 借用、StyledText／SpanStyle、行内 metrics／placement、位置与替代文字 |
 | 2. 独立自绘闭环 | aarch64 已完成 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入、UiHost 与独立自绘示例 |
 | 3a. 公共文本适配 | aarch64 已完成 | ParagraphHost／InlineView、固定字体共享测试数据与独立自绘组合 |
-| 3b. graphics 基础效果 | 设计已更新，待实施 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
+| 3b. graphics 基础效果 | aarch64 已完成 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
 | 3c. 公共样式 | 设计已更新，待实施 | scoop.ui.style、稳定 styled、StylePainter、装饰／有序内容效果及动画／停帧 |
 | 3d. 简单控件 | aarch64 接入中 | Label／Button／Checkbox 初步代码已通过生产类型检查；待公共 style 接入后运行验收 |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
@@ -149,3 +149,11 @@ Scoop 格式与生产／测试类型检查通过，aarch64 release scoop.test：
 | UI text Cone | 1／1 | 公开适配、多字号文字、图片／交互子项、基线与固定尺寸、动画重排、换色复用、截断失焦与恢复状态、RTL／key 重排、内层 key 更换、资源所有权 |
 
 固定字体由原数据目录新增的普通 text-fonts 测试 Cone 提供，避免复制字体或跨 Cone includeBytes。生产 UI 已重新构建到 aarch64 sysroot；未修改编译器、core／std／test，未使用 fixture 或运行全量测试。下一步接入独立基础控件库，x86_64 仍统一留待最后。
+
+### 3.8 公共图像滤镜与图层
+
+新增 ImageFilter.blur／dropShadow／dropShadowOnly 与有序 then 组合，Canvas.saveLayer 接入滤镜、整体透明度和 SrcOver／Src／DstIn／Plus 混合；PathBuilder.addRoundRect 提供同一圆角轮廓。实现直接使用固定 Skia 的 SkImageFilters，不引入 SkSL、图层布局框 crop、CPU 读回或新的时钟。组合及活动图层独立保留输入 native 引用，包装关闭不破坏尚未完成的绘制。
+
+Scoop 格式／含测试的类型检查和 C++ 格式／严格告警检查通过。aarch64 release 的 scoop.graphics 共 24／24 通过，新增 7 项滤镜／几何行为和 1 项真实 Metal 组合：透明图片孔洞与半透明 alpha、只投影／带源、模糊外扩与零 sigma、有序效果差异、源 clip 与输出 clip、组混合、一次 DPI、输入关闭／错误线程与异常图层恢复。既有画布借用、形状、图像和 Metal 测试同时通过。
+
+本轮没有编译器、core／std／test 改动，没有 fixture 或全量测试；公共 style 与控件接入继续在 aarch64 推进，x86_64 留待最后。

@@ -5,6 +5,7 @@
 #include "include/core/SkContourMeasure.h"
 #include "include/core/SkData.h"
 #include "include/core/SkImage.h"
+#include "include/core/SkImageFilter.h"
 #include "include/core/SkPathBuilder.h"
 #include "include/core/SkSurface.h"
 #include "include/gpu/ganesh/GrDirectContext.h"
@@ -52,6 +53,10 @@ struct SGPaint : SGObject {
 struct SGImage : SGObject {
   sk_sp<SkImage> image;
   explicit SGImage(sk_sp<SkImage> i) : image(std::move(i)) {}
+};
+struct SGFilter : SGObject {
+  sk_sp<SkImageFilter> filter;
+  explicit SGFilter(sk_sp<SkImageFilter> f) : filter(std::move(f)) {}
 };
 struct SGContext : SGObject {
   sk_sp<GrDirectContext> context;

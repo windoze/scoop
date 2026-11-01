@@ -1,0 +1,66 @@
+package scoop.graphics
+
+import scoop.graphics.native.macos.MetalContext
+import scoop.tests.graphics.TestMetalSurface
+import scoop.math.abs
+import scoop.test.*
+
+@Test
+private class MetalImageFilterTest {
+    @Test
+    fun `Metal applies logical filter units once with transformed source and expanded alpha`() {
+        ImageFilter.dropShadow(Point(10.0, 0.0), 2.0, 2.0, Color(0.0, 0.0, 1.0)).use {
+            filter ->
+            val scene: (Canvas) -> Unit =
+                {
+                    canvas ->
+                    canvas.clear(Color.Transparent)
+                    canvas.translate(2.0, 1.0)
+                    canvas.clipRect(Rect(2.0, 2.0, 40.0, 40.0))
+                    canvas.saveLayer(filter = Some(filter))
+                    canvas.drawRect(Rect(12.0, 12.0, 8.0, 8.0), Paint(Color(1.0, 0.0, 0.0)))
+                    canvas.restore()
+                }
+            val reference =
+                RasterSurface(96, 96).use {
+                    surface ->
+                    surface.draw {
+                        canvas ->
+                        canvas.scale(2.0, 2.0);
+                        scene(canvas)
+                    }
+                    surface.readPixels()
+                }
+            TestMetalSurface.create(96, 96).use {
+                objects -> @Unsafe
+                {
+                    MetalContext.create(objects.device(), objects.queue()).use {
+                        context -> @Unsafe
+                        {
+                            context.target(objects.texture(), 96, 96, 2.0).use {
+                                target ->
+                                target.draw(scene)
+                                target.submit()
+                                val pixels = target.readPixels()
+                                assertEquals(255, channel(pixels, 96, 32, 32, 0))
+                                assertTrue(channel(pixels, 96, 54, 32, 2) > 200)
+                                assertTrue(channel(pixels, 96, 65, 32, 3) > 5)
+                                assertEquals(0, channel(pixels, 96, 82, 32, 3))
+                                for (x in [26, 30, 40, 46, 50, 54, 58, 62, 66]) {
+                                    assertTrue(
+                                        abs(
+                                            channel(pixels, 96, x, 32, 3) -
+                                                channel(reference, 96, x, 32, 3)
+                                        ) <=
+                                            8
+                                    )
+                                }
+                            }
+                            context.drain()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

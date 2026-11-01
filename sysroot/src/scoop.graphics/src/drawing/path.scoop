@@ -59,6 +59,21 @@ public class PathBuilder public constructor(fillRule: FillRule = FillRule.NonZer
         }
         return this
     }
+    /** Adds the same rounded outline used by drawing, clipping and hit geometry. */
+    public fun addRoundRect(rect: Rect, radiusX: Double, radiusY: Double): PathBuilder {
+        checkRect(rect)
+        checkScalar(radiusX)
+        checkScalar(radiusY)
+        requireGraphics(radiusX >= 0.0 && radiusY >= 0.0, "negative corner radius")
+        @Unsafe
+        {
+            graphicsResult(
+                pathAddRoundRect(resource.get(), rect, radiusX, radiusY),
+                "add rounded rectangle"
+            )
+        }
+        return this
+    }
     /** Adds a clockwise arc in radians, optionally starting a new contour. */
     public fun arcTo(
         oval: Rect,
@@ -158,6 +173,9 @@ private fun pathCommand(path: Ptr<Unit>, kind: Int, first: Point, second: Point,
 
 @Extern(name = "scoop_graphics_path_rect")
 private fun pathAddRect(path: Ptr<Unit>, rect: Rect, oval: Int): Int
+
+@Extern(name = "scoop_graphics_path_round_rect")
+private fun pathAddRoundRect(path: Ptr<Unit>, rect: Rect, x: Double, y: Double): Int
 
 @Extern(name = "scoop_graphics_path_arc")
 private fun pathArc(path: Ptr<Unit>, oval: Rect, start: Double, sweep: Double, move: Boolean): Int

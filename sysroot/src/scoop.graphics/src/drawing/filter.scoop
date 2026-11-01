@@ -1,0 +1,87 @@
+package scoop.graphics
+
+/** Immutable image processing on the creating thread. Compositions retain their inputs. */
+public class ImageFilter internal constructor(internal val resource: GraphicsResource): Closeable {
+    public val isClosed: Boolean get() = resource.isClosed
+
+    public companion object {
+        /** Gaussian standard deviations in local logical units, with transparent outside samples. */
+        public fun blur(sigmaX: Double, sigmaY: Double): ImageFilter {
+            checkSigma(sigmaX, sigmaY)
+            @Unsafe
+            {
+                return ImageFilter(ownedGraphics(filterBlur(sigmaX, sigmaY), "create blur"))
+            }
+        }
+
+        /** Composites the source over its tinted, blurred and translated alpha. */
+        public fun dropShadow(
+            offset: Point,
+            sigmaX: Double,
+            sigmaY: Double,
+            color: Color
+        ): ImageFilter = shadow(offset, sigmaX, sigmaY, color, false)
+
+        /** Outputs only the tinted, blurred and translated source alpha. */
+        public fun dropShadowOnly(
+            offset: Point,
+            sigmaX: Double,
+            sigmaY: Double,
+            color: Color
+        ): ImageFilter = shadow(offset, sigmaX, sigmaY, color, true)
+    }
+
+    /** Applies this filter first and next second: next(this(source)). */
+    public fun then(next: ImageFilter): ImageFilter {
+        @Unsafe
+        {
+            return ImageFilter(
+                ownedGraphics(filterThen(resource.get(), next.resource.get()), "compose filters")
+            )
+        }
+    }
+
+    public override fun close() {
+        resource.close()
+    }
+}
+
+private fun checkSigma(x: Double, y: Double) {
+    checkScalar(x)
+    checkScalar(y)
+    requireGraphics(x >= 0.0 && y >= 0.0, "negative Gaussian sigma")
+}
+
+private fun shadow(offset: Point, x: Double, y: Double, color: Color, only: Boolean): ImageFilter {
+    checkPoint(offset)
+    checkSigma(x, y)
+    checkColor(color)
+    @Unsafe
+    {
+        return ImageFilter(ownedGraphics(filterShadow(offset, x, y, color, only), "create shadow"))
+    }
+}
+
+/** Premultiplied layer composition; Plus is saturating SDR addition. */
+public enum BlendMode {
+    SrcOver, Src, DstIn, Plus
+}
+
+internal fun BlendMode.nativeCode(): Int =
+    when (this) {
+        case SrcOver -> 0
+        case Src -> 1
+        case DstIn -> 2
+        case Plus -> 3
+    }
+
+@Extern(name = "scoop_graphics_filter_blur")
+private fun filterBlur(x: Double, y: Double): Ptr<Unit>?
+
+@Extern(name = "scoop_graphics_filter_shadow")
+private fun filterShadow(offset: Point, x: Double, y: Double, color: Color, only: Boolean): Ptr<
+    Unit
+>?
+
+@Extern(name = "scoop_graphics_filter_then")
+private fun filterThen(first: Ptr<Unit>, next: Ptr<Unit>): Ptr<Unit>?

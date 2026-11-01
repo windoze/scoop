@@ -4,7 +4,7 @@
 
 ## 1. 当前基础与职责
 
-固定 Skia revision `f326a1e25fc736704063922b9ce76b527b1c5efe` 提供 SkRuntimeEffect，可将 SkSL 编译为 SkShader、SkColorFilter 或 SkBlender；SkImageFilters::RuntimeShader 另提供图像滤镜接入。已核对公开源码，具体后端行为仍需运行验证。当前 Scoop 的 [Paint](../../../sysroot/src/scoop.graphics/src/drawing/paint.scoop) 仅开放颜色、渐变和描边等参数，[Canvas](../../../sysroot/src/scoop.graphics/src/drawing/canvas.scoop) 正按[图像滤镜规范](../../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)扩展基础滤镜与图层，设计已确定、实现分批推进。SkRuntimeEffect 尚无公开入口。
+固定 Skia revision `f326a1e25fc736704063922b9ce76b527b1c5efe` 提供 SkRuntimeEffect，可将 SkSL 编译为 SkShader、SkColorFilter 或 SkBlender；SkImageFilters::RuntimeShader 另提供图像滤镜接入。已核对公开源码，具体后端行为仍需运行验证。当前 Scoop 的 [Paint](../../../sysroot/src/scoop.graphics/src/drawing/paint.scoop) 仅开放颜色、渐变和描边等参数，[Canvas](../../../sysroot/src/scoop.graphics/src/drawing/canvas.scoop) 已按[图像滤镜规范](../../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)提供基础滤镜与图层，macOS aarch64 的真实 Raster／Metal 验证已通过。SkRuntimeEffect 尚无公开入口。
 
 计划在 scoop.graphics 提供 effect、uniform／输入 shader 绑定和 Paint 接入。SkSL 源码可由普通字符串或资源提供，通过 graphics 的 native 薄层交给 Skia 编译；编译诊断、参数检查和资源包装由该库处理。Skia C++ ABI 保留在绑定内部，不增加 Scoop 语法、编译器特判、runtime 通道或 UI 内置 Shader 节点，公开类型和签名在实施时确定。
 

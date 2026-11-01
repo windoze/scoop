@@ -32,7 +32,7 @@ Canvas 是一次绘制作用域内的借用对象，不得跨帧保存或在其�
 
 独立文本库使用同一 package 的 `@Unsafe fun <T> Canvas.withSkiaCanvas(block: (Ptr<Unit>) -> T): T`。它在当前有效 Canvas 的 owner 线程同步借出实际 SkCanvas 指针，调用前保存原生画布状态，正常返回或异常退出都恢复原状态；不施加第二次 DPI 变换。指针只在 block 内有效，不能保存、释放、跨线程或挂起使用。block 只通过该指针进行 Skia 绘制，不重入同一 Canvas 的 Scoop 操作或几何捕获，不恢复到借用入口保存层以下，不自行提交目标或变更 GPU context。调用方承担这项 Unsafe 约束；graphics 的私有包装、资源析构和 clip 记录不向另一 Cone 开放。
 
-SkSL／SkRuntimeEffect 的公开接入列为后续 graphics 增强，见[SkSL 设计](../graphics/sksl/DESIGN.md)。本期先按[图像滤镜与图层规范](SCOOP-GRAPHICS-EFFECTS-SPEC.md)补齐 Skia Gaussian blur、alpha 阴影、混合与图层滤镜，供离屏和公共 UI style 消费；这批已完成设计、待实施。RuntimeEffect／shader 填充仍未接入，不作为基础效果前置。后续实现通过既有 Skia 后端与普通 FFI 扩展，不隐式创建时间驱动器，也不改变 Canvas 借用或第 4.1 节的按需停帧规则。
+SkSL／SkRuntimeEffect 的公开接入列为后续 graphics 增强，见[SkSL 设计](../graphics/sksl/DESIGN.md)。本期先按[图像滤镜与图层规范](SCOOP-GRAPHICS-EFFECTS-SPEC.md)补齐 Skia Gaussian blur、alpha 阴影、混合与图层滤镜，供离屏和公共 UI style 消费；这批已在 macOS aarch64 实现并通过 Raster／Metal 定向验证，x86_64 最后补验。RuntimeEffect／shader 填充仍未接入，不作为基础效果前置。后续实现通过既有 Skia 后端与普通 FFI 扩展，不隐式创建时间驱动器，也不改变 Canvas 借用或第 4.1 节的按需停帧规则。
 
 ## 3. 字体与文本布局
 
