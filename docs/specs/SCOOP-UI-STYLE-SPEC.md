@@ -1,10 +1,10 @@
 # Scoop 公共 UI 样式规范
 
-日期：2026-11-02。状态：graphics 滤镜／图层、通用嵌套 PaintContext 和公共 Style 已在 macOS aarch64 完成；主题绘图按更新后的设计继续实施。分批计划见 [UI 设计](../ui/DESIGN.md)与[实施记录](../ui/PROGRESS.md)。本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。
+日期：2026-11-02。状态：graphics 滤镜／图层、通用嵌套 PaintContext、公共 Style 和公共主题绘图已在 macOS aarch64 完成；控件消费与完整展示继续实施。分批计划见 [UI 设计](../ui/DESIGN.md)与[实施记录](../ui/PROGRESS.md)。本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。
 
 ## 1. 分层与接入
 
-`scoop.ui.style` 是独立普通 Cone，依赖实际使用的 ui、graphics、surface 及 core／std／platform。它定义[公共主题绘图与几何协议](SCOOP-UI-THEME-SPEC.md)、视觉状态、语义颜色／字体／尺寸／动画参数，同时提供通用 Style、外框装饰和内容效果的 UI 应用方式。graphics 提供[真正绘图、滤镜与图层](SCOOP-GRAPHICS-EFFECTS-SPEC.md)；ui 只提供挂载、State／Props、布局、输入和作用域，不依赖或识别 style／component。控件库负责交互和 ButtonStyle／CheckboxStyle 的明确局部覆盖，向主题提交类型化视觉状态并消费同一几何与绘图。主题合同不在 component 中定义。
+`scoop.ui.style` 是独立普通 Cone，依赖实际使用的 ui、graphics、graphics.text、surface 及 core／std／platform。它定义[公共主题绘图与几何协议](SCOOP-UI-THEME-SPEC.md)、视觉状态、语义颜色／字体／尺寸／动画参数，同时提供通用 Style、外框装饰和内容效果的 UI 应用方式。graphics 提供[真正绘图、滤镜与图层](SCOOP-GRAPHICS-EFFECTS-SPEC.md)；ui 只提供挂载、State／Props、布局、输入和作用域，不依赖或识别 style／component。控件库负责交互和 ButtonStyle／CheckboxStyle 的明确局部覆盖，向主题提交类型化视觉状态并消费同一几何与绘图。主题合同不在 component 中定义。
 
 文字继续使用 `scoop.graphics.text` 的 TextStyle／SpanStyle、ParagraphStyle；Theme 的公共 typography 也直接使用这些类型，Style 不定义另一套字体、段落或文本继承模型。第三方完全自绘组件和基础控件使用同一公开适配，没有专用 View 分支、控件节点或效果注册入口。
 

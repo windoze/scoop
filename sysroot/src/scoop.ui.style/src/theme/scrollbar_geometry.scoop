@@ -1,0 +1,124 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+
+internal fun makeScrollbarGeometry(
+    bounds: Rect,
+    visual: ScrollbarVisual,
+    metrics: ScrollbarMetrics,
+    arrowWidth: Double
+): ScrollbarGeometry {
+    themeBounds(bounds)
+    val position = themeUnit(visual.position)
+    val fraction = themeUnit(visual.visibleFraction)
+    themeUnit(visual.opacity)
+    val vertical = visual.orientation == Orientation.Vertical
+    val length =
+        if (vertical)
+            bounds.height
+        else
+            bounds.width
+    val cross =
+        if (vertical)
+            bounds.width
+        else
+            bounds.height
+    val thickness = themeMin(cross, metrics.thickness)
+    val strip =
+        if (vertical)
+            Rect(bounds.x + (cross - thickness) / 2.0, bounds.y, thickness, length)
+        else
+            Rect(bounds.x, bounds.y + (cross - thickness) / 2.0, length, thickness)
+    val buttonLength = themeMin(metrics.buttonLength ?: 0.0, length / 2.0)
+    val main = axisRect(strip, vertical, buttonLength, themeMax(0.0, length - buttonLength * 2.0))
+    val track = roundTheme(insetTheme(main, Insets.all(metrics.trackInset)), metrics.cornerRadius)
+    val lane = insetTheme(track.bounds, Insets.all(metrics.thumbInset))
+    val laneLength =
+        if (vertical)
+            lane.height
+        else
+            lane.width
+    val thumbLength =
+        themeMin(laneLength, themeMax(metrics.minimumThumbLength, laneLength * fraction))
+    val travel = themeMax(0.0, laneLength - thumbLength)
+    val thumb =
+        roundTheme(axisRect(lane, vertical, travel * position, thumbLength), metrics.cornerRadius)
+    val decrement =
+        when (metrics.buttonLength) {
+            case Some(_) -> Some(
+                scrollbarButton(
+                    axisRect(strip, vertical, 0.0, buttonLength),
+                    vertical,
+                    false,
+                    metrics.cornerRadius,
+                    arrowWidth
+                )
+            )
+            case None -> None
+        }
+    val increment =
+        when (metrics.buttonLength) {
+            case Some(_) -> Some(
+                scrollbarButton(
+                    axisRect(strip, vertical, length - buttonLength, buttonLength),
+                    vertical,
+                    true,
+                    metrics.cornerRadius,
+                    arrowWidth
+                )
+            )
+            case None -> None
+        }
+    return ScrollbarGeometry(
+        bounds,
+        visual.orientation,
+        track,
+        thumb,
+        decrement,
+        increment,
+        Point(lane.x, lane.y),
+        travel,
+        thumbLength,
+        position,
+        fraction
+    )
+}
+
+private fun axisRect(bounds: Rect, vertical: Boolean, start: Double, length: Double): Rect =
+    if (vertical)
+        Rect(bounds.x, bounds.y + start, bounds.width, length)
+    else
+        Rect(bounds.x + start, bounds.y, length, bounds.height)
+
+private fun scrollbarButton(
+    bounds: Rect,
+    vertical: Boolean,
+    increment: Boolean,
+    radius: Double,
+    width: Double
+): ScrollbarButtonGeometry {
+    val cx = bounds.x + bounds.width / 2.0
+    val cy = bounds.y + bounds.height / 2.0
+    val size = themeMin(bounds.width, bounds.height) * 0.22
+    val direction =
+        if (increment)
+            1.0
+        else
+            -1.0
+    val arrow =
+        if (vertical)
+            StrokeSegment(
+                Point(cx - size, cy - size * direction / 2.0),
+                Point(cx, cy + size * direction / 2.0),
+                Point(cx + size, cy - size * direction / 2.0),
+                themeMin(width, size)
+            )
+        else
+            StrokeSegment(
+                Point(cx - size * direction / 2.0, cy - size),
+                Point(cx + size * direction / 2.0, cy),
+                Point(cx - size * direction / 2.0, cy + size),
+                themeMin(width, size)
+            )
+    return ScrollbarButtonGeometry(roundTheme(bounds, radius), arrow)
+}

@@ -1,0 +1,173 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+import scoop.graphics.text.TextStyle
+import scoop.surface.AnimationSpec
+
+public enum ThemeMode {
+    Light, Dark
+}
+
+public enum SurfaceKind {
+    Plain, Action, Elevated
+}
+
+public enum SurfaceLayer {
+    Background, Foreground, All
+}
+
+public enum CheckMark {
+    Off, On, Mixed
+}
+
+public enum Orientation {
+    Horizontal, Vertical
+}
+
+public enum ScrollbarRegion {
+    Track, Thumb, Decrement, Increment
+}
+
+/** Local logical insets, shared by geometry and control layout. */
+public struct Insets(
+    val left: Double = 0.0,
+    val top: Double = 0.0,
+    val right: Double = 0.0,
+    val bottom: Double = 0.0
+) {
+    public companion object {
+        public fun all(value: Double): Insets = Insets(value, value, value, value)
+    }
+    public fun totals(): Size {
+        for (value in [left, top, right, bottom])
+            themeLength(value)
+        val result = Size(left + right, top + bottom)
+        themeSize(result)
+        return result
+    }
+}
+
+public struct RoundedOutline(val bounds: Rect, val radius: Double)
+
+public struct Circle(val center: Point, val radius: Double) {
+    public val bounds: Rect get() =
+        Rect(center.x - radius, center.y - radius, radius * 2.0, radius * 2.0)
+}
+
+public struct StrokeSegment(val start: Point, val bend: Point, val end: Point, val width: Double)
+
+public struct FocusStyle(val color: Color, val width: Double, val outset: Double)
+
+public struct FocusOutline(val outline: RoundedOutline, val border: Border)
+
+/** Samples are optional; callers own animations and pass this frame's values. */
+public struct InteractionVisual(
+    val enabled: Boolean = true,
+    val hovered: Boolean = false,
+    val pressed: Boolean = false,
+    val focused: Boolean = false,
+    val hoverProgress: Double? = None,
+    val pressProgress: Double? = None
+)
+
+public struct SurfaceVisual(
+    val kind: SurfaceKind = SurfaceKind.Plain,
+    val interaction: InteractionVisual = InteractionVisual()
+)
+
+public struct CheckboxVisual(
+    val mark: CheckMark = CheckMark.Off,
+    val interaction: InteractionVisual = InteractionVisual(),
+    val selectionProgress: Double? = None
+)
+
+public struct RadioVisual(
+    val selected: Boolean = false,
+    val interaction: InteractionVisual = InteractionVisual(),
+    val selectionProgress: Double? = None
+)
+
+public struct ScrollbarVisual(
+    val orientation: Orientation = Orientation.Vertical,
+    val position: Double = 0.0,
+    val visibleFraction: Double = 0.25,
+    val enabled: Boolean = true,
+    val hoveredPart: ScrollbarRegion? = None,
+    val pressedPart: ScrollbarRegion? = None,
+    val opacity: Double = 1.0
+)
+
+public struct StateColors(
+    val normal: Color,
+    val hovered: Color,
+    val pressed: Color,
+    val disabled: Color
+) {
+    public fun resolve(visual: InteractionVisual): Color {
+        val hover = themeProgress(visual.hoverProgress, visual.hovered)
+        val press = themeProgress(visual.pressProgress, visual.pressed)
+        return if (visual.enabled)
+            mixThemeColor(mixThemeColor(normal, hovered, hover), pressed, press)
+        else
+            disabled
+    }
+    public companion object {
+        public fun solid(color: Color): StateColors = StateColors(color, color, color, color)
+    }
+}
+
+public class ThemePalette public constructor(
+    public val canvas: Color,
+    public val surface: Color,
+    public val elevated: Color,
+    public val text: Color,
+    public val secondaryText: Color,
+    public val disabledText: Color,
+    public val border: Color,
+    public val accent: Color,
+    public val onAccent: Color,
+    public val focus: Color,
+    public val shadow: Color
+)
+
+public class ThemeTypography public constructor(
+    public val body: TextStyle,
+    public val caption: TextStyle,
+    public val action: TextStyle
+)
+
+public struct ThemeSpacing(val small: Double, val medium: Double, val large: Double)
+
+public struct ThemeCorners(val small: Double, val medium: Double, val large: Double)
+
+public class ThemeEffects public constructor(
+    public val raised: Array<BoxShadow>,
+    public val floating: Array<BoxShadow>,
+    public val emphasis: Array<ContentEffect> = []
+)
+
+public class ThemeMotion public constructor(
+    public val hover: AnimationSpec?,
+    public val press: AnimationSpec?,
+    public val selection: AnimationSpec?
+)
+
+public class ThemeTokens public constructor(
+    public val mode: ThemeMode,
+    public val palette: ThemePalette,
+    public val typography: ThemeTypography,
+    public val spacing: ThemeSpacing,
+    public val motion: ThemeMotion,
+    public val corners: ThemeCorners,
+    public val effects: ThemeEffects
+)
+
+public fun mixThemeColor(from: Color, to: Color, progress: Double): Color {
+    val t = themeUnit(progress)
+    return Color(
+        from.red + (to.red - from.red) * t,
+        from.green + (to.green - from.green) * t,
+        from.blue + (to.blue - from.blue) * t,
+        from.alpha + (to.alpha - from.alpha) * t
+    )
+}

@@ -1,0 +1,138 @@
+package scoop.tests.ui.themes
+
+import scoop.graphics.*
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+
+@Test
+private class ThemeResourceTest {
+    @Test
+    fun `cache replacement closes the old painter while failed creation keeps the current owner`() {
+        val first = macosTheme()
+        val second = materialTheme()
+        val cache = ThemePainterCache()
+        val painter = cache.get(first)
+        assertSame(painter, cache.get(first))
+        assertFailsWith<IllegalStateException> { cache.get(FailingTheme(first)) }
+        assertSame(painter, cache.get(first))
+        assertFalse(painter.isClosed)
+        val next = cache.get(second)
+        assertTrue(painter.isClosed)
+        assertFalse(next.isClosed)
+        Thread.start { assertFailsWith<IllegalStateException> { cache.get(first) } }.use {
+            thread -> thread.join()
+        }
+        Thread.start { assertFailsWith<IllegalStateException> { next.close() } }.use {
+            thread -> thread.join()
+        }
+        cache.close()
+        cache.close()
+        assertTrue(cache.isClosed)
+        assertTrue(next.isClosed)
+        assertFailsWith<IllegalStateException> { cache.get(first) }
+    }
+
+    @Test
+    fun `drawing errors restore the borrowed Canvas and leave the painter reusable`() {
+        val theme = materialTheme()
+        val painter = theme.createPainter()
+        val visual = CheckboxVisual(CheckMark.On)
+        val bounds = Rect(16.0, 16.0, 24.0, 24.0)
+        val bad =
+            theme.checkboxGeometry(
+                bounds,
+                visual,
+                CheckboxOptions(
+                    style =
+                        StyleOverride(
+                            contentEffects =
+                                StyleValue.Set([ContentEffect.Glow(-1.0, 2.0, Color.White)])
+                        )
+                )
+            )
+        val good = theme.checkboxGeometry(bounds, visual)
+        val result =
+            pixels {
+                canvas ->
+                assertFailsWith<IllegalArgumentException> {
+                    painter.drawCheckbox(canvas, bad, visual)
+                }
+                canvas.withState {
+                    local ->
+                    assertFailsWith<IllegalStateException> {
+                        painter.drawCheckbox(canvas, good, visual)
+                    }
+                    painter.drawCheckbox(local, good, visual)
+                }
+                canvas.drawRect(Rect(1.0, 1.0, 4.0, 4.0), Paint(Color.White))
+            }
+        pixelColor(result, 128, 2, 2, Color.White)
+        assertTrue(channel(result, 128, 20, 20, 3) > 200)
+        painter.close()
+        pixels {
+            canvas ->
+            assertFailsWith<IllegalStateException> { painter.drawCheckbox(canvas, good, visual) };
+            Unit
+        }
+        assertTrue(painter.isClosed)
+    }
+
+    @Test
+    fun `ThemeSource is a stable observable Context value rather than a captured initial theme`() {
+        val first = macosTheme()
+        val second = materialTheme(ThemeMode.Dark)
+        val source = ThemeSource(first)
+        assertFailsWith<MissingContextException> { currentThemeSource() }
+        context(source) {
+            assertSame(source, currentThemeSource())
+            assertSame(first, currentThemeSource().current.value)
+            source.current.value = second
+            assertSame(source, currentThemeSource())
+            assertSame(second, currentThemeSource().current.value)
+        }
+        assertFailsWith<MissingContextException> { currentThemeSource() }
+        assertSame(second, source.current.value)
+    }
+}
+
+/** A third-party Theme uses the same public protocol and can fail when acquiring its painter. */
+private class FailingTheme(private val base: Theme): Theme {
+    public override val tokens: ThemeTokens get() = base.tokens
+    public override fun surfaceMetrics(
+        visual: SurfaceVisual,
+        options: SurfaceOptions
+    ): SurfaceMetrics = base.surfaceMetrics(visual, options)
+    public override fun surfaceGeometry(
+        bounds: Rect,
+        visual: SurfaceVisual,
+        options: SurfaceOptions
+    ): SurfaceGeometry = base.surfaceGeometry(bounds, visual, options)
+    public override fun checkboxMetrics(options: CheckboxOptions): CheckboxMetrics =
+        base.checkboxMetrics(options)
+    public override fun checkboxGeometry(
+        bounds: Rect,
+        visual: CheckboxVisual,
+        options: CheckboxOptions
+    ): CheckboxGeometry = base.checkboxGeometry(bounds, visual, options)
+    public override fun radioMetrics(options: RadioOptions): RadioMetrics =
+        base.radioMetrics(options)
+    public override fun radioGeometry(
+        bounds: Rect,
+        visual: RadioVisual,
+        options: RadioOptions
+    ): RadioGeometry = base.radioGeometry(bounds, visual, options)
+    public override fun scrollbarMetrics(options: ScrollbarOptions): ScrollbarMetrics =
+        base.scrollbarMetrics(options)
+    public override fun scrollbarGeometry(
+        bounds: Rect,
+        visual: ScrollbarVisual,
+        options: ScrollbarOptions
+    ): ScrollbarGeometry = base.scrollbarGeometry(bounds, visual, options)
+    public override fun surfaceTextColor(visual: SurfaceVisual): Color =
+        base.surfaceTextColor(visual)
+    public override fun createPainter(): ThemePainter =
+        throw IllegalStateException(Some("expected painter creation failure"))
+}

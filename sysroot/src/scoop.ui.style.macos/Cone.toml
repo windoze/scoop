@@ -1,0 +1,19 @@
+schema = 1
+
+[cone]
+group = "scoop"
+name = "scoop.ui.style.macos"
+version = "0.1.0"
+kind = "library"
+
+[[sources]]
+path = "src"
+when = { os = "darwin" }
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.graphics" = "0.1.0"
+"scoop:scoop.graphics.text" = "0.1.0"
+"scoop:scoop.surface" = "0.1.0"
+"scoop:scoop.ui.style" = "0.1.0"

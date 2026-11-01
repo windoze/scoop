@@ -1,0 +1,12 @@
+package scoop.ui.style
+
+import scoop.ui.State
+import scoop.ui.state
+
+/** Bind this stable source around the actual application run and mount entry points. */
+public class ThemeSource public constructor(initial: Theme) {
+    public val current: State<Theme> = state(initial)
+}
+
+context(source: ThemeSource)
+public fun currentThemeSource(): ThemeSource = source

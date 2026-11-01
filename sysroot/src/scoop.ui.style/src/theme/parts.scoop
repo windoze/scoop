@@ -1,0 +1,190 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+
+public struct SurfaceMetrics(
+    val suggestedSize: Size,
+    val minimumSize: Size,
+    val padding: Insets,
+    val borderInset: Double,
+    val cornerRadius: Double,
+    val focusOutset: Double
+) {
+    public val contentInsets: Insets get() =
+        Insets(
+            padding.left + borderInset,
+            padding.top + borderInset,
+            padding.right + borderInset,
+            padding.bottom + borderInset
+        )
+}
+
+public class SurfaceOptions public constructor(
+    public val suggestedSize: Size? = None,
+    public val minimumSize: Size? = None,
+    public val padding: Insets? = None,
+    public val style: StyleOverride = StyleOverride(),
+    public val focus: FocusStyle? = None
+)
+
+public class SurfaceGeometry public constructor(
+    public val bounds: Rect,
+    public val outline: RoundedOutline,
+    public val borderInner: RoundedOutline,
+    public val content: Rect,
+    public val focus: FocusOutline?,
+    public val style: Style
+) {
+    public val contentStyle: Style get() =
+        Style(
+            cornerRadius = outline.radius,
+            contentEffects = style.contentEffects,
+            clipContent = style.clipContent
+        )
+}
+
+public struct CheckboxMetrics(
+    val suggestedSize: Size,
+    val minimumSize: Size,
+    val borderInset: Double,
+    val cornerRadius: Double,
+    val markInset: Double,
+    val markWidth: Double,
+    val focusOutset: Double
+)
+
+public class CheckboxOptions public constructor(
+    public val size: Double? = None,
+    public val minimumSize: Double? = None,
+    public val markInset: Double? = None,
+    public val style: StyleOverride = StyleOverride(),
+    public val markColor: Color? = None,
+    public val focus: FocusStyle? = None
+)
+
+public class CheckboxGeometry public constructor(
+    public val bounds: Rect,
+    public val outline: RoundedOutline,
+    public val interior: RoundedOutline,
+    public val markBounds: Rect,
+    public val tick: StrokeSegment,
+    public val mixed: RoundedOutline,
+    public val focus: FocusOutline?,
+    public val style: Style,
+    public val markColor: Color,
+    public val selection: Double
+)
+
+public struct RadioMetrics(
+    val suggestedSize: Size,
+    val minimumSize: Size,
+    val ringWidth: Double,
+    val dotInset: Double,
+    val focusOutset: Double
+)
+
+public class RadioOptions public constructor(
+    public val size: Double? = None,
+    public val minimumSize: Double? = None,
+    public val dotInset: Double? = None,
+    public val background: StyleValue<Paint?> = StyleValue.Inherit,
+    public val border: StyleValue<Border?> = StyleValue.Inherit,
+    public val dotColor: Color? = None,
+    public val focus: FocusStyle? = None
+)
+
+public class RadioGeometry public constructor(
+    public val bounds: Rect,
+    public val outer: Circle,
+    public val interior: Circle,
+    public val dot: Circle,
+    public val focus: FocusOutline?,
+    public val style: Style,
+    public val dotColor: Color,
+    public val selection: Double
+)
+
+public struct ScrollbarMetrics(
+    val thickness: Double,
+    val minimumThumbLength: Double,
+    val trackInset: Double,
+    val thumbInset: Double,
+    val cornerRadius: Double,
+    val buttonLength: Double?
+)
+
+public class ScrollbarOptions public constructor(
+    public val thickness: Double? = None,
+    public val minimumThumbLength: Double? = None,
+    public val trackInset: Double? = None,
+    public val thumbInset: Double? = None,
+    public val buttonLength: StyleValue<Double?> = StyleValue.Inherit
+)
+
+public struct ScrollbarButtonGeometry(val outline: RoundedOutline, val arrow: StrokeSegment)
+
+public class ScrollbarGeometry public constructor(
+    public val bounds: Rect,
+    public val orientation: Orientation,
+    public val track: RoundedOutline,
+    public val thumb: RoundedOutline,
+    public val decrement: ScrollbarButtonGeometry?,
+    public val increment: ScrollbarButtonGeometry?,
+    public val travelStart: Point,
+    public val travel: Double,
+    public val thumbLength: Double,
+    public val position: Double,
+    public val visibleFraction: Double
+)
+
+/** Concrete descriptions used by the three shape-based themes, also useful for custom presets. */
+public class SurfacePart public constructor(
+    public val metrics: SurfaceMetrics,
+    public val fill: StateColors,
+    public val border: StateColors,
+    public val foreground: StateColors,
+    public val focus: FocusStyle,
+    public val shadows: Array<BoxShadow> = []
+)
+
+public class SurfaceParts public constructor(
+    public val plain: SurfacePart,
+    public val action: SurfacePart,
+    public val elevated: SurfacePart
+) {
+    public fun get(kind: SurfaceKind): SurfacePart =
+        when (kind) {
+            case Plain -> plain;
+            case Action -> action;
+            case Elevated -> elevated
+        }
+}
+
+public class MarkerAppearance public constructor(
+    public val empty: StateColors,
+    public val selected: StateColors,
+    public val border: StateColors,
+    public val selectedBorder: StateColors,
+    public val mark: StateColors,
+    public val focus: FocusStyle,
+    public val shadows: Array<BoxShadow> = []
+)
+
+public class CheckboxPart public constructor(
+    public val metrics: CheckboxMetrics,
+    public val appearance: MarkerAppearance
+)
+
+public class RadioPart public constructor(
+    public val metrics: RadioMetrics,
+    public val appearance: MarkerAppearance
+)
+
+public class ScrollbarPart public constructor(
+    public val metrics: ScrollbarMetrics,
+    public val track: StateColors,
+    public val thumb: StateColors,
+    public val button: StateColors,
+    public val arrow: StateColors,
+    public val arrowWidth: Double = 1.5
+)

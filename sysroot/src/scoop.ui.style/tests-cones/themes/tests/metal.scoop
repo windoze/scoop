@@ -1,0 +1,189 @@
+package scoop.tests.ui.themes
+
+import scoop.graphics.*
+import scoop.graphics.native.macos.MetalContext
+import scoop.math.abs
+import scoop.test.*
+import scoop.tests.graphics.TestMetalSurface
+import scoop.ui.style.*
+
+@Test
+private class MetalThemeTest {
+    @Test
+    fun `all theme parts use the same logical geometry on raster and real Metal at two times DPI`() {
+        TestMetalSurface.create(256, 192).use {
+            objects -> @Unsafe
+            {
+                MetalContext.create(objects.device(), objects.queue()).use {
+                    device ->
+                    for (theme in themes())
+                        theme.createPainter().use {
+                            painter ->
+                            val expected =
+                                pixels(256, 192, 2.0) {
+                                    canvas -> paintParts(canvas, theme, painter)
+                                }
+                            @Unsafe
+                            {
+                                device.target(objects.texture(), 256, 192, 2.0).use {
+                                    target ->
+                                    target.draw {
+                                        canvas ->
+                                        canvas.clear(Color.Transparent);
+                                        paintParts(canvas, theme, painter)
+                                    }
+                                    target.submit()
+                                    val actual = target.readPixels()
+                                    var total = 0.0
+                                    var interiorMaximum = 0.0
+                                    for (index in 0L until actual.size / 4L) {
+                                        val aa =
+                                            actual[index * 4L + 3L].toUByte().toInt().toDouble()
+                                        val ea =
+                                            expected[index * 4L + 3L].toUByte().toInt().toDouble()
+                                        for (c in 0L ..< 4L) {
+                                            val a =
+                                                actual[index * 4L + c].toUByte().toInt().toDouble()
+                                            val e =
+                                                expected[
+                                                    index * 4L + c
+                                                ].toUByte().toInt().toDouble()
+                                            val delta =
+                                                if (c == 3L)
+                                                    abs(a - e)
+                                                else
+                                                    abs(a * aa / 255.0 - e * ea / 255.0)
+                                            total += delta
+                                            if (
+                                                delta >
+                                                    interiorMaximum &&
+                                                    flatPixel(expected, index)
+                                            )
+                                                interiorMaximum = delta
+                                        }
+                                    }
+                                    assertTrue(
+                                        total / actual.size.toDouble() < 0.8,
+                                        Some(
+                                            "mean Metal pixel difference " +
+                                                (total / actual.size.toDouble()).toString()
+                                        )
+                                    )
+                                    assertTrue(
+                                        interiorMaximum <= 3.0,
+                                        Some(
+                                            "interior Metal pixel difference " +
+                                                interiorMaximum.toString()
+                                        )
+                                    )
+                                    for (
+                                        region in [
+                                            Rect(0.0, 0.0, 160.0, 90.0),
+                                            Rect(16.0, 100.0, 52.0, 51.0),
+                                            Rect(84.0, 100.0, 51.0, 51.0),
+                                            Rect(180.0, 6.0, 51.0, 178.0)
+                                        ]
+                                    ) {
+                                        val a = coverage(actual, region)
+                                        val e = coverage(expected, region)
+                                        assertTrue(abs(a.total - e.total) / e.total < 0.015)
+                                        assertEquals(e.bounds, a.bounds)
+                                    }
+                                    assertTrue(channel(actual, 256, 70, 44, 3) > 240)
+                                    assertTrue(channel(actual, 256, 42, 126, 3) > 240)
+                                    assertEquals(0, channel(actual, 256, 2, 186, 3))
+                                }
+                            }
+                        }
+                    device.drain()
+                }
+            }
+        }
+    }
+}
+
+// Raster and Ganesh use different curve coverage; uniform interiors must still agree.
+// The one-device-pixel edge band is bounded by total coverage and per-part extents above.
+private fun flatPixel(pixels: Array<Byte>, index: Long): Boolean {
+    val x = index % 256L
+    val y = index / 256L
+    if (x == 0L || x == 255L || y == 0L || y == 191L)
+        return false
+    for (c in 0L ..< 4L) {
+        var low = 255.0
+        var high = 0.0
+        for (dy in -1L .. 1L)
+            for (dx in -1L .. 1L) {
+                val at = index + dy * 256L + dx
+                val alpha = pixels[at * 4L + 3L].toUByte().toInt().toDouble()
+                val color = pixels[at * 4L + c].toUByte().toInt().toDouble()
+                val value =
+                    if (c == 3L)
+                        color
+                    else
+                        color * alpha / 255.0
+                if (value < low)
+                    low = value
+                if (value > high)
+                    high = value
+            }
+        if (high - low > 2.0)
+            return false
+    }
+    return true
+}
+
+private struct Coverage(val total: Double, val bounds: Rect)
+
+private fun coverage(pixels: Array<Byte>, region: Rect): Coverage {
+    var total = 0.0
+    var left = region.x.toInt() + region.width.toInt()
+    var right = region.x.toInt()
+    var top = region.y.toInt() + region.height.toInt()
+    var bottom = region.y.toInt()
+    for (y in region.y.toInt() until (region.y + region.height).toInt())
+        for (x in region.x.toInt() until (region.x + region.width).toInt()) {
+            val alpha = channel(pixels, 256, x, y, 3)
+            total += alpha.toDouble()
+            if (alpha >= 128) {
+                if (x < left)
+                    left = x
+                if (x > right)
+                    right = x
+                if (y < top)
+                    top = y
+                if (y > bottom)
+                    bottom = y
+            }
+        }
+    assertTrue(total > 0.0)
+    return Coverage(
+        total,
+        Rect(
+            left.toDouble(),
+            top.toDouble(),
+            (right - left + 1).toDouble(),
+            (bottom - top + 1).toDouble()
+        )
+    )
+}
+
+private fun paintParts(canvas: Canvas, theme: Theme, painter: ThemePainter) {
+    val surface = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focused = true))
+    painter.drawSurface(
+        canvas,
+        theme.surfaceGeometry(Rect(10.0, 10.0, 60.0, 26.0), surface),
+        surface
+    )
+    val check = CheckboxVisual(CheckMark.Mixed)
+    painter.drawCheckbox(canvas, theme.checkboxGeometry(Rect(10.0, 52.0, 22.0, 22.0), check), check)
+    val radio = RadioVisual(true)
+    painter.drawRadio(canvas, theme.radioGeometry(Rect(44.0, 52.0, 22.0, 22.0), radio), radio)
+    val bar =
+        ScrollbarVisual(
+            position = 0.6,
+            visibleFraction = 0.4,
+            hoveredPart = Some(ScrollbarRegion.Thumb)
+        )
+    painter.drawScrollbar(canvas, theme.scrollbarGeometry(Rect(92.0, 6.0, 20.0, 84.0), bar), bar)
+}

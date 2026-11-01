@@ -1,0 +1,285 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+
+/** Shared algorithms for the four public parts; concrete themes supply all appearance choices. */
+public class ShapeTheme public constructor(
+    public override val tokens: ThemeTokens,
+    public val surfaces: SurfaceParts,
+    public val checkbox: CheckboxPart,
+    public val radio: RadioPart,
+    public val scrollbar: ScrollbarPart
+): Theme {
+    private fun surfaceStyle(visual: SurfaceVisual, options: SurfaceOptions): Style {
+        val part = surfaces.get(visual.kind)
+        return options.style.resolve(
+            Style(
+                background = Some(Paint(part.fill.resolve(visual.interaction))),
+                border =
+                    Some(Border(part.metrics.borderInset, part.border.resolve(visual.interaction))),
+                cornerRadius = part.metrics.cornerRadius,
+                boxShadows = part.shadows
+            )
+        )
+    }
+    public override fun surfaceTextColor(visual: SurfaceVisual): Color =
+        surfaces.get(visual.kind).foreground.resolve(visual.interaction)
+    public override fun surfaceMetrics(
+        visual: SurfaceVisual,
+        options: SurfaceOptions
+    ): SurfaceMetrics {
+        val part = surfaces.get(visual.kind)
+        val style = surfaceStyle(visual, options)
+        val focus = options.focus ?: part.focus
+        val result =
+            SurfaceMetrics(
+                options.suggestedSize ?: part.metrics.suggestedSize,
+                options.minimumSize ?: part.metrics.minimumSize,
+                options.padding ?: part.metrics.padding,
+                borderWidth(style),
+                style.cornerRadius,
+                focus.outset
+            )
+        themeSize(result.suggestedSize);
+        themeSize(result.minimumSize);
+        result.contentInsets.totals()
+        themeLength(result.cornerRadius);
+        themeLength(result.focusOutset);
+        themeLength(focus.width)
+        return result
+    }
+    public override fun surfaceGeometry(
+        bounds: Rect,
+        visual: SurfaceVisual,
+        options: SurfaceOptions
+    ): SurfaceGeometry {
+        themeBounds(bounds)
+        val metrics = surfaceMetrics(visual, options)
+        val outline = roundTheme(bounds, metrics.cornerRadius)
+        val inner =
+            roundTheme(
+                insetTheme(bounds, Insets.all(metrics.borderInset)),
+                themeMax(0.0, outline.radius - metrics.borderInset)
+            )
+        return SurfaceGeometry(
+            bounds,
+            outline,
+            inner,
+            insetTheme(bounds, metrics.contentInsets),
+            focusTheme(
+                outline,
+                visual.interaction,
+                options.focus ?: surfaces.get(visual.kind).focus
+            ),
+            surfaceStyle(visual, options)
+        )
+    }
+    public override fun checkboxMetrics(options: CheckboxOptions): CheckboxMetrics {
+        val base = checkbox.metrics
+        val size = options.size ?: base.suggestedSize.width
+        val min = options.minimumSize ?: base.minimumSize.width
+        val radius = options.style.cornerRadius.resolve(base.cornerRadius)
+        val edge = options.style.border.resolve(Some(Border(base.borderInset, Color.Black)))
+        val border =
+            when (edge) {
+                case Some(value) -> value.width;
+                case None -> 0.0
+            }
+        val focus = options.focus ?: checkbox.appearance.focus
+        val result =
+            CheckboxMetrics(
+                Size(size, size),
+                Size(min, min),
+                border,
+                radius,
+                options.markInset ?: base.markInset,
+                base.markWidth,
+                focus.outset
+            )
+        for (
+            value in [
+                size,
+                min,
+                border,
+                radius,
+                result.markInset,
+                result.markWidth,
+                focus.outset,
+                focus.width
+            ]
+        )
+            themeLength(value)
+        return result
+    }
+    public override fun checkboxGeometry(
+        bounds: Rect,
+        visual: CheckboxVisual,
+        options: CheckboxOptions
+    ): CheckboxGeometry {
+        val metrics = checkboxMetrics(options)
+        val square = squareTheme(bounds)
+        val outline = roundTheme(square, metrics.cornerRadius)
+        val interior =
+            roundTheme(
+                insetTheme(square, Insets.all(metrics.borderInset)),
+                themeMax(0.0, outline.radius - metrics.borderInset)
+            )
+        val mark = insetTheme(square, Insets.all(metrics.markInset))
+        val width = themeMin(metrics.markWidth, themeMin(mark.width, mark.height))
+        val tick =
+            StrokeSegment(
+                Point(mark.x, mark.y + mark.height * 0.52),
+                Point(mark.x + mark.width * 0.38, mark.y + mark.height),
+                Point(mark.x + mark.width, mark.y),
+                width
+            )
+        val mixed = Rect(mark.x, square.y + (square.height - width) / 2.0, mark.width, width)
+        val amount = themeProgress(visual.selectionProgress, visual.mark != CheckMark.Off)
+        val appearance = checkbox.appearance
+        val style =
+            options.style.resolve(
+                markerStyle(
+                    appearance,
+                    visual.interaction,
+                    amount,
+                    metrics.borderInset,
+                    outline.radius
+                )
+            )
+        return CheckboxGeometry(
+            bounds,
+            outline,
+            interior,
+            mark,
+            tick,
+            roundTheme(mixed, width / 2.0),
+            focusTheme(outline, visual.interaction, options.focus ?: appearance.focus),
+            style,
+            options.markColor ?: appearance.mark.resolve(visual.interaction),
+            amount
+        )
+    }
+    public override fun radioMetrics(options: RadioOptions): RadioMetrics {
+        val base = radio.metrics
+        val size = options.size ?: base.suggestedSize.width
+        val min = options.minimumSize ?: base.minimumSize.width
+        val edge = options.border.resolve(Some(Border(base.ringWidth, Color.Black)))
+        val width =
+            when (edge) {
+                case Some(value) -> value.width;
+                case None -> 0.0
+            }
+        val focus = options.focus ?: radio.appearance.focus
+        val result =
+            RadioMetrics(
+                Size(size, size),
+                Size(min, min),
+                width,
+                options.dotInset ?: base.dotInset,
+                focus.outset
+            )
+        for (value in [size, min, width, result.dotInset, focus.outset, focus.width])
+            themeLength(value)
+        return result
+    }
+    public override fun radioGeometry(
+        bounds: Rect,
+        visual: RadioVisual,
+        options: RadioOptions
+    ): RadioGeometry {
+        val metrics = radioMetrics(options)
+        val square = squareTheme(bounds)
+        val outer =
+            Circle(
+                Point(square.x + square.width / 2.0, square.y + square.height / 2.0),
+                square.width / 2.0
+            )
+        val interior = Circle(outer.center, themeMax(0.0, outer.radius - metrics.ringWidth))
+        val amount = themeProgress(visual.selectionProgress, visual.selected)
+        val dot = Circle(outer.center, themeMax(0.0, outer.radius - metrics.dotInset) * amount)
+        val appearance = radio.appearance
+        val style =
+            markerStyle(appearance, visual.interaction, amount, metrics.ringWidth, outer.radius)
+        return RadioGeometry(
+            bounds,
+            outer,
+            interior,
+            dot,
+            focusTheme(
+                roundTheme(square, outer.radius),
+                visual.interaction,
+                options.focus ?: appearance.focus
+            ),
+            style.withBackground(options.background.resolve(style.background)).withBorder(
+                options.border.resolve(style.border)
+            ),
+            options.dotColor ?: appearance.mark.resolve(visual.interaction),
+            amount
+        )
+    }
+    public override fun scrollbarMetrics(options: ScrollbarOptions): ScrollbarMetrics {
+        val base = scrollbar.metrics
+        val result =
+            ScrollbarMetrics(
+                options.thickness ?: base.thickness,
+                options.minimumThumbLength ?: base.minimumThumbLength,
+                options.trackInset ?: base.trackInset,
+                options.thumbInset ?: base.thumbInset,
+                base.cornerRadius,
+                options.buttonLength.resolve(base.buttonLength)
+            )
+        for (
+            value in [
+                result.thickness,
+                result.minimumThumbLength,
+                result.trackInset,
+                result.thumbInset,
+                result.cornerRadius,
+                result.buttonLength ?: 0.0,
+                scrollbar.arrowWidth
+            ]
+        )
+            themeLength(value)
+        return result
+    }
+    public override fun scrollbarGeometry(
+        bounds: Rect,
+        visual: ScrollbarVisual,
+        options: ScrollbarOptions
+    ): ScrollbarGeometry =
+        makeScrollbarGeometry(bounds, visual, scrollbarMetrics(options), scrollbar.arrowWidth)
+    public override fun createPainter(): ThemePainter = ShapeThemePainter(scrollbar)
+}
+
+private fun markerStyle(
+    appearance: MarkerAppearance,
+    visual: InteractionVisual,
+    selection: Double,
+    width: Double,
+    radius: Double
+): Style =
+    Style(
+        background =
+            Some(
+                Paint(
+                    mixThemeColor(
+                        appearance.empty.resolve(visual),
+                        appearance.selected.resolve(visual),
+                        selection
+                    )
+                )
+            ),
+        border =
+            Some(
+                Border(
+                    width,
+                    mixThemeColor(
+                        appearance.border.resolve(visual),
+                        appearance.selectedBorder.resolve(visual),
+                        selection
+                    )
+                )
+            ),
+        cornerRadius = radius,
+        boxShadows = appearance.shadows
+    )

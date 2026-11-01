@@ -1,0 +1,47 @@
+package scoop.ui.style
+
+import scoop.platform.concurrent.currentThreadId
+
+private class CachedThemePainter(val theme: Theme, val painter: ThemePainter)
+
+/** Own once in ComponentScope; returned painters are borrowed until the next replacement. */
+public class ThemePainterCache public constructor(): Closeable {
+    private val owner = currentThreadId()
+    private var closed = false
+    private var current: CachedThemePainter? = None
+    public val isClosed: Boolean get() = closed
+    private fun checkThread() {
+        if (owner != currentThreadId())
+            throw IllegalStateException(Some("theme painter cache requires its owner thread"))
+    }
+    public fun get(theme: Theme): ThemePainter {
+        checkThread()
+        if (closed)
+            throw IllegalStateException(Some("theme painter cache is closed"))
+        val previous = current
+        when (previous) {
+            case Some(value) -> if (value.theme === theme)
+                return value.painter
+            case None -> {}
+        }
+        val next = theme.createPainter()
+        current = Some(CachedThemePainter(theme, next))
+        when (previous) {
+            case Some(value) -> value.painter.close();
+            case None -> {}
+        }
+        return next
+    }
+    public override fun close() {
+        checkThread()
+        if (closed)
+            return
+        closed = true
+        val previous = current
+        current = None
+        when (previous) {
+            case Some(value) -> value.painter.close();
+            case None -> {}
+        }
+    }
+}

@@ -1,0 +1,51 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+
+/** Resource-free theme data and geometry. Implementations do not access UI or business state. */
+public interface Theme {
+    public val tokens: ThemeTokens
+    public fun surfaceMetrics(
+        visual: SurfaceVisual = SurfaceVisual(),
+        options: SurfaceOptions = SurfaceOptions()
+    ): SurfaceMetrics
+    public fun surfaceGeometry(
+        bounds: Rect,
+        visual: SurfaceVisual = SurfaceVisual(),
+        options: SurfaceOptions = SurfaceOptions()
+    ): SurfaceGeometry
+    public fun checkboxMetrics(options: CheckboxOptions = CheckboxOptions()): CheckboxMetrics
+    public fun checkboxGeometry(
+        bounds: Rect,
+        visual: CheckboxVisual = CheckboxVisual(),
+        options: CheckboxOptions = CheckboxOptions()
+    ): CheckboxGeometry
+    public fun radioMetrics(options: RadioOptions = RadioOptions()): RadioMetrics
+    public fun radioGeometry(
+        bounds: Rect,
+        visual: RadioVisual = RadioVisual(),
+        options: RadioOptions = RadioOptions()
+    ): RadioGeometry
+    public fun scrollbarMetrics(options: ScrollbarOptions = ScrollbarOptions()): ScrollbarMetrics
+    public fun scrollbarGeometry(
+        bounds: Rect,
+        visual: ScrollbarVisual = ScrollbarVisual(),
+        options: ScrollbarOptions = ScrollbarOptions()
+    ): ScrollbarGeometry
+    public fun surfaceTextColor(visual: SurfaceVisual): Color
+    public fun createPainter(): ThemePainter
+}
+
+/** A reusable owner-thread resource. Each call synchronously borrows the ordinary Canvas. */
+public interface ThemePainter: Closeable {
+    public val isClosed: Boolean
+    public fun drawSurface(
+        canvas: Canvas,
+        geometry: SurfaceGeometry,
+        visual: SurfaceVisual,
+        layer: SurfaceLayer = SurfaceLayer.All
+    )
+    public fun drawCheckbox(canvas: Canvas, geometry: CheckboxGeometry, visual: CheckboxVisual)
+    public fun drawRadio(canvas: Canvas, geometry: RadioGeometry, visual: RadioVisual)
+    public fun drawScrollbar(canvas: Canvas, geometry: ScrollbarGeometry, visual: ScrollbarVisual)
+}

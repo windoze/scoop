@@ -1,0 +1,23 @@
+schema = 1
+
+[cone]
+group = "scoop.tests"
+name = "ui-themes"
+version = "0.1.0"
+kind = "library"
+
+[test-dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.math" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.test" = "0.1.0"
+"scoop:scoop.graphics" = "0.1.0"
+"scoop:scoop.graphics.text" = "0.1.0"
+"scoop:scoop.ui" = "0.1.0"
+"scoop:scoop.ui.style" = "0.1.0"
+"scoop:scoop.ui.style.macos" = { version = "0.1.0", path = "../../../scoop.ui.style.macos" }
+"scoop:scoop.ui.style.material" = { version = "0.1.0", path = "../../../scoop.ui.style.material" }
+"scoop:scoop.ui.style.fluent" = { version = "0.1.0", path = "../../../scoop.ui.style.fluent" }
+"scoop.tests:graphics-native" = { version = "0.1.0", path = "../../../scoop.graphics/test-native" }
+"scoop.tests:text-fonts" = { version = "0.1.0", path = "../../../scoop.graphics.text/tests/data" }

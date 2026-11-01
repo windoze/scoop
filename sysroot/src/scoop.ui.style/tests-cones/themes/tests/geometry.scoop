@@ -1,0 +1,184 @@
+package scoop.tests.ui.themes
+
+import scoop.graphics.*
+import scoop.test.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+import scoop.ui.style.fluent.fluentTheme
+
+@Test
+private class ThemeGeometryTest {
+    @Test
+    fun `three themes expose distinct fonts sizes corners focus and effects without a Canvas`() {
+        val all = themes()
+        for (theme in all) {
+            val metrics = theme.surfaceMetrics(SurfaceVisual(SurfaceKind.Action))
+            val visual = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focused = true))
+            val geometry = theme.surfaceGeometry(Rect(10.0, 20.0, 80.0, 40.0), visual)
+            contains(geometry.bounds, geometry.content)
+            contains(geometry.bounds, geometry.borderInner.bounds)
+            near(10.0 + metrics.contentInsets.left, geometry.content.x)
+            near(20.0 + metrics.contentInsets.top, geometry.content.y)
+            assertTrue(geometry.focus!!.outline.bounds.width > geometry.bounds.width)
+            assertTrue(theme.tokens.effects.raised.size > 0L)
+            assertTrue(theme.tokens.effects.emphasis.size > 0L)
+            assertEquals(metrics.cornerRadius, geometry.style.cornerRadius)
+            val box = theme.checkboxMetrics()
+            assertTrue(box.suggestedSize.width >= box.minimumSize.width)
+            assertTrue(
+                theme.radioMetrics().suggestedSize.width >= theme.radioMetrics().minimumSize.width
+            )
+        }
+        assertEquals(16.0, all[0L].checkboxMetrics().suggestedSize.width)
+        assertEquals(20.0, all[2L].checkboxMetrics().suggestedSize.width)
+        assertEquals(18.0, all[4L].checkboxMetrics().suggestedSize.width)
+        assertEquals(13.0, all[0L].tokens.typography.body.fontSize)
+        assertEquals(14.0, all[2L].tokens.typography.body.fontSize)
+        assertTrue(
+            all[2L].tokens.typography.action.weight != all[4L].tokens.typography.action.weight
+        )
+        for (i in [0L, 2L, 4L]) {
+            assertEquals(ThemeMode.Light, all[i].tokens.mode)
+            assertEquals(ThemeMode.Dark, all[i + 1L].tokens.mode)
+            assertTrue(all[i].tokens.palette.canvas != all[i + 1L].tokens.palette.canvas)
+            assertTrue(all[i].tokens.palette.text != all[i + 1L].tokens.palette.text)
+            assertTrue(all[i].tokens.palette.border != all[i + 1L].tokens.palette.border)
+        }
+    }
+
+    @Test
+    fun `local overrides feed the final border content and marker geometry and keep inheritance`() {
+        val options =
+            SurfaceOptions(
+                padding = Some(Insets.all(7.0)),
+                style =
+                    StyleOverride(
+                        border = StyleValue.Set(Some(Border(3.0, Color.Black))),
+                        cornerRadius = StyleValue.Set(9.0)
+                    )
+            )
+        for (theme in themes()) {
+            val visual = SurfaceVisual(SurfaceKind.Action)
+            val geometry = theme.surfaceGeometry(Rect(20.0, 20.0, 80.0, 40.0), visual, options)
+            assertEquals(Rect(30.0, 30.0, 60.0, 20.0), geometry.content)
+            assertEquals(Rect(23.0, 23.0, 74.0, 34.0), geometry.borderInner.bounds)
+            assertEquals(6.0, geometry.borderInner.radius)
+            assertEquals(theme.tokens.palette.accent, geometry.style.background!!.color)
+            val mark =
+                theme.checkboxGeometry(
+                    Rect(5.0, 5.0, 24.0, 20.0),
+                    CheckboxVisual(CheckMark.On),
+                    CheckboxOptions(
+                        markInset = Some(5.0),
+                        style = StyleOverride(border = StyleValue.Set(None))
+                    )
+                )
+            assertEquals(Rect(7.0, 5.0, 20.0, 20.0), mark.outline.bounds)
+            assertEquals(mark.outline.bounds, mark.interior.bounds)
+            assertEquals(Rect(12.0, 10.0, 10.0, 10.0), mark.markBounds)
+            val radio =
+                theme.radioGeometry(
+                    Rect(10.0, 10.0, 20.0, 24.0),
+                    RadioVisual(true),
+                    RadioOptions(
+                        dotInset = Some(4.0),
+                        border = StyleValue.Set(Some(Border(3.0, Color.Black)))
+                    )
+                )
+            assertEquals(Circle(Point(20.0, 22.0), 10.0), radio.outer)
+            assertEquals(7.0, radio.interior.radius)
+            assertEquals(6.0, radio.dot.radius)
+        }
+    }
+
+    @Test
+    fun `scrollbar geometry clamps ratios and exposes actual travel for both orientations and short tracks`() {
+        for (theme in themes())
+            for (axis in [Orientation.Horizontal, Orientation.Vertical])
+                for (length in [0.0, 1.0, 12.0, 180.0])
+                    for (fraction in [0.0, 0.4, 1.0]) {
+                        val bounds =
+                            if (axis == Orientation.Horizontal)
+                                Rect(10.0, 20.0, length, 24.0)
+                            else
+                                Rect(10.0, 20.0, 24.0, length)
+                        val first =
+                            theme.scrollbarGeometry(bounds, ScrollbarVisual(axis, -0.5, fraction))
+                        val last =
+                            theme.scrollbarGeometry(bounds, ScrollbarVisual(axis, 1.5, fraction))
+                        contains(bounds, first.track.bounds)
+                        contains(bounds, first.thumb.bounds)
+                        contains(bounds, last.thumb.bounds)
+                        assertTrue(first.travel >= 0.0 && first.travel.isFinite())
+                        assertEquals(0.0, first.position)
+                        assertEquals(1.0, last.position)
+                        if (axis == Orientation.Horizontal) {
+                            near(first.travelStart.x, first.thumb.bounds.x)
+                            near(first.travel, last.thumb.bounds.x - first.thumb.bounds.x)
+                        } else {
+                            near(first.travelStart.y, first.thumb.bounds.y)
+                            near(first.travel, last.thumb.bounds.y - first.thumb.bounds.y)
+                        }
+                        if (fraction == 1.0)
+                            near(0.0, first.travel)
+                        when (first.decrement) {
+                            case Some(button) -> contains(bounds, button.outline.bounds);
+                            case None -> {}
+                        }
+                        when (first.increment) {
+                            case Some(button) -> contains(bounds, button.outline.bounds);
+                            case None -> {}
+                        }
+                    }
+        assertEquals(None, macosTheme().scrollbarMetrics().buttonLength)
+        assertEquals(None, materialTheme().scrollbarMetrics().buttonLength)
+        assertEquals(Some(16.0), fluentTheme().scrollbarMetrics().buttonLength)
+        val full =
+            fluentTheme().scrollbarGeometry(
+                Rect(0.0, 0.0, 16.0, 180.0),
+                ScrollbarVisual(visibleFraction = 0.0)
+            )
+        assertEquals(28.0, full.thumbLength)
+        assertEquals(114.0, full.travel)
+        val noButtons =
+            fluentTheme().scrollbarGeometry(
+                Rect(0.0, 0.0, 16.0, 180.0),
+                ScrollbarVisual(visibleFraction = 0.0),
+                ScrollbarOptions(buttonLength = StyleValue.Set(None))
+            )
+        assertEquals(146.0, noButtons.travel)
+    }
+
+    @Test
+    fun `invalid lengths and nonfinite visual samples fail at geometry calculation`() {
+        val theme = materialTheme()
+        assertFailsWith<IllegalArgumentException> {
+            theme.checkboxMetrics(CheckboxOptions(size = Some(-1.0)))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            theme.radioMetrics(RadioOptions(dotInset = Some(1.0 / 0.0)))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            theme.surfaceGeometry(Rect(0.0, 0.0, -2.0, 10.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            theme.scrollbarGeometry(
+                Rect(0.0, 0.0, 10.0, 50.0),
+                ScrollbarVisual(position = 0.0 / 0.0)
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            theme.checkboxGeometry(
+                Rect(0.0, 0.0, 20.0, 20.0),
+                CheckboxVisual(selectionProgress = Some(1.0 / 0.0))
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            theme.surfaceGeometry(
+                Rect(0.0, 0.0, 20.0, 20.0),
+                SurfaceVisual(interaction = InteractionVisual(hoverProgress = Some(0.0 / 0.0)))
+            )
+        }
+    }
+}

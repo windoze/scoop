@@ -1,0 +1,190 @@
+package scoop.ui.style.macos
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.surface.AnimationSpec
+import scoop.time.Duration
+import scoop.ui.style.*
+
+/** A self-drawn compact macOS preset; native window decorations remain a window option. */
+public fun macosTheme(mode: ThemeMode = ThemeMode.Light): Theme {
+    val dark = mode == ThemeMode.Dark
+    val palette =
+        if (dark)
+            ThemePalette(
+                Color(0.12, 0.12, 0.13),
+                Color(0.23, 0.23, 0.25),
+                Color(0.28, 0.28, 0.30),
+                Color(0.94, 0.94, 0.96),
+                Color(0.70, 0.70, 0.73),
+                Color(0.48, 0.48, 0.51),
+                Color(0.40, 0.40, 0.43),
+                Color(0.04, 0.52, 1.0),
+                Color.White,
+                Color(0.20, 0.60, 1.0),
+                Color.Black.withAlpha(0.42)
+            )
+        else
+            ThemePalette(
+                Color(0.94, 0.94, 0.96),
+                Color.White,
+                Color.White,
+                Color(0.12, 0.12, 0.14),
+                Color(0.40, 0.40, 0.43),
+                Color(0.62, 0.62, 0.65),
+                Color(0.70, 0.70, 0.73),
+                Color(0.0, 0.48, 1.0),
+                Color.White,
+                Color(0.0, 0.48, 1.0),
+                Color.Black.withAlpha(0.18)
+            )
+    val families = [".AppleSystemUIFont", "Helvetica Neue", "sans-serif"]
+    val fonts =
+        ThemeTypography(
+            TextStyle(families, 13.0, palette.text),
+            TextStyle(families, 11.0, palette.secondaryText),
+            TextStyle(families, 13.0, palette.text, weight = 500)
+        )
+    val effects =
+        ThemeEffects(
+            [BoxShadow(Point(0.0, 1.0), 0.8, 0.8, palette.shadow)],
+            [BoxShadow(Point(0.0, 4.0), 8.0, 8.0, palette.shadow)],
+            [ContentEffect.Glow(3.0, 3.0, palette.accent.withAlpha(0.45))]
+        )
+    val tokens =
+        ThemeTokens(
+            mode,
+            palette,
+            fonts,
+            ThemeSpacing(4.0, 8.0, 12.0),
+            ThemeMotion(tween(80L), tween(55L), tween(100L)),
+            ThemeCorners(3.0, 6.0, 10.0),
+            effects
+        )
+    val normal =
+        StateColors(
+            palette.surface,
+            mixThemeColor(palette.surface, palette.accent, 0.08),
+            mixThemeColor(palette.surface, palette.text, 0.12),
+            mixThemeColor(palette.surface, palette.canvas, 0.55)
+        )
+    val accent =
+        StateColors(
+            palette.accent,
+            mixThemeColor(palette.accent, Color.White, 0.12),
+            mixThemeColor(palette.accent, Color.Black, 0.18),
+            mixThemeColor(palette.canvas, palette.accent, 0.28)
+        )
+    val edges =
+        StateColors(
+            palette.border,
+            palette.border,
+            palette.secondaryText,
+            mixThemeColor(palette.border, palette.canvas, 0.60)
+        )
+    val text = StateColors(palette.text, palette.text, palette.text, palette.disabledText)
+    val onAccent =
+        StateColors(palette.onAccent, palette.onAccent, palette.onAccent, palette.disabledText)
+    val focus = FocusStyle(palette.focus.withAlpha(0.72), 3.0, 4.0)
+    val plain =
+        SurfacePart(
+            SurfaceMetrics(
+                Size(72.0, 28.0),
+                Size(24.0, 24.0),
+                Insets(10.0, 4.0, 10.0, 4.0),
+                0.75,
+                6.0,
+                focus.outset
+            ),
+            normal,
+            edges,
+            text,
+            focus,
+            effects.raised
+        )
+    val action =
+        SurfacePart(
+            SurfaceMetrics(
+                Size(72.0, 28.0),
+                Size(32.0, 28.0),
+                Insets(10.0, 4.0, 10.0, 4.0),
+                0.75,
+                6.0,
+                focus.outset
+            ),
+            accent,
+            accent,
+            onAccent,
+            focus,
+            effects.raised
+        )
+    val elevated =
+        SurfacePart(
+            SurfaceMetrics(
+                Size(96.0, 64.0),
+                Size(0.0, 0.0),
+                Insets.all(12.0),
+                0.75,
+                10.0,
+                focus.outset
+            ),
+            StateColors.solid(palette.elevated),
+            edges,
+            text,
+            focus,
+            effects.floating
+        )
+    val marker =
+        MarkerAppearance(
+            normal,
+            accent,
+            edges,
+            accent,
+            onAccent,
+            FocusStyle(palette.focus.withAlpha(0.72), 2.5, 3.5)
+        )
+    val track =
+        StateColors(
+            Color.Transparent,
+            palette.secondaryText.withAlpha(0.12),
+            palette.secondaryText.withAlpha(0.18),
+            Color.Transparent
+        )
+    val thumb =
+        StateColors(
+            palette.secondaryText.withAlpha(0.58),
+            palette.secondaryText.withAlpha(0.85),
+            palette.text,
+            palette.disabledText.withAlpha(0.3)
+        )
+    return ShapeTheme(
+        tokens,
+        SurfaceParts(plain, action, elevated),
+        CheckboxPart(
+            CheckboxMetrics(
+                Size(16.0, 16.0),
+                Size(12.0, 12.0),
+                1.0,
+                3.0,
+                4.0,
+                1.7,
+                marker.focus.outset
+            ),
+            marker
+        ),
+        RadioPart(
+            RadioMetrics(Size(16.0, 16.0), Size(12.0, 12.0), 1.0, 5.0, marker.focus.outset),
+            marker
+        ),
+        ScrollbarPart(
+            ScrollbarMetrics(10.0, 24.0, 0.0, 2.0, 6.0, None),
+            track,
+            thumb,
+            StateColors.solid(Color.Transparent),
+            text
+        )
+    )
+}
+
+private fun tween(milliseconds: Long): AnimationSpec? =
+    Some(AnimationSpec.Tween(Duration.milliseconds(milliseconds)))

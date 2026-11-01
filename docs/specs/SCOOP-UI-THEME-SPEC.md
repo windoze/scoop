@@ -1,6 +1,6 @@
 # Scoop 公共主题绘图与几何规范
 
-日期：2026-11-02。状态：设计已确定，按 [UI 实施记录](../ui/PROGRESS.md)分批实现；本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。本文扩展 [公共样式规范](SCOOP-UI-STYLE-SPEC.md)，保留其内容效果、资源、稳定身份与停帧合同。
+日期：2026-11-02。状态：公共主题协议、四类部件几何／绘图、三套风格及 Light／Dark 已在 macOS aarch64 交付；控件消费与完整展示继续按 [UI 实施记录](../ui/PROGRESS.md)推进。最后统一补验 x86_64，Windows 后续。本文扩展 [公共样式规范](SCOOP-UI-STYLE-SPEC.md)，保留其内容效果、资源、稳定身份与停帧合同。
 
 ## 1. 本轮调整与分层
 
@@ -21,6 +21,10 @@
 Theme 是不可变的主题描述／协议实现，提供语义参数和各部件的 metrics／geometry 方法；不拥有需要应用逐次关闭的 Path／滤镜，不读取业务 State。ThemeSource 和 UI 消费适配与这些纯几何／绘图入口分开。
 
 几何方法只接收有限的逻辑 bounds、尺寸选项和类型化视觉数据，不需要 Canvas，不访问 Application、InputArea、挂载节点或 Context。每类部件返回自己的结果类型，不用名称字典或通用无类型字段。绘制严格消费该结果中的尺寸、轮廓和区域，不能重新估算另一份布局。
+
+首批采用 `Theme.tokens`、`surfaceMetrics／checkboxMetrics／radioMetrics／scrollbarMetrics` 与对应 geometry 方法；各部件的 Options 表达显式尺寸和局部覆盖。几何结果同时保存本次解析的普通 Style／颜色快照，绘图使用这份结果，不重新解析另一套尺寸。InteractionVisual 的可选 hover／press 采样值和选择进度以 0～1 表达，省略时使用对应布尔视觉状态；有限输入收敛到该范围。改变采样值时重新计算普通几何描述，原生轮廓缓存仍只按真实轮廓变化替换。
+
+三套预设共同使用 `ShapeTheme` 的圆角表面、勾选线段、圆环／圆点和滚动条几何算法，各库显式构造自己的参数。Theme 协议仍允许普通第三方实现独立的几何与 ThemePainter；控件不依赖 ShapeTheme。复用只覆盖这四类已有部件，不引入主题插件、节点注册或自动控件生成。
 
 原生缓存由 `ThemePainter : Closeable` 持有，通过 `Theme.createPainter()` 创建；其 drawSurface／drawCheckbox／drawRadio／drawScrollbar 只接收普通 Canvas、对应几何和视觉数据。这样离屏程序可以长期复用同一 painter，自绘 Element 则通过 ComponentScope 登记拥有可替换 painter 的 `ThemePainterCache`。cache 在主题实际变化时先构建新 painter，再替换并关闭旧值；创建失败保留旧值用于清理或下一次绘制。应用不为每个部件／每帧使用 use。
 
@@ -51,6 +55,8 @@ Style 是完整的已确定描述；新增 `StyleOverride` 表达局部覆盖。
 SurfaceMetrics 给出建议／最小尺寸、内容 padding、边框内缩及焦点外扩。语义用途区分普通表面、强调操作面和提升表面，不引用 Button 或 Frame 类型。SurfaceGeometry 至少返回外边界、圆角外轮廓、边框内区域、内容区域和可选焦点轮廓；轮廓为 Rect／圆角等普通描述，原生 Path 留在 painter。
 
 Surface 的绘制支持 Background／Foreground／All 阶段。Background 绘制外框阴影和背景；Foreground 绘制边框及焦点外框；All 依次完成两者，供独立展示使用。控件在两阶段间绘制内容，完整子树的 Style 效果仍由通用装饰适配负责。这样背景、内容、边框的顺序与既有 Style 合同一致，不要求主题方法理解挂载树。
+
+SurfaceGeometry.contentStyle 保留同次解析的内容效果、圆角和 clip；需要内容的调用者在 Background／Foreground 之间通过自己的 StylePainter 应用它。All 没有内容子树，不把内容滤镜偷换为外框滤镜。Checkbox／Radio 标记绘制可把自身标记作为 Style 的内容，外框装饰与标记效果仍遵守相同顺序。
 
 Button 根据主题建议尺寸、自己的标签 metrics 和内容内缩决定布局，然后用最终 bounds 计算几何；Frame 可组合相同外框能力。基线从实际子项加放置偏移得到，不由主题猜测字体基线。控件可把标签或留白纳入命中范围，焦点光晕不会自动扩大输入。
 

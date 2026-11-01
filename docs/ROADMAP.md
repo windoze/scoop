@@ -825,7 +825,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 本期按[实施记录](ui/PROGRESS.md)先补底层缺口和公共文本，再交付框架及简单组件；只实现并定向验证 macOS，Windows 后续接入。普通行为采用 scoop.test，每批验证后提交、推送并合并 origin/main。
 - [设计](ui/DESIGN.md)与 [UI 规范](specs/SCOOP-UI-SPEC.md)将 `scoop.ui` 定位为不含现成控件的自绘框架：保留持久 class Component、成员 State 和返回 View 的 render，通过公开 Element 协议提供测量、子项布局、绘制及输入接入。
-- macOS aarch64 已交付独立框架、外部自绘示例及状态／绘制／异常定向测试；公共 ParagraphHost／InlineView、graphics 基础效果和公共 Style 也已交付；主题绘图、基础控件和宿主组合继续分批接入，全部 aarch64 功能完成后再统一补验 x86_64。
+- macOS aarch64 已交付独立框架、外部自绘示例及状态／绘制／异常定向测试；公共 ParagraphHost／InlineView、graphics 基础效果、公共 Style 和三套主题绘图也已交付；基础控件、展示与宿主组合继续分批接入，全部 aarch64 功能完成后再统一补验 x86_64。
 - 独立的 `scoop.ui.component` 使用与第三方控件相同的公开能力实现 Label／Button／Checkbox、Row／Column／Stack、Frame 和样式，见[控件库规范](specs/SCOOP-UI-COMPONENT-SPEC.md)。框架不依赖该库；`scoop.ui.text` 提供公共 ParagraphHost 和行内 View 适配，控件复用它并决定外观与点击语义。
 - 新增独立 [scoop.ui.style](specs/SCOOP-UI-STYLE-SPEC.md)，先补 [graphics 滤镜／图层](specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)，再交付背景／边框／圆角、外框阴影、有序内容 drop shadow／glow／Gaussian blur。Style 无调用方需关闭的资源，稳定包装保留内容身份；效果不增大测量或命中，动画复用 Surface，静态效果停止全部帧需求。控件专用样式消费公共能力，SkSL 不作前置。
 - [公共主题绘图与几何](specs/SCOOP-UI-THEME-SPEC.md)同属 style：表面、Checkbox 三态标记、Radio 标记和 Scrollbar 提供独立 metrics／geometry／Canvas 绘图；macOS／Material／Fluent 三组风格与 Light／Dark 可整体切换。控件消费公共协议，不按主题分支；ThemeSource 通过 State／Context 更新实际订阅者，局部覆盖保留其余主题属性，保持组件身份／焦点。展示示例同时覆盖公共部件和真实控件，完整 Radio 分组及 ScrollView 行为维持原范围。

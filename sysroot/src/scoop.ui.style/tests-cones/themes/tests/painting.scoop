@@ -1,0 +1,210 @@
+package scoop.tests.ui.themes
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.test.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.ui.style.*
+
+@Test
+private class ThemePaintingTest {
+    @Test
+    fun `surface phases use resolved geometry and draw the border after independently filtered content`() {
+        for (theme in themes())
+            theme.createPainter().use {
+                painter ->
+                val visual = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focused = true))
+                val geometry =
+                    theme.surfaceGeometry(
+                        Rect(20.0, 20.0, 60.0, 40.0),
+                        visual,
+                        SurfaceOptions(
+                            style =
+                                StyleOverride(
+                                    border =
+                                        StyleValue.Set(Some(Border(2.0, Color(0.0, 1.0, 0.0)))),
+                                    boxShadows = StyleValue.Set([]),
+                                    cornerRadius = StyleValue.Set(8.0),
+                                    contentEffects = StyleValue.Set([ContentEffect.Blur(3.0, 3.0)]),
+                                    clipContent = StyleValue.Set(true)
+                                )
+                        )
+                    )
+                val result =
+                    StylePainter().use {
+                        effects -> pixels {
+                            canvas ->
+                            painter.drawSurface(canvas, geometry, visual, SurfaceLayer.Background)
+                            effects.paint(canvas, geometry.bounds, geometry.contentStyle) {
+                                content -> content.drawRect(
+                                    Rect(10.0, 10.0, 100.0, 80.0),
+                                    Paint(Color(1.0, 0.0, 0.0))
+                                )
+                            }
+                            painter.drawSurface(canvas, geometry, visual, SurfaceLayer.Foreground)
+                        }
+                    }
+                pixelColor(result, 128, 21, 40, Color(0.0, 1.0, 0.0))
+                pixelColor(result, 128, 50, 40, Color(1.0, 0.0, 0.0))
+                val focus = geometry.focus!!
+                val fx = (focus.outline.bounds.x + focus.border.width / 2.0).toInt()
+                assertTrue(channel(result, 128, fx, 40, 3) > 80)
+                assertEquals(0, channel(result, 128, 8, 40, 3))
+            }
+    }
+
+    @Test
+    fun `checkbox off on mixed disabled hover press and focus are public offscreen drawing inputs`() {
+        for (theme in themes())
+            theme.createPainter().use {
+                painter ->
+                val bounds = Rect(20.0, 20.0, 24.0, 24.0)
+                val off = CheckboxVisual()
+                val on = CheckboxVisual(CheckMark.On)
+                val mixed = CheckboxVisual(CheckMark.Mixed)
+                val offPixels =
+                    pixels(dpi = 2.0) {
+                        canvas -> painter.drawCheckbox(
+                            canvas,
+                            theme.checkboxGeometry(bounds, off),
+                            off
+                        )
+                    }
+                val onPixels =
+                    pixels(dpi = 2.0) {
+                        canvas -> painter.drawCheckbox(
+                            canvas,
+                            theme.checkboxGeometry(bounds, on),
+                            on
+                        )
+                    }
+                val mixedPixels =
+                    pixels(dpi = 2.0) {
+                        canvas -> painter.drawCheckbox(
+                            canvas,
+                            theme.checkboxGeometry(bounds, mixed),
+                            mixed
+                        )
+                    }
+                assertTrue(differences(offPixels, onPixels) > 30)
+                assertTrue(differences(onPixels, mixedPixels) > 30)
+                val geometry = theme.checkboxGeometry(bounds, mixed)
+                pixelColor(mixedPixels, 128, 64, 64, geometry.markColor)
+                for (
+                    interaction in [
+                        InteractionVisual(hovered = true),
+                        InteractionVisual(pressed = true),
+                        InteractionVisual(enabled = false),
+                        InteractionVisual(focused = true)
+                    ]
+                ) {
+                    val visual = CheckboxVisual(CheckMark.On, interaction)
+                    val next = theme.checkboxGeometry(bounds, visual)
+                    assertEquals(geometry.outline, next.outline)
+                    assertTrue(
+                        differences(
+                            onPixels,
+                            pixels(dpi = 2.0) {
+                                canvas -> painter.drawCheckbox(canvas, next, visual)
+                            }
+                        ) >
+                            5
+                    )
+                }
+                assertEquals(0, channel(onPixels, 128, 38, 64, 3))
+            }
+    }
+
+    @Test
+    fun `radio pixels follow the circles and sampled selection without owning any group state`() {
+        for (theme in themes())
+            theme.createPainter().use {
+                painter ->
+                val bounds = Rect(20.0, 20.0, 24.0, 24.0)
+                val off = RadioVisual()
+                val on = RadioVisual(true)
+                val a = theme.radioGeometry(bounds, off)
+                val b = theme.radioGeometry(bounds, on)
+                val empty = pixels { canvas -> painter.drawRadio(canvas, a, off) }
+                val selected = pixels { canvas -> painter.drawRadio(canvas, b, on) }
+                pixelColor(empty, 128, 32, 32, a.style.background!!.color)
+                pixelColor(selected, 128, 32, 32, b.dotColor)
+                assertEquals(0, channel(selected, 128, 20, 20, 3))
+                assertTrue(differences(empty, selected) > 30)
+                val sampled =
+                    theme.radioGeometry(bounds, RadioVisual(true, selectionProgress = Some(0.5)))
+                near(b.dot.radius / 2.0, sampled.dot.radius)
+                assertEquals(a.outer, sampled.outer)
+            }
+    }
+
+    @Test
+    fun `scrollbar thumb pixels move exactly by the published travel including end buttons`() {
+        for (theme in themes())
+            for (axis in [Orientation.Horizontal, Orientation.Vertical])
+                theme.createPainter().use {
+                    painter ->
+                    val bounds =
+                        if (axis == Orientation.Vertical)
+                            Rect(24.0, 12.0, 24.0, 72.0)
+                        else
+                            Rect(12.0, 24.0, 96.0, 24.0)
+                    val visual =
+                        ScrollbarVisual(axis, 0.5, 0.25, hoveredPart = Some(ScrollbarRegion.Thumb))
+                    val geometry = theme.scrollbarGeometry(bounds, visual)
+                    val result =
+                        pixels { canvas -> painter.drawScrollbar(canvas, geometry, visual) }
+                    val center =
+                        Point(
+                            geometry.thumb.bounds.x + geometry.thumb.bounds.width / 2.0,
+                            geometry.thumb.bounds.y + geometry.thumb.bounds.height / 2.0
+                        )
+                    assertTrue(channel(result, 128, center.x.toInt(), center.y.toInt(), 3) > 100)
+                    assertEquals(0, channel(result, 128, 3, 3, 3))
+                    val changed =
+                        ScrollbarVisual(axis, 1.0, 0.25, pressedPart = Some(ScrollbarRegion.Thumb))
+                    val moved = theme.scrollbarGeometry(bounds, changed)
+                    assertTrue(
+                        differences(
+                            result,
+                            pixels { canvas -> painter.drawScrollbar(canvas, moved, changed) }
+                        ) >
+                            20
+                    )
+                }
+    }
+
+    @Test
+    fun `theme typography and local span overrides shape real fixed fonts at different sizes`() {
+        FontCollection(systemFallback = false).use {
+            fonts ->
+            fonts.register(testSansBytes, "Theme Sans")
+            val local = SpanStyle(families = Some(["Theme Sans"]))
+            var previousWidth = 0.0
+            val all = themes()
+            for (i in [0L, 2L, 4L]) {
+                val theme = all[i]
+                val style = local.resolve(theme.tokens.typography.body)
+                assertEquals(theme.tokens.typography.body.fontSize, style.fontSize)
+                val width =
+                    Paragraph(fonts, "Themes", style).use {
+                        paragraph -> paragraph.layoutUnwrapped().use {
+                            layout ->
+                            assertEquals(0, layout.unresolvedGlyphCount)
+                            val result =
+                                pixels { canvas -> canvas.drawText(layout, Point(8.0, 8.0)) }
+                            var painted = 0
+                            for (index in 0L until result.size / 4L)
+                                if (result[index * 4L + 3L].toUByte().toInt() > 128)
+                                    painted += 1
+                            assertTrue(painted > 50)
+                            layout.size.width
+                        }
+                    }
+                if (i == 2L)
+                    assertTrue(width > previousWidth)
+                previousWidth = width
+            }
+        }
+    }
+}

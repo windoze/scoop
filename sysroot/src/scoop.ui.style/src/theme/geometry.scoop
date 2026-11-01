@@ -1,0 +1,113 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+
+internal fun themeLength(value: Double) {
+    requireStyle(value.isFinite() && value >= 0.0, "theme lengths must be finite and nonnegative")
+}
+
+internal fun themeSize(size: Size) {
+    themeLength(size.width);
+    themeLength(size.height)
+}
+
+internal fun themeBounds(bounds: Rect) {
+    themeSize(Size(bounds.width, bounds.height))
+    requireStyle(
+        bounds.x.isFinite() &&
+            bounds.y.isFinite() &&
+            (bounds.x + bounds.width).isFinite() &&
+            (bounds.y + bounds.height).isFinite(),
+        "invalid theme bounds"
+    )
+}
+
+internal fun themeMin(a: Double, b: Double): Double =
+    if (a < b)
+        a
+    else
+        b
+
+internal fun themeMax(a: Double, b: Double): Double =
+    if (a > b)
+        a
+    else
+        b
+
+internal fun themeUnit(value: Double): Double {
+    requireStyle(value.isFinite(), "theme progress must be finite")
+    return themeMin(1.0, themeMax(0.0, value))
+}
+
+internal fun themeProgress(value: Double?, selected: Boolean): Double =
+    themeUnit(
+        value ?:
+            if (selected)
+                1.0
+            else
+                0.0
+    )
+
+internal fun insetTheme(bounds: Rect, insets: Insets): Rect {
+    val totals = insets.totals()
+    val x = themeMin(insets.left, bounds.width)
+    val y = themeMin(insets.top, bounds.height)
+    return Rect(
+        bounds.x + x,
+        bounds.y + y,
+        themeMax(0.0, bounds.width - totals.width),
+        themeMax(0.0, bounds.height - totals.height)
+    )
+}
+
+internal fun roundTheme(bounds: Rect, radius: Double): RoundedOutline {
+    themeLength(radius)
+    return RoundedOutline(bounds, themeMin(radius, themeMin(bounds.width, bounds.height) / 2.0))
+}
+
+internal fun squareTheme(bounds: Rect): Rect {
+    themeBounds(bounds)
+    val side = themeMin(bounds.width, bounds.height)
+    return Rect(
+        bounds.x + (bounds.width - side) / 2.0,
+        bounds.y + (bounds.height - side) / 2.0,
+        side,
+        side
+    )
+}
+
+internal fun borderWidth(style: Style): Double {
+    val width =
+        when (style.border) {
+            case Some(value) -> value.width;
+            case None -> 0.0
+        }
+    themeLength(width)
+    return width
+}
+
+internal fun focusTheme(
+    outline: RoundedOutline,
+    visual: InteractionVisual,
+    style: FocusStyle
+): FocusOutline? {
+    themeLength(style.outset);
+    themeLength(style.width)
+    if (!visual.enabled || !visual.focused || style.width == 0.0)
+        return None
+    val bounds = outline.bounds
+    val expanded =
+        Rect(
+            bounds.x - style.outset,
+            bounds.y - style.outset,
+            bounds.width + style.outset * 2.0,
+            bounds.height + style.outset * 2.0
+        )
+    themeBounds(expanded)
+    return Some(
+        FocusOutline(
+            roundTheme(expanded, outline.radius + style.outset),
+            Border(style.width, style.color)
+        )
+    )
+}

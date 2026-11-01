@@ -12,7 +12,7 @@
 | 3a. 公共文本适配 | aarch64 已完成 | ParagraphHost／InlineView、固定字体共享测试数据与独立自绘组合 |
 | 3b. graphics 基础效果 | aarch64 已完成 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
 | 3c. 公共样式 | aarch64 已完成 | Style／StyleOverride、稳定 styled、StylePainter、装饰／有序效果、真实 Metal／UI 停帧与异常清理 |
-| 3d. 公共主题绘图 | 设计已更新，待实施 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
+| 3d. 公共主题绘图 | aarch64 已完成 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
 | 3e. 简单控件与主题展示 | aarch64 接入中 | 初步 Label／Button／Checkbox 代码待改为消费公共主题；展示各视觉状态及切换，尚未运行验收 |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
 | 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
@@ -190,3 +190,15 @@ Scoop 格式和含测试类型检查、C++／Objective-C 格式与严格告警�
 ### 3.11 主题所需的公共文本覆盖解析
 
 SpanStyle.resolve(parent) 由文本库公开，嵌套片段和主题／控件沿用同一继承规则，不复制字体描述或创建 native 资源。格式与含测试类型检查通过，aarch64 release 的 StyledTextTest 8／8 通过：新增更换 parent 后保留显式颜色、清除行高／feature、继承新字体与字号；既有嵌套排版和实际 glyph 绘图同时通过。graphics.text 已重新发布，无编译器／core／std／test 改动，无 fixture 或全量测试。
+
+### 3.12 公共主题部件与三套风格
+
+style 新增 Theme／ThemePainter、ThemeSource、ThemePainterCache 和类型化视觉状态、Options、metrics、geometry。表面返回外框、边框内区域、内容区和焦点轮廓；Checkbox／Radio 返回标记区域、线段／圆形；Scrollbar 返回轨道、滑块、端部按钮和实际行程。几何不依赖 Canvas／Application，绘图使用普通 Canvas 及同次解析的数据。Scope 拥有可替换 painter，替换先创建新值，失败保留旧值。
+
+新增独立 macos／material／fluent 三个主题 Cone，均提供 Light／Dark。四类部件共用 ShapeTheme 算法，各主题显式提供字体／字重、尺寸／内缩、圆角、边框、阴影、焦点与状态颜色。macOS 为紧凑预设；Material 提供较大的尺寸、圆角和提升外观；Fluent 的滚动条带端部按钮。tokens 同时公开普通自绘可用的语义颜色、文字、间距、圆角、效果与 Surface 动画参数。主题和 painter 不创建业务状态、输入、任务或时钟。
+
+Scoop 格式、生产与含测试类型检查通过，三套主题和更新后的 style／ui 已发布到 aarch64 开发 sysroot。themes 测试 Cone 的 release scoop.test 13／13 通过：四类几何与两轴短轨道、覆盖与继承、六种风格／明暗组合、Off／On／Mixed／hover／pressed／disabled／focus 像素、固定字体实际排版、Context 来源、失败创建及替换关闭、绘制异常恢复、异线程拒绝，以及 DPI 2 的真实 Metal 对照。
+
+Metal 与 Raster 的圆周抗锯齿覆盖不同，初始逐像素最大误差断言把单个圆边缘差异误判为几何失败。检查原始图像后确认边界一致、内部最大差异 1、该 Radio 覆盖量差约 0.7%。最终测试分别约束均匀内部颜色、每个部件的像素边界及覆盖量，并保留整图误差检查；六组主题全部通过。临时原始像素及预览不提交。
+
+控件整体切换、实例／焦点保留、主题动画与完整展示继续在下一批验证；本节的离屏与 Metal 部件测试不代替实际 UI 组合。无编译器／core／std／test 改动，无 fixture 或全量测试，x86_64 仍在 aarch64 全部功能完成后补验。

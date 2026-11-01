@@ -1,0 +1,70 @@
+package scoop.tests.ui.themes
+
+import scoop.graphics.*
+import scoop.math.abs
+import scoop.test.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+import scoop.ui.style.fluent.fluentTheme
+
+internal fun themes(): Array<Theme> =
+    [
+        macosTheme(),
+        macosTheme(ThemeMode.Dark),
+        materialTheme(),
+        materialTheme(ThemeMode.Dark),
+        fluentTheme(),
+        fluentTheme(ThemeMode.Dark)
+    ]
+
+internal fun channel(pixels: Array<Byte>, width: Int, x: Int, y: Int, c: Int): Int =
+    pixels[(y.toLong() * width.toLong() + x.toLong()) * 4L + c.toLong()].toUByte().toInt()
+
+internal fun near(expected: Double, actual: Double) {
+    assertTrue(
+        abs(expected - actual) < 0.0001,
+        Some("expected " + expected.toString() + ", got " + actual.toString())
+    )
+}
+
+internal fun pixelColor(pixels: Array<Byte>, width: Int, x: Int, y: Int, expected: Color) {
+    val parts = [expected.red, expected.green, expected.blue, expected.alpha]
+    for (i in 0 ..< 4)
+        assertTrue(
+            abs(channel(pixels, width, x, y, i).toDouble() - parts[i.toLong()] * 255.0) <= 2.0
+        )
+}
+
+internal fun differences(a: Array<Byte>, b: Array<Byte>): Int {
+    assertEquals(a.size, b.size)
+    var count = 0
+    for (i in 0L until a.size)
+        if (a[i] != b[i])
+            count += 1
+    return count
+}
+
+internal fun pixels(
+    width: Int = 128,
+    height: Int = 96,
+    dpi: Double = 1.0,
+    paint: (Canvas) -> Unit
+): Array<Byte> =
+    RasterSurface(width, height).use {
+        surface ->
+        surface.draw {
+            canvas ->
+            canvas.clear(Color.Transparent);
+            canvas.scale(dpi, dpi);
+            paint(canvas)
+        }
+        surface.readPixels()
+    }
+
+internal fun contains(outer: Rect, inner: Rect) {
+    assertTrue(inner.width >= 0.0 && inner.height >= 0.0)
+    assertTrue(inner.x >= outer.x - 0.0001 && inner.y >= outer.y - 0.0001)
+    assertTrue(inner.x + inner.width <= outer.x + outer.width + 0.0001)
+    assertTrue(inner.y + inner.height <= outer.y + outer.height + 0.0001)
+}

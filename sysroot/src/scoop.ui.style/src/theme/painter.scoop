@@ -1,0 +1,203 @@
+package scoop.ui.style
+
+import scoop.graphics.*
+import scoop.platform.concurrent.currentThreadId
+
+internal class ShapeThemePainter(private val scrollbar: ScrollbarPart): ThemePainter {
+    private val owner = currentThreadId()
+    private var closed = false
+    private var painting = false
+    private val background = StylePainter()
+    private val foreground = StylePainter()
+    private val marker = StylePainter()
+    public override val isClosed: Boolean get() = closed
+
+    private fun checkThread() {
+        if (owner != currentThreadId())
+            throw IllegalStateException(Some("theme painter requires its owner thread"))
+    }
+    private fun draw(canvas: Canvas, block: (Canvas) -> Unit) {
+        checkThread()
+        if (closed || painting)
+            throw IllegalStateException(Some("theme painter is closed or has an active draw"))
+        painting = true
+        try {
+            canvas.withState(block)
+        } finally {
+            painting = false
+        }
+    }
+    public override fun drawSurface(
+        canvas: Canvas,
+        geometry: SurfaceGeometry,
+        visual: SurfaceVisual,
+        layer: SurfaceLayer
+    ) {
+        draw(canvas) {
+            local ->
+            val style = geometry.style
+            if (layer != SurfaceLayer.Foreground)
+                background.paint(
+                    local,
+                    geometry.outline.bounds,
+                    Style(
+                        background = style.background,
+                        cornerRadius = geometry.outline.radius,
+                        boxShadows = style.boxShadows
+                    )
+                ) { _ -> }
+            if (layer != SurfaceLayer.Background) {
+                foreground.paint(
+                    local,
+                    geometry.outline.bounds,
+                    Style(border = style.border, cornerRadius = geometry.outline.radius)
+                ) { _ -> }
+                if (visual.interaction.enabled && visual.interaction.focused)
+                    drawFocus(local, geometry.focus)
+            }
+        }
+    }
+    public override fun drawCheckbox(
+        canvas: Canvas,
+        geometry: CheckboxGeometry,
+        visual: CheckboxVisual
+    ) {
+        draw(canvas) {
+            local ->
+            marker.paint(local, geometry.outline.bounds, geometry.style) {
+                content -> if (geometry.selection > 0.0) {
+                    val color =
+                        geometry.markColor.withAlpha(geometry.markColor.alpha * geometry.selection)
+                    when (visual.mark) {
+                        case Mixed -> content.drawRoundRect(
+                            geometry.mixed.bounds,
+                            geometry.mixed.radius,
+                            geometry.mixed.radius,
+                            Paint(color)
+                        )
+                        else -> drawStroke(content, geometry.tick, color)
+                    }
+                }
+            }
+            if (visual.interaction.enabled && visual.interaction.focused)
+                drawFocus(local, geometry.focus)
+        }
+    }
+    public override fun drawRadio(canvas: Canvas, geometry: RadioGeometry, visual: RadioVisual) {
+        draw(canvas) {
+            local ->
+            marker.paint(local, geometry.outer.bounds, geometry.style) {
+                content -> if (geometry.dot.radius > 0.0)
+                    content.drawCircle(
+                        geometry.dot.center,
+                        geometry.dot.radius,
+                        Paint(
+                            geometry.dotColor.withAlpha(
+                                geometry.dotColor.alpha * geometry.selection
+                            )
+                        )
+                    )
+            }
+            if (visual.interaction.enabled && visual.interaction.focused)
+                drawFocus(local, geometry.focus)
+        }
+    }
+    public override fun drawScrollbar(
+        canvas: Canvas,
+        geometry: ScrollbarGeometry,
+        visual: ScrollbarVisual
+    ) {
+        draw(canvas) {
+            local ->
+            val opacity = themeUnit(visual.opacity)
+            if (opacity < 1.0)
+                local.saveLayer(opacity)
+            drawRound(
+                local,
+                geometry.track,
+                scrollbar.track.resolve(scrollbarVisual(visual, ScrollbarRegion.Track))
+            )
+            drawRound(
+                local,
+                geometry.thumb,
+                scrollbar.thumb.resolve(scrollbarVisual(visual, ScrollbarRegion.Thumb))
+            )
+            drawButton(
+                local,
+                geometry.decrement,
+                scrollbarVisual(visual, ScrollbarRegion.Decrement)
+            )
+            drawButton(
+                local,
+                geometry.increment,
+                scrollbarVisual(visual, ScrollbarRegion.Increment)
+            )
+            if (opacity < 1.0)
+                local.restore()
+        }
+    }
+    private fun drawButton(
+        canvas: Canvas,
+        geometry: ScrollbarButtonGeometry?,
+        visual: InteractionVisual
+    ) {
+        when (geometry) {
+            case Some(value) -> {
+                drawRound(canvas, value.outline, scrollbar.button.resolve(visual))
+                drawStroke(canvas, value.arrow, scrollbar.arrow.resolve(visual))
+            }
+            case None -> {}
+        }
+    }
+    public override fun close() {
+        checkThread()
+        if (painting)
+            throw IllegalStateException(Some("theme painter has an active draw"))
+        if (closed)
+            return
+        closed = true
+        var failure = cleanupStyle(None) { marker.close() }
+        failure = cleanupStyle(failure) { foreground.close() }
+        failure = cleanupStyle(failure) { background.close() }
+        throwStyle(failure)
+    }
+}
+
+private fun scrollbarVisual(visual: ScrollbarVisual, part: ScrollbarRegion): InteractionVisual =
+    InteractionVisual(
+        enabled = visual.enabled,
+        hovered = visual.hoveredPart == Some(part),
+        pressed = visual.pressedPart == Some(part)
+    )
+
+private fun drawRound(canvas: Canvas, outline: RoundedOutline, color: Color) {
+    if (outline.bounds.width > 0.0 && outline.bounds.height > 0.0)
+        canvas.drawRoundRect(outline.bounds, outline.radius, outline.radius, Paint(color))
+}
+
+private fun drawStroke(canvas: Canvas, stroke: StrokeSegment, color: Color) {
+    if (stroke.width <= 0.0)
+        return
+    val paint = Paint(color, PaintingStyle.Stroke, stroke.width, StrokeCap.Round, StrokeJoin.Round)
+    canvas.drawLine(stroke.start, stroke.bend, paint)
+    canvas.drawLine(stroke.bend, stroke.end, paint)
+}
+
+private fun drawFocus(canvas: Canvas, focus: FocusOutline?) {
+    when (focus) {
+        case Some(value) -> {
+            val width = value.border.width
+            val outer = value.outline
+            val center = insetTheme(outer.bounds, Insets.all(width / 2.0))
+            val radius = themeMax(0.0, outer.radius - width / 2.0)
+            if (center.width > 0.0 && center.height > 0.0)
+                canvas.drawRoundRect(
+                    center,
+                    radius,
+                    radius,
+                    Paint(value.border.color, PaintingStyle.Stroke, width)
+                )
+        }
+        case None -> {}
+    }
+}
