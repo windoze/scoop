@@ -1,0 +1,39 @@
+package scoop.examples.ui.themes
+
+import scoop.test.*
+import scoop.ui.style.*
+import scoop.window.Theme as WindowTheme
+
+@Test
+private class ShowcaseModelTest {
+    @Test
+    fun `style and brightness are independent and redundant system notifications retain the theme`() {
+        val model = ShowcaseModel()
+        val light = model.source.current.value
+        model.systemTheme(Some(WindowTheme.Light))
+        model.select(ThemeChoice.MacOS)
+        assertSame(light, model.source.current.value)
+        model.systemTheme(Some(WindowTheme.Dark))
+        assertEquals(ThemeMode.Dark, model.source.current.value.tokens.mode)
+        model.select(ThemeChoice.Material)
+        val material = model.source.current.value
+        assertEquals(ThemeMode.Dark, material.tokens.mode)
+        assertEquals(20.0, material.checkboxMetrics().suggestedSize.width)
+        model.selectMode(ModeChoice.Light)
+        val fixed = model.source.current.value
+        assertEquals(ThemeMode.Light, fixed.tokens.mode)
+        model.systemTheme(Some(WindowTheme.Light))
+        model.systemTheme(Some(WindowTheme.Dark))
+        assertSame(fixed, model.source.current.value)
+        model.select(ThemeChoice.Fluent)
+        assertEquals(ThemeMode.Light, model.source.current.value.tokens.mode)
+        assertEquals(Some(16.0), model.source.current.value.scrollbarMetrics().buttonLength)
+        model.selectMode(ModeChoice.System)
+        assertEquals(ThemeMode.Dark, model.source.current.value.tokens.mode)
+        model.enabled.value = false
+        model.glow.value = true
+        model.select(ThemeChoice.MacOS)
+        assertFalse(model.enabled.value)
+        assertTrue(model.glow.value)
+    }
+}

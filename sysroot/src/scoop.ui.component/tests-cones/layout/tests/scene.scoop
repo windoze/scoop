@@ -1,0 +1,373 @@
+package scoop.tests.ui.layout
+
+import scoop.graphics.*
+import scoop.graphics.native.withSkiaCanvas
+import scoop.graphics.text.*
+import scoop.surface.*
+import scoop.test.*
+import scoop.tests.graphics.readNativePixel
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.style.*
+import scoop.ui.text.*
+import scoop.window.*
+
+internal class LayoutScene(private val probe: LayoutProbe): Component {
+    public override fun render(): View {
+        probe.renders += 1
+        val generation = probe.generation.value
+        val keys =
+            if (generation == 0)
+                ["a", "b"]
+            else
+                ["b", "a"]
+        val cells =
+            Array<View>(keys.size) {
+                index -> component(
+                    keys[index],
+                    { props -> Cell(props, probe) },
+                    ViewKey.Text(keys[index])
+                )
+            }
+        val themed = generation == 1 || generation == 5
+        val front =
+            element("front", { props -> StackBox(props, probe) }, key = ViewKey.Text("front"))
+        val back = element("back", { props -> StackBox(props, probe) }, key = ViewKey.Text("back"))
+        val text =
+            if (generation >= 5)
+                probe.rtl
+            else
+                probe.text
+        return element(
+            generation,
+            { props -> LayoutPanel(props, probe) },
+            [
+                frame(
+                    if (probe.showRows.value)
+                        row(cells, spacing = 6.0)
+                    else
+                        empty(),
+                    width = Some(180.0),
+                    height = Some(80.0),
+                    padding = Some(Insets.all(8.0)),
+                    alignment = Alignment(AxisAlignment.Start, AxisAlignment.Center),
+                    surface =
+                        if (themed)
+                            Some(SurfaceKind.Elevated)
+                        else
+                            None,
+                    style =
+                        StyleOverride(
+                            contentEffects =
+                                StyleValue.Set(
+                                    if (themed)
+                                        [ContentEffect.Glow(2.0, 2.0, Color(0.2, 0.3, 1.0))]
+                                    else
+                                        []
+                                )
+                        )
+                ),
+                frame(
+                    element({ BaselineBox(probe) }),
+                    width = Some(120.0),
+                    height = Some(70.0),
+                    padding = Some(Insets(6.0, 8.0, 10.0, 12.0)),
+                    alignment = Alignment(AxisAlignment.End, AxisAlignment.Center)
+                ),
+                frame(
+                    stack(
+                        if (generation >= 3)
+                            [front, back]
+                        else
+                            [back, front],
+                        Alignment(AxisAlignment.End, AxisAlignment.End)
+                    ),
+                    width = Some(60.0),
+                    height = Some(50.0),
+                    style =
+                        StyleOverride(
+                            cornerRadius = StyleValue.Set(18.0),
+                            clipContent = StyleValue.Set(true)
+                        )
+                ),
+                label(
+                    text,
+                    Some(probe.fonts),
+                    ParagraphStyle(
+                        direction =
+                            if (generation >= 5)
+                                TextDirection.Rtl
+                            else
+                                TextDirection.Ltr,
+                        maxLines =
+                            if (generation == 4)
+                                Some(1L)
+                            else
+                                None
+                    ),
+                    inlines =
+                        [
+                            InlineView(
+                                InlineKey.Text("image"),
+                                element({ InlineImage(probe) }),
+                                Some(
+                                    if (generation >= 5)
+                                        Size(34.0, 24.0)
+                                    else
+                                        Size(22.0, 28.0)
+                                ),
+                                InlineViewAlignment.Explicit(InlineAlignment.Middle)
+                            ),
+                            InlineView(
+                                InlineKey.Text("button"),
+                                frame(
+                                    element(
+                                        probe.inlineClicks.value,
+                                        { props -> ButtonObserver(props, probe) },
+                                        [
+                                            component(
+                                                ButtonProps(
+                                                    LabelProps(
+                                                        LabelText.Plain(
+                                                            f"Inline ${probe.inlineClicks.value}",
+                                                            None
+                                                        ),
+                                                        Some(probe.fonts)
+                                                    ),
+                                                    { probe.inlineClicks.value += 1 }
+                                                ),
+                                                {
+                                                    props ->
+                                                    probe.buttonCreates += 1;
+                                                    Button(props)
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                    width = Some(110.0),
+                                    padding = Some(Insets.all(3.0))
+                                )
+                            )
+                        ]
+                )
+            ]
+        )
+    }
+}
+
+private class LayoutPanel(private val props: Props<Int>, private val probe: LayoutProbe): Element {
+    public override fun update() {
+        probe.updates += 1
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        probe.measures += 1
+        assertEquals(None, context.measureChild(0L, Constraints()).alphabeticBaseline)
+        context.placeChild(0L, Point(20.0, 20.0))
+        val baseline = context.measureChild(1L, Constraints())
+        assertEquals(Size(120.0, 70.0), baseline.size)
+        assertEquals(Some(35.0), baseline.alphabeticBaseline)
+        assertEquals(Some(39.0), baseline.ideographicBaseline)
+        context.placeChild(1L, Point(210.0, 20.0))
+        assertEquals(
+            None,
+            context.measureChild(2L, Constraints.tight(Size(60.0, 50.0))).alphabeticBaseline
+        )
+        context.placeChild(2L, Point(20.0, 150.0))
+        probe.textMetrics =
+            Some(
+                context.measureChild(
+                    3L,
+                    Constraints(
+                        maxWidth =
+                            Some(
+                                if (props.value == 4)
+                                    40.0
+                                else
+                                    520.0
+                            )
+                    )
+                )
+            )
+        context.placeChild(3L, Point(20.0, 240.0))
+        return LayoutMetrics(constraints.constrain(Size(600.0, 440.0)))
+    }
+    public override fun paint(context: PaintContext) {
+        probe.paints += 1
+        context.canvas.clear(Color.White)
+        context.paintChildren()
+        @Unsafe
+        {
+            context.canvas.withSkiaCanvas {
+                native -> @Unsafe
+                {
+                    assertEquals(16711680L, readNativePixel(native, 295.0, 45.0))
+                    assertEquals(16777215L, readNativePixel(native, 21.0, 151.0))
+                }
+            }
+        }
+        probe.paintedGeneration = props.value
+    }
+}
+
+internal class Cell(private val props: Props<String>, private val probe: LayoutProbe): Component {
+    val id: String get() = props.value
+    var count: Int by state(0)
+    var unmounts = 0
+    var ink: CellInk? = None
+    init {
+        probe.cells.add(this)
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+    }
+    public override fun render(): View =
+        element(CellInput(id, count, { count += 1 }), { props -> CellInk(props, this) })
+}
+
+internal class CellInput(val id: String, val count: Int, val click: () -> Unit)
+
+internal class CellInk(private val props: Props<CellInput>, private val owner: Cell): Element {
+    var area: InputArea? = None
+    var bounds = Rect(0.0, 0.0, 0.0, 0.0)
+    public override fun onMount(scope: ComponentScope) {
+        owner.ink = Some(this)
+        area =
+            Some(
+                scope.createArea(focusable = true) {
+                    current, event ->
+                    when (event) {
+                        case Pointer(
+                            AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Pressed, _)
+                        ) -> current.requestFocus()
+                        case Pointer(
+                            AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Released, _)
+                        ) -> props.value.click()
+                        else -> {}
+                    }
+                    InputResult.Handled
+                }
+            )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(32.0 + props.value.count.toDouble() * 8.0, 24.0)))
+    public override fun paint(context: PaintContext) {
+        val local = Rect(0.0, 0.0, context.size.width, context.size.height)
+        bounds = windowBounds(context.canvas, local)
+        context.canvas.drawRect(
+            local,
+            Paint(
+                if (props.value.id == "a")
+                    Color(1.0, 0.0, 0.0)
+                else
+                    Color(0.0, 0.5, 0.0)
+            )
+        )
+        context.place(area!!, local)
+    }
+}
+
+private class BaselineBox(private val probe: LayoutProbe): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(30.0, 20.0)), Some(12.0), Some(16.0))
+    public override fun paint(context: PaintContext) {
+        val bounds = Rect(0.0, 0.0, context.size.width, context.size.height)
+        assertEquals(Rect(290.0, 43.0, 30.0, 20.0), windowBounds(context.canvas, bounds))
+        context.canvas.drawRect(bounds, Paint(Color(0.0, 0.0, 1.0)))
+    }
+}
+
+private class StackBox(private val props: Props<String>, private val probe: LayoutProbe): Element {
+    private var area: InputArea? = None
+    public override fun onMount(scope: ComponentScope) {
+        area =
+            Some(
+                scope.createArea {
+                    _, event ->
+                    when (event) {
+                        case Pointer(
+                            AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Released, _)
+                        ) -> {
+                            if (props.value == "front")
+                                probe.frontClicks += 1
+                            else
+                                probe.backClicks += 1
+                        }
+                        else -> {}
+                    }
+                    InputResult.Handled
+                }
+            )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(
+            constraints.constrain(
+                if (props.value == "front")
+                    Size(20.0, 20.0)
+                else
+                    Size(60.0, 50.0)
+            )
+        )
+    public override fun paint(context: PaintContext) {
+        val bounds = Rect(0.0, 0.0, context.size.width, context.size.height)
+        context.canvas.drawRect(
+            bounds,
+            Paint(
+                if (props.value == "front")
+                    Color(0.0, 1.0, 0.0)
+                else
+                    Color(1.0, 0.0, 0.0)
+            )
+        )
+        context.place(area!!, bounds)
+    }
+}
+
+private class ButtonObserver(
+    private val props: Props<Int>,
+    private val probe: LayoutProbe
+): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val metrics = context.measureChild(0L, constraints)
+        probe.buttonMetrics = Some(metrics)
+        context.placeChild(0L, Point(0.0, 0.0))
+        return metrics
+    }
+    public override fun paint(context: PaintContext) {
+        probe.buttonPaints += 1;
+        context.paintChildren()
+    }
+}
+
+internal class InlineImage(private val probe: LayoutProbe): Element {
+    var image: Image? = None
+    var unmounts = 0
+    var size = Size(0.0, 0.0)
+    public override fun onMount(scope: ComponentScope) {
+        probe.image = Some(this)
+        probe.imageCreates += 1
+        image =
+            Some(
+                scope.resource {
+                    RasterSurface(3, 3).use {
+                        surface ->
+                        surface.draw {
+                            canvas ->
+                            canvas.clear(Color.Transparent);
+                            canvas.drawRect(Rect(0.0, 0.0, 2.0, 3.0), Paint(Color(0.5, 0.0, 0.8)))
+                        }
+                        surface.snapshot()
+                    }
+                }
+            )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        size = constraints.constrain(Size(22.0, 28.0))
+        return LayoutMetrics(size)
+    }
+    public override fun paint(context: PaintContext) {
+        context.canvas.drawImage(image!!, Rect(0.0, 0.0, context.size.width, context.size.height))
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+    }
+}

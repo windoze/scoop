@@ -1,0 +1,147 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.Constraints
+
+public enum AxisAlignment {
+    Start, Center, End
+}
+
+public struct Alignment(
+    val horizontal: AxisAlignment = AxisAlignment.Center,
+    val vertical: AxisAlignment = AxisAlignment.Center
+)
+
+internal class LayoutPlan(val size: Size, val origins: Array<Point>)
+
+internal fun alignmentOffset(alignment: AxisAlignment, available: Double, content: Double): Double =
+    when (alignment) {
+        case Start -> 0.0
+        case Center -> (available - content) / 2.0
+        case End -> available - content
+    }
+
+internal fun alignedOrigin(bounds: Rect, child: Size, alignment: Alignment): Point =
+    Point(
+        bounds.x + alignmentOffset(alignment.horizontal, bounds.width, child.width),
+        bounds.y + alignmentOffset(alignment.vertical, bounds.height, child.height)
+    )
+
+internal fun linearChildConstraints(parent: Constraints, vertical: Boolean): Constraints =
+    if (vertical)
+        Constraints(maxWidth = parent.maxWidth)
+    else
+        Constraints(maxHeight = parent.maxHeight)
+
+internal fun arrangeLinear(
+    children: Array<Size>,
+    parent: Constraints,
+    spacing: Double,
+    alignment: AxisAlignment,
+    vertical: Boolean
+): LayoutPlan {
+    nonnegative(spacing, "invalid layout spacing")
+    var main = 0.0
+    var cross = 0.0
+    for (index in 0L until children.size) {
+        val child = children[index]
+        if (index > 0L)
+            main += spacing
+        main += if (vertical)
+            child.height
+        else
+            child.width
+        cross =
+            lowerBound(
+                cross,
+                if (vertical)
+                    child.width
+                else
+                    child.height
+            )
+    }
+    val size =
+        parent.constrain(
+            if (vertical)
+                Size(cross, main)
+            else
+                Size(main, cross)
+        )
+    val available =
+        if (vertical)
+            size.width
+        else
+            size.height
+    val origins = ArrayList<Point>()
+    var cursor = 0.0
+    for (index in 0L until children.size) {
+        val child = children[index]
+        if (index > 0L)
+            cursor += spacing
+        val offset =
+            alignmentOffset(
+                alignment,
+                available,
+                if (vertical)
+                    child.width
+                else
+                    child.height
+            )
+        origins.add(
+            if (vertical)
+                Point(offset, cursor)
+            else
+                Point(cursor, offset)
+        )
+        cursor += if (vertical)
+            child.height
+        else
+            child.width
+    }
+    return LayoutPlan(size, origins.toArray())
+}
+
+internal fun arrangeStack(
+    children: Array<Size>,
+    parent: Constraints,
+    alignment: Alignment
+): LayoutPlan {
+    var width = 0.0
+    var height = 0.0
+    for (child in children) {
+        width = lowerBound(width, child.width);
+        height = lowerBound(height, child.height)
+    }
+    val size = parent.constrain(Size(width, height))
+    val bounds = Rect(0.0, 0.0, size.width, size.height)
+    return LayoutPlan(
+        size,
+        Array<Point>(children.size) { index -> alignedOrigin(bounds, children[index], alignment) }
+    )
+}
+
+internal fun frameChildConstraints(
+    parent: Constraints,
+    width: Double?,
+    height: Double?,
+    inset: Size
+): Constraints =
+    Constraints(
+        maxWidth = insetMaximum(frameMaximum(width, parent.minWidth, parent.maxWidth), inset.width),
+        maxHeight =
+            insetMaximum(frameMaximum(height, parent.minHeight, parent.maxHeight), inset.height)
+    )
+
+private fun frameMaximum(requested: Double?, minimum: Double, maximum: Double?): Double? =
+    when (requested) {
+        case None -> maximum
+        case Some(value) -> {
+            val lower = lowerBound(value, minimum)
+            Some(
+                when (maximum) {
+                    case Some(limit) -> upperBound(lower, limit);
+                    case None -> lower
+                }
+            )
+        }
+    }

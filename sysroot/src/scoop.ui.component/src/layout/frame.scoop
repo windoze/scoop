@@ -1,0 +1,157 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.*
+import scoop.ui.style.*
+
+public class FrameProps public constructor(
+    public val content: View,
+    public val width: Double? = None,
+    public val height: Double? = None,
+    public val padding: Insets? = None,
+    public val alignment: Alignment = Alignment(),
+    public val style: StyleOverride = StyleOverride(),
+    public val surface: SurfaceKind? = None,
+    public val theme: ThemeSource? = None
+) {
+    init {
+        when (width) {
+            case Some(value) -> nonnegative(value, "invalid frame width");
+            case None -> {}
+        }
+        when (height) {
+            case Some(value) -> nonnegative(value, "invalid frame height");
+            case None -> {}
+        }
+        padding?.totals()
+    }
+}
+
+public class Frame public constructor(private val props: Props<FrameProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        when (props.value.surface) {
+            case Some(_) -> themes.mount(props.value.theme);
+            case None -> {}
+        }
+    }
+    public override fun render(): View {
+        val value = props.value
+        val theme =
+            when (value.surface) {
+                case Some(_) -> Some(themes.read(value.theme));
+                case None -> None
+            }
+        return element(FrameInput(value, theme), { current -> FrameInk(current) }, [value.content])
+    }
+}
+
+public fun frame(
+    content: View,
+    width: Double? = None,
+    height: Double? = None,
+    padding: Insets? = None,
+    alignment: Alignment = Alignment(),
+    style: StyleOverride = StyleOverride(),
+    surface: SurfaceKind? = None,
+    theme: ThemeSource? = None,
+    key: ViewKey = ViewKey.Position
+): View =
+    component(
+        FrameProps(content, width, height, padding, alignment, style, surface, theme),
+        { props -> Frame(props) },
+        key
+    )
+
+private class FrameInput(val value: FrameProps, val theme: Theme?)
+
+private enum FrameDrawing {
+    Plain(Style), Themed(val theme: Theme, val geometry: SurfaceGeometry, val visual: SurfaceVisual)
+}
+
+private class FrameInk(private val props: Props<FrameInput>): Element {
+    private var painters: ThemePainterCache? = None
+    private var style: StylePainter? = None
+    private var drawing: FrameDrawing? = None
+    public override fun onMount(scope: ComponentScope) {
+        painters = Some(scope.resource { ThemePainterCache() })
+        style = Some(scope.resource { StylePainter() })
+    }
+    public override fun update() {
+        when (props.value.theme) {
+            case Some(theme) -> painters!!.get(theme);
+            case None -> painters!!.clear()
+        }
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val input = props.value
+        val value = input.value
+        val visual = SurfaceVisual(value.surface ?: SurfaceKind.Plain)
+        val options = SurfaceOptions(padding = value.padding, style = value.style)
+        val metrics =
+            when (input.theme) {
+                case Some(theme) -> Some(theme.surfaceMetrics(visual, options));
+                case None -> None
+            }
+        val insets =
+            when (metrics) {
+                case Some(value) -> value.contentInsets;
+                case None -> value.padding ?: Insets.all(0.0)
+            }
+        val total = insets.totals()
+        val child =
+            context.measureChild(
+                0L,
+                frameChildConstraints(constraints, value.width, value.height, total)
+            )
+        val natural = Size(child.size.width + total.width, child.size.height + total.height)
+        validSize(natural)
+        val minimum = metrics?.minimumSize ?: Size(0.0, 0.0)
+        val preferred = metrics?.suggestedSize ?: Size(0.0, 0.0)
+        val size =
+            constraints.constrain(
+                Size(
+                    value.width ?:
+                        lowerBound(natural.width, lowerBound(minimum.width, preferred.width)),
+                    value.height ?:
+                        lowerBound(natural.height, lowerBound(minimum.height, preferred.height))
+                )
+            )
+        val bounds = Rect(0.0, 0.0, size.width, size.height)
+        val content =
+            when (input.theme) {
+                case Some(theme) -> {
+                    val geometry = theme.surfaceGeometry(bounds, visual, options)
+                    drawing = Some(FrameDrawing.Themed(theme, geometry, visual))
+                    geometry.content
+                }
+                case None -> {
+                    drawing = Some(FrameDrawing.Plain(value.style.resolve(Style())))
+                    Rect(
+                        insets.left,
+                        insets.top,
+                        lowerBound(size.width - total.width, 0.0),
+                        lowerBound(size.height - total.height, 0.0)
+                    )
+                }
+            }
+        val origin = alignedOrigin(content, child.size, value.alignment)
+        context.placeChild(0L, origin)
+        return offsetMetrics(child, size, origin.y)
+    }
+    public override fun paint(context: PaintContext) {
+        when (drawing!!) {
+            case Plain(value) -> style!!.paint(context, value) {
+                content -> content.paintChildren()
+            }
+            case Themed(theme, geometry, visual) -> {
+                val painter = painters!!.get(theme)
+                painter.drawSurface(context.canvas, geometry, visual, SurfaceLayer.Background)
+                style!!.paint(context, geometry.bounds, geometry.contentStyle) {
+                    content -> content.paintChildren()
+                }
+                painter.drawSurface(context.canvas, geometry, visual, SurfaceLayer.Foreground)
+            }
+        }
+    }
+}

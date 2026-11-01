@@ -1,0 +1,225 @@
+package scoop.examples.ui.themes
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.style.*
+
+/** A Canvas-only renderer shared by the mounted showcase and its offscreen test. */
+internal class GalleryPainter(private val fonts: FontCollection): Closeable {
+    private var closed = false
+    private val painters = ThemePainterCache()
+    private var textTheme: Theme? = None
+    private var revision = -1L
+    private var labels: Array<TextLayout> = []
+    private val titles =
+        [
+            "Normal",
+            "Hovered",
+            "Pressed",
+            "Disabled",
+            "Selected",
+            "Mixed",
+            "Focused",
+            "Surface",
+            "Checkbox",
+            "Radio",
+            "Horizontal",
+            "Actions",
+            "Vertical"
+        ]
+
+    fun paint(canvas: Canvas, theme: Theme, width: Double) {
+        if (closed)
+            throw IllegalStateException(Some("gallery painter is closed"))
+        prepareText(theme)
+        val painter = painters.get(theme)
+        val columnWidth = nonnegative((width - 90.0) / 7.0)
+        val cellWidth = nonnegative(columnWidth - 18.0)
+        val rowHeight = 40.0
+        for (column in 0L until 7L) {
+            val left = 90.0 + column.toDouble() * columnWidth
+            canvas.drawText(labels[column], Point(left + 4.0, 2.0))
+            val interaction = sampleInteraction(column)
+            if (column != 5L) {
+                val surface =
+                    SurfaceVisual(
+                        if (column == 4L)
+                            SurfaceKind.Action
+                        else
+                            SurfaceKind.Plain,
+                        interaction
+                    )
+                val geometry =
+                    theme.surfaceGeometry(Rect(left + 4.0, 30.0, cellWidth, 30.0), surface)
+                painter.drawSurface(canvas, geometry, surface)
+            } else
+                dash(canvas, left, 32.0)
+            val mark =
+                when (column) {
+                    case 3L -> CheckMark.On
+                    case 4L -> CheckMark.On
+                    case 6L -> CheckMark.On
+                    case 5L -> CheckMark.Mixed
+                    else -> CheckMark.Off
+                }
+            val checkbox = CheckboxVisual(mark, interaction)
+            val checkSize = theme.checkboxMetrics().suggestedSize
+            painter.drawCheckbox(
+                canvas,
+                theme.checkboxGeometry(
+                    Rect(left + 16.0, 30.0 + rowHeight, checkSize.width, checkSize.height),
+                    checkbox
+                ),
+                checkbox
+            )
+            if (column != 5L) {
+                val radio = RadioVisual(column == 3L || column == 4L || column == 6L, interaction)
+                val size = theme.radioMetrics().suggestedSize
+                painter.drawRadio(
+                    canvas,
+                    theme.radioGeometry(
+                        Rect(left + 16.0, 30.0 + rowHeight * 2.0, size.width, size.height),
+                        radio
+                    ),
+                    radio
+                )
+            } else
+                dash(canvas, left, 32.0 + rowHeight * 2.0)
+            if (column != 5L && column != 6L) {
+                val horizontal = sampleScroll(column, Orientation.Horizontal)
+                painter.drawScrollbar(
+                    canvas,
+                    theme.scrollbarGeometry(
+                        Rect(left + 4.0, 30.0 + rowHeight * 3.0, cellWidth, 24.0),
+                        horizontal
+                    ),
+                    horizontal
+                )
+                val vertical = sampleScroll(column, Orientation.Vertical)
+                painter.drawScrollbar(
+                    canvas,
+                    theme.scrollbarGeometry(
+                        Rect(left + 16.0, 30.0 + rowHeight * 5.0, 28.0, 64.0),
+                        vertical
+                    ),
+                    vertical
+                )
+            } else {
+                dash(canvas, left, 32.0 + rowHeight * 3.0)
+                dash(canvas, left, 32.0 + rowHeight * 5.0)
+            }
+            if (column != 4L && column != 5L) {
+                val button = SurfaceVisual(SurfaceKind.Action, interaction)
+                val geometry =
+                    theme.surfaceGeometry(
+                        Rect(left + 4.0, 30.0 + rowHeight * 4.0, cellWidth, 32.0),
+                        button
+                    )
+                painter.drawSurface(canvas, geometry, button, SurfaceLayer.Background)
+                val label = labels[13L + column]
+                canvas.drawText(
+                    label,
+                    Point(
+                        geometry.bounds.x + (geometry.bounds.width - label.size.width) / 2.0,
+                        geometry.bounds.y + (geometry.bounds.height - label.size.height) / 2.0
+                    )
+                )
+                painter.drawSurface(canvas, geometry, button, SurfaceLayer.Foreground)
+            } else
+                dash(canvas, left, 32.0 + rowHeight * 4.0)
+        }
+        for (row in 0L until 6L)
+            canvas.drawText(labels[7L + row], Point(0.0, 32.0 + row.toDouble() * rowHeight))
+    }
+    private fun dash(canvas: Canvas, left: Double, y: Double) {
+        canvas.drawText(labels[20L], Point(left + 16.0, y))
+    }
+    private fun prepareText(theme: Theme) {
+        when (textTheme) {
+            case Some(previous) -> if (previous === theme && revision == fonts.revision)
+                return
+            case None -> {}
+        }
+        val next = ArrayList<TextLayout>()
+        try {
+            for (title in titles)
+                next.add(layout(title, theme.tokens.typography.caption))
+            for (column in 0L until 7L)
+                next.add(
+                    layout(
+                        "Button",
+                        SpanStyle(
+                            color =
+                                Some(
+                                    theme.surfaceTextColor(
+                                        SurfaceVisual(SurfaceKind.Action, sampleInteraction(column))
+                                    )
+                                )
+                        ).resolve(theme.tokens.typography.action)
+                    )
+                )
+            next.add(layout("—", theme.tokens.typography.caption))
+        } catch (error: Throwable) {
+            for (value in next)
+                value.close()
+            throw error
+        }
+        val old = labels
+        labels = next.toArray()
+        textTheme = Some(theme)
+        revision = fonts.revision
+        for (value in old)
+            value.close()
+    }
+    private fun layout(text: String, style: TextStyle): TextLayout =
+        Paragraph(fonts, text, style).use { paragraph -> paragraph.layoutUnwrapped() }
+    public override fun close() {
+        if (closed)
+            return
+        closed = true
+        painters.close()
+        val old = labels
+        labels = []
+        textTheme = None
+        for (value in old)
+            value.close()
+    }
+}
+
+private fun sampleInteraction(column: Long): InteractionVisual =
+    when (column) {
+        case 1L -> InteractionVisual(hovered = true)
+        case 2L -> InteractionVisual(hovered = true, pressed = true)
+        case 3L -> InteractionVisual(enabled = false)
+        case 6L -> InteractionVisual(focused = true)
+        else -> InteractionVisual()
+    }
+
+private fun sampleScroll(column: Long, orientation: Orientation): ScrollbarVisual {
+    val interaction = sampleInteraction(column)
+    return ScrollbarVisual(
+        orientation,
+        if (column == 4L)
+            0.8
+        else
+            0.35,
+        0.3,
+        enabled = interaction.enabled,
+        hoveredPart =
+            if (interaction.hovered)
+                Some(ScrollbarRegion.Thumb)
+            else
+                None,
+        pressedPart =
+            if (interaction.pressed)
+                Some(ScrollbarRegion.Thumb)
+            else
+                None
+    )
+}
+
+private fun nonnegative(value: Double): Double =
+    if (value < 0.0)
+        0.0
+    else
+        value

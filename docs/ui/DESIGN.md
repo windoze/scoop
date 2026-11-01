@@ -1,6 +1,6 @@
 # scoop.ui：自绘框架与独立控件库设计
 
-日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配已在 macOS aarch64 交付，公共 `scoop.ui.style`、主题绘图／几何和三套风格也已交付，基础控件与组合验证继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
+日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配、公共 `scoop.ui.style`、主题绘图／几何和三套风格、基础控件／容器及主题展示已在 macOS aarch64 交付，宿主和异步进度组合继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
 
 ## 1. 分层目标
 
@@ -250,7 +250,7 @@ SurfaceContent 已在 aarch64 验证正常、原生和异常关闭，并接入�
 
 ### 9.1 多窗口与窗口层前置
 
-scoop.window 已实现多个独立的非模态顶层窗口，共享一个 Application 和原生主循环，按 WindowId 区分事件，默认 LastWindowPolicy.KeepRunning。拟实施的 UiHost 对每个 Window 分别 attach 独立 UI 根；普通关闭一个窗口只卸载该根，同一 owner 上共享的业务 State 可以继续供其他根使用。组件、输入区域和挂载身份不跨窗口共用。
+scoop.window 已实现多个独立的非模态顶层窗口，共享一个 Application 和原生主循环，按 WindowId 区分事件，默认 LastWindowPolicy.KeepRunning。UiHost 对每个 Window 分别 attach 独立 UI 根；普通关闭一个窗口只卸载该根，同一 owner 上共享的业务 State 可以继续供其他根使用。组件、输入区域和挂载身份不跨窗口共用。
 
 窗口装饰／缩放、按钮和层级已有属性入口；macOS 另有 TitlebarOptions。Win32 在关闭 decorations 但保留 resizable 时仍使用 WS_THICKFRAME，完全自绘窗框的系统拖移／边缘缩放接口尚未实现。
 
@@ -262,7 +262,7 @@ scoop.window 已实现多个独立的非模态顶层窗口，共享一个 Applic
 
 默认采用一个 UI owner 加附着式 asyncio：应用显式以 Application.runWithAsyncio 驱动 UiHost，在其 EventLoop 和活动应用作用域中创建并复用 HttpClient。下载协程提交网络或文件 I/O 后挂起，窗口继续处理输入和绘制，asyncio 的完成在 owner 恢复。HTTP client 不知道 State 或 Component；应用通过既有进度回调把结果写入模型。
 
-下面的设计示例表示单个活动下载：client 已在该 EventLoop 中创建，Context 提供 DownloadModel，startDownload 从 UI 事件或 onMount 调用。DownloadPhase 是应用自己的业务状态；UI State 类型仍待框架实施，HTTP 下载和 window.asyncio 接口已经存在。
+下面的设计示例表示单个活动下载：client 已在该 EventLoop 中创建，Context 提供 DownloadModel，startDownload 从 UI 事件或 onMount 调用。DownloadPhase 是应用自己的业务状态；UI State、HTTP 下载和 window.asyncio 接口均已存在，实际宿主组合按第 5 批验收。
 
 ```kotlin
 import scoop.http.client.*

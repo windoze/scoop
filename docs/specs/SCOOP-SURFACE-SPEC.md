@@ -6,7 +6,7 @@
 
 第一期提供基本 2D 绘图与 Path、动画、文本布局、指定区域的输入响应。它们是后续 component 的基础；本期不提供组件树、声明式 DSL、通用布局容器、完整文本编辑器或手势识别系统。
 
-基础 Cone 统一使用 `scoop.surface` 名称，类型为 SurfaceHost／SurfaceWindow／SurfaceWindowState，原生入口以 `scoop_surface_` 为前缀，不提供旧名称的兼容入口。上层由 [`scoop.ui` 自绘框架](SCOOP-UI-SPEC.md)和独立的 [`scoop.ui.component` 控件库](SCOOP-UI-COMPONENT-SPEC.md)组成；框架及公共文本适配已在 macOS aarch64 交付，控件继续实施。本期新增独立[公共样式库](SCOOP-UI-STYLE-SPEC.md)及其[主题绘图／几何协议](SCOOP-UI-THEME-SPEC.md)，Surface 不依赖或识别这些上层类型。
+基础 Cone 统一使用 `scoop.surface` 名称，类型为 SurfaceHost／SurfaceWindow／SurfaceWindowState，原生入口以 `scoop_surface_` 为前缀，不提供旧名称的兼容入口。上层由 [`scoop.ui` 自绘框架](SCOOP-UI-SPEC.md)和独立的 [`scoop.ui.component` 控件库](SCOOP-UI-COMPONENT-SPEC.md)组成；框架、公共文本适配、基础控件／容器与主题展示已在 macOS aarch64 交付。本期新增独立[公共样式库](SCOOP-UI-STYLE-SPEC.md)及其[主题绘图／几何协议](SCOOP-UI-THEME-SPEC.md)，Surface 不依赖或识别这些上层类型。
 
 字体和 Paragraph／TextLayout 已迁入独立 [`scoop.graphics.text`](SCOOP-GRAPHICS-TEXT-SPEC.md)，内容输入统一为 StyledText／SpanStyle，并提供行内对象的测量输入和位置结果。Surface 的帧、动画、输入区域与 Rect caret 不反向依赖 graphics.text 或 UI；使用文本的示例和测试直接声明依赖。
 

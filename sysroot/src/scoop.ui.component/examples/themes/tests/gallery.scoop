@@ -1,0 +1,62 @@
+package scoop.examples.ui.themes
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.test.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+import scoop.ui.style.fluent.fluentTheme
+
+@Test
+private class ShowcaseGalleryTest {
+    @Test
+    fun `the showcase renderer draws all styles offscreen at two densities without a UI host`() {
+        val themes =
+            [
+                macosTheme(),
+                materialTheme(),
+                fluentTheme(),
+                macosTheme(ThemeMode.Dark),
+                materialTheme(ThemeMode.Dark),
+                fluentTheme(ThemeMode.Dark)
+            ]
+        FontCollection(false).use {
+            fonts ->
+            for (theme in themes) {
+                for (family in theme.tokens.typography.action.families)
+                    fonts.register(testSansBytes, family)
+            }
+            GalleryPainter(fonts).use {
+                painter ->
+                for (theme in themes) {
+                    for (dpi in [1, 2])
+                        RasterSurface(1040 * dpi, 300 * dpi).use {
+                            target ->
+                            target.draw {
+                                canvas ->
+                                canvas.clear(Color.Transparent)
+                                canvas.scale(dpi.toDouble(), dpi.toDouble())
+                                painter.paint(canvas, theme, 1040.0)
+                            }
+                            val pixels = target.readPixels()
+                            var covered = 0
+                            var index = 3L
+                            while (index < pixels.size) {
+                                if (pixels[index].toUByte().toInt() > 0)
+                                    covered += 1
+                                index += 4L
+                            }
+                            assertTrue(covered > 15000 * dpi * dpi)
+                            assertTrue(covered < 180000 * dpi * dpi)
+                        }
+                }
+                RasterSurface(1, 1).use {
+                    target -> target.draw { canvas -> painter.paint(canvas, themes[0L], 0.0) }
+                }
+            }
+            assertFalse(fonts.isClosed)
+        }
+    }
+}

@@ -1,0 +1,99 @@
+package scoop.tests.ui.layout
+
+import scoop.graphics.*
+import scoop.graphics.native.captureGeometry
+import scoop.ui.style.*
+
+internal class CountingTheme(private val base: Theme, private val probe: LayoutProbe): Theme {
+    val painters = ArrayList<CountedPainter>()
+    public override val tokens: ThemeTokens get() = base.tokens
+    public override fun surfaceMetrics(
+        visual: SurfaceVisual,
+        options: SurfaceOptions
+    ): SurfaceMetrics = base.surfaceMetrics(visual, options)
+    public override fun surfaceGeometry(
+        bounds: Rect,
+        visual: SurfaceVisual,
+        options: SurfaceOptions
+    ): SurfaceGeometry = base.surfaceGeometry(bounds, visual, options)
+    public override fun checkboxMetrics(options: CheckboxOptions): CheckboxMetrics =
+        base.checkboxMetrics(options)
+    public override fun checkboxGeometry(
+        bounds: Rect,
+        visual: CheckboxVisual,
+        options: CheckboxOptions
+    ): CheckboxGeometry = base.checkboxGeometry(bounds, visual, options)
+    public override fun radioMetrics(options: RadioOptions): RadioMetrics =
+        base.radioMetrics(options)
+    public override fun radioGeometry(
+        bounds: Rect,
+        visual: RadioVisual,
+        options: RadioOptions
+    ): RadioGeometry = base.radioGeometry(bounds, visual, options)
+    public override fun scrollbarMetrics(options: ScrollbarOptions): ScrollbarMetrics =
+        base.scrollbarMetrics(options)
+    public override fun scrollbarGeometry(
+        bounds: Rect,
+        visual: ScrollbarVisual,
+        options: ScrollbarOptions
+    ): ScrollbarGeometry = base.scrollbarGeometry(bounds, visual, options)
+    public override fun surfaceTextColor(visual: SurfaceVisual): Color =
+        base.surfaceTextColor(visual)
+    public override fun createPainter(): ThemePainter {
+        val value = CountedPainter(base.createPainter(), probe)
+        painters.add(value)
+        return value
+    }
+}
+
+internal class CountedPainter(
+    private val base: ThemePainter,
+    private val probe: LayoutProbe
+): ThemePainter {
+    var kind: SurfaceKind? = None
+    var closes = 0
+    public override val isClosed: Boolean get() = base.isClosed
+    public override fun drawSurface(
+        canvas: Canvas,
+        geometry: SurfaceGeometry,
+        visual: SurfaceVisual,
+        layer: SurfaceLayer
+    ) {
+        kind = Some(visual.kind)
+        base.drawSurface(canvas, geometry, visual, layer)
+        if (visual.kind == SurfaceKind.Action)
+            probe.buttonBounds = windowBounds(canvas, geometry.bounds)
+        else
+            probe.framePainter = Some(this)
+    }
+    public override fun drawCheckbox(
+        canvas: Canvas,
+        geometry: CheckboxGeometry,
+        visual: CheckboxVisual
+    ) {
+        base.drawCheckbox(canvas, geometry, visual)
+    }
+    public override fun drawRadio(canvas: Canvas, geometry: RadioGeometry, visual: RadioVisual) {
+        base.drawRadio(canvas, geometry, visual)
+    }
+    public override fun drawScrollbar(
+        canvas: Canvas,
+        geometry: ScrollbarGeometry,
+        visual: ScrollbarVisual
+    ) {
+        base.drawScrollbar(canvas, geometry, visual)
+    }
+    public override fun close() {
+        if (!base.isClosed) {
+            closes += 1;
+            base.close()
+        }
+    }
+}
+
+internal fun windowBounds(canvas: Canvas, bounds: Rect): Rect {
+    @Unsafe
+    {
+        return captureGeometry(canvas, bounds).use { value -> value.toWindow(bounds) }
+    }
+}

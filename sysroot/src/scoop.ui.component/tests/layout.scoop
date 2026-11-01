@@ -1,0 +1,108 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.test.*
+import scoop.ui.*
+import scoop.ui.style.Insets
+
+@Test
+private class ComponentLayoutTest {
+    @Test
+    fun `rows and columns measure their main axis freely and arrange each child once`() {
+        val parent =
+            Constraints(
+                minWidth = 20.0,
+                maxWidth = Some(100.0),
+                minHeight = 10.0,
+                maxHeight = Some(80.0)
+            )
+        assertEquals(Constraints(maxHeight = Some(80.0)), linearChildConstraints(parent, false))
+        assertEquals(Constraints(maxWidth = Some(100.0)), linearChildConstraints(parent, true))
+        val children = [Size(25.0, 20.0), Size(15.0, 10.0), Size(30.0, 40.0)]
+        val row = arrangeLinear(children, parent, 5.0, AxisAlignment.Center, false)
+        assertEquals(Size(80.0, 40.0), row.size)
+        assertEquals(Point(0.0, 10.0), row.origins[0L])
+        assertEquals(Point(30.0, 15.0), row.origins[1L])
+        assertEquals(Point(50.0, 0.0), row.origins[2L])
+        val column = arrangeLinear(children, parent, 7.0, AxisAlignment.End, true)
+        assertEquals(Size(30.0, 80.0), column.size)
+        assertEquals(Point(5.0, 0.0), column.origins[0L])
+        assertEquals(Point(15.0, 27.0), column.origins[1L])
+        assertEquals(Point(0.0, 44.0), column.origins[2L])
+        assertTrue(column.origins[2L].y + children[2L].height > column.size.height)
+        val empty = arrangeLinear([], parent, 8.0, AxisAlignment.Start, true)
+        assertEquals(Size(20.0, 10.0), empty.size)
+        assertEquals(0L, empty.origins.size)
+    }
+
+    @Test
+    fun `stack positions use the constrained size and both alignment axes`() {
+        val values = [Size(10.0, 15.0), Size(40.0, 20.0)]
+        val result =
+            arrangeStack(
+                values,
+                Constraints.tight(Size(100.0, 60.0)),
+                Alignment(AxisAlignment.End, AxisAlignment.Center)
+            )
+        assertEquals(Size(100.0, 60.0), result.size)
+        assertEquals(Point(90.0, 22.5), result.origins[0L])
+        assertEquals(Point(60.0, 20.0), result.origins[1L])
+        assertEquals(Size(40.0, 20.0), arrangeStack(values, Constraints(), Alignment()).size)
+        assertEquals(Size(0.0, 0.0), arrangeStack([], Constraints(), Alignment()).size)
+    }
+
+    @Test
+    fun `fixed frames constrain before measuring content and baseline offsets use its actual placement`() {
+        val parent = Constraints(minWidth = 40.0, maxWidth = Some(120.0), maxHeight = Some(100.0))
+        assertEquals(
+            Constraints(maxWidth = Some(90.0), maxHeight = Some(35.0)),
+            frameChildConstraints(parent, Some(100.0), Some(50.0), Size(10.0, 15.0))
+        )
+        assertEquals(
+            Constraints(maxWidth = Some(30.0), maxHeight = Some(85.0)),
+            frameChildConstraints(parent, Some(20.0), None, Size(10.0, 15.0))
+        )
+        assertEquals(
+            Constraints(maxWidth = Some(0.0), maxHeight = Some(0.0)),
+            frameChildConstraints(parent, Some(500.0), Some(30.0), Size(200.0, 100.0))
+        )
+        assertEquals(
+            Constraints(),
+            frameChildConstraints(Constraints(), None, None, Size(10.0, 10.0))
+        )
+        val content = Rect(7.0, 9.0, 40.0, 20.0)
+        val origin =
+            alignedOrigin(
+                content,
+                Size(20.0, 8.0),
+                Alignment(AxisAlignment.End, AxisAlignment.Center)
+            )
+        assertEquals(Point(27.0, 15.0), origin)
+        val baseline =
+            offsetMetrics(
+                LayoutMetrics(Size(20.0, 8.0), Some(6.0), Some(8.0)),
+                Size(60.0, 40.0),
+                origin.y
+            )
+        assertEquals(Some(21.0), baseline.alphabeticBaseline)
+        assertEquals(Some(23.0), baseline.ideographicBaseline)
+    }
+
+    @Test
+    fun `invalid public layout inputs and finite size overflow fail without resource acquisition`() {
+        assertFailsWith<IllegalArgumentException> { LinearProps([], spacing = -1.0) }
+        assertFailsWith<IllegalArgumentException> { FrameProps(empty(), width = Some(-1.0)) }
+        assertFailsWith<IllegalArgumentException> {
+            FrameProps(empty(), padding = Some(Insets.all(-1.0)))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            arrangeLinear(
+                [Size(1.0e308, 1.0), Size(1.0e308, 1.0)],
+                Constraints(),
+                0.0,
+                AxisAlignment.Start,
+                false
+            )
+        }
+    }
+}

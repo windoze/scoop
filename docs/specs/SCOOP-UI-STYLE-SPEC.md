@@ -1,6 +1,6 @@
 # Scoop 公共 UI 样式规范
 
-日期：2026-11-02。状态：graphics 滤镜／图层、通用嵌套 PaintContext、公共 Style 和公共主题绘图已在 macOS aarch64 完成；控件消费与完整展示继续实施。分批计划见 [UI 设计](../ui/DESIGN.md)与[实施记录](../ui/PROGRESS.md)。本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。
+日期：2026-11-02。状态：graphics 滤镜／图层、通用嵌套 PaintContext、公共 Style、主题绘图、基础控件消费与完整展示已在 macOS aarch64 完成。原有宿主及异步进度组合继续实施，分批计划见 [UI 设计](../ui/DESIGN.md)与[实施记录](../ui/PROGRESS.md)。本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。
 
 ## 1. 分层与接入
 

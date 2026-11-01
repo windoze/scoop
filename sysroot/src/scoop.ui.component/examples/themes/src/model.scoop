@@ -1,0 +1,67 @@
+package scoop.examples.ui.themes
+
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+import scoop.ui.style.fluent.fluentTheme
+import scoop.window.Theme as WindowTheme
+
+internal enum ThemeChoice {
+    MacOS, Material, Fluent
+}
+
+internal enum ModeChoice {
+    Light, Dark, System
+}
+
+internal class ShowcaseModel {
+    val source = ThemeSource(macosTheme())
+    val choice = state(ThemeChoice.MacOS)
+    val mode = state(ModeChoice.System)
+    val enabled = state(true)
+    val glow = state(false)
+    val blur = state(false)
+    val shadow = state(false)
+    private var system = ThemeMode.Light
+    private var resolvedChoice = ThemeChoice.MacOS
+    private var resolvedMode = ThemeMode.Light
+    fun select(value: ThemeChoice) {
+        if (choice.value != value) {
+            choice.value = value;
+            update()
+        }
+    }
+    fun selectMode(value: ModeChoice) {
+        if (mode.value != value) {
+            mode.value = value;
+            update()
+        }
+    }
+    fun systemTheme(value: WindowTheme?) {
+        system =
+            when (value) {
+                case Some(WindowTheme.Dark) -> ThemeMode.Dark;
+                else -> ThemeMode.Light
+            }
+        update()
+    }
+    private fun update() {
+        val next =
+            when (mode.value) {
+                case Light -> ThemeMode.Light;
+                case Dark -> ThemeMode.Dark;
+                case System -> system
+            }
+        if (choice.value == resolvedChoice && next == resolvedMode)
+            return
+        resolvedChoice = choice.value
+        resolvedMode = next
+        source.current.value =
+            when (resolvedChoice) {
+                case MacOS -> macosTheme(next);
+                case Material -> materialTheme(next);
+                case Fluent -> fluentTheme(next)
+            }
+    }
+}

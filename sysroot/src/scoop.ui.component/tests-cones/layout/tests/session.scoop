@@ -1,0 +1,331 @@
+package scoop.tests.ui.layout
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.window.*
+
+@Test
+private class ControlLayoutUiTest {
+    @Test
+    fun `containers preserve keyed state use committed clip and compose real inline text controls`() {
+        val probe = LayoutProbe()
+        val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+        try {
+            context(probe.source) {
+                host.use { owner -> Application().run(owner) }
+            }
+            assertTrue(probe.finished)
+            assertTrue(host.isClosed)
+            assertEquals(4L, probe.cells.size)
+            for (cell in probe.cells)
+                assertEquals(1, cell.unmounts)
+            assertEquals(1, probe.buttonCreates)
+            assertEquals(1, probe.imageCreates)
+            assertEquals(1, probe.image!!.unmounts)
+            assertTrue(probe.image!!.image!!.isClosed)
+            assertEquals(3L, probe.theme.painters.size)
+            for (painter in probe.theme.painters) {
+                assertTrue(painter.isClosed);
+                assertEquals(1, painter.closes)
+            }
+            assertFalse(probe.fonts.isClosed)
+            assertTrue(probe.view!!.restored())
+            assertFalse(probe.frames!!.snapshot().attached)
+        } catch (error: Throwable) {
+            println(f"layout UI phase=${probe.phase}, generation=${probe.paintedGeneration}")
+            report(error)
+            throw error
+        } finally {
+            host.close()
+            probe.frames?.close()
+            probe.view?.close()
+            probe.fonts.close()
+        }
+    }
+}
+
+private fun report(error: Throwable) {
+    if (error is ResourceUseException) {
+        report(error.primaryFailure);
+        report(error.cleanupFailure)
+    }
+    else
+        if (error is AssertionFailure) {
+            println(
+                f"${error.kind} at ${error.location.file}:${error.location.line}: ${
+                    error.message ?: ""
+                }"
+            )
+            when (error.expected) {
+                case Text(value) -> println(f"expected: ${value}");
+                else -> {}
+            }
+            when (error.actual) {
+                case Text(value) -> println(f"actual: ${value}");
+                else -> {}
+            }
+        } else
+            if (error is Exception)
+                println(error.message ?: "layout failure")
+}
+
+internal class LayoutProbe {
+    val generation = state(0)
+    val showRows = state(true)
+    val inlineClicks = state(0)
+    val theme = CountingTheme(macosTheme(), this)
+    val source = ThemeSource(theme)
+    val fonts = FontCollection(false)
+    init {
+        fonts.register(testSansBytes, "Layout Sans")
+        for (family in theme.tokens.typography.action.families)
+            fonts.register(testSansBytes, family)
+    }
+    val text =
+        StyledText(
+            [
+                TextSpan.text("Mix "),
+                TextSpan.span(
+                    SpanStyle(fontSize = Some(26.0), color = Some(Color(0.8, 0.1, 0.1))),
+                    [TextSpan.text("large ")]
+                ),
+                TextSpan.inlineObject(InlineKey.Text("button"), "button"),
+                TextSpan.text(" + "),
+                TextSpan.inlineObject(InlineKey.Text("image"), "image")
+            ],
+            TextStyle(["Layout Sans"], 16.0)
+        )
+    val rtl =
+        StyledText(
+            [
+                TextSpan.text("שלום "),
+                TextSpan.inlineObject(InlineKey.Text("image"), "image"),
+                TextSpan.text(" "),
+                TextSpan.inlineObject(InlineKey.Text("button"), "button"),
+                TextSpan.text(" עולם")
+            ],
+            TextStyle(["Layout Sans"], 20.0)
+        )
+    val cells = ArrayList<Cell>()
+    var framePainter: CountedPainter? = None
+    var retired: CountedPainter? = None
+    var textMetrics: LayoutMetrics? = None
+    var buttonMetrics: LayoutMetrics? = None
+    var buttonBounds = Rect(0.0, 0.0, 0.0, 0.0)
+    var buttonCreates = 0
+    var buttonPaints = 0
+    var imageCreates = 0
+    var image: InlineImage? = None
+    var frontClicks = 0
+    var backClicks = 0
+    var renders = 0
+    var updates = 0
+    var measures = 0
+    var paints = 0
+    var paintedGeneration = -1
+    var phase = 0
+    var finished = false
+    var window: Window? = None
+    var ui: UiWindow? = None
+    var view: ViewProbe? = None
+    var frames: FrameProbe? = None
+    private var quietFrames: FrameSnapshot? = None
+    private var quietCounts: Array<Int> = []
+    private var hiddenButtonPaints = 0
+
+    fun event(host: UiHost, active: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val native =
+                    active.createWindow(
+                        WindowAttributes(
+                            "Scoop layout and inline controls",
+                            LogicalSize(600.0, 440.0)
+                        )
+                    )
+                window = Some(native)
+                native.setWindowLevel(WindowLevel.AlwaysOnTop)
+                native.requestFocus()
+                view = Some(observeWindow(native))
+                frames = Some(observeFrames(native))
+                ui = Some(host.attach(native, { LayoutScene(this) }))
+                waitFor(active, 25000L)
+            }
+            case AboutToWait -> advance(active)
+            case NewEvents(StartCause.Deadline) -> deadline(active)
+            case Window(_, WindowEvent.Destroyed) -> {
+                if (phase == 90) {
+                    assertTrue(ui!!.isClosed);
+                    finished = true
+                }
+                active.requestExit()
+            }
+            else -> {}
+        }
+    }
+    private fun click(bounds: Rect) {
+        val x = bounds.x + bounds.width / 2.0
+        val y = bounds.y + bounds.height / 2.0
+        assertTrue(moveSurfacePointer(window!!, x, y))
+        assertTrue(view!!.button(x, y, true))
+        assertTrue(view!!.button(x, y, false))
+    }
+    private fun afterInput(active: ActiveApplication, action: (ActiveApplication) -> Unit) {
+        phase = 100
+        assertTrue(active.proxy().post(action))
+    }
+    private fun sameBaseline() {
+        val text = 240.0 + textMetrics!!.alphabeticBaseline!!
+        val button = buttonBounds.y + buttonMetrics!!.alphabeticBaseline!!
+        assertTrue(
+            text >= button - 0.01 && text <= button + 0.01,
+            Some(f"text baseline ${text}, inline button baseline ${button}")
+        )
+    }
+    private fun advance(active: ActiveApplication) {
+        when (phase) {
+            case 0 -> if (paintedGeneration == 0 && window!!.isFocused) {
+                assertEquals(2L, cells.size)
+                sameBaseline()
+                click(cells[0L].ink!!.bounds)
+                click(cells[1L].ink!!.bounds)
+                click(cells[1L].ink!!.bounds)
+                click(Rect(64.0, 184.0, 2.0, 2.0))
+                click(Rect(20.0, 150.0, 2.0, 2.0))
+                afterInput(active) {
+                    _ ->
+                    assertEquals(1, cells[0L].count)
+                    assertEquals(2, cells[1L].count)
+                    assertEquals(1, frontClicks)
+                    assertEquals(0, backClicks)
+                    generation.value = 1
+                    phase = 1
+                }
+            }
+            case 1 -> if (paintedGeneration == 1) {
+                assertEquals(2L, cells.size)
+                assertTrue(cells[1L].ink!!.bounds.x < cells[0L].ink!!.bounds.x)
+                assertTrue(cells[1L].ink!!.area!!.hasFocus)
+                assertFalse(framePainter!!.isClosed)
+                retired = framePainter
+                generation.value = 2
+                phase = 2
+            }
+            case 2 -> if (paintedGeneration == 2) {
+                assertTrue(retired!!.isClosed)
+                assertEquals(1, retired!!.closes)
+                assertEquals(1, cells[0L].count)
+                assertEquals(2, cells[1L].count)
+                assertTrue(cells[1L].ink!!.area!!.hasFocus)
+                generation.value = 3
+                phase = 3
+            }
+            case 3 -> if (paintedGeneration == 3) {
+                click(Rect(64.0, 184.0, 2.0, 2.0))
+                click(buttonBounds)
+                afterInput(active) {
+                    _ ->
+                    assertEquals(1, frontClicks)
+                    assertEquals(1, backClicks)
+                    assertEquals(1, inlineClicks.value)
+                    generation.value = 4
+                    phase = 4
+                }
+            }
+            case 4 -> if (paintedGeneration == 4) {
+                assertEquals(1, buttonCreates)
+                hiddenButtonPaints = buttonPaints
+                assertTrue(sendSurfaceKey(window!!, 49, true))
+                assertTrue(sendSurfaceKey(window!!, 49, false))
+                afterInput(active) {
+                    _ ->
+                    assertEquals(1, inlineClicks.value)
+                    assertEquals(hiddenButtonPaints, buttonPaints)
+                    generation.value = 5
+                    phase = 5
+                }
+            }
+            case 5 -> if (paintedGeneration == 5) {
+                assertEquals(1, buttonCreates)
+                assertEquals(1, imageCreates)
+                assertEquals(Size(34.0, 24.0), image!!.size)
+                assertTrue(buttonPaints > hiddenButtonPaints)
+                sameBaseline()
+                assertTrue(framePainter!! !== retired!!)
+                assertFalse(framePainter!!.isClosed)
+                window!!.setVisible(false)
+                showRows.value = false
+                generation.value = 6
+                phase = 6
+                waitFor(active, 180L)
+            }
+            case 7 -> {
+                if (paintedGeneration == 7) {
+                    assertEquals(4L, cells.size)
+                    assertEquals(0, cells[2L].count)
+                    assertEquals(0, cells[3L].count)
+                    assertEquals(1, inlineClicks.value)
+                    phase = 8
+                    waitFor(active, 250L)
+                }
+            }
+            else -> {}
+        }
+    }
+    private fun counters(): Array<Int> = [renders, updates, measures, paints, buttonPaints]
+    private fun deadline(active: ActiveApplication) {
+        when (phase) {
+            case 6 -> {
+                assertEquals(1, cells[0L].unmounts)
+                assertEquals(1, cells[1L].unmounts)
+                assertTrue(framePainter!!.isClosed)
+                assertFalse(frames!!.snapshot().required)
+                assertTrue(frames!!.snapshot().paused)
+                showRows.value = true
+                generation.value = 7
+                window!!.setVisible(true)
+                phase = 7
+                waitFor(active, 25000L)
+            }
+            case 8 -> {
+                val current = frames!!.snapshot()
+                assertFalse(current.required)
+                assertTrue(current.paused)
+                quietFrames = Some(current)
+                quietCounts = counters()
+                phase = 9
+                waitFor(active, 180L)
+            }
+            case 9 -> {
+                assertEquals(quietFrames!!, frames!!.snapshot())
+                val current = counters()
+                for (i in 0L until current.size)
+                    assertEquals(quietCounts[i], current[i])
+                phase = 90
+                window!!.requestDestroy()
+            }
+            else -> fail(
+                Some(
+                    f"layout UI timeout at ${phase}, focused=${window!!.isFocused}, visible=${
+                        window!!.isVisible
+                    }, frames=${frames!!.snapshot().presentations}"
+                )
+            )
+        }
+    }
+    private fun waitFor(active: ActiveApplication, milliseconds: Long) {
+        active.setControlFlow(
+            ControlFlow.WaitUntil(
+                MonotonicTimeSource.markNow() + Duration.milliseconds(milliseconds)
+            )
+        )
+    }
+}

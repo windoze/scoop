@@ -22,17 +22,29 @@ private class ThemeResourceTest {
         val next = cache.get(second)
         assertTrue(painter.isClosed)
         assertFalse(next.isClosed)
+        cache.clear()
+        cache.clear()
+        assertTrue(next.isClosed)
+        assertFalse(cache.isClosed)
+        val restored = cache.get(first)
+        assertTrue(restored !== painter)
+        assertFalse(restored.isClosed)
         Thread.start { assertFailsWith<IllegalStateException> { cache.get(first) } }.use {
             thread -> thread.join()
         }
         Thread.start { assertFailsWith<IllegalStateException> { next.close() } }.use {
             thread -> thread.join()
         }
+        Thread.start { assertFailsWith<IllegalStateException> { cache.clear() } }.use {
+            thread -> thread.join()
+        }
         cache.close()
         cache.close()
         assertTrue(cache.isClosed)
         assertTrue(next.isClosed)
+        assertTrue(restored.isClosed)
         assertFailsWith<IllegalStateException> { cache.get(first) }
+        assertFailsWith<IllegalStateException> { cache.clear() }
     }
 
     @Test

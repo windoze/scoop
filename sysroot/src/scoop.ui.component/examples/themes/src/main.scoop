@@ -1,0 +1,217 @@
+package scoop.examples.ui.themes
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.style.*
+import scoop.window.*
+
+internal class Showcase(
+    private val model: ShowcaseModel,
+    private val fonts: FontCollection
+): Component {
+    private var count: Int by state(0)
+    public override fun render(): View {
+        val theme = model.source.current.value
+        val effects = ArrayList<ContentEffect>()
+        if (model.shadow.value)
+            effects.add(
+                ContentEffect.DropShadow(Point(4.0, 4.0), 3.0, 3.0, Color.Black.withAlpha(0.45))
+            )
+        if (model.glow.value)
+            effects.add(ContentEffect.Glow(3.0, 3.0, theme.tokens.palette.accent.withAlpha(0.75)))
+        if (model.blur.value)
+            effects.add(ContentEffect.Blur(2.0, 2.0))
+        val preview =
+            row(
+                [
+                    stack(
+                        [
+                            frame(
+                                label(
+                                    "S",
+                                    Some(SpanStyle(fontSize = Some(22.0), weight = Some(700))),
+                                    Some(fonts)
+                                ),
+                                width = Some(42.0),
+                                height = Some(42.0),
+                                surface = Some(SurfaceKind.Plain)
+                            ),
+                            frame(
+                                empty(),
+                                width = Some(10.0),
+                                height = Some(10.0),
+                                style =
+                                    StyleOverride(
+                                        background =
+                                            StyleValue.Set(
+                                                Some(Paint(theme.tokens.palette.accent))
+                                            ),
+                                        cornerRadius = StyleValue.Set(5.0)
+                                    )
+                            )
+                        ],
+                        Alignment(AxisAlignment.End, AxisAlignment.End)
+                    ),
+                    label("Live controls", fonts = Some(fonts)),
+                    button(
+                        f"Count: ${count}",
+                        { count += 1 },
+                        enabled = model.enabled.value,
+                        fonts = Some(fonts)
+                    ),
+                    button("Disabled", {}, enabled = false, fonts = Some(fonts)),
+                    checkbox(initialChecked = true),
+                    label("Owned state", fonts = Some(fonts))
+                ],
+                spacing = 14.0,
+                alignment = AxisAlignment.Center
+            )
+        return frame(
+            column(
+                [
+                    label(
+                        "Scoop themes",
+                        Some(SpanStyle(fontSize = Some(22.0), weight = Some(700))),
+                        Some(fonts)
+                    ),
+                    label(
+                        "Surface, selection marks, scrollbars, and live controls",
+                        fonts = Some(fonts)
+                    ),
+                    row(
+                        [
+                            choiceButton("macOS", ThemeChoice.MacOS),
+                            choiceButton("Material", ThemeChoice.Material),
+                            choiceButton("Fluent", ThemeChoice.Fluent),
+                            label("/", fonts = Some(fonts)),
+                            modeButton("Light", ModeChoice.Light),
+                            modeButton("Dark", ModeChoice.Dark),
+                            modeButton("Follow system", ModeChoice.System),
+                            label(
+                                if (theme.tokens.mode == ThemeMode.Dark)
+                                    "Dark palette"
+                                else
+                                    "Light palette",
+                                fonts = Some(fonts)
+                            )
+                        ],
+                        spacing = 10.0,
+                        alignment = AxisAlignment.Center
+                    ),
+                    frame(
+                        element(theme, { props -> Gallery(props, fonts) }),
+                        padding = Some(Insets.all(6.0)),
+                        surface = Some(SurfaceKind.Elevated)
+                    ),
+                    frame(
+                        preview,
+                        padding = Some(Insets.all(10.0)),
+                        surface = Some(SurfaceKind.Plain),
+                        style = StyleOverride(contentEffects = StyleValue.Set(effects.toArray()))
+                    ),
+                    row(
+                        [
+                            option(model.enabled.binding(), "Enabled"),
+                            option(model.shadow.binding(), "Drop shadow"),
+                            option(model.glow.binding(), "Glow"),
+                            option(model.blur.binding(), "Blur")
+                        ],
+                        spacing = 18.0,
+                        alignment = AxisAlignment.Center
+                    ),
+                    label(
+                        "Hover, press, or focus the live controls. Effect order: drop shadow → glow → blur.",
+                        style = Some(SpanStyle(fontSize = Some(12.0))),
+                        fonts = Some(fonts)
+                    )
+                ],
+                spacing = 5.0
+            ),
+            padding = Some(Insets.all(12.0)),
+            alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start),
+            style =
+                StyleOverride(
+                    background = StyleValue.Set(Some(Paint(theme.tokens.palette.canvas))),
+                    clipContent = StyleValue.Set(true)
+                )
+        )
+    }
+    private fun choiceButton(text: String, value: ThemeChoice): View =
+        button(
+            text,
+            { model.select(value) },
+            style =
+                ButtonStyle(
+                    kind =
+                        if (model.choice.value == value)
+                            SurfaceKind.Action
+                        else
+                            SurfaceKind.Plain
+                ),
+            fonts = Some(fonts)
+        )
+    private fun modeButton(text: String, value: ModeChoice): View =
+        button(
+            text,
+            { model.selectMode(value) },
+            style =
+                ButtonStyle(
+                    kind =
+                        if (model.mode.value == value)
+                            SurfaceKind.Action
+                        else
+                            SurfaceKind.Plain
+                ),
+            fonts = Some(fonts)
+        )
+    private fun option(value: Binding<Boolean>, text: String): View =
+        row(
+            [checkbox(value), label(text, fonts = Some(fonts))],
+            spacing = 4.0,
+            alignment = AxisAlignment.Center
+        )
+}
+
+private class Gallery(
+    private val props: Props<scoop.ui.style.Theme>,
+    private val fonts: FontCollection
+): Element {
+    private var painter: GalleryPainter? = None
+    public override fun onMount(scope: ComponentScope) {
+        painter = Some(scope.resource { GalleryPainter(fonts) })
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(constraints.maxWidth ?: 1040.0, 300.0)))
+    public override fun paint(context: PaintContext) {
+        painter!!.paint(context.canvas, props.value, context.size.width)
+    }
+}
+
+fun main() {
+    FontCollection().use {
+        fonts ->
+        val model = ShowcaseModel()
+        context(model.source) {
+            UiHost {
+                host,
+                active,
+                event -> when (event) {
+                    case Resumed -> {
+                        val window =
+                            active.createWindow(
+                                WindowAttributes("Scoop — themes", LogicalSize(1120.0, 670.0))
+                            )
+                        model.systemTheme(window.observedTheme)
+                        host.attach(window, { Showcase(model, fonts) })
+                        window.requestFocus()
+                    }
+                    case Window(_, WindowEvent.ThemeChanged(value)) -> model.systemTheme(value)
+                    case Window(_, WindowEvent.CloseRequested) -> active.requestExit()
+                    else -> {}
+                }
+            }.use { host -> Application().run(host) }
+        }
+    }
+}

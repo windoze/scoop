@@ -32,11 +32,21 @@ public class ThemePainterCache public constructor(): Closeable {
         }
         return next
     }
+    /** Release the active theme without ending this element's reusable resource owner. */
+    public fun clear() {
+        checkThread()
+        if (closed)
+            throw IllegalStateException(Some("theme painter cache is closed"))
+        releaseCurrent()
+    }
     public override fun close() {
         checkThread()
         if (closed)
             return
         closed = true
+        releaseCurrent()
+    }
+    private fun releaseCurrent() {
         val previous = current
         current = None
         when (previous) {

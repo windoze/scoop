@@ -14,10 +14,10 @@
 | 3c. 公共样式 | aarch64 已完成 | Style／StyleOverride、稳定 styled、StylePainter、装饰／有序效果、真实 Metal／UI 停帧与异常清理 |
 | 3d. 公共主题绘图 | aarch64 已完成 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
 | 3e. 简单控件 | aarch64 已完成 | Label／Button／Checkbox 消费公共主题，状态／绑定、局部覆盖、实例／焦点保留和真实停帧 |
-| 4. 布局、组合与主题展示 | 实施中 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合，公共部件和真实控件的完整主题展示 |
+| 4. 布局、组合与主题展示 | aarch64 已完成 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合，公共部件和真实控件的完整主题展示 |
 | 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
 
-已有 scoop.surface 的窗口、动画和 InputArea 实现作为基础，独立 UI 框架和公共文本适配已交付；graphics 效果、公共样式、控件库和后续组合验证继续按批次推进。下文保存实际验证范围，不把设计示例和文档检查当成已交付功能。
+已有 scoop.surface 的窗口、动画和 InputArea 实现作为基础，独立 UI 框架、公共文本适配、graphics 效果、公共样式／主题及基础控件／容器已交付；宿主和异步进度组合继续按批次推进。下文保存实际验证范围，不把设计示例和文档检查当成已交付功能。
 
 ## 2. 验证与提交方式
 
@@ -222,3 +222,22 @@ Scoop 格式及生产／含测试的类型检查通过，aarch64 开发 sysroot 
 测试初次出现过无完整诊断的焦点等待超时；补充断言链后另定位到测试把原生事件入队误当成交付完成。现已在事件批次之后断言状态，不增加轮询或生产唤醒。requestFocus 仍遵守 window 的请求式合同；保留阶段、可见性、遮挡、焦点和帧计数诊断用于后续原生验收。
 
 容器及完整主题展示接着实施，并已补充具体布局与 Frame 表面切换合同。当前提交不把未完成的展示草稿算作交付。无编译器／core／std／test 改动，无 fixture 或全量测试；x86_64 继续在 aarch64 完成后统一补验。
+
+### 3.14 布局容器、富文本组合和主题展示
+
+Row／Column／Stack／Frame 已通过公开 MeasureContext／PaintContext 接入。线性容器在主轴自然测量、交叉轴按约束对齐；Stack 按描述顺序叠放。Frame 提供明确尺寸、padding、对齐和 StyleOverride，可选择主题表面并透传真实子项基线。普通／主题表面沿同一节点更新，ThemePainterCache.clear 及时释放已不用的主题 painter，仍允许后续复用缓存。
+
+完整[主题展示](../../sysroot/src/scoop.ui.component/examples/themes/README.md)使用同一 Canvas 绘图辅助对象展示公共部件及状态，下方使用真实控件、计数、自有勾选状态和有序效果。风格、明暗和系统跟随分别控制；来源只在实际主题变化时发布 State，原生 ThemeChanged 不会造成周期任务。视觉检查发现初版过高，已把默认内容区调整为 670 逻辑单位并压缩留白；未缩放整棵 UI 或增加滚动行为。实际点击验证了三种风格、明暗和效果切换，以及计数和勾选状态的保留。
+
+Scoop 格式与生产／含测试类型检查通过，aarch64 开发 sysroot 已发布更新后的 style、三套主题与 component；展示 release 可执行文件已构建。release scoop.test：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| scoop.ui.component | 7／7 | 原覆盖／来源，加线性／叠放约束、对齐、溢出、Frame 固定尺寸与内缩、参数错误 |
+| themes 的 ThemeResourceTest | 3／3 | painter 替换、clear 后复用、关闭与异线程拒绝，原失败创建和绘制借用 |
+| controls layout UI Cone | 1／1 | keyed 重排保留 State／焦点、表面切换释放、Stack 绘制与命中顺序、圆角 clip、两种基线、同段富文本中的 Button／图片、RTL／截断／恢复、隐藏卸载与原生关闭 |
+| themes 展示 Cone | 3／3 | 稳定来源与系统跟随、六种组合的 DPI 1／2 离屏输出、完整展示的真实 Metal／UI 切换、效果组合和停帧 |
+
+布局组合初次等待超时记录到 requestFocus 后 focused=false、已有一次呈现；后续正常获得焦点，未改变 window 的请求式合同。另一个测试错误是把定宽行内按钮换行后的基线与首行比较，已用 Frame 明确该组合需要的宽度，再验证同一行实际基线。生产排版未增加估算或补偿路径。
+
+布局和展示组合在安静区间同时断言 render／update／measure／paint、底层帧需求、display-link 暂停以及回调／提交计数停止；资源替换与原生关闭检查实际旧 painter、图片及借用字体的有效期。截图只用于排版检查，不代替这些断言。本轮没有编译器／core／std／test 改动，没有 fixture 或全量测试；原有异步进度与多窗口宿主组合继续推进，x86_64 仍统一留待最后。

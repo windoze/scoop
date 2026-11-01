@@ -1,0 +1,107 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.*
+
+public class LinearProps public constructor(
+    public val children: Array<View>,
+    public val spacing: Double = 0.0,
+    public val alignment: AxisAlignment = AxisAlignment.Start
+) {
+    init {
+        nonnegative(spacing, "invalid layout spacing")
+    }
+}
+
+public class Row public constructor(private val props: Props<LinearProps>): Component {
+    public override fun render(): View =
+        element(
+            LinearInput(props.value, false),
+            { current -> LinearInk(current) },
+            props.value.children
+        )
+}
+
+public class Column public constructor(private val props: Props<LinearProps>): Component {
+    public override fun render(): View =
+        element(
+            LinearInput(props.value, true),
+            { current -> LinearInk(current) },
+            props.value.children
+        )
+}
+
+public fun row(
+    children: Array<View>,
+    spacing: Double = 0.0,
+    alignment: AxisAlignment = AxisAlignment.Start,
+    key: ViewKey = ViewKey.Position
+): View = component(LinearProps(children, spacing, alignment), { props -> Row(props) }, key)
+
+public fun column(
+    children: Array<View>,
+    spacing: Double = 0.0,
+    alignment: AxisAlignment = AxisAlignment.Start,
+    key: ViewKey = ViewKey.Position
+): View = component(LinearProps(children, spacing, alignment), { props -> Column(props) }, key)
+
+private class LinearInput(val value: LinearProps, val vertical: Boolean)
+
+private class LinearInk(private val props: Props<LinearInput>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val input = props.value
+        val childConstraints = linearChildConstraints(constraints, input.vertical)
+        val sizes =
+            Array<Size>(context.childCount) {
+                index -> context.measureChild(index, childConstraints).size
+            }
+        val plan =
+            arrangeLinear(
+                sizes,
+                constraints,
+                input.value.spacing,
+                input.value.alignment,
+                input.vertical
+            )
+        for (index in 0L until context.childCount)
+            context.placeChild(index, plan.origins[index])
+        return LayoutMetrics(plan.size)
+    }
+    public override fun paint(context: PaintContext) {
+        context.paintChildren()
+    }
+}
+
+public class StackProps public constructor(
+    public val children: Array<View>,
+    public val alignment: Alignment = Alignment()
+)
+
+public class Stack public constructor(private val props: Props<StackProps>): Component {
+    public override fun render(): View =
+        element(props.value, { current -> StackInk(current) }, props.value.children)
+}
+
+public fun stack(
+    children: Array<View>,
+    alignment: Alignment = Alignment(),
+    key: ViewKey = ViewKey.Position
+): View = component(StackProps(children, alignment), { props -> Stack(props) }, key)
+
+private class StackInk(private val props: Props<StackProps>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val childConstraints =
+            Constraints(maxWidth = constraints.maxWidth, maxHeight = constraints.maxHeight)
+        val sizes =
+            Array<Size>(context.childCount) {
+                index -> context.measureChild(index, childConstraints).size
+            }
+        val plan = arrangeStack(sizes, constraints, props.value.alignment)
+        for (index in 0L until context.childCount)
+            context.placeChild(index, plan.origins[index])
+        return LayoutMetrics(plan.size)
+    }
+    public override fun paint(context: PaintContext) {
+        context.paintChildren()
+    }
+}
