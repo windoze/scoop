@@ -1,5 +1,0 @@
-interface I {}
-class Impl : I
-open class Base(val value: I)
-class Host : Base(Impl()), I by value
-fun main() {}

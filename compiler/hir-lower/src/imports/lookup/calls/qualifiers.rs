@@ -147,7 +147,7 @@ impl Lowerer {
         }
         // Outside an ordinary implicit-this read, an extension property is a
         // visible non-value binding and therefore remains a terminal blocker.
-        if self.initialization_context.is_some() || self.current_this_ty().is_none() {
+        if self.current_this_ty().is_none() {
             return true;
         }
         let Some(properties) = properties

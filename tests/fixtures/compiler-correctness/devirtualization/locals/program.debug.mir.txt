@@ -1619,6 +1619,9 @@ Module
         UnitLiteral
   fun init.Constructing.$c4 @fn35(this: Constructing) -> Unit
     bb0 entry
+      val this: Constructing
+        Type Constructing
+        Local this
       call $old.0: Int = @fn21 direct
       val $dependency.receiver: Int
         Type Int
@@ -1646,6 +1649,9 @@ Module
         Retype Constructing
           Type Constructed
           Local this
+      val this: Constructed
+        Type Constructed
+        Local this
       call $old.1: Int = @fn21 direct
       val $dependency.receiver: Int
         Type Int

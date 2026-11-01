@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no `this` receiver is available in this context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 55,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 51
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no `this` receiver is available in this context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 138,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 134
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `BeforeThis` in nominal constructor candidate layer:\n  - class BeforeThis(seed: Int) — no `this` receiver is available in this context\n  - class BeforeThis() — no applicable candidate for constructor `BeforeThis` in nominal constructor candidate layer:\n  - class BeforeThis() — expects 0 argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 215,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 200
+    },
+    "severity": "error"
+  }
+]

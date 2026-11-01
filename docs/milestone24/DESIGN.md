@@ -123,7 +123,7 @@ release block 不是 NoGc annotation target，也不新增 `@ReleaseSafe`。Unsa
 
 PublishReleaseReady 使用 header 上的 atomic OR/release，保留其他 GC 位，不产生 safepoint。它位于构造表达式的正常结果路径，不放进 primary/secondary initializer：同一 initializer 可能是外层构造，也可能被 this/super delegation 调用。所有本地、依赖和 generic 构造共用该位置；普通返回 class 的函数不是构造，不发布。
 
-InitializingThis 的既有规则阻止半初始化 receiver 逃逸。任一 constructor/delegation/init 失败均不发布；已取得的 native resource 由构造代码或调用方显式清理，不增加失败回滚 hook。构造中另行成功创建的子对象有自己的 ready 与生命周期，外层失败不撤销它。初始化期间和 initializer 返回前发生 moving GC 时，publish 必须使用正常 root 协议 reload 后的 receiver。
+构造期间的 receiver 可以按语言规范9.1.1传出或保存；任一 constructor/delegation/init 失败时不置位 release-ready，已经保存的引用按普通可达性保活。已取得的 native resource 由构造代码或调用方显式清理，不增加失败回滚 hook。构造中另行成功创建的子对象有自己的 ready 与生命周期，外层失败不撤销它。初始化期间和 initializer 返回前发生 moving GC 时，release-ready 的发布必须使用正常 root 协议 reload 后的 receiver。
 
 ready 表示完整构造，永不表示“当前拥有资源”。惰性取得资源的对象可先以 None 构造并发布，后来写入 handle；显式 close 也不清 ready，只先置 inert state 再释放旧 handle。若该对象以后死亡，block 可以执行，但清理资源的分支成为 no-op。
 

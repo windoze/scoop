@@ -1,3 +1,0 @@
-interface I {}
-class Host : I by this
-fun main() {}

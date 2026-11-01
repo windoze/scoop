@@ -1,0 +1,138 @@
+package scoop.tests.constructor_this.tests
+
+import scoop.test.*
+import scoop.tests.constructor_this.provider.Reader
+import scoop.tests.constructor_this.provider.DefaultReader
+
+private open class DispatchBase(val seed: Int) {
+    val result: Int = answer()
+    open fun answer(): Int = seed
+}
+
+private class DispatchLeaf(seed: Int) : DispatchBase(seed) {
+    override fun answer(): Int = seed + 1
+}
+
+private class ForwardedReader(val owner: Forwarded) : Reader<Int> {
+    public override fun read(): Int = owner.value
+}
+
+private class Forwarded(seed: Int) : Reader<Int> by ForwardedReader(this) {
+    val value: Int = seed
+}
+
+private class StoredForward(val value: Reader<Int>) : Reader<Int> by this.value
+
+private open class ForwardBase(val stored: Reader<Int>)
+
+private class InheritedForward(reader: Reader<Int>) : ForwardBase(reader), Reader<Int> by stored
+
+private class SelfForward : Reader<Int> by this {
+    public override fun read(): Int = 43
+}
+
+private class InitializedDefault : DefaultReader {
+    val value: Int = super<DefaultReader>.initial()
+}
+
+private class InferredCapture {
+    val value = 1
+    val read = { value }
+}
+
+private object Singleton {
+    val self: Singleton = this
+    val ready: Int = 8
+    val called: Int = read()
+    val captured: () -> Int = { this.ready }
+    fun read(): Int = ready
+}
+
+private class SnapshotSink {
+    var value: Snapshot? = None
+    var reader: (() -> Int)? = None
+
+    fun accept(snapshot: Snapshot, read: () -> Int) {
+        value = Some(snapshot)
+        reader = Some(read)
+    }
+}
+
+private struct Snapshot(val value: Int) {
+    constructor(value: Int, sink: SnapshotSink) : this(value) {
+        sink.accept(this, this::read)
+    }
+
+    fun read(): Int = value
+}
+
+private class LocalFunctions(val value: Int) {
+    val read: () -> Int = if (true) {
+        fun current(): Int { return this.value }
+        ::current
+    } else {
+        val zero: () -> Int = { 0 }
+        zero
+    }
+}
+
+private var failed: Failing? = None
+
+private class Failing(seed: Int) {
+    val ready: Int = seed
+
+    init {
+        failed = Some(this)
+        throw UnwrapException()
+    }
+
+    val later: String = "not reached"
+}
+
+@Test
+private class ReceiverTest {
+    @Test
+    fun `base initialization dispatches to the actual derived type`() {
+        assertEquals(10, DispatchLeaf(9).result)
+    }
+
+    @Test
+    fun `interface delegates retain their constructing owner`() {
+        val reader: Reader<Int> = Forwarded(12)
+        assertEquals(12, reader.read())
+        assertEquals(12, StoredForward(reader).read())
+        assertEquals(12, InheritedForward(reader).read())
+        assertEquals(43, SelfForward().read())
+        assertEquals(31, InitializedDefault().value)
+    }
+
+    @Test
+    fun `singleton initialization binds this without reentering ensure`() {
+        assertSame(Singleton, Singleton.self)
+        assertEquals(8, Singleton.called)
+        assertEquals(8, Singleton.captured())
+    }
+
+    @Test
+    fun `struct secondary constructors pass and capture value receivers`() {
+        val sink = SnapshotSink()
+        val snapshot = Snapshot(17, sink)
+        assertEquals(17, snapshot.read())
+        assertEquals(17, sink.value!!.read())
+        assertEquals(17, sink.reader!!())
+    }
+
+    @Test
+    fun `local functions capture constructor receivers`() {
+        assertEquals(23, LocalFunctions(23).read())
+        assertEquals(1, InferredCapture().read())
+    }
+
+    @Test
+    fun `constructor failure preserves already published references`() {
+        failed = None
+        assertFailsWith<UnwrapException> { Failing(19) }
+        assertEquals(19, failed!!.ready)
+        failed = None
+    }
+}

@@ -134,7 +134,7 @@ impl Lowerer {
             }
         }
         let mut selected_value = None;
-        if self.initialization_context.is_none() && !self.implicit_receivers().is_empty() {
+        if !self.implicit_receivers().is_empty() {
             match self.resolve_implicit_value_read(name, sink) {
                 crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
                     let ty = property.read.ty;

@@ -81,8 +81,12 @@ impl Lowerer {
                     return self.lower_property_read(property, None, None, ty, name.span);
                 }
             }
+            let errors = self.diagnostics.len();
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
+            }
+            if self.diagnostics.len() != errors {
+                return None;
             }
             if let Some(object) =
                 self.lexical_nested_nominal_target(&name.text)
@@ -94,27 +98,26 @@ impl Lowerer {
                 return self.lower_singleton_value(object, name.span);
             }
             let mut implicit_failure = None;
-            let selected_value =
-                if self.initialization_context.is_none() && !self.implicit_receivers().is_empty() {
-                    match self.resolve_implicit_value_read(name, sink) {
-                        crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
-                            return Some(property.read);
-                        }
-                        crate::properties::ImplicitValueResolution::Value { target, layer } => {
-                            Some((target, layer))
-                        }
-                        crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
-                            implicit_failure = Some(failure);
-                            None
-                        }
-                        crate::properties::ImplicitValueResolution::Failed => return None,
-                        crate::properties::ImplicitValueResolution::NoCandidate => {
-                            self.resolve_value_name_with_layer(name).ok()?
-                        }
+            let selected_value = if !self.implicit_receivers().is_empty() {
+                match self.resolve_implicit_value_read(name, sink) {
+                    crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
+                        return Some(property.read);
                     }
-                } else {
-                    self.resolve_value_name_with_layer(name).ok()?
-                };
+                    crate::properties::ImplicitValueResolution::Value { target, layer } => {
+                        Some((target, layer))
+                    }
+                    crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
+                        implicit_failure = Some(failure);
+                        None
+                    }
+                    crate::properties::ImplicitValueResolution::Failed => return None,
+                    crate::properties::ImplicitValueResolution::NoCandidate => {
+                        self.resolve_value_name_with_layer(name).ok()?
+                    }
+                }
+            } else {
+                self.resolve_value_name_with_layer(name).ok()?
+            };
             let mut prelude_failure = None;
             if let Some((target, selected_layer)) = selected_value {
                 let core_variant = selected_layer == crate::imports::ImportLookupLayer::CorePrelude

@@ -25,5 +25,5 @@ checks = []
 name = "run"
 argv = ["${build.result.output}"]
 exit = 0
-stdout = "base-seed\nbase-copy-base-seed\nderived-seed\nsecondary-alive\nbase-seed\nderived-seed\nbase-seed\nbase-copy-base-seed\nderived-seed\ntrue\n"
+stdout = "base-seed\nbase-copy-base-seed\nderived-seed\nsecondary-alive\nbase-seed\nderived-seed\nbase-seed\nbase-copy-base-seed\nderived-seed\ntrue\ntrue\ntrue\nstate-seed\nderived-seed\nderived-seed\nretained-seed\n"
 stderr = ""

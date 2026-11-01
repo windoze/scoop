@@ -57,8 +57,6 @@ impl Lowerer {
             .get(&owner)
             .cloned()
             .unwrap_or_default();
-        // Header expressions have constructor parameters, but no instance receiver.
-        let context = self.initialization_context.take();
         let mut steps = Vec::new();
         for delegate in &delegates {
             let initializer = self.with_constructor_source_body(
@@ -99,15 +97,14 @@ impl Lowerer {
                     },
                     span: delegate.span,
                 });
+                if let Some(crate::InitializationContext {
+                    receiver: crate::InitializingReceiver::Class { initialized, .. },
+                    ..
+                }) = &mut self.initialization_context
+                {
+                    initialized.insert(delegate.field);
+                }
             }
-        }
-        self.initialization_context = context;
-        if let Some(crate::InitializationContext {
-            receiver: crate::InitializingReceiver::Class { initialized, .. },
-            ..
-        }) = &mut self.initialization_context
-        {
-            initialized.extend(delegates.iter().map(|delegate| delegate.field));
         }
         steps
     }

@@ -365,7 +365,9 @@ mir-lower 完成 concrete CFG、dispatch、closure／adapter 与协程执行 ABI
 
 release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模式的阶段 dump 分别记录实际输出，使用相同的实体身份与 ABI。私有 CoroutineDriver／CoroutineAdapter 属于实现正文，其实际身份与签名保留在 MIR foundation 和 Code 中，不进入供依赖消费的 Strong callable bridge；消除这些 helper 不改变依赖语义指纹。数据流在异常边合并可能抛出时的局部状态，不能只把 block 的最终状态交给 handler。实际表项或闭包 invoke／bridge 完整可用时才改写目标；外部目标使用已经选中的 callable 签名和引用。
 
-函数内类型事实为不可达、未知或唯一实际类型。最派生 allocation、已知 box／closure 和 final class 提供事实，复制和合法转换传播，合流只保留一致事实，循环求不动点；未知返回、可变字段和取址后的可变 local 保守处理。base／this initializer 不收窄实际类型，initializing receiver 的使用仍受语言规范中的构造约束；静态 open class 或本 Cone 实现数量不构成全程序闭合。去虚拟化按原 typed slot 查询实际表项，一次生成含完整 callee 与 receiver 适配的新调用分支，保留原 effect、EH、Context 与 continuation。
+函数内类型事实为不可达、未知或唯一实际类型。最派生 allocation、已知 box／closure 和 final class 提供事实，复制和合法转换传播，合流只保留一致事实，循环求不动点；未知返回、可变字段和取址后的可变 local 保守处理。base／this initializer不收窄实际类型，构造期间的virtual/interface调用仍按最派生类型分派；静态open class或本Cone实现数量不构成全程序闭合。去虚拟化按原typed slot查询实际表项，一次生成含完整callee与receiver适配的新调用分支，保留原effect、EH、Context与continuation。
+
+构造期间的普通`this`使用遵守语言规范9.1.1。HIR lowering在基类委派完成后的初始化区域绑定实际constructor receiver，方法、属性、callable reference及闭包捕获复用普通receiver选择与捕获通道；直接字段就绪诊断仍由当前初始化序列承担。嵌套callable不继承外层字段就绪快照，其字段读取按普通正文处理；不新增跨函数初始化效果、运行时字段状态或重复语义检查。具体化与MIR沿已有constructor receiver和普通值／引用传递保留同一对象或struct值，GC及异常边使用原root与relocation规则。外来构造模板保留相同的receiver、局部binding和捕获关系，不依赖消费方重新读取源码。
 
 已知装箱值或 final intrinsic class 的接口调用，也可消费 concrete HIR 中同一 exact owner／typed interface slot 的完整实现选择；这些语义关系随已使用类型保留，不要求在 consumer 重建 provider 的物理 itable。选中外部 primitive intrinsic 时保留其操作身份及完整签名，以原 primitive 下降生成优化正文；装箱 receiver 显式解箱，实参和结果必须匹配已选实现的 exact 类型。该正文与本地 intrinsic 一样强制展开，包含除零异常准备，不受普通内联策略影响；未知实际类型或不匹配的调用继续原动态分派。
 
@@ -1890,7 +1892,7 @@ import 的目标名或 alias 名称导航读取已解析绑定的原声明来源
 
 构造委派、实例 property 初始化式、接口委托表达式、`init` 块和次构造正文作为真实源码区域共享编辑查询。区域分别保留原构造器、PropertyId、接口委托 ClassFieldId 或 class 的原成员序号；参数沿原 ConstructorParamId／BindingId 取得定义、类型和文档，不能用合成函数替代构造身份。单例区域归属原 initialization unit，不展示 hidden constructor。区域边界仅覆盖实际表达式或块，无关方法不依赖构造检查成功。
 
-查询复用普通构造委派图、基类选择、共同初始化和次构造正文检查，保持字段初始化顺序及 receiver 非逃逸、捕获、泛型和效果规则；隐式基类委派与循环也进入源码诊断。首次检查同时保存来源事实，类型推断及局部类型已经完成的初始化式不重新检查；多个终端构造器消费同一共同源码时不重复登记引用。字段访问沿原成功选择关联 logical property，隐式字段存储和生成的委托操作没有虚构源码 token。失败构造检查保持显式不可用，独立完成的其他区域仍可查询；取消候选不发布检查状态或来源事实。
+查询复用普通构造委派图、基类选择、共同初始化和次构造正文检查，保持字段初始化顺序、直接字段就绪诊断及普通receiver、捕获、泛型和效果规则；隐式基类委派与循环也进入源码诊断。首次检查同时保存来源事实，类型推断及局部类型已经完成的初始化式不重新检查；多个终端构造器消费同一共同源码时不重复登记引用。字段访问沿原成功选择关联logical property，隐式字段存储和生成的委托操作没有虚构源码token。失败构造检查保持显式不可用，独立完成的其他区域仍可查询；取消候选不发布检查状态或来源事实。
 
 实例属性的类型推断在消费其初始化式前沿原查询完成；失败属性不使用分配阶段的临时类型继续检查。其他不依赖该失败类型的初始化式与方法可以独立取得事实，后续字段读取仍须通过原已初始化集合与类型查询。共享初始化中的局部 callable 若生成另一份执行实例，其默认值仍只保留首次源码登记，不把执行副本变成新的源码定义。
 

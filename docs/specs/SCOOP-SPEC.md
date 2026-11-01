@@ -271,7 +271,7 @@ struct NonZero(val value: Int) {
 }
 ```
 
-secondary参数使用8.5的required/default/`vararg`协议但不能写`val`/`var`，也不声明自己的type parameter或返回类型。每个secondary必须以`this(...)`直接或间接终止于primary；省略delegation、使用`super`、自环或多constructor环都是定义处错误。委托先产生完整immutable struct值，再从最内层到最外层执行secondary body；body可以读取字段、执行同步副作用或`throw`，不能修改字段、`return`或发布尚未完成的`this`。任一delegation/body抛异常时整个构造不产生值。
+secondary参数使用8.5的required/default/`vararg`协议但不能写`val`/`var`，也不声明自己的type parameter或返回类型。每个secondary必须以`this(...)`直接或间接终止于primary；省略delegation、使用`super`、自环或多constructor环都是定义处错误。委托先产生完整immutable struct值，再从最内层到最外层执行secondary body；body可以读取字段、通过普通`this`调用方法、传参或捕获值副本，执行同步副作用或`throw`，不能修改字段或以`return`退出构造。任一delegation/body抛异常时整个构造表达式不产生值，已经传出或捕获的值副本及其他副作用不回滚。
 
 #### 4.1.2 派生行为
 
@@ -935,7 +935,7 @@ fun references() {
 ### 8.2 `suspend` 函数
 
 - `suspend` 修饰的函数是协程挂起函数，只能在另一个 `suspend` 函数或编译器认可的协程构建器内调用。`main` 本身必须是普通函数；从普通代码启动挂起计算使用 11.9 的 `startCoroutine` 或标准库构建器。
-- 下列**声明自身拥有的运行期初始化上下文**都是非挂起上下文，不得包含挂起调用：顶层 `val` / `var` 的 initializer 与 delegate 表达式；`object` / `companion object` 的属性 initializer、delegate 表达式、`init` 块及基类/接口委托初始化；class 的属性 initializer、delegate 表达式、`init` 块、主/次构造函数体及构造委托；struct secondary constructor body / delegation；struct/enum 变体及构造函数的缺省表达式。全局初始化入口必须在进入 `main` 前同步完成；单例或实例初始化必须在对象可用前同步完成。class/struct初始化中的`this`按9.1.1作为受限initializing receiver，只能直接访问已经初始化的字段，不能作为普通值发布、捕获或用于任何方法分派。
+- 下列**声明自身拥有的运行期初始化上下文**都是非挂起上下文，不得包含挂起调用：顶层 `val` / `var` 的 initializer 与 delegate 表达式；`object` / `companion object` 的属性 initializer、delegate 表达式、`init` 块及基类/接口委托初始化；class 的属性 initializer、delegate 表达式、`init` 块、主/次构造函数体及构造委托；struct secondary constructor body / delegation；struct/enum 变体及构造函数的缺省表达式。全局初始化入口必须在进入 `main` 前同步完成；单例初始化入口和实例构造表达式正常返回前必须同步完成相应初始化。构造期间的`this`使用及未初始化字段访问遵守9.1.1；允许捕获`this`不使初始化过程成为挂起上下文。
 - **求值归属按词法位置确定，而不是按最外层构造语法确定**：在 suspend 函数中显式写出的调用实参仍处于调用者的挂起上下文，因此 `C(awaitValue())` 合法——`awaitValue()` 先完成，随后普通构造过程同步执行；构造函数定义处的缺省表达式和构造体内部则仍为非挂起上下文。把 suspend lambda / `SuspendTask` 对象保存进字段也不等于执行它，其函数体在以后实际调用时按自身的挂起性检查。
 - 属性没有隐式挂起能力：普通 getter / setter、计算属性，以及委托属性的 `getValue` / `setValue` 协议必须是非挂起 callable；即使属性读取发生在 suspend 函数中，也不能通过普通属性访问暗中挂起。
 - `const val` 的约束更强：它没有运行期初始化过程，只允许 9.1.2 定义的编译期常量表达式，因此不允许普通或挂起函数调用。9.1.2 封闭列出的整数表示 intrinsic call 是编译器常量运算，不属于这里的普通函数/方法调用。
@@ -1222,19 +1222,20 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 5. body stored initializer、optional synthetic None store、delegate initialization与`init`按照它们在class/object body中的源码顺序交错执行。method、computed/abstract property、nested declaration和secondary constructor本身不执行，也不改变相邻初始化项顺序；
 6. terminal secondary body在common initialization之后执行；返回每一层`this` delegation后，再从最内层到最外层执行其余secondary body；最外层正常返回后构造表达式才产生对象引用。
 
-base class的全部constructor body与初始化项先于derived自有字段。每个class的common property/`init`序列在一次构造中恰好执行一次。任一步骤抛异常时，后续初始化项与外层secondary body不执行，构造表达式不产生值，已发生的外部副作用不回滚；失败对象不可达并由GC正常回收，没有析构或runtime回滚。
+base class的全部constructor body与初始化项先于derived自有字段。每个class的common property/`init`序列在一次构造中恰好执行一次。任一步骤抛异常时，后续初始化项与外层secondary body不执行，构造表达式不产生值，已发生的外部副作用不回滚。已经保存或传出的`this`引用仍然存在，失败对象不保证不可达；GC按普通可达性回收，没有析构或runtime回滚。构造失败不使尚未初始化的字段成为合法值。
 
-**字段就绪与半初始化receiver：**
+**字段就绪与构造期间的receiver：**
 
-- base initializer正常返回后base storage就绪；primary property在对应compiler store后就绪；body stored/optional/delegate property只在其initializer与storage write正常完成后就绪。initializer与`init`只能direct读写已经就绪的inherited/primary/earlier backing field；self/forward read、通过`this`绕过顺序及提前写later `var`都是定义处错误。computed/delegated accessor不能以initializing receiver调用，分配时的全零payload不是合法源码默认值；
-- class/struct constructor、class property initializer与`init`中的`this`是受限initializing receiver：只可用于已经就绪字段的direct read与mutable write。它不能作为普通值传参、返回、存储、捕获、装箱、转换、比较、取址或形成callable reference，也不能作为ordinary/extension/virtual/interface/`super` method receiver。读取field后得到的值是普通值，可以正常参与调用；
-- 上述限制对base constructor同样成立，因而构造期间不能通过virtual dispatch观察derived未初始化字段，也不能依赖whole-program escape analysis判断某个final helper“可能安全”。需要init-safe callable时必须另行引入typed effect；
-- `return`不能退出property initializer、`init`或constructor body；`throw`合法。其中声明的局部函数与匿名函数按8.1.2建立自身的返回边界，`return`只返回该函数；lambda中的裸`return`仍非法，嵌套callable也不能捕获initializing receiver。所有这些体及delegation都是ordinary、safe、non-suspend上下文；可以调用普通函数、分配、触发GC，也可以构造尚未执行的suspend task，但不能立即调用suspend函数。`startCoroutine`本身是同步普通builder，其启动计算不成为尚未完成的初始化步骤。
+- base initializer正常返回后base storage就绪；primary property在对应compiler store后就绪；body stored/optional/delegate property只在其initializer与storage write正常完成后就绪。当前初始化表达式、`init`及constructor body中对当前receiver的直接stored字段读写仍按实际backing storage处理，并检查就绪与可写性；直接self/forward read、通过`this`绕过顺序及提前写later `var`都是定义处错误。直接访问delegated property同样要求其delegate storage已经就绪，再执行普通get/set协议。computed property沿普通accessor调用规则处理；
+- class/object完成基类委派后，property initializer、接口及属性delegate表达式、`init`和secondary body中的`this`是普通不可变receiver值，可以传参、存储、捕获、比较、转换、形成callable reference或调用ordinary/extension/virtual/interface/`super`方法。所有操作仍遵守原有类型、可见性、可寻址性及效果规则。struct secondary在primary形成完整值后同样取得普通`this`，传参或捕获复制完整值，不允许修改struct字段。constructor default与`this`/`super`委派实参仍没有当前实例receiver；
+- 读取尚未初始化的字段是未定义行为：即使其存储已经清零，也不保证该位型是合法的非空引用、enum或其他类型的值。编译器诊断当前初始化上下文中能够直接确定的未就绪访问，不承诺诊断经过方法、accessor、别名、回调或捕获发生的全部间接访问，不增加运行时初始化检查或跨函数初始化效果体系。嵌套callable的正文按其实际调用时的普通语义解释，创建闭包本身不等于读取其正文中的字段。调用方必须保证间接访问时相应字段已就绪；保存owner引用本身不读取owner字段；
+- virtual/interface调用在构造期间仍按最派生实际类型分派，基类构造不临时改变对象类型或dispatch表。派生方法若在其字段就绪前读取这些字段，同样属于上述未定义行为；`final`/`private`不会替调用方证明间接字段读取的时机；
+- `return`不能退出property initializer、`init`或constructor body；`throw`合法。其中声明的局部函数与匿名函数按8.1.2建立自身的返回边界，`return`只返回该函数；lambda中的裸`return`仍非法，捕获遵守8.1.3。所有这些体及delegation都是ordinary、safe、non-suspend上下文，constructor的显式safety注解按9.1.5适用；可以调用普通函数、分配、触发GC，也可以构造尚未执行的suspend task，但不能立即调用suspend函数。`startCoroutine`本身是同步普通builder，其启动计算不成为尚未完成的初始化步骤。
 
 **`super`成员调用：**
 
-- 普通member body中的`super.name<TypeArgs>(args...)`只在direct base application的class member层按8.5/8.6决议，不收集extension、property-like或interface default候选。winner强制direct调用base静态视图中的具体实现，即使最派生对象覆写同一virtual family也不经vtable；abstract且没有具体base实现的目标不可调用；
-- `super<I>.member`的interface default规则见9.1.4。`super`不是一等表达式；裸`super`、`super.field`、`super::name`、safe/invoke/index形式非法。初始化上下文也不能以任一super形式绕过受限receiver。
+- 普通member body及完成基类委派的初始化上下文中的`super.name<TypeArgs>(args...)`只在direct base application的class member层按8.5/8.6决议，不收集extension、property-like或interface default候选。winner强制direct调用base静态视图中的具体实现，即使最派生对象覆写同一virtual family也不经vtable；abstract且没有具体base实现的目标不可调用；
+- `super<I>.member`的interface default规则见9.1.4。`super`不是一等表达式；裸`super`、`super.field`、`super::name`、safe/invoke/index形式非法。初始化期间的super调用同样不得间接读取尚未就绪的字段。
 
 普通property accessor、delegate访问和object/global initializer都同步且non-suspend；可以分配、GC和抛异常。需要异步取得值必须显式暴露`suspend fun`，不能藏在getter或delegate协议中。
 
@@ -1279,7 +1280,7 @@ inner 可以使用直接外层 class 的类型参数与实例成员；它自己�
 
 `outer.Inner(args...)` 先求值并保存 outer，再按普通命名参数、default 与 vararg 协议求值构造实参；同名成员按既有候选分区及重载规则选择。在可取得匹配外层 application 的隐式 receiver 的作用域中，可以省略 outer。多层 inner 按从近到远的 receiver 顺序查找；`this` 指当前 receiver，`this@Outer` 按 8.1.2 的标签规则选择对应外层实例。缺少外层实例是编译错误，不能以 null 或新构造的对象补齐。
 
-每个 inner 实例保存一个不可重新绑定的普通 typed outer 引用字段，其可达性、扫描与移动更新沿用普通 class 字段协议。outer 以隐藏值参数进入构造器；base/this 委派实参、构造默认值及初始化表达式通过该参数读取外层实例。字段在 base constructor 成功后、primary property 与 delegate 初始化前写入；多次 this 委派只由最终构造器写入。构造过程中可以使用已完整构造的 outer，但仍不能取得或捕获尚未就绪的 inner `this`。继承需要 outer 的基类时，也必须从当前构造上下文取得匹配的外层实例。
+每个 inner 实例保存一个不可重新绑定的普通 typed outer 引用字段，其可达性、扫描与移动更新沿用普通 class 字段协议。outer 以隐藏值参数进入构造器；base/this 委派实参、构造默认值及初始化表达式通过该参数读取外层实例。字段在 base constructor 成功后、primary property 与 delegate 初始化前写入；多次 this 委派只由最终构造器写入。outer与当前inner的`this`使用均遵守9.1.1；保存外层实例不要求其全部构造逻辑已经完成，但不得提前读取尚未就绪的字段。继承需要outer的基类时，也必须从当前构造上下文取得匹配的外层实例。
 
 `outer::Inner` 创建绑定 outer 的构造器引用，outer 在创建引用时求值并保存一次；`::Inner` 仅在创建点存在匹配隐式 outer receiver 时合法。引用的显式参数只对应源码构造参数，不暴露隐藏 outer 参数。outer 是局部 `var` 时，显式 receiver 的读取为创建时快照，后续重新绑定不改变已创建引用；自由变量捕获仍遵守 8.1.3。跨 Cone 调用、泛型实例化和再次发布保留同一完整类型、outer 参数及字段关系。
 
@@ -1455,7 +1456,7 @@ M55 正负向条件及成员要求均查询相同关系闭包。未知条件不�
 
 class/object 的接口继承项可以写作 `I by expression`，其中 I 必须是完整 interface application，expression 的值按普通子类型和适配规则满足 I。表达式在构造时求值一次，结果保存在实例的普通隐藏字段中；之后改变表达式原来引用的变量不会替换这个 delegate。struct、enum 与 interface 自身不能声明实现委托；class 基类也不能使用 `by`。
 
-delegate 初始化在 base constructor 和 primary property store 之后、body 的 property/init 序列之前执行，多个 delegate 按继承列表顺序求值。表达式可读取 primary 参数及正常外层名称，不能使用当前未完成初始化的 this 或实例成员；无 primary 的声明不能取得任一 secondary 的参数。object 的委托属于既有 singleton 初始化。初始化是同步 safe 上下文，异常与 GC 沿普通构造规则处理。
+delegate 初始化在 base constructor 和 primary property store 之后、body 的 property/init 序列之前执行，多个 delegate 按继承列表顺序求值。表达式可读取primary参数、正常外层名称及已就绪字段，也可按9.1.1使用当前`this`进行普通调用、传参或捕获；无primary的声明不能取得任一secondary的参数。尚未就绪的delegate或body字段不能被提前读取。object的委托属于既有singleton初始化。初始化是同步safe上下文，异常与GC沿普通构造规则处理。
 
 成员选择复用实际 typed slot。当前 class 的显式实现/override 优先，继承的具体 class 实现继续满足对应 slot；剩余 slot 由唯一匹配的显式 delegate 转发，包括继承的 abstract class obligation，且转发优先于普通 interface default。多个 delegate 同时提供同一个未满足 slot 时必须显式 override。其余成员沿普通 interface default/abstract obligation 规则检查，具体 class 不能保留未实现的义务。
 

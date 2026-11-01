@@ -29,6 +29,7 @@ impl Lowerer {
             | E::Unreachable
             | E::UnitLiteral
             | E::Local(_)
+            | E::ConstructorReceiver
             | E::ConstructorParam(_)
             | E::InitializingStructFieldAccess { .. }
             | E::ReleaseFieldLoad(_)
@@ -171,7 +172,6 @@ impl Lowerer {
             | E::ByteArrayLiteral(_)
             | E::EmbeddedFileArrayLiteral(_)
             | E::ClassInit { .. }
-            | E::ConstructorReceiver
             | E::GenericDelegateStorageRead(_)
             | E::SingletonValue(_)
             | E::Capture(_)

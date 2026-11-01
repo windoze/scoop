@@ -126,7 +126,7 @@ fn this_outside_a_member_function_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "`this` is only allowed inside member functions"
+        "no `this` receiver is available in this context"
     );
 }
 

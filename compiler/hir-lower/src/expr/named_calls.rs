@@ -102,15 +102,6 @@ impl Lowerer {
                 }
             }
         }
-        if let Some(receiver_ty) = self.initializing_receiver_type()
-            && !self.methods_by_name(receiver_ty, name).is_empty()
-        {
-            self.error(
-                call.span,
-                "initializing receiver cannot escape before construction completes".into(),
-            );
-            return None;
-        }
         let site = CallSite {
             type_args: &call.type_args,
             args: &call.args,
@@ -166,39 +157,6 @@ impl Lowerer {
                     first_failure.get_or_insert(failure);
                 }
                 Err(_) => {}
-            }
-        }
-        // An initializer has a typed receiver but deliberately no escapable
-        // `this` value. Its already-initialized stored properties still form
-        // the real-member layer and may themselves be callable values.
-        let property_receiver_ty = self.initializing_receiver_type();
-        if let Some(receiver_ty) = property_receiver_ty
-            && let Some((property_id, _, _)) =
-                self.find_accessible_nominal_property(receiver_ty, name)
-        {
-            let property = self.probe_expr_layer(|state, _| {
-                if state.initialization_context.is_some() {
-                    if state.initializing_receiver_has_field(name) {
-                        return state.bare_member_fallback(&call.callee);
-                    }
-                    return None;
-                }
-                let receiver = state.lower_current_this(call.callee.span)?;
-                state.member_property_read(receiver, &call.callee)
-            });
-            if let Ok(read) = property {
-                let outcome = self.probe_named_value_member(&read, site, expected);
-                if let Some(expression) = self
-                    .finish_property_partition(outcome, sink, &mut first_failure)
-                    .ok()?
-                {
-                    return Some(expression);
-                }
-                implicit_properties.push(NamedValueLayer {
-                    read,
-                    rank: crate::imports::lookup::calls::ImportLookupRank::ImplicitReceiver,
-                    origin: PropertyExtensionInvokeOrigin::Member(property_id),
-                });
             }
         }
         let layers = self.named_call_layers(name);

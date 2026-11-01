@@ -998,9 +998,7 @@ pub(crate) struct Lowerer {
 pub(crate) struct InitializationContext {
     pub(crate) receiver: InitializingReceiver,
     pub(crate) step: String,
-    /// Nested callables cannot retain the receiver capability. The depth at
-    /// which initialization began distinguishes their bodies from the
-    /// constructor expression itself.
+    /// Distinguish the constructor's return boundary from nested callables.
     pub(crate) capture_depth: usize,
 }
 
