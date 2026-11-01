@@ -1,0 +1,97 @@
+package scoop.ui
+
+import scoop.graphics.*
+import scoop.surface.FrameContext
+import scoop.surface.InputArea
+import scoop.time.TimeMark
+
+/** Local coordinates and canvas state, borrowed only for this element's paint callback. */
+public class PaintContext internal constructor(
+    private val node: MountedNode,
+    private val frame: FrameContext,
+    private val extent: Size,
+    private val inheritedParent: InputArea?
+) {
+    private var active = true
+    private var paintedChildren = false
+    public val canvas: Canvas get() {
+        checkActive();
+        return frame.canvas
+    }
+    public val size: Size get() {
+        checkActive();
+        return extent
+    }
+    public val time: TimeMark get() {
+        checkActive();
+        return frame.time
+    }
+    private fun checkActive() {
+        node.root.checkThread()
+        if (!active)
+            throw IllegalStateException(Some("paint context has ended"))
+    }
+    public fun place(area: InputArea, shape: Rect, parent: InputArea? = None) {
+        checkActive()
+        frame.place(area, shape, chooseParent(parent, inheritedParent))
+    }
+    public fun place(area: InputArea, shape: Path, parent: InputArea? = None) {
+        checkActive()
+        frame.place(area, shape, chooseParent(parent, inheritedParent))
+    }
+    public fun paintChildren(parent: InputArea? = None) {
+        checkActive()
+        if (paintedChildren)
+            throw IllegalStateException(Some("children were already painted"))
+        paintedChildren = true
+        val inputParent = chooseParent(parent, inheritedParent)
+        var index = 0L
+        for (child in node.children) {
+            when (node.placements[index]) {
+                case Some(origin) -> child.paint(frame, origin, inputParent)
+                case None -> {}
+            }
+            index += 1L
+        }
+    }
+    internal fun finish() {
+        if (!paintedChildren) {
+            for (origin in node.placements)
+                if (origin != None)
+                    throw IllegalStateException(Some("placed children must be painted"))
+        }
+    }
+    internal fun end() {
+        active = false
+    }
+}
+
+private fun chooseParent(requested: InputArea?, inherited: InputArea?): InputArea? =
+    when (requested) {
+        case Some(value) -> Some(value)
+        case None -> inherited
+    }
+
+internal fun MountedNode.paint(frame: FrameContext, origin: Point, parent: InputArea?) {
+    if (!active || !root.isOpen)
+        return
+    when (body) {
+        case Empty -> {}
+        case Component(_) -> children[0L].paint(frame, origin, parent)
+        case Element(instance) -> frame.withState {
+            childFrame ->
+            childFrame.canvas.translate(origin.x, origin.y)
+            val result =
+                metrics ?: throw IllegalStateException(Some("element has not been measured"))
+            val context = PaintContext(this, childFrame, result.size, parent)
+            try {
+                evaluateUi<Unit>(None) { instance.value.paint(context) }
+                if (active && root.isOpen)
+                    context.finish()
+                Unit
+            } finally {
+                context.end()
+            }
+        }
+    }
+}

@@ -1,0 +1,114 @@
+package scoop.ui
+
+import scoop.graphics.Point
+import scoop.surface.*
+import scoop.window.Window
+
+/** Owns one root; closing it leaves the caller's native window intact. */
+public class UiWindow internal constructor(private val root: UiRoot): Closeable {
+    public val nativeWindow: Window get() = root.window
+    public val isClosed: Boolean get() {
+        root.checkThread();
+        return root.closed
+    }
+    public override fun close() {
+        root.requestClose()
+    }
+}
+
+internal class UiRoot(
+    val host: UiHost,
+    val window: Window,
+    private val initial: View
+): SurfaceContent {
+    private var attached: SurfaceWindow? = None
+    private var node: MountedNode? = None
+    private val pending = ArrayList<MountedNode>()
+    var pendingEnqueued = false
+    var isOpen = true
+    var closed = false
+    val surface: SurfaceWindow get() =
+        attached ?: throw IllegalStateException(Some("UI root is not attached"))
+
+    fun checkThread() {
+        host.checkThread()
+    }
+    fun mount(value: SurfaceWindow) {
+        attached = Some(value)
+        val current = createNode(this, None, initial)
+        node = Some(current)
+        current.rebuild(UpdateTurn())
+        current.mountPending()
+    }
+    fun enqueue(value: MountedNode) {
+        pending.add(value)
+        host.enqueue(this)
+    }
+    fun flush() {
+        if (!isOpen)
+            return
+        val turn = UpdateTurn()
+        val work = pending.toArray()
+        pending.clear()
+        for (value in work) {
+            value.queued = false
+            value.scheduled = Some(turn)
+        }
+        for (value in work) {
+            if (
+                value.active &&
+                    isOpen &&
+                    !sameTurn(value.updated, turn) &&
+                    !value.hasScheduledAncestor(turn)
+            ) {
+                value.rebuild(turn)
+                value.mountPending()
+            }
+        }
+        if (isOpen && work.size > 0L)
+            surface.requestFrame()
+    }
+    public override fun paint(frame: FrameContext) {
+        if (!isOpen)
+            return
+        val current = node ?: throw IllegalStateException(Some("UI root has not mounted"))
+        current.measure(Constraints.tight(frame.size), frame.time)
+        current.paint(frame, Point(0.0, 0.0), None)
+    }
+    fun stop() {
+        if (!isOpen)
+            return
+        isOpen = false
+        pending.clear()
+        node?.deactivate()
+    }
+    fun requestClose() {
+        checkThread()
+        if (!isOpen)
+            return
+        stop()
+        host.retire(this)
+    }
+    fun closeSurface() {
+        when (attached) {
+            case Some(value) -> value.close()
+            case None -> close()
+        }
+    }
+    public override fun close() {
+        checkThread()
+        if (closed)
+            return
+        stop()
+        closed = true
+        val current = node
+        node = None
+        var failure: Throwable? = None
+        when (current) {
+            case Some(value) -> failure = cleanupUi(failure) { value.unmount() }
+            case None -> {}
+        }
+        host.detached(this)
+        throwUi(failure)
+    }
+}

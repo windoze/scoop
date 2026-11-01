@@ -1,0 +1,61 @@
+package scoop.ui
+
+/** Identity is local to the immediate parent's complete child sequence. */
+public enum ViewKey: Equals<ViewKey>, Hash {
+    Position, Text(String), Number(Long)
+    public override operator fun equals(other: ViewKey): Boolean =
+        when ((this, other)) {
+            case(Position, Position) -> true
+            case(Text(a), Text(b)) -> a == b
+            case(Number(a), Number(b)) -> a == b
+            else -> false
+        }
+    public override fun hash(): Long =
+        when (this) {
+            case Position -> 0L
+            case Text(value) -> value.hash()
+            case Number(value) -> value.hash()
+        }
+}
+
+/** Immutable description; constructing or copying it never mounts an instance. */
+public class View internal constructor(internal val key: ViewKey, internal val body: ViewBody)
+
+public fun empty(): View = View(ViewKey.Position, ViewBody.Empty)
+
+public fun <C: Component> component(create: () -> C, key: ViewKey = ViewKey.Position): View =
+    component(Unit, { _ -> create() }, key)
+
+public fun <P, C: Component> component(
+    props: P,
+    create: (Props<P>) -> C,
+    key: ViewKey = ViewKey.Position
+): View = View(key, ViewBody.Component(ComponentDescription(props, create)))
+
+public fun <E: Element> element(
+    create: () -> E,
+    children: Array<View> = [],
+    key: ViewKey = ViewKey.Position
+): View = element(Unit, { _ -> create() }, children, key)
+
+public fun <P, E: Element> element(
+    props: P,
+    create: (Props<P>) -> E,
+    children: Array<View> = [],
+    key: ViewKey = ViewKey.Position
+): View = View(key, ViewBody.Element(ElementDescription(props, create), children))
+
+internal enum ViewBody {
+    Empty, Component(ComponentDescriptionBase), Element(ElementDescriptionBase, Array<View>)
+}
+
+internal enum ViewShape {
+    Empty, Component(TypeRef, TypeRef), Element(TypeRef, TypeRef)
+}
+
+internal val View.shape: ViewShape get() =
+    when (body) {
+        case Empty -> ViewShape.Empty
+        case Component(value) -> value.shape
+        case Element(value, _) -> value.shape
+    }

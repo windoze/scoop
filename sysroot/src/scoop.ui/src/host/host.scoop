@@ -1,0 +1,192 @@
+package scoop.ui
+
+import scoop.platform.concurrent.currentThreadId
+import scoop.surface.SurfaceHost
+import scoop.window.*
+
+/** Runs logical updates and Surface frames on the existing application owner. */
+public class UiHost public constructor(
+    private val handler: (UiHost, ActiveApplication, ApplicationEvent) -> Unit = { _, _, _ -> }
+): ApplicationHandler, Closeable {
+    private val thread = currentThreadId()
+    private val roots = ArrayList<UiRoot>()
+    private val pending = ArrayList<UiRoot>()
+    private var proxy: ApplicationProxy? = None
+    private var queued = false
+    private var processing = false
+    private var depth = 0
+    private var nativeDepth = 0
+    private var pendingRetirement = false
+    private var closing = false
+    private val surfaces =
+        SurfaceHost { _, application, event -> handler(this, application, event) }
+
+    public val isClosed: Boolean get() {
+        checkThread()
+        return closing && roots.size == 0L && surfaces.isClosed
+    }
+    internal fun checkThread() {
+        checkUiThread(thread)
+    }
+
+    public fun <C: Component> attach(window: Window, create: () -> C): UiWindow {
+        checkThread()
+        if (closing)
+            throw IllegalStateException(Some("UI host is closed"))
+        return callback {
+            val root = UiRoot(this, window, component(create))
+            roots.add(root)
+            val surface = surfaces.attach(window, root)
+            root.mount(surface)
+            UiWindow(root)
+        }
+    }
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        checkThread()
+        when (proxy) {
+            case None -> proxy = Some(application.proxy())
+            case Some(_) -> {}
+        }
+        callback {
+            nativeDepth += 1
+            try {
+                surfaces.onEvent(application, event)
+                when (event) {
+                    case Exiting -> close()
+                    else -> {}
+                }
+            } finally {
+                nativeDepth -= 1
+            }
+        }
+    }
+    internal fun enqueue(root: UiRoot) {
+        if (closing || !root.isOpen)
+            return
+        if (!root.pendingEnqueued) {
+            root.pendingEnqueued = true
+            pending.add(root)
+        }
+        if (!processing)
+            schedule()
+    }
+    private fun schedule() {
+        if (queued || closing || pending.size == 0L)
+            return
+        val mailbox =
+            proxy ?: throw IllegalStateException(Some("UI updates require a running host"))
+        queued = true
+        if (!mailbox.post { _ -> callback { flush() } }) {
+            queued = false
+            close()
+        }
+    }
+    private fun flush() {
+        queued = false
+        if (closing)
+            return
+        processing = true
+        val work = pending.toArray()
+        pending.clear()
+        for (root in work)
+            root.pendingEnqueued = false
+        try {
+            for (root in work)
+                if (root.isOpen)
+                    root.flush()
+        } finally {
+            processing = false
+        }
+        schedule()
+    }
+    private fun <T> callback(block: () -> T): T {
+        depth += 1
+        var result: T? = None
+        var failure: Throwable? = None
+        try {
+            result = Some(block())
+        }
+        catch (error: Throwable) {
+            failure = Some(error)
+        }
+        depth -= 1
+        when (failure) {
+            case Some(_) -> failure = cleanupUi(failure) { close() }
+            case None -> {}
+        }
+        if (depth == 0)
+            failure = cleanupUi(failure) { finishRetirement() }
+        throwUi(failure)
+        return result!!
+    }
+    internal fun retire(root: UiRoot) {
+        if (nativeDepth > 0 || depth == 0)
+            root.closeSurface()
+        else
+            pendingRetirement = true
+    }
+    private fun finishRetirement() {
+        if (closing) {
+            surfaces.close()
+            pendingRetirement = false
+        } else
+            if (pendingRetirement) {
+                pendingRetirement = false
+                var failure: Throwable? = None
+                for (root in roots.toArray())
+                    if (!root.isOpen)
+                        failure = cleanupUi(failure) { root.closeSurface() }
+                when (failure) {
+                    case Some(_) -> failure = cleanupUi(failure) { close() }
+                    case None -> {}
+                }
+                throwUi(failure)
+            }
+    }
+    internal fun detached(root: UiRoot) {
+        removeRoot(roots, root)
+        removeRoot(pending, root)
+        root.pendingEnqueued = false
+    }
+    public override fun close() {
+        checkThread()
+        if (closing)
+            return
+        closing = true
+        queued = false
+        pending.clear()
+        for (root in roots) {
+            root.pendingEnqueued = false
+            root.stop()
+        }
+        if (nativeDepth > 0 || depth == 0)
+            surfaces.close()
+        else
+            pendingRetirement = true
+    }
+}
+
+private fun removeRoot(values: ArrayList<UiRoot>, root: UiRoot) {
+    var index = 0L
+    while (index < values.size) {
+        if (values[index] === root) {
+            values.removeAt(index)
+            return
+        }
+        index += 1L
+    }
+}
+
+/** A single-window entry point with the same explicit root ownership as UiHost.use. */
+public fun <C: Component> runUiApplication(title: String, create: () -> C) {
+    val application = Application(ApplicationOptions(LastWindowPolicy.Exit))
+    UiHost {
+        host,
+        active,
+        event -> when (event) {
+            case Resumed -> host.attach(active.createWindow(WindowAttributes(title)), create)
+            case Window(id, WindowEvent.CloseRequested) -> active.requestExit()
+            else -> {}
+        }
+    }.use { host -> application.run(host) }
+}

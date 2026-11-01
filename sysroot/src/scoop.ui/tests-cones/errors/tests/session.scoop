@@ -1,0 +1,197 @@
+package scoop.tests.ui.errors
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.window.*
+
+internal class FailureRecord(val mode: FailureMode) {
+    val primary = IllegalStateException(Some("expected UI callback failure"))
+    val cleanupA = IllegalStateException(Some("expected first cleanup failure"))
+    val cleanupB = IllegalStateException(Some("expected second cleanup failure"))
+    val trigger = state(false)
+    val images = ArrayList<FailureImage>()
+    val log = ArrayList<String>()
+    var rootMounts = 0
+    var rootUnmounts = 0
+    var leafMounts = 0
+    var leafUnmounts = 0
+    var started = false
+    var host: UiHost? = None
+    var window: Window? = None
+    var second: Window? = None
+    var view: ViewProbe? = None
+}
+
+@Test
+private class UiFailureTest {
+    @Test
+    fun `callback and protocol failures retire partial trees and preserve cleanup errors`() {
+        val harness = FailureHarness()
+        val application = Application()
+        try {
+            val failure = assertFailsWith<ResourceUseException> { application.run(harness) }
+            assertEquals(harness.records.size - 1L, harness.index)
+            val last = harness.records[harness.index]
+            assertTrue(containsFailure(failure, last.primary))
+            assertTrue(containsFailure(failure, last.cleanupA))
+            assertTrue(containsFailure(failure, last.cleanupB))
+            for (record in harness.records) {
+                assertTrue(record.host!!.isClosed)
+                assertEquals(WindowState.Destroyed, record.window!!.state)
+                assertTrue(record.view!!.restored())
+                for (image in record.images) {
+                    assertEquals(1, image.closes)
+                    assertTrue(image.image.isClosed)
+                }
+            }
+            assertEquals(WindowState.Destroyed, last.second!!.state)
+            assertEquals(1, last.rootUnmounts)
+            assertEquals(1, last.leafUnmounts)
+        } finally {
+            for (record in harness.records) {
+                record.host?.close()
+                record.view?.close()
+            }
+        }
+    }
+}
+
+internal class FailureHarness: ApplicationHandler {
+    val records: Array<FailureRecord> =
+        [
+            FailureRecord(FailureMode.Factory),
+            FailureRecord(FailureMode.Render),
+            FailureRecord(FailureMode.Mount),
+            FailureRecord(FailureMode.Update),
+            FailureRecord(FailureMode.DuplicateKey),
+            FailureRecord(FailureMode.DuplicateInstance),
+            FailureRecord(FailureMode.ValueType),
+            FailureRecord(FailureMode.MissingMeasure),
+            FailureRecord(FailureMode.Measure),
+            FailureRecord(FailureMode.MissingPaint),
+            FailureRecord(FailureMode.Paint),
+            FailureRecord(FailureMode.LateUpdate)
+        ]
+    var index = 0L
+    private var resumed = false
+    public override fun onEvent(application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> resumed = true
+            case NewEvents(StartCause.Deadline) -> fail(
+                Some("UI failure test deadline at case " + index.toString())
+            )
+            else -> {}
+        }
+        val record = records[index]
+        when (record.host) {
+            case None -> record.host =
+                Some(
+                    UiHost {
+                        host,
+                        active,
+                        _ -> if (resumed && !record.started)
+                            start(host, active, record)
+                    }
+                )
+            case Some(_) -> {}
+        }
+        try {
+            record.host!!.onEvent(application, event)
+        } catch (error: Throwable) {
+            if (record.mode == FailureMode.LateUpdate)
+                throw error
+            verifyFailure(record, error)
+            assertTrue(record.host!!.isClosed)
+            record.window!!.requestDestroy()
+            index += 1L
+        }
+    }
+    private fun start(host: UiHost, application: ActiveApplication, record: FailureRecord) {
+        val visible =
+            when (record.mode) {
+                case MissingMeasure -> true
+                case Measure -> true
+                case MissingPaint -> true
+                case Paint -> true
+                else -> false
+            }
+        val native =
+            application.createWindow(
+                WindowAttributes("Scoop UI failure", LogicalSize(160.0, 100.0), visible = visible)
+            )
+        record.started = true
+        record.window = Some(native)
+        if (visible)
+            native.setWindowLevel(WindowLevel.AlwaysOnTop)
+        record.view = Some(observeWindow(native))
+        application.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(8L))
+        )
+        when (record.mode) {
+            case Factory -> host.attach<FailureRoot>(native, { throw record.primary })
+            case ValueType -> host.attach(native, { ValueComponent() })
+            else -> host.attach(native, { FailureRoot(record) })
+        }
+        if (record.mode == FailureMode.LateUpdate) {
+            val second =
+                application.createWindow(
+                    WindowAttributes("Scoop UI failure companion", visible = false)
+                )
+            record.second = Some(second)
+            host.attach(second, { SecondRoot(record) })
+            record.trigger.value = true
+        }
+    }
+}
+
+private fun verifyFailure(record: FailureRecord, error: Throwable) {
+    when (record.mode) {
+        case DuplicateKey -> assertTrue(error is IllegalArgumentException)
+        case ValueType -> assertTrue(error is IllegalArgumentException)
+        case DuplicateInstance -> assertTrue(error is IllegalStateException)
+        case MissingMeasure -> assertTrue(error is IllegalStateException)
+        case MissingPaint -> assertTrue(error is IllegalStateException)
+        else -> assertTrue(containsFailure(error, record.primary))
+    }
+    if (record.mode == FailureMode.Mount) {
+        assertEquals(1, record.rootMounts)
+        assertEquals(0, record.rootUnmounts)
+        assertTrue(containsFailure(error, record.cleanupA))
+        assertEquals("dispose root", record.log[0L])
+        assertEquals("close root", record.log[1L])
+    }
+    if (
+        record.mode ==
+            FailureMode.Render ||
+            record.mode ==
+            FailureMode.Factory ||
+            record.mode ==
+            FailureMode.DuplicateKey ||
+            record.mode ==
+            FailureMode.DuplicateInstance ||
+            record.mode ==
+            FailureMode.ValueType
+    ) {
+        assertEquals(0, record.rootMounts)
+        assertEquals(0, record.rootUnmounts)
+    }
+    if (record.leafMounts > 0) {
+        assertEquals(1, record.leafUnmounts)
+        assertEquals(1, record.rootUnmounts)
+        assertEquals("unmount leaf", record.log[0L])
+        assertEquals("close leaf", record.log[1L])
+        assertEquals("unmount root", record.log[2L])
+    }
+}
+
+private fun containsFailure(error: Throwable, expected: Throwable): Boolean {
+    if (error === expected)
+        return true
+    if (error is ResourceUseException)
+        return containsFailure(error.primaryFailure, expected) ||
+            containsFailure(error.cleanupFailure, expected)
+    return false
+}

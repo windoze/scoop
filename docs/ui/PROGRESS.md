@@ -1,6 +1,6 @@
 # UI 实施记录
 
-日期：2026-11-01。实施依据为 [UI 设计](DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)、[文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)及[基础控件规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。本期先在 macOS aarch64 完成全部实施批次，再统一补验 x86_64，Windows 后续接入；图文绕排、GPU／3D／媒体互操作和 SkSL 仍属于设计中列出的后续增强。
+日期：2026-11-02。实施依据为 [UI 设计](DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)、[文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)及[基础控件规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。本期先在 macOS aarch64 完成全部实施批次，再统一补验 x86_64，Windows 后续接入；图文绕排、GPU／3D／媒体互操作和 SkSL 仍属于设计中列出的后续增强。
 
 ## 1. 批次状态
 
@@ -8,12 +8,12 @@
 | --- | --- | --- |
 | 0. 已确认设计与平台范围 | 已记录 | 自绘分层、State／Context／Binding、资源所有权、静止停帧、macOS 首期与后续增强 |
 | 1. 文本公共能力 | aarch64 已完成 | 独立 graphics.text、Canvas 借用、StyledText／SpanStyle、行内 metrics／placement、位置与替代文字 |
-| 2. 独立自绘闭环 | aarch64 接入中 | SurfaceContent 所有权已完成；Component／Element／State／Props／Binding、挂载、布局、输入及 UiHost 待实施 |
+| 2. 独立自绘闭环 | aarch64 已完成 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入、UiHost 与独立自绘示例 |
 | 3. 公共文本适配与简单控件 | 待实施 | ParagraphHost／InlineView、Label／Button／Checkbox |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
 | 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
 
-已有 scoop.surface 的窗口、动画和 InputArea 实现作为基础；当前尚未交付 UI 框架，已完成的底层能力及其实际验证记录如下。源码与结果随各批完成更新，不能把设计示例和文档检查当成已交付功能。
+已有 scoop.surface 的窗口、动画和 InputArea 实现作为基础，独立 UI 框架已交付；公共文本适配、控件库和后续组合验证继续按批次推进。下文保存实际验证范围，不把设计示例和文档检查当成已交付功能。
 
 ## 2. 验证与提交方式
 
@@ -110,3 +110,22 @@ Scoop 格式／类型检查、C++ 格式与严格告警编译通过；重新发�
 | graphics.text 的 MetalTextTest | 1／1 | 独立文本库继续通过画布原生借用绘制到 Metal |
 
 本轮无编译器、core／std／test 改动，无 fixture 或全量测试；UI 框架继续实施，x86_64 统一留待最后。
+
+### 3.6 独立自绘 UI 框架
+
+新增普通 scoop.ui Cone，提供持久 Component／Element、State、Props／Binding、View 和延迟工厂、ComponentScope、约束与 LayoutMetrics、MeasureContext／PaintContext、UiHost／UiWindow。State 依赖只在 render 中收集；同一轮祖先与后代失效合并，条件读取或 Binding 换绑时移除旧订阅。key 与完整组件／Props 类型决定复用，普通 class 状态无需复制成 struct。
+
+逻辑更新通过现有 ApplicationProxy 按需投递，不等待可见帧。隐藏窗口仍更新和卸载，SurfaceContent 拥有 UI 根；完整回调结束后才释放资源。绘制复用 FrameContext.withState，变换、clip 与区域放置使用同一几何；子项测量一次、可不放置，未放置项仍保留状态。动画直接使用 Surface 时间轴，不重跑未失效的 render。
+
+Scoop 格式检查和生产／测试类型检查通过；当前 Scoop CLI 无独立 lint 子命令，本轮没有需要 Rust／C++ lint 的变更。aarch64 release scoop.test 结果如下：
+
+| 范围 | 结果 | 必要覆盖 |
+| --- | ---: | --- |
+| UiValueTest | 4／4 | 自有／共享委托、Binding、class 值、异线程读写拒绝、约束 |
+| UiCompositionTest | 1／1 | 隐藏双窗口、Context 挂载、自有／共享 State、条件退订、更新合并、Props／Binding 换绑、key 重排与重新挂载、子先父资源关闭 |
+| UI drawing Cone | 1／1 | 公开自绘接口、Rect／Path 命中、clip／坐标隔离、绘制顺序、基线、Surface 动画与停帧、可选放置、焦点退出、逻辑回调内关闭 |
+| UI errors Cone | 1／1 | 12 种构造／render／挂载／update／测量／绘制及协议失败，多根清理、资源关闭一次、错误合并、原生 view 恢复 |
+
+[自绘 Counter](../../sysroot/src/scoop.ui/examples/custom/README.md) 已通过生产类型检查和 aarch64 release 构建，只依赖 UI 及下层公开接口，实现成员 State、Path、输入和 spring 宽度动画。真实窗口交互由 drawing Cone 验证，未把示例构建计为额外运行测试。
+
+本轮未修改编译器、core／std／test，未使用 fixture 或运行全量测试。多种容器、公共文本和 asyncio／HTTP 的组合仍在后续批次验收；x86_64 在 aarch64 全部功能完成后补验。

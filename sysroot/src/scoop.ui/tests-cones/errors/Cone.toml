@@ -1,0 +1,16 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "ui-errors"
+version = "0.1.0"
+kind = "library"
+
+[test-dependencies]
+"scoop:scoop.ui" = { version = "0.1.0", path = "../.." }
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.graphics" = "0.1.0"
+"scoop:scoop.surface" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.window" = "0.1.0"
+"scoop:scoop.test" = "0.1.0"
+"scoop.tests:surface-native" = { version = "0.1.0", path = "../../../scoop.surface/test-native" }

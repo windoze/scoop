@@ -1,6 +1,6 @@
 # scoop.ui：自绘框架与独立控件库设计
 
-日期：2026-11-01。状态：开始按批次实施，`scoop.ui` 与 `scoop.ui.component` 均尚未交付，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
+日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架已在 macOS aarch64 交付，公共文本适配、`scoop.ui.component` 及组合验证继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
 
 ## 1. 分层目标
 
@@ -30,7 +30,7 @@ import scoop.ui.component.button
 class Counter: Component {
     private var count: Int by state(0)
 
-    override fun render(): View = button(text = f"Count: {count}", onClick = { count += 1 })
+    public override fun render(): View = button(text = f"Count: ${count}", onClick = { count += 1 })
 }
 ```
 
@@ -62,10 +62,10 @@ import scoop.graphics.*
 import scoop.ui.*
 
 class ColorTile(private val props: Props<Color>): Element {
-    override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
         LayoutMetrics(constraints.constrain(Size(48.0, 48.0)))
 
-    override fun paint(context: PaintContext) {
+    public override fun paint(context: PaintContext) {
         context.canvas.drawRect(
             Rect(0.0, 0.0, context.size.width, context.size.height),
             Paint(color = props.value)
@@ -80,7 +80,7 @@ class Indicator: Component {
         active = value
     }
 
-    override fun render(): View =
+    public override fun render(): View =
         element(
             props =
                 if (active)
@@ -340,7 +340,7 @@ SkSL 填充、图像效果和组件动画也列为后续增强，见[第 14 节]
 | `docs/gui` | `docs/surface` |
 | `SCOOP-GUI-SPEC.md` | `SCOOP-SURFACE-SPEC.md` |
 
-示例、测试 Cone、package 和 native helper 已一起迁移，不保留兼容别名。Windows 的 subsystem 值 gui、通用 GUI 概念和历史 Git 分支名不属于库名。准备脚本按普通 Cone manifest 发现系统库；未来 graphics.text 与两个 UI Cone 各自通过正常依赖构建，不增加特殊解析或框架内置加载步骤。文本从 graphics 的独立迁移另见文本设计，尚未因 Surface 更名而完成。
+示例、测试 Cone、package 和 native helper 已一起迁移，不保留兼容别名。Windows 的 subsystem 值 gui、通用 GUI 概念和历史 Git 分支名不属于库名。准备脚本按普通 Cone manifest 发现系统库；graphics.text、ui 及后续控件库均按普通依赖构建，不增加特殊解析或框架内置加载步骤。文本从 graphics 的独立迁移已完成，见文本设计与实施记录。
 
 ## 13. 后续增强：GPU 互操作、3D 与视频
 

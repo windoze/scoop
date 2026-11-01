@@ -825,6 +825,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 本期按[实施记录](ui/PROGRESS.md)先补底层缺口和公共文本，再交付框架及简单组件；只实现并定向验证 macOS，Windows 后续接入。普通行为采用 scoop.test，每批验证后提交、推送并合并 origin/main。
 - [设计](ui/DESIGN.md)与 [UI 规范](specs/SCOOP-UI-SPEC.md)将 `scoop.ui` 定位为不含现成控件的自绘框架：保留持久 class Component、成员 State 和返回 View 的 render，通过公开 Element 协议提供测量、子项布局、绘制及输入接入。
+- macOS aarch64 已交付独立框架、外部自绘示例及状态／绘制／异常定向测试；公共文本适配、基础控件和宿主组合继续分批接入，全部 aarch64 功能完成后再统一补验 x86_64。
 - 独立的 `scoop.ui.component` 使用与第三方控件相同的公开能力实现 Label／Button／Checkbox、Row／Column／Stack、Frame 和样式，见[控件库规范](specs/SCOOP-UI-COMPONENT-SPEC.md)。框架不依赖该库；`scoop.ui.text` 提供公共 ParagraphHost 和行内 View 适配，控件复用它并决定外观与点击语义。
 - Props／Binding、完整类型身份与父级内 key 保留实例；scope 统一管理资源、InputArea 和 Surface Animatable，应用不逐组件 use。逻辑更新及卸载独立于 drawable，动画沿同一帧进入布局和绘制，命中几何只在 surface 成功提交后发布。
 - [静止时停止渲染](specs/SCOOP-UI-SPEC.md#61-静止时停止渲染工作)属于首期硬性要求：无更新／绘制失效／活动动画时，UI 不遍历树或投递空任务，Surface 撤销原生帧需求，不获取目标或提交 GPU 工作。覆盖单次唤醒后再停止、动画收尾、多窗口需求隔离、隐藏／Deferred 及两种 run；同步观察逻辑入口、原生唤醒与 GPU 提交，不推迟到移动端或局部重绘优化阶段。

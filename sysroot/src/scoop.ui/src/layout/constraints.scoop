@@ -1,0 +1,93 @@
+package scoop.ui
+
+import scoop.graphics.Size
+
+/** Finite limits; None represents an unbounded maximum, without passing Infinity downstream. */
+public struct Constraints(
+    val minWidth: Double = 0.0,
+    val maxWidth: Double? = None,
+    val minHeight: Double = 0.0,
+    val maxHeight: Double? = None
+) {
+    public fun constrain(size: Size): Size {
+        check()
+        checkLayoutSize(size)
+        return Size(
+            constrainAxis(size.width, minWidth, maxWidth),
+            constrainAxis(size.height, minHeight, maxHeight)
+        )
+    }
+    internal fun check() {
+        checkAxis(minWidth, maxWidth)
+        checkAxis(minHeight, maxHeight)
+    }
+    internal fun accepts(size: Size): Boolean =
+        size.width >=
+            minWidth &&
+            size.height >=
+            minHeight &&
+            underMaximum(size.width, maxWidth) &&
+            underMaximum(size.height, maxHeight)
+    public companion object {
+        public fun tight(size: Size): Constraints {
+            checkLayoutSize(size)
+            return Constraints(size.width, Some(size.width), size.height, Some(size.height))
+        }
+    }
+}
+
+public struct LayoutMetrics(
+    val size: Size,
+    val alphabeticBaseline: Double? = None,
+    val ideographicBaseline: Double? = None
+)
+
+private fun checkAxis(minimum: Double, maximum: Double?) {
+    requireUi(minimum.isFinite() && minimum >= 0.0, "invalid minimum layout extent")
+    when (maximum) {
+        case Some(value) -> requireUi(
+            value.isFinite() && value >= minimum,
+            "invalid maximum layout extent"
+        )
+        case None -> {}
+    }
+}
+
+private fun constrainAxis(value: Double, minimum: Double, maximum: Double?): Double {
+    val lower =
+        if (value < minimum)
+            minimum
+        else
+            value
+    return when (maximum) {
+        case Some(upper) -> if (lower > upper)
+            upper
+        else
+            lower
+        case None -> lower
+    }
+}
+
+private fun underMaximum(value: Double, maximum: Double?): Boolean =
+    when (maximum) {
+        case Some(upper) -> value <= upper
+        case None -> true
+    }
+
+internal fun checkLayoutSize(size: Size) {
+    requireUi(
+        size.width.isFinite() && size.height.isFinite() && size.width >= 0.0 && size.height >= 0.0,
+        "invalid layout size"
+    )
+}
+
+internal fun checkLayoutMetrics(metrics: LayoutMetrics, constraints: Constraints) {
+    checkLayoutSize(metrics.size)
+    requireUi(constraints.accepts(metrics.size), "measured size is outside its constraints")
+    for (baseline in [metrics.alphabeticBaseline, metrics.ideographicBaseline]) {
+        when (baseline) {
+            case Some(value) -> requireUi(value.isFinite(), "non-finite layout baseline")
+            case None -> {}
+        }
+    }
+}

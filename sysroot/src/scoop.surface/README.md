@@ -1,6 +1,6 @@
 # scoop.surface
 
-本库提供窗口呈现、帧调度、动画与区域输入。上层的 `scoop.ui` 提供不含现成控件的自绘框架，`scoop.ui.component` 使用其公开能力实现 Label／Button 等基础控件，见 [UI 设计](../../../docs/ui/DESIGN.md)；这两个上层库均尚未实现。
+本库提供窗口呈现、帧调度、动画与区域输入。上层的 [scoop.ui](../scoop.ui/README.md) 已在 macOS aarch64 提供不含现成控件的自绘框架；后续 `scoop.ui.component` 使用其公开能力实现 Label／Button 等基础控件，见 [UI 设计](../../../docs/ui/DESIGN.md)。
 
 公共字体和段落 API 已迁入 [scoop.graphics.text](../scoop.graphics.text/README.md)，已实现 StyledText／SpanStyle 和行内对象，详细合同见[设计](../../../docs/graphics/text/DESIGN.md)。Surface 继续只管理呈现、动画和区域几何，文本或 UI 宿主拥有具体内容和资源。
 

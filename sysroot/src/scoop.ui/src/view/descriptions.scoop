@@ -1,0 +1,74 @@
+package scoop.ui
+
+internal interface ComponentDescriptionBase {
+    val shape: ViewShape
+    fun create(): ComponentInstance
+}
+
+internal interface ElementDescriptionBase {
+    val shape: ViewShape
+    fun create(): ElementInstance
+}
+
+internal interface ComponentInstance {
+    val value: Component
+    fun replace(description: ComponentDescriptionBase)
+}
+
+internal interface ElementInstance {
+    val value: Element
+    fun replace(description: ElementDescriptionBase)
+}
+
+internal class ComponentDescription<P, C: Component>(
+    val input: P,
+    private val factory: (Props<P>) -> C
+): ComponentDescriptionBase {
+    override val shape = ViewShape.Component(typeInfo<C>().type, typeInfo<P>().type)
+    override fun create(): ComponentInstance {
+        requireClassInstance<C>()
+        val props = Props(input)
+        return TypedComponentInstance<P, C>(props, factory(props))
+    }
+}
+
+private class TypedComponentInstance<P, C: Component>(
+    private val props: Props<P>,
+    private val instance: C
+): ComponentInstance {
+    override val value: Component get() = instance
+    override fun replace(description: ComponentDescriptionBase) {
+        props.replace((description as ComponentDescription<P, C>).input)
+    }
+}
+
+internal class ElementDescription<P, E: Element>(
+    val input: P,
+    private val factory: (Props<P>) -> E
+): ElementDescriptionBase {
+    override val shape = ViewShape.Element(typeInfo<E>().type, typeInfo<P>().type)
+    override fun create(): ElementInstance {
+        requireClassInstance<E>()
+        val props = Props(input)
+        return TypedElementInstance<P, E>(props, factory(props))
+    }
+}
+
+private class TypedElementInstance<P, E: Element>(
+    private val props: Props<P>,
+    private val instance: E
+): ElementInstance {
+    override val value: Element get() = instance
+    override fun replace(description: ElementDescriptionBase) {
+        props.replace((description as ElementDescription<P, E>).input)
+    }
+}
+
+private fun <T> requireClassInstance() {
+    when (typeInfo<T>().describe().shape) {
+        case Class(_) -> {}
+        else -> throw IllegalArgumentException(
+            Some("component and element factories must retain a concrete class type")
+        )
+    }
+}

@@ -1,0 +1,50 @@
+package scoop.ui
+
+// macOS window mounts are confined to the one native application owner thread.
+private object ActiveInstances {
+    val values = ArrayList<Any>()
+}
+
+internal fun createNode(root: UiRoot, parent: MountedNode?, view: View): MountedNode {
+    val body =
+        when (view.body) {
+            case Empty -> NodeBody.Empty
+            case Component(description) -> NodeBody.Component(description.create())
+            case Element(description, _) -> NodeBody.Element(description.create())
+        }
+    when (instanceIdentity(body)) {
+        case Some(value) -> {
+            for (current in ActiveInstances.values)
+                if (current === value)
+                    throw IllegalStateException(
+                        Some("component or element instance is already mounted")
+                    )
+            ActiveInstances.values.add(value)
+        }
+        case None -> {}
+    }
+    return MountedNode(root, parent, view, body)
+}
+
+private fun instanceIdentity(body: NodeBody): Any? =
+    when (body) {
+        case Empty -> None
+        case Component(instance) -> Some(instance.value)
+        case Element(instance) -> Some(instance.value)
+    }
+
+internal fun releaseInstance(body: NodeBody) {
+    when (instanceIdentity(body)) {
+        case Some(value) -> {
+            var index = 0L
+            while (index < ActiveInstances.values.size) {
+                if (ActiveInstances.values[index] === value) {
+                    ActiveInstances.values.removeAt(index)
+                    return
+                }
+                index += 1L
+            }
+        }
+        case None -> {}
+    }
+}

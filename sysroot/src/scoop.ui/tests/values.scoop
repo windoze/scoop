@@ -1,0 +1,69 @@
+package scoop.ui
+
+import scoop.graphics.Size
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+
+private class ValueModel {
+    val stored = state(3)
+    var count: Int by stored
+    val readable: Int by stored
+    var local: Int by state(9)
+}
+
+@Test
+private class UiValueTest {
+    @Test
+    fun `owned state shared delegates and bindings read the same storage`() {
+        val model = ValueModel()
+        val direct = model.stored.binding()
+        val access = binding(get = { model.count }, set = { value -> model.count = value })
+        direct.value = 12
+        assertEquals(12, model.count)
+        assertEquals(12, model.readable)
+        access.value += 2
+        assertEquals(14, direct.value)
+        assertEquals(9, model.local)
+        assertEquals(3, ValueModel().count)
+    }
+
+    @Test
+    fun `state values may be classes but their ordinary fields are not mirrored`() {
+        val model = ValueModel()
+        val shared = state(model)
+        assertTrue(shared.value === model)
+        shared.value.local = 19
+        assertEquals(19, model.local)
+        val replacement = ValueModel()
+        shared.value = replacement
+        assertTrue(shared.value === replacement)
+        assertEquals(19, model.local)
+    }
+
+    @Test
+    fun `state reads writes and bindings reject another thread`() {
+        val value = state(7)
+        val writable = value.binding()
+        Thread.start {
+            assertFailsWith<IllegalStateException> { value.value }
+            assertFailsWith<IllegalStateException> { value.value = 8 }
+            assertFailsWith<IllegalStateException> { writable.value += 1 }
+        }.use { thread -> thread.join() }
+        assertEquals(7, value.value)
+    }
+
+    @Test
+    fun `constraints clamp finite sizes and validate bounded axes`() {
+        val constraints = Constraints(10.0, Some(20.0), 5.0)
+        assertEquals(Size(10.0, 80.0), constraints.constrain(Size(2.0, 80.0)))
+        assertEquals(Size(20.0, 5.0), constraints.constrain(Size(40.0, 1.0)))
+        assertEquals(Size(4.0, 6.0), Constraints.tight(Size(4.0, 6.0)).constrain(Size(90.0, 1.0)))
+        assertFailsWith<IllegalArgumentException> {
+            Constraints(minWidth = -1.0).constrain(Size(0.0, 0.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Constraints(2.0, Some(1.0)).constrain(Size(0.0, 0.0))
+        }
+        assertFailsWith<IllegalArgumentException> { Constraints().constrain(Size(0.0, -1.0)) }
+    }
+}

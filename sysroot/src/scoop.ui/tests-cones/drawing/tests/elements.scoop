@@ -1,0 +1,246 @@
+package scoop.tests.ui.drawing
+
+import scoop.graphics.*
+import scoop.graphics.native.captureGeometry
+import scoop.surface.*
+import scoop.test.*
+import scoop.time.TimeMark
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.window.*
+
+internal struct SceneInput(
+    val placed: Boolean,
+    val enabled: Boolean,
+    val finished: Boolean,
+    val close: Boolean
+)
+
+internal struct LeafInput(val count: Int, val enabled: Boolean, val close: Boolean)
+
+internal class DrawingScene(private val probe: DrawingProbe): Component {
+    public override fun render(): View {
+        probe.renders += 1
+        val input =
+            SceneInput(
+                probe.placed.value,
+                probe.enabled.value,
+                probe.completed.value,
+                probe.closeOnUpdate.value
+            )
+        return element(
+            input,
+            { props -> DrawingPanel(props, probe) },
+            [
+                component(input, { props -> DrawingChild(props, probe) }),
+                element({ DrawingSibling(probe) })
+            ]
+        )
+    }
+}
+
+internal class DrawingChild(
+    private val props: Props<SceneInput>,
+    private val probe: DrawingProbe
+): Component {
+    public override fun render(): View {
+        probe.childRenders += 1
+        val input = props.value
+        return element(
+            LeafInput(probe.count.value, input.enabled, input.close),
+            { current -> DrawingLeaf(current, probe) }
+        )
+    }
+}
+
+internal class DrawingPanel(
+    private val props: Props<SceneInput>,
+    private val probe: DrawingProbe
+): Element {
+    private var area: InputArea? = None
+    public override fun onMount(scope: ComponentScope) {
+        probe.mounts += 1
+        area =
+            Some(
+                scope.createArea {
+                    _, event ->
+                    when (event) {
+                        case Pointer(
+                            AreaPointerEvent.Button(pointer, _, ElementState.Pressed, _)
+                        ) -> {
+                            probe.parentDowns += 1
+                            assertTrue(pointer.localPosition.x >= 0.0)
+                        }
+                        else -> {}
+                    }
+                    InputResult.Handled
+                }
+            )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        probe.measures += 1
+        probe.lastMeasure = Some(context)
+        assertEquals(2L, context.childCount)
+        assertFailsWith<IllegalStateException> { context.placeChild(1L, Point(0.0, 0.0)) }
+        val first =
+            context.measureChild(0L, Constraints(maxWidth = Some(100.0), maxHeight = Some(100.0)))
+        assertEquals(Some(18.0), first.alphabeticBaseline)
+        assertEquals(Some(24.0), first.ideographicBaseline)
+        probe.lastChildWidth = first.size.width
+        assertFailsWith<IllegalStateException> { context.measureChild(0L, Constraints()) }
+        context.measureChild(1L, Constraints())
+        if (props.value.placed) {
+            context.placeChild(0L, Point(30.0, 40.0))
+            assertFailsWith<IllegalStateException> { context.placeChild(0L, Point(0.0, 0.0)) }
+        }
+        context.placeChild(1L, Point(140.0, 40.0))
+        return LayoutMetrics(constraints.constrain(Size(240.0, 140.0)), Some(58.0), Some(64.0))
+    }
+    public override fun paint(context: PaintContext) {
+        probe.paints += 1
+        probe.lastPaint = Some(context)
+        probe.lastPlaced = props.value.placed
+        probe.lastCompleted = props.value.finished
+        probe.sequence.add("background")
+        context.canvas.clear(Color.White)
+        context.place(area!!, Rect(0.0, 0.0, context.size.width, context.size.height))
+        context.canvas.clipRect(Rect(0.0, 0.0, 280.0, 160.0))
+        context.canvas.translate(4.0, 6.0)
+        context.paintChildren(area)
+        assertFailsWith<IllegalStateException> { context.paintChildren() }
+        context.canvas.drawRect(Rect(0.0, 0.0, 4.0, 4.0), Paint(Color.Black))
+        probe.sequence.add("foreground")
+    }
+}
+
+internal class DrawingLeaf(
+    private val props: Props<LeafInput>,
+    private val probe: DrawingProbe
+): Element {
+    var scope: ComponentScope? = None
+    var path: Path? = None
+    var area: InputArea? = None
+    var width: Animatable<Double>? = None
+    private var measuredTime: TimeMark? = None
+    var updates = 0
+    var paints = 0
+    var mounted = 0
+    var unmounted = 0
+    var observed = 0
+    public override fun onMount(scope: ComponentScope) {
+        this.scope = Some(scope)
+        probe.leaf = Some(this)
+        mounted += 1
+        path =
+            Some(
+                scope.resource {
+                    PathBuilder(FillRule.EvenOdd).use {
+                        builder ->
+                        builder.addRect(Rect(0.0, 0.0, 60.0, 60.0))
+                        builder.addRect(Rect(15.0, 15.0, 10.0, 10.0))
+                        builder.build()
+                    }
+                }
+            )
+        width = Some(scope.animation(60.0))
+        area =
+            Some(
+                scope.createArea(focusable = true) {
+                    current, event ->
+                    when (event) {
+                        case Pointer(
+                            AreaPointerEvent.Button(
+                                pointer,
+                                MouseButton.Left,
+                                ElementState.Pressed,
+                                _
+                            )
+                        ) -> {
+                            assertEquals(Point(9.0, 9.0), pointer.localPosition)
+                            assertTrue(current.requestFocus())
+                            probe.downs += 1
+                        }
+                        case Pointer(
+                            AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Released, _)
+                        ) -> probe.count.value += 1
+                        else -> {}
+                    }
+                    InputResult.Ignored
+                }
+            )
+    }
+    public override fun update() {
+        updates += 1
+        val input = props.value
+        observed = input.count
+        area!!.enabled = input.enabled
+        val target = 60.0 + input.count.toDouble() * 10.0
+        if (width!!.target != target)
+            width!!.animateTo(
+                target,
+                AnimationSpec.Tween(Duration.milliseconds(90L)),
+                onFinished =
+                    Some {
+                        _ ->
+                        probe.completions += 1;
+                        probe.completed.value = true
+                    }
+            )
+        if (input.close) {
+            probe.uiWindow!!.close()
+            assertFalse(scope!!.isMounted)
+            assertFalse(path!!.isClosed)
+            assertTrue(path!!.contains(Point(2.0, 2.0)))
+            probe.returnedFromClose = true
+        }
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        measuredTime = Some(context.time)
+        assertFailsWith<IllegalStateException> { probe.count.value += 1 }
+        return LayoutMetrics(
+            constraints.constrain(Size(width!!.value, 60.0)),
+            Some(18.0),
+            Some(24.0)
+        )
+    }
+    public override fun paint(context: PaintContext) {
+        assertEquals(measuredTime, Some(context.time))
+        assertFailsWith<IllegalStateException> { probe.count.value += 1 }
+        paints += 1
+        probe.sequence.add("child")
+        probe.lastCanvas = Some(context.canvas)
+        context.canvas.translate(2.0, 3.0)
+        context.canvas.clipRect(Rect(0.0, 0.0, 40.0, 40.0))
+        context.canvas.drawPath(path!!, Paint(Color(0.2, 0.5, 0.8)))
+        context.place(area!!, path!!)
+    }
+    public override fun onUnmount() {
+        unmounted += 1
+        assertFalse(scope!!.isMounted)
+        assertTrue(area!!.isClosed)
+        assertEquals(AnimationState.Closed, width!!.state)
+        assertFalse(path!!.isClosed)
+    }
+}
+
+internal class DrawingSibling(private val probe: DrawingProbe): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(30.0, 30.0)))
+    public override fun paint(context: PaintContext) {
+        probe.sequence.add("sibling")
+        when (probe.lastCanvas) {
+            case Some(canvas) -> assertFailsWith<IllegalStateException> { canvas.save() }
+            case None -> {}
+        }
+        @Unsafe
+        {
+            captureGeometry(context.canvas, Rect(0.0, 0.0, 30.0, 30.0)).use {
+                geometry -> assertEquals(
+                    Some(Point(1.0, 1.0)),
+                    geometry.toLocal(Point(145.0, 47.0))
+                )
+            }
+        }
+        context.canvas.drawRect(Rect(0.0, 0.0, 30.0, 30.0), Paint(Color(0.1, 0.7, 0.2)))
+    }
+}

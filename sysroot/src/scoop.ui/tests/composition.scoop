@@ -1,0 +1,230 @@
+package scoop.ui
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.time.Duration
+import scoop.window.*
+
+@Test
+private class UiCompositionTest {
+    @Test
+    fun `hidden roots reconcile state props bindings and keys without waiting for a frame`() {
+        val store = CompositionStore()
+        val probe = CompositionProbe(store)
+        val application = Application()
+        val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+        context(store) {
+            host.use { owner -> application.run(owner) }
+        }
+        assertTrue(host.isClosed)
+        assertTrue(probe.finished)
+        assertEquals(0, probe.measures)
+        assertEquals(0, probe.paints)
+        for (tile in probe.tiles) {
+            assertEquals(1, tile.unmounts)
+            assertEquals(1, tile.resource!!.closes)
+            assertTrue(tile.resource!!.image.isClosed)
+        }
+    }
+}
+
+internal class CompositionProbe(val store: CompositionStore) {
+    val model = CompositionModel()
+    val tiles = ArrayList<StatefulTile>()
+    val flexible = ArrayList<FlexibleReader>()
+    val log = ArrayList<String>()
+    var bindingReader: BindingReader? = None
+    var first: UiWindow? = None
+    var second: UiWindow? = None
+    var sceneRenders = 0
+    var mirrorRenders = 0
+    var mirrorObserved = 0
+    var plainRenders = 0
+    var plainObserved = 0
+    var updates = 0
+    var measures = 0
+    var paints = 0
+    var step = 0
+    var finished = false
+    private var sceneBefore = 0
+    private var aBefore = 0
+    private var bBefore = 0
+    private var choiceBefore = 0
+    private var plainBefore = 0
+    private var mirrorBefore = 0
+    private var oldFirst: StatefulTile? = None
+    private var oldSecond: StatefulTile? = None
+    private var choice: BindingReader? = None
+
+    fun event(host: UiHost, application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                application.setControlFlow(
+                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(10L))
+                )
+                first =
+                    Some(
+                        host.attach(
+                            application.createWindow(
+                                WindowAttributes("UI composition", visible = false)
+                            ),
+                            { CompositionScene(this) }
+                        )
+                    )
+                second =
+                    Some(
+                        host.attach(
+                            application.createWindow(
+                                WindowAttributes("UI shared state", visible = false)
+                            ),
+                            { CompositionMirror(this) }
+                        )
+                    )
+                postStep(application)
+            }
+            case NewEvents(StartCause.Deadline) -> fail(
+                Some("UI composition deadline at step " + step.toString())
+            )
+            else -> {}
+        }
+    }
+
+    private fun tile(id: Long): StatefulTile {
+        var index = tiles.size
+        while (index > 0L) {
+            index -= 1L
+            val value = tiles[index]
+            if (value.id == id && value.unmounts == 0)
+                return value
+        }
+        throw IllegalStateException(Some("test tile is not mounted"))
+    }
+    private fun postStep(application: ActiveApplication) {
+        assertTrue(application.proxy().post { active -> advance(active) })
+    }
+    private fun snapshot() {
+        sceneBefore = sceneRenders
+        aBefore = tile(1L).renders
+        bBefore = tile(2L).renders
+    }
+    private fun advance(application: ActiveApplication) {
+        when (step) {
+            case 0 -> {
+                assertEquals(1, sceneRenders)
+                assertEquals(1, updates)
+                assertEquals("mount scene", log[0L])
+                assertEquals("mount layout", log[1L])
+                assertEquals("mount 1", log[2L])
+                assertEquals("mount 2", log[3L])
+                snapshot()
+                tile(1L).local = 2
+                tile(1L).local = 3
+            }
+            case 1 -> {
+                assertEquals(sceneBefore, sceneRenders)
+                assertEquals(aBefore + 1, tile(1L).renders)
+                assertEquals(bBefore, tile(2L).renders)
+                assertEquals(3, tile(1L).lastLocal)
+                snapshot()
+                tile(1L).local = 4
+                model.version.value = 1
+            }
+            case 2 -> {
+                assertEquals(sceneBefore + 1, sceneRenders)
+                assertEquals(aBefore + 1, tile(1L).renders)
+                assertEquals(bBefore + 1, tile(2L).renders)
+                assertEquals(1, tile(1L).lastVersion)
+                assertEquals(4, tile(1L).lastLocal)
+                tile(1L).watchExtra = false
+            }
+            case 3 -> {
+                snapshot()
+                store.extra.value = 8
+            }
+            case 4 -> {
+                assertEquals(aBefore, tile(1L).renders)
+                assertEquals(bBefore + 1, tile(2L).renders)
+                assertEquals(8, tile(2L).lastExtra)
+                choice = bindingReader
+                model.useB.value = true
+            }
+            case 5 -> {
+                assertTrue(choice!! === bindingReader!!)
+                assertEquals(30, choice!!.observed)
+                choiceBefore = choice!!.renders
+                model.a.value = 19
+            }
+            case 6 -> {
+                assertEquals(choiceBefore, choice!!.renders)
+                choice!!.change(42)
+                assertEquals(42, model.b.value)
+                assertEquals(19, model.a.value)
+            }
+            case 7 -> {
+                assertEquals(choiceBefore + 1, choice!!.renders)
+                assertEquals(42, choice!!.observed)
+                oldFirst = Some(tile(1L))
+                oldSecond = Some(tile(2L))
+                model.items.value = [2L, 3L, 1L]
+            }
+            case 8 -> {
+                assertTrue(oldFirst!! === tile(1L))
+                assertTrue(oldSecond!! === tile(2L))
+                assertEquals(4, tile(1L).lastLocal)
+                assertEquals(0, tile(3L).lastLocal)
+                model.items.value = [2L]
+            }
+            case 9 -> {
+                assertEquals(1, oldFirst!!.unmounts)
+                assertTrue(oldFirst!!.resource!!.image.isClosed)
+                assertFalse(oldFirst!!.scope!!.isMounted)
+                store.shared.value = 23
+                model.items.value = [1L, 2L]
+            }
+            case 10 -> {
+                assertFalse(oldFirst!! === tile(1L))
+                assertTrue(oldSecond!! === tile(2L))
+                assertEquals(0, tile(1L).lastLocal)
+                assertEquals(23, tile(1L).lastShared)
+                assertEquals(23, mirrorObserved)
+                plainBefore = plainRenders
+                model.plain.value.number = 17
+            }
+            case 11 -> {
+                assertEquals(plainBefore, plainRenders)
+                assertEquals(4, plainObserved)
+                model.plain.value = model.plain.value
+            }
+            case 12 -> {
+                assertEquals(plainBefore + 1, plainRenders)
+                assertEquals(17, plainObserved)
+                assertEquals(1L, flexible.size)
+                model.useLong.value = true
+            }
+            case 13 -> {
+                assertEquals(2L, flexible.size)
+                assertEquals(1, flexible[0L].unmounts)
+                assertEquals(21L, flexible[1L].observed)
+                mirrorBefore = mirrorRenders
+                first!!.close()
+                assertTrue(first!!.isClosed)
+                assertEquals(WindowState.Open, first!!.nativeWindow.state)
+                assertFalse(second!!.isClosed)
+                assertEquals("unmount scene", log[log.size - 1L])
+                store.shared.value = 31
+            }
+            case 14 -> {
+                assertEquals(mirrorBefore + 1, mirrorRenders)
+                assertEquals(31, mirrorObserved)
+                assertEquals(0, measures)
+                assertEquals(0, paints)
+                finished = true
+                application.requestExit()
+            }
+            else -> fail(Some("unexpected composition step"))
+        }
+        step += 1
+        if (!finished)
+            postStep(application)
+    }
+}

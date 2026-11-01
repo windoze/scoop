@@ -1,0 +1,84 @@
+package scoop.ui
+
+import scoop.graphics.*
+import scoop.surface.*
+
+/** Owns the resources of one mount; applications do not close individual components. */
+public class ComponentScope internal constructor(private val root: UiRoot) {
+    private var active = true
+    private val managed = ArrayList<Closeable>()
+    private val cleanup = ArrayList<() -> Unit>()
+
+    public val isMounted: Boolean get() {
+        root.checkThread()
+        return active && root.isOpen
+    }
+    private fun checkMounted() {
+        if (!isMounted)
+            throw IllegalStateException(Some("component is no longer mounted"))
+    }
+    public fun <R: Closeable> resource(create: () -> R): R {
+        checkMounted()
+        val value = create()
+        cleanup.add { value.close() }
+        return value
+    }
+    public fun onDispose(action: () -> Unit) {
+        checkMounted()
+        cleanup.add(action)
+    }
+    public fun requestFrame() {
+        checkMounted()
+        root.surface.requestFrame()
+    }
+    public fun createArea(
+        focusable: Boolean = false,
+        textInput: Boolean = false,
+        handler: (InputArea, AreaEvent) -> InputResult
+    ): InputArea {
+        checkMounted()
+        val area = root.surface.createArea(focusable, textInput, handler)
+        managed.add(area)
+        return area
+    }
+    public fun animation(initial: Double): Animatable<Double> =
+        animation(initial, AnimationConverters.DoubleValue)
+    public fun animation(initial: Point): Animatable<Point> =
+        animation(initial, AnimationConverters.PointValue)
+    public fun animation(initial: Size): Animatable<Size> =
+        animation(initial, AnimationConverters.SizeValue)
+    public fun animation(initial: Color): Animatable<Color> =
+        animation(initial, AnimationConverters.ColorValue)
+    public fun <T> animation(initial: T, converter: AnimationConverter<T>): Animatable<T> {
+        checkMounted()
+        val value = root.surface.animations.value(initial, converter)
+        managed.add(value)
+        return value
+    }
+    internal fun deactivate() {
+        active = false
+    }
+    internal fun retireInteraction(): Throwable? {
+        val values = managed.toArray()
+        managed.clear()
+        var failure: Throwable? = None
+        var index = values.size
+        while (index > 0L) {
+            index -= 1L
+            val value = values[index]
+            failure = cleanupUi(failure) { value.close() }
+        }
+        return failure
+    }
+    internal fun release(): Throwable? {
+        val actions = cleanup.toArray()
+        cleanup.clear()
+        var failure: Throwable? = None
+        var index = actions.size
+        while (index > 0L) {
+            index -= 1L
+            failure = cleanupUi(failure, actions[index])
+        }
+        return failure
+    }
+}

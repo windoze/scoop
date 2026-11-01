@@ -1,0 +1,151 @@
+package scoop.ui
+
+import scoop.graphics.Point
+
+internal enum NodeBody {
+    Empty, Component(ComponentInstance), Element(ElementInstance)
+}
+
+internal class UpdateTurn
+
+internal class MountedNode(
+    val root: UiRoot,
+    val parent: MountedNode?,
+    var view: View,
+    val body: NodeBody
+) {
+    val scope = ComponentScope(root)
+    var children: Array<MountedNode> = []
+    var active = true
+    var mounted = false
+    var retired = false
+    var queued = false
+    var scheduled: UpdateTurn? = None
+    var updated: UpdateTurn? = None
+    var dependencies: Array<StateSignal> = []
+    var metrics: LayoutMetrics? = None
+    var placements: Array<Point?> = []
+
+    fun invalidate() {
+        if (active && root.isOpen && !queued) {
+            queued = true
+            root.enqueue(this)
+        }
+    }
+    fun replace(next: View) {
+        when ((body, next.body)) {
+            case(Empty, Empty) -> {}
+            case(Component(instance), Component(description)) -> instance.replace(description)
+            case(Element(instance), Element(description, _)) -> instance.replace(description)
+            else -> throw IllegalStateException(Some("mismatched mounted view shape"))
+        }
+        view = next
+    }
+    fun rebuild(turn: UpdateTurn) {
+        if (!active || !root.isOpen)
+            return
+        updated = Some(turn)
+        when (body) {
+            case Empty -> {}
+            case Component(instance) -> {
+                val collector = DependencyCollector()
+                val next = evaluateUi(Some(collector)) { instance.value.render() }
+                if (!active || !root.isOpen)
+                    return
+                for (source in dependencies)
+                    source.unsubscribe(this)
+                dependencies = collector.collected()
+                for (source in dependencies)
+                    source.subscribe(this)
+                reconcile([next], turn)
+            }
+            case Element(instance) -> {
+                when (view.body) {
+                    case Element(_, descriptions) -> reconcile(descriptions, turn)
+                    else -> throw IllegalStateException(
+                        Some("element description was replaced by another shape")
+                    )
+                }
+                if (active && root.isOpen && mounted)
+                    instance.value.update()
+            }
+        }
+    }
+    fun mountPending() {
+        if (!active || !root.isOpen)
+            return
+        if (!mounted) {
+            when (body) {
+                case Empty -> {}
+                case Component(instance) -> instance.value.onMount(scope)
+                case Element(instance) -> instance.value.onMount(scope)
+            }
+            mounted = true
+            if (active && root.isOpen) {
+                when (body) {
+                    case Element(instance) -> instance.value.update()
+                    else -> {}
+                }
+            }
+        }
+        for (child in children)
+            child.mountPending()
+    }
+    fun deactivate() {
+        if (!active)
+            return
+        active = false
+        queued = false
+        scope.deactivate()
+        for (source in dependencies)
+            source.unsubscribe(this)
+        dependencies = []
+        for (child in children)
+            child.deactivate()
+    }
+    fun unmount() {
+        if (retired)
+            return
+        retired = true
+        deactivate()
+        var failure: Throwable? = None
+        for (child in children)
+            failure = cleanupUi(failure) { child.unmount() }
+        children = []
+        failure = cleanupUi(failure) { throwUi(scope.retireInteraction()) }
+        if (mounted) {
+            failure =
+                cleanupUi(failure) {
+                    when (body) {
+                        case Empty -> {}
+                        case Component(instance) -> instance.value.onUnmount()
+                        case Element(instance) -> instance.value.onUnmount()
+                    }
+                }
+        }
+        failure = cleanupUi(failure) { throwUi(scope.release()) }
+        releaseInstance(body)
+        metrics = None
+        placements = []
+        throwUi(failure)
+    }
+    fun hasScheduledAncestor(turn: UpdateTurn): Boolean {
+        var cursor = parent
+        while (true) {
+            when (cursor) {
+                case Some(node) -> {
+                    if (sameTurn(node.scheduled, turn) && !sameTurn(node.updated, turn))
+                        return true
+                    cursor = node.parent
+                }
+                case None -> return false
+            }
+        }
+    }
+}
+
+internal fun sameTurn(previous: UpdateTurn?, current: UpdateTurn): Boolean =
+    when (previous) {
+        case Some(value) -> value === current
+        case None -> false
+    }

@@ -1,0 +1,57 @@
+package scoop.ui
+
+internal class StateSignal {
+    private val observers = ArrayList<MountedNode>()
+    fun subscribe(node: MountedNode) {
+        for (observer in observers)
+            if (observer === node)
+                return
+        observers.add(node)
+    }
+    fun unsubscribe(node: MountedNode) {
+        var index = 0L
+        while (index < observers.size) {
+            if (observers[index] === node) {
+                observers.removeAt(index)
+                return
+            }
+            index += 1L
+        }
+    }
+    fun changed() {
+        for (observer in observers.toArray())
+            observer.invalidate()
+    }
+}
+
+internal class DependencyCollector {
+    private val sources = ArrayList<StateSignal>()
+    fun read(source: StateSignal) {
+        for (previous in sources)
+            if (previous === source)
+                return
+        sources.add(source)
+    }
+    fun collected(): Array<StateSignal> = sources.toArray()
+}
+
+internal class UiEvaluation(val collector: DependencyCollector? = None)
+
+context(evaluation: UiEvaluation)
+private fun boundEvaluation(): UiEvaluation = evaluation
+
+internal fun currentEvaluation(): UiEvaluation? {
+    try {
+        return Some(boundEvaluation())
+    }
+    catch (_: MissingContextException) {
+        return None
+    }
+}
+
+internal fun <T> evaluateUi(collector: DependencyCollector?, block: () -> T): T {
+    val evaluation = UiEvaluation(collector)
+    context(evaluation) {
+        return block()
+    }
+}

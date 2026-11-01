@@ -1,0 +1,232 @@
+package scoop.tests.ui.drawing
+
+import scoop.graphics.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.surface.AnimationState
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.window.*
+
+@Test
+private class UiDrawingTest {
+    @Test
+    fun `public self drawing supports geometry animation optional placement and safe async close`() {
+        val application = Application()
+        val probe = DrawingProbe()
+        val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+        try {
+            host.use { owner -> application.run(owner) }
+            assertTrue(probe.finished)
+            assertTrue(host.isClosed)
+            assertTrue(probe.returnedFromClose)
+            assertTrue(probe.leaf!!.path!!.isClosed)
+            assertEquals(1, probe.leaf!!.mounted)
+            assertEquals(1, probe.leaf!!.unmounted)
+            assertTrue(probe.view!!.restored())
+        } finally {
+            host.close()
+            probe.view?.close()
+        }
+    }
+}
+
+private enum DrawingPhase {
+    Starting, Settle, Idle, Click, AnimationIdle, Unplaced, UpdatedUnplaced, Restored, Hidden, Done
+}
+
+internal class DrawingProbe {
+    val placed = state(true)
+    val enabled = state(true)
+    val completed = state(false)
+    val closeOnUpdate = state(false)
+    val count = state(0)
+    val sequence = ArrayList<String>()
+    var leaf: DrawingLeaf? = None
+    var uiWindow: UiWindow? = None
+    var window: Window? = None
+    var view: ViewProbe? = None
+    var lastMeasure: MeasureContext? = None
+    var lastPaint: PaintContext? = None
+    var lastCanvas: Canvas? = None
+    var lastChildWidth = 0.0
+    var lastPlaced = true
+    var lastCompleted = false
+    var renders = 0
+    var childRenders = 0
+    var mounts = 0
+    var measures = 0
+    var paints = 0
+    var downs = 0
+    var parentDowns = 0
+    var completions = 0
+    var returnedFromClose = false
+    var finished = false
+    private var phase = DrawingPhase.Starting
+    private var quietMeasures = 0
+    private var quietPaints = 0
+    private var quietRenders = 0
+    private var unplacedPaints = 0
+
+    fun event(host: UiHost, application: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val native =
+                    application.createWindow(
+                        WindowAttributes("Scoop UI drawing", LogicalSize(320.0, 200.0))
+                    )
+                window = Some(native)
+                native.setWindowLevel(WindowLevel.AlwaysOnTop)
+                native.requestFocus()
+                view = Some(observeWindow(native))
+                uiWindow = Some(host.attach(native, { DrawingScene(this) }))
+                waitFor(application, 30000L)
+            }
+            case AboutToWait -> advance(application)
+            case NewEvents(StartCause.Deadline) -> deadline(application)
+            else -> {}
+        }
+    }
+    private fun snapshot() {
+        quietMeasures = measures
+        quietPaints = paints
+        quietRenders = renders
+    }
+    private fun assertQuiet() {
+        assertEquals(quietMeasures, measures)
+        assertEquals(quietPaints, paints)
+        assertEquals(quietRenders, renders)
+    }
+    private fun deadline(application: ActiveApplication) {
+        when (phase) {
+            case Settle -> {
+                assertEquals(1, renders)
+                snapshot()
+                phase = DrawingPhase.Idle
+                waitFor(application, 150L)
+            }
+            case Idle -> {
+                assertQuiet()
+                assertFailsWith<IllegalStateException> { lastMeasure!!.childCount }
+                assertFailsWith<IllegalStateException> { lastPaint!!.canvas }
+                assertFailsWith<IllegalStateException> { lastCanvas!!.save() }
+                assertEquals("background", sequence[0L])
+                assertEquals("child", sequence[1L])
+                assertEquals("sibling", sequence[2L])
+                assertEquals("foreground", sequence[3L])
+                phase = DrawingPhase.Click
+                waitFor(application, 5000L)
+                assertTrue(view!!.button(45.0, 58.0, true))
+                assertTrue(view!!.button(45.0, 58.0, false))
+                // This point is inside the path's bounds but outside the recorded clip.
+                assertTrue(view!!.button(85.0, 58.0, true))
+                assertTrue(view!!.button(85.0, 58.0, false))
+            }
+            case AnimationIdle -> {
+                assertQuiet()
+                assertEquals(1, downs)
+                assertEquals(2, parentDowns)
+                assertEquals(1, count.value)
+                assertEquals(1, completions)
+                assertEquals(70.0, lastChildWidth)
+                assertEquals(2, renders)
+                assertTrue(leaf!!.area!!.hasFocus)
+                unplacedPaints = leaf!!.paints
+                placed.value = false
+                phase = DrawingPhase.Unplaced
+                waitFor(application, 5000L)
+            }
+            else -> fail(
+                Some(
+                    "UI drawing deadline: paints=" +
+                        paints.toString() +
+                        ", completed=" +
+                        lastCompleted.toString() +
+                        ", placed=" +
+                        lastPlaced.toString() +
+                        ", focused=" +
+                        window!!.isFocused.toString()
+                )
+            )
+        }
+    }
+    private fun advance(application: ActiveApplication) {
+        when (phase) {
+            case Starting -> {
+                if (paints > 0 && window!!.isFocused) {
+                    phase = DrawingPhase.Settle
+                    waitFor(application, 180L)
+                }
+            }
+            case Click -> {
+                if (lastCompleted && leaf!!.width!!.state == AnimationState.Finished) {
+                    snapshot()
+                    phase = DrawingPhase.AnimationIdle
+                    waitFor(application, 150L)
+                }
+            }
+            case Unplaced -> {
+                if (!lastPlaced) {
+                    assertEquals(unplacedPaints, leaf!!.paints)
+                    assertTrue(leaf!!.scope!!.isMounted)
+                    assertFalse(leaf!!.area!!.hasFocus)
+                    assertFalse(leaf!!.area!!.requestFocus())
+                    assertFalse(leaf!!.path!!.isClosed)
+                    count.value = 2
+                    phase = DrawingPhase.UpdatedUnplaced
+                    assertTrue(
+                        application.proxy().post {
+                            _ ->
+                            assertEquals(2, leaf!!.observed)
+                            assertEquals(unplacedPaints, leaf!!.paints)
+                            assertEquals(1, leaf!!.mounted)
+                            placed.value = true
+                            phase = DrawingPhase.Restored
+                        }
+                    )
+                }
+            }
+            case Restored -> {
+                if (lastPlaced && leaf!!.paints > unplacedPaints) {
+                    assertEquals(1, leaf!!.mounted)
+                    assertFalse(leaf!!.area!!.hasFocus)
+                    assertTrue(leaf!!.area!!.requestFocus())
+                    window!!.setVisible(false)
+                    enabled.value = false
+                    phase = DrawingPhase.Hidden
+                    assertTrue(
+                        application.proxy().post {
+                            active ->
+                            assertFalse(leaf!!.area!!.enabled)
+                            assertTrue(leaf!!.scope!!.isMounted)
+                            val before = paints
+                            closeOnUpdate.value = true
+                            assertTrue(
+                                active.proxy().post {
+                                    current ->
+                                    assertTrue(uiWindow!!.isClosed)
+                                    assertTrue(returnedFromClose)
+                                    assertTrue(leaf!!.path!!.isClosed)
+                                    assertEquals(before, paints)
+                                    finished = true
+                                    phase = DrawingPhase.Done
+                                    window!!.requestDestroy()
+                                    current.requestExit()
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+            else -> {}
+        }
+    }
+    private fun waitFor(application: ActiveApplication, milliseconds: Long) {
+        application.setControlFlow(
+            ControlFlow.WaitUntil(
+                MonotonicTimeSource.markNow() + Duration.milliseconds(milliseconds)
+            )
+        )
+    }
+}

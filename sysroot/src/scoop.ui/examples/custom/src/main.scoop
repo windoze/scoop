@@ -1,0 +1,126 @@
+package scoop.examples.ui.custom
+
+import scoop.graphics.*
+import scoop.surface.*
+import scoop.ui.*
+import scoop.window.*
+
+/** A complete self-drawn control without importing the standard component library. */
+internal class Counter: Component {
+    private var count: Int by state(0)
+    public override fun render(): View =
+        element(CounterInput(count, { count += 1 }), { props -> CounterDrawing(props) })
+}
+
+private struct CounterInput(val count: Int, val increment: () -> Unit)
+
+private class CounterDrawing(private val props: Props<CounterInput>): Element {
+    private var area: InputArea? = None
+    private var extent: Animatable<Double>? = None
+    private var outline: Path? = None
+    private var pressed = false
+    private var scope: ComponentScope? = None
+    private var bounds = Rect(0.0, 0.0, 0.0, 0.0)
+    public override fun onMount(scope: ComponentScope) {
+        this.scope = Some(scope)
+        outline =
+            Some(
+                scope.resource {
+                    PathBuilder().use {
+                        path ->
+                        path.moveTo(Point(0.0, -14.0)).lineTo(Point(4.0, -4.0))
+                        path.lineTo(Point(14.0, 0.0)).lineTo(Point(4.0, 4.0))
+                        path.lineTo(Point(0.0, 14.0)).lineTo(Point(-4.0, 4.0))
+                        path.lineTo(Point(-14.0, 0.0)).lineTo(Point(-4.0, -4.0)).closeContour()
+                        path.build()
+                    }
+                }
+            )
+        extent = Some(scope.animation(84.0))
+        area =
+            Some(
+                scope.createArea(focusable = true) {
+                    current, event ->
+                    when (event) {
+                        case Pointer(
+                            AreaPointerEvent.Button(_, MouseButton.Left, ElementState.Pressed, _)
+                        ) -> {
+                            pressed = true
+                            current.requestFocus()
+                            scope.requestFrame()
+                        }
+                        case Pointer(
+                            AreaPointerEvent.Button(
+                                pointer,
+                                MouseButton.Left,
+                                ElementState.Released,
+                                _
+                            )
+                        ) -> {
+                            val activate = pressed && bounds.contains(pointer.localPosition)
+                            pressed = false
+                            if (activate)
+                                props.value.increment()
+                            scope.requestFrame()
+                        }
+                        case Pointer(AreaPointerEvent.Cancelled(_, _)) -> {
+                            pressed = false
+                            if (scope.isMounted)
+                                scope.requestFrame()
+                        }
+                        case FocusChanged(_) -> {
+                            if (scope.isMounted)
+                                scope.requestFrame()
+                        }
+                        else -> {}
+                    }
+                    InputResult.Handled
+                }
+            )
+    }
+    public override fun update() {
+        val next = 84.0 + (props.value.count % 5).toDouble() * 16.0
+        if (extent!!.target != next)
+            extent!!.animateTo(next, AnimationSpec.Spring())
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(extent!!.value + 64.0, 240.0)))
+    public override fun paint(context: PaintContext) {
+        val width = extent!!.value
+        val left = (context.size.width - width) / 2.0
+        val top = (context.size.height - 84.0) / 2.0
+        bounds = Rect(left, top, width, 84.0)
+        context.canvas.clear(Color(0.94, 0.96, 0.99))
+        val color =
+            if (pressed)
+                Color(0.12, 0.27, 0.65)
+            else
+                Color(0.18, 0.42, 0.85)
+        context.canvas.drawRoundRect(bounds, 16.0, 16.0, Paint(color))
+        context.place(area!!, bounds)
+        context.canvas.save()
+        context.canvas.translate(left + width / 2.0, top + 42.0)
+        context.canvas.drawPath(outline!!, Paint(Color.White))
+        context.canvas.restore()
+        var index = 0
+        while (index < props.value.count % 12) {
+            context.canvas.drawCircle(
+                Point(context.size.width / 2.0 - 66.0 + index.toDouble() * 12.0, top + 116.0),
+                4.0,
+                Paint(color)
+            )
+            index += 1
+        }
+        if (area!!.isFocusActive)
+            context.canvas.drawRoundRect(
+                Rect(left - 4.0, top - 4.0, width + 8.0, 92.0),
+                20.0,
+                20.0,
+                Paint(color, PaintingStyle.Stroke, 2.0)
+            )
+    }
+}
+
+fun main() {
+    runUiApplication("Scoop — self-drawn counter", { Counter() })
+}

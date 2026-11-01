@@ -1,0 +1,17 @@
+package scoop.ui
+
+/** A persistent instance that composes descriptions from its current inputs and state. */
+public interface Component {
+    public fun render(): View
+    public fun onMount(scope: ComponentScope) {}
+    public fun onUnmount() {}
+}
+
+/** A persistent, self-drawn leaf or container using the same public child protocol. */
+public interface Element {
+    public fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics
+    public fun paint(context: PaintContext)
+    public fun onMount(scope: ComponentScope) {}
+    public fun update() {}
+    public fun onUnmount() {}
+}

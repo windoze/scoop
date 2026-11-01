@@ -1,0 +1,143 @@
+package scoop.tests.ui.errors
+
+import scoop.graphics.*
+import scoop.surface.*
+import scoop.test.*
+import scoop.ui.*
+
+internal enum FailureMode {
+    Factory, Render, Mount, Update, DuplicateKey, DuplicateInstance, ValueType, MissingMeasure, Measure, MissingPaint, Paint, LateUpdate
+}
+
+internal class FailureImage(private val record: FailureRecord, val name: String): Closeable {
+    val image =
+        RasterSurface(4, 4).use {
+            raster ->
+            raster.draw { canvas -> canvas.clear(Color.White) }
+            raster.snapshot()
+        }
+    var closes = 0
+    init {
+        record.images.add(this)
+    }
+    public override fun close() {
+        closes += 1
+        image.close()
+        record.log.add("close " + name)
+        if (record.mode == FailureMode.Mount)
+            throw record.cleanupA
+        if (record.mode == FailureMode.LateUpdate) {
+            if (name == "leaf")
+                throw record.cleanupA
+            if (name == "second")
+                throw record.cleanupB
+        }
+    }
+}
+
+internal struct ValueComponent(val marker: Int = 0): Component {
+    public override fun render(): View = empty()
+}
+
+internal class SmallComponent: Component {
+    public override fun render(): View = empty()
+}
+
+internal class FailureRoot(private val record: FailureRecord): Component {
+    private var resource: FailureImage? = None
+    public override fun render(): View {
+        if (record.mode == FailureMode.Render)
+            throw record.primary
+        val late = record.trigger.value
+        val children: Array<View> =
+            when (record.mode) {
+                case DuplicateKey -> [
+                    component({ SmallComponent() }, ViewKey.Text("same")),
+                    component({ SmallComponent() }, ViewKey.Text("same"))
+                ]
+                case DuplicateInstance -> {
+                    val shared = SmallComponent()
+                    [component({ shared }), component({ shared })]
+                }
+                case MissingMeasure -> [component({ SmallComponent() })]
+                case MissingPaint -> [component({ SmallComponent() })]
+                else -> []
+            }
+        return element(late, { props -> FailureLeaf(props, record) }, children)
+    }
+    public override fun onMount(scope: ComponentScope) {
+        record.rootMounts += 1
+        resource = Some(scope.resource { FailureImage(record, "root") })
+        if (record.mode == FailureMode.Mount) {
+            scope.onDispose { record.log.add("dispose root") }
+            scope.resource<FailureImage> { throw record.primary }
+        }
+    }
+    public override fun onUnmount() {
+        record.rootUnmounts += 1
+        assertFalse(resource!!.image.isClosed)
+        record.log.add("unmount root")
+    }
+}
+
+internal class FailureLeaf(
+    private val props: Props<Boolean>,
+    private val record: FailureRecord
+): Element {
+    private var resource: FailureImage? = None
+    private var scope: ComponentScope? = None
+    private var area: InputArea? = None
+    private var motion: Animatable<Double>? = None
+    public override fun onMount(scope: ComponentScope) {
+        record.leafMounts += 1
+        this.scope = Some(scope)
+        resource = Some(scope.resource { FailureImage(record, "leaf") })
+        area = Some(scope.createArea { _, _ -> InputResult.Ignored })
+        motion = Some(scope.animation(0.0))
+    }
+    public override fun update() {
+        if (
+            record.mode ==
+                FailureMode.Update ||
+                (record.mode == FailureMode.LateUpdate && props.value)
+        )
+            throw record.primary
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        if (record.mode == FailureMode.Measure)
+            throw record.primary
+        if (record.mode != FailureMode.MissingMeasure) {
+            var index = 0L
+            while (index < context.childCount) {
+                context.measureChild(index, Constraints())
+                context.placeChild(index, Point(0.0, 0.0))
+                index += 1L
+            }
+        }
+        return LayoutMetrics(constraints.constrain(Size(80.0, 50.0)))
+    }
+    public override fun paint(context: PaintContext) {
+        context.canvas.saveLayer(0.5)
+        context.canvas.drawImage(resource!!.image, Rect(0.0, 0.0, 40.0, 40.0))
+        if (record.mode == FailureMode.Paint)
+            throw record.primary
+        if (record.mode != FailureMode.MissingPaint)
+            context.paintChildren()
+        context.canvas.restore()
+    }
+    public override fun onUnmount() {
+        record.leafUnmounts += 1
+        assertFalse(scope!!.isMounted)
+        assertTrue(area!!.isClosed)
+        assertEquals(AnimationState.Closed, motion!!.state)
+        assertFalse(resource!!.image.isClosed)
+        record.log.add("unmount leaf")
+    }
+}
+
+internal class SecondRoot(private val record: FailureRecord): Component {
+    public override fun render(): View = empty()
+    public override fun onMount(scope: ComponentScope) {
+        scope.resource { FailureImage(record, "second") }
+    }
+}

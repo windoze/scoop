@@ -1,6 +1,6 @@
 # Scoop 自绘 UI 框架规范
 
-日期：2026-11-01。状态：设计稿，`scoop.ui` 与 `scoop.ui.component` 尚未实现。本文件规定自绘框架的拟实施合同；公共文本能力另见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，基础控件另见 [控件库规范](SCOOP-UI-COMPONENT-SPEC.md)，取舍、内部组织及实施顺序见 [UI 设计](../ui/DESIGN.md)。现有底层库以 `scoop.surface` 命名，已实现的绘图、窗口呈现及输入合同见 [Surface 规范](SCOOP-SURFACE-SPEC.md)。
+日期：2026-11-02。状态：自绘框架主体已在 macOS aarch64 实现，第 7.5 节的公共文本适配、独立控件库及其后续组合验证继续分批接入。本文件规定框架公开合同；公共文本能力另见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，基础控件另见 [控件库规范](SCOOP-UI-COMPONENT-SPEC.md)，取舍、内部组织及实施顺序见 [UI 设计](../ui/DESIGN.md)。现有底层库以 `scoop.surface` 命名，已实现的绘图、窗口呈现及输入合同见 [Surface 规范](SCOOP-SURFACE-SPEC.md)。
 
 ## 1. 定位与依赖
 
@@ -25,7 +25,7 @@ SkSL runtime effect 同样列为后续 graphics 增强，见[接入设计](../gr
 | `scoop.ui` | Component／Element、State／Props／Binding、挂载树、测量与绘制接入、输入／动画的挂载归属；text 子包提供公共段落适配 |
 | `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame、基础样式与对应组合函数 |
 
-表中是目标分层；字体与 Paragraph／TextLayout 已迁入 graphics.text，富文本／行内对象扩展已完成，本框架仍在实施中。`scoop.ui.text` 只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
+表中是目标分层；字体与 Paragraph／TextLayout 已迁入 graphics.text，富文本／行内对象和独立自绘框架已完成。公共适配 `scoop.ui.text` 接入时增加对 graphics.text 的直接依赖，只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
 
 组件、状态及描述使用普通 class／interface／泛型／属性委托。首期不增加 `@Composable`、result builder、属性宏、关联类型、UI 专用 IR 或 runtime 入口。`scoop.ui` 的类型身份查询复用语言规范 9.6 的 `typeInfo<T>()`，不遍历组件字段，不按名称访问私有属性。
 
@@ -52,7 +52,7 @@ import scoop.ui.component.button
 class Counter: Component {
     private var count: Int by state(0)
 
-    override fun render(): View = button(text = f"Count: {count}", onClick = { count += 1 })
+    public override fun render(): View = button(text = f"Count: ${count}", onClick = { count += 1 })
 }
 
 fun main() {
@@ -142,9 +142,9 @@ class SharedCounter: Component {
     private var count: Int by currentAppStore.count
     private var localClicks: Int by state(0)
 
-    override fun render(): View =
+    public override fun render(): View =
         button(
-            text = f"Shared: {count}; local: {localClicks}",
+            text = f"Shared: ${count}; local: ${localClicks}",
             onClick =
                 {
                     count += 1
@@ -179,15 +179,15 @@ import scoop.ui.component.label
 import scoop.ui.component.column
 
 class Greeting(private val props: Props<String>): Component {
-    override fun render(): View = label(props.value)
+    public override fun render(): View = label(props.value)
 }
 
 class Screen: Component {
     private var name: String by state("Scoop")
 
-    override fun render(): View =
+    public override fun render(): View =
         column(
-            arrayOf(component(props = name, create = ::Greeting), component(::Counter)),
+            [component(props = name, create = ::Greeting), component(::Counter)],
             spacing = 12.0
         )
 }
@@ -223,12 +223,12 @@ fun <P, C : Component> component(
     props: P, create: (Props<P>) -> C, key: ViewKey = ViewKey.Position
 ): View
 fun <E : Element> element(
-    create: () -> E, children: Array<View> = arrayOf(),
+    create: () -> E, children: Array<View> = [],
     key: ViewKey = ViewKey.Position
 ): View
 fun <P, E : Element> element(
     props: P, create: (Props<P>) -> E,
-    children: Array<View> = arrayOf(), key: ViewKey = ViewKey.Position
+    children: Array<View> = [], key: ViewKey = ViewKey.Position
 ): View
 ```
 
@@ -259,7 +259,7 @@ key 的有效范围仅为直接父级，不是全局 ID；移动到另一父级�
 
 ## 6. 重建、布局与呈现
 
-State 变化合并到 owner 上的 UI 工作队列。事件／业务回调退出后，经现有 ApplicationProxy 或 AboutToWait 的安全边界处理；不在活动输入派发、render、layout 或 paint 内递归重建。祖先和后代同时失效时，由祖先处理同轮子描述，并避免重复执行后代 render。
+State 变化合并到 owner 上的 UI 工作队列。事件／业务回调退出后，经现有 ApplicationProxy 投递处理；不在活动输入派发、render、layout 或 paint 内递归重建。祖先和后代同时失效时，由祖先处理同轮子描述，并避免重复执行后代 render。没有排队更新时不投递任务，也不在 AboutToWait 遍历树。
 
 UI 逻辑提交与 surface 的呈现提交有不同的时机：
 
@@ -299,6 +299,8 @@ UI 采用按需调度。一个根在逻辑工作队列为空、没有尚待呈�
 ### 7.1 测量及子项布局
 
 `Constraints` 按轴保存有限非负最小值和可选的有限最大值，最大值存在时不得小于最小值。缺少最大值表达无界，不把 Infinity 传给 graphics 或 graphics.text。`constrain(size: Size): Size` 将一个有限非负期望尺寸收敛到约束。Element.measure 返回 LayoutMetrics，其 size 必须满足收到的约束：
+
+公开字段为 minWidth、maxWidth、minHeight、maxHeight，默认最小值为 0.0，最大值为 None；`Constraints.tight(size)` 同时固定两轴。与 graphics 的几何值一样，在测量或 constrain 操作边界检查值的合法性。
 
 ```kotlin
 public struct LayoutMetrics(
@@ -406,7 +408,7 @@ ComponentScope 同步发出取消，异步 finally 和实际 I/O 收尾由既有
 
 `UiHost` 包装 SurfaceHost，作为普通 ApplicationHandler 接入 Application.run，也可以接入现有 runWithAsyncio。`UiHost.attach(window, create)` 返回管理根组件的 UiWindow。`runUiApplication(title, create)` 是单窗口便利入口，统一拥有 Application／UiHost／窗口，接受关闭请求并在最后一个窗口关闭后退出；复杂窗口策略使用显式 UiHost。
 
-底层 scoop.window 已支持同一 Application 的多个独立非模态窗口，见[窗口规范第 4.1 节](SCOOP-WINDOW-SPEC.md#41-多窗口)。本框架的拟实施合同允许一个 UiHost 对不同 Window 分别 attach，每个窗口拥有独立根、挂载树、布局与区域场景；单窗口便利入口不限制框架只能管理一个窗口。普通关闭只卸载相应窗口的根，显式应用退出或宿主失败继续沿既有整体收尾；同一 owner 上可共享业务 State，不能共享组件实例、InputArea 或跨窗口转移挂载。
+底层 scoop.window 已支持同一 Application 的多个独立非模态窗口，见[窗口规范第 4.1 节](SCOOP-WINDOW-SPEC.md#41-多窗口)。一个 UiHost 可对不同 Window 分别 attach，每个窗口拥有独立根、挂载树、布局与区域场景；单窗口便利入口不限制框架只能管理一个窗口。普通关闭只卸载相应窗口的根，显式应用退出或宿主失败继续沿既有整体收尾；同一 owner 上可共享业务 State，不能共享组件实例、InputArea 或跨窗口转移挂载。
 
 原生模态对话框与完整自绘窗框依赖[窗口规范第 4.3 节](SCOOP-WINDOW-SPEC.md#43-模态与自绘窗框的待补能力)的待补接口。窗口归属、窗口模态／应用模态、输入限制、关闭与焦点恢复、系统拖移／缩放属于 window；UI 负责内容、控件和结果交付。当前设计不把置顶或临时屏蔽组件事件当成原生模态，也不因装饰开关已实现就声称已具备完整自绘窗框操作。
 
@@ -420,7 +422,7 @@ SurfaceContent 定义在 scoop.surface，只表达可绘制、需要关闭的内
 
 SurfaceContent 的 close 必须幂等。通过 owner 线程检查后，attach 接收传入的新 content 的所有权；创建或配置失败也由 surface 关闭 content 并回滚已取得的 renderer／lease，调用方不在返回或抛错后再次自行管理它。错误线程的调用在接收所有权前拒绝。一个 content 不交给多个窗口；UiHost 为每个根创建独立对象。
 
-SurfaceContent 的具体合同见 [Surface 规范第 4／7 节](SCOOP-SURFACE-SPEC.md#4-surface-宿主与帧)，aarch64 实施及原生关闭／异常验证见 [UI 实施记录](../ui/PROGRESS.md#34-surface-内容根的所有权)。UI 挂载树仍须在后续批次落实自己的子树清理。
+SurfaceContent 的具体合同见 [Surface 规范第 4／7 节](SCOOP-SURFACE-SPEC.md#4-surface-宿主与帧)，aarch64 实施及原生关闭／异常验证见 [UI 实施记录](../ui/PROGRESS.md#34-surface-内容根的所有权)。UI 根作为其 content 管理完整挂载树，逻辑回调内请求关闭同样延迟到回调返回后释放资源。
 
 参数、重复 key、重复挂载、非法测量／放置或错误线程使用现有参数／状态异常。render、update、measure、paint、输入处理或挂载回调抛错时，停止新 UI 工作，通过宿主关闭其管理的相关根及 surface，按 SurfaceHost 既有异常通路传播。首期不保留一个继续接收输入的半更新树，不增加错误边界或自动重试次数。
 

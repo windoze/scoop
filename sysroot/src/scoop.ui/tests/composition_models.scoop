@@ -1,0 +1,224 @@
+package scoop.ui
+
+import scoop.graphics.*
+import scoop.test.*
+
+internal class CompositionStore {
+    val shared = state(10)
+    val extra = state(5)
+}
+
+context(store: CompositionStore)
+internal fun compositionStore(): CompositionStore = store
+
+internal class PlainValue {
+    var number = 4
+}
+
+internal class CompositionModel {
+    val items = state<Array<Long>>([1L, 2L])
+    val version = state(0)
+    val useB = state(false)
+    val useLong = state(false)
+    val a = state(7)
+    val b = state(30)
+    val plain = state(PlainValue())
+}
+
+internal class TrackedImage(val id: String, private val log: ArrayList<String>): Closeable {
+    val image =
+        RasterSurface(2, 2).use {
+            raster ->
+            raster.draw { canvas -> canvas.clear(Color.White) }
+            raster.snapshot()
+        }
+    var closes = 0
+    public override fun close() {
+        closes += 1
+        image.close()
+        log.add("release " + id)
+    }
+}
+
+internal struct TileInput(val id: Long, val version: Int)
+
+internal class StatefulTile(
+    private val props: Props<TileInput>,
+    private val probe: CompositionProbe
+): Component {
+    private val store = compositionStore()
+    private var shared: Int by store.shared
+    var local: Int by state(0)
+    var watchExtra: Boolean by state(true)
+    val id = props.value.id
+    var renders = 0
+    var lastShared = 0
+    var lastLocal = 0
+    var lastVersion = 0
+    var lastExtra = 0
+    var unmounts = 0
+    var scope: ComponentScope? = None
+    var resource: TrackedImage? = None
+    init {
+        probe.tiles.add(this)
+    }
+    public override fun render(): View {
+        renders += 1
+        lastShared = shared
+        lastLocal = local
+        lastVersion = props.value.version
+        lastExtra =
+            if (watchExtra)
+                store.extra.value
+            else
+                -1
+        assertFailsWith<IllegalStateException> { local += 1 }
+        return empty()
+    }
+    public override fun onMount(scope: ComponentScope) {
+        this.scope = Some(scope)
+        probe.log.add("mount " + id.toString())
+        resource = Some(scope.resource { TrackedImage(id.toString(), probe.log) })
+        scope.onDispose { probe.log.add("dispose " + id.toString()) }
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+        assertFalse(scope!!.isMounted)
+        assertFalse(resource!!.image.isClosed)
+        assertFailsWith<IllegalStateException> { scope!!.requestFrame() }
+        probe.log.add("unmount " + id.toString())
+    }
+}
+
+internal class BindingReader(
+    private val props: Props<Binding<Int>>,
+    probe: CompositionProbe
+): Component {
+    var renders = 0
+    var observed = 0
+    init {
+        probe.bindingReader = Some(this)
+    }
+    fun change(value: Int) {
+        props.value.value = value
+    }
+    public override fun render(): View {
+        renders += 1
+        observed = props.value.value
+        return empty()
+    }
+}
+
+internal class FlexibleReader(private val read: () -> Long, probe: CompositionProbe): Component {
+    var observed = 0L
+    var unmounts = 0
+    init {
+        probe.flexible.add(this)
+    }
+    public override fun render(): View {
+        observed = read();
+        return empty()
+    }
+    public override fun onUnmount() {
+        unmounts += 1
+    }
+}
+
+internal class PlainReader(
+    private val model: CompositionModel,
+    private val probe: CompositionProbe
+): Component {
+    public override fun render(): View {
+        probe.plainRenders += 1
+        probe.plainObserved = model.plain.value.number
+        return empty()
+    }
+}
+
+internal class CompositionScene(private val probe: CompositionProbe): Component {
+    public override fun render(): View {
+        probe.sceneRenders += 1
+        val model = probe.model
+        val version = model.version.value
+        val children = ArrayList<View>()
+        for (id in model.items.value) {
+            children.add(
+                component(
+                    TileInput(id, version),
+                    { props -> StatefulTile(props, probe) },
+                    ViewKey.Number(id)
+                )
+            )
+        }
+        children.add(
+            component(
+                if (model.useB.value)
+                    model.b.binding()
+                else
+                    model.a.binding(),
+                { props -> BindingReader(props, probe) },
+                ViewKey.Text("binding")
+            )
+        )
+        if (model.useLong.value) {
+            children.add(
+                component(
+                    21L,
+                    { props -> FlexibleReader({ props.value }, probe) },
+                    ViewKey.Text("flexible")
+                )
+            )
+        } else {
+            children.add(
+                component(
+                    12,
+                    { props -> FlexibleReader({ props.value.toLong() }, probe) },
+                    ViewKey.Text("flexible")
+                )
+            )
+        }
+        children.add(component({ PlainReader(model, probe) }, ViewKey.Text("plain")))
+        return element({ CompositionLayout(probe) }, children.toArray())
+    }
+    public override fun onMount(scope: ComponentScope) {
+        probe.log.add("mount scene")
+    }
+    public override fun onUnmount() {
+        probe.log.add("unmount scene")
+    }
+}
+
+internal class CompositionLayout(private val probe: CompositionProbe): Element {
+    public override fun onMount(scope: ComponentScope) {
+        probe.log.add("mount layout")
+    }
+    public override fun onUnmount() {
+        probe.log.add("unmount layout")
+    }
+    public override fun update() {
+        probe.updates += 1
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        probe.measures += 1
+        var index = 0L
+        while (index < context.childCount) {
+            context.measureChild(index, Constraints(maxWidth = constraints.maxWidth))
+            context.placeChild(index, Point(0.0, 0.0))
+            index += 1L
+        }
+        return LayoutMetrics(constraints.constrain(Size(0.0, 0.0)))
+    }
+    public override fun paint(context: PaintContext) {
+        probe.paints += 1
+        context.paintChildren()
+    }
+}
+
+internal class CompositionMirror(private val probe: CompositionProbe): Component {
+    private val store = compositionStore()
+    public override fun render(): View {
+        probe.mirrorRenders += 1
+        probe.mirrorObserved = store.shared.value
+        return empty()
+    }
+}

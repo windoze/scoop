@@ -1,0 +1,34 @@
+package scoop.ui
+
+import scoop.platform.concurrent.ThreadId
+import scoop.platform.concurrent.currentThreadId
+
+internal fun checkUiThread(thread: ThreadId) {
+    if (currentThreadId() != thread)
+        throw IllegalStateException(Some("UI requires its owner thread"))
+}
+
+internal fun requireUi(condition: Boolean, message: String) {
+    if (!condition)
+        throw IllegalArgumentException(Some(message))
+}
+
+internal fun cleanupUi(previous: Throwable?, action: () -> Unit): Throwable? {
+    try {
+        action()
+    }
+    catch (error: Throwable) {
+        return when (previous) {
+            case Some(primary) -> Some(ResourceUseException(primary, error))
+            case None -> Some(error)
+        }
+    }
+    return previous
+}
+
+internal fun throwUi(failure: Throwable?) {
+    when (failure) {
+        case Some(error) -> throw error
+        case None -> {}
+    }
+}

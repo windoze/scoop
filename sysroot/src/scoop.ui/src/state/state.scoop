@@ -1,0 +1,67 @@
+package scoop.ui
+
+import scoop.platform.concurrent.currentThreadId
+
+/** Owner-thread observable storage, independent of any single mounted component. */
+public class State<T> internal constructor(initial: T) {
+    private val thread = currentThreadId()
+    private var current = initial
+    private val signal = StateSignal()
+
+    public var value: T
+    get() {
+        checkUiThread(thread)
+        when (currentEvaluation()) {
+            case Some(evaluation) -> evaluation.collector?.read(signal)
+            case None -> {}
+        }
+        return current
+    }
+    set(value) {
+        checkUiThread(thread)
+        when (currentEvaluation()) {
+            case Some(_) -> throw IllegalStateException(
+                Some("State cannot change during render, measure or paint")
+            )
+            case None -> {}
+        }
+        current = value
+        signal.changed()
+    }
+
+    public operator fun getValue(thisRef: Any): T = value
+    public operator fun setValue(thisRef: Any, value: T) {
+        this.value = value
+    }
+    public fun binding(): Binding<T> = binding(get = { value }, set = { next -> value = next })
+}
+
+public fun <T> state(initial: T): State<T> = State(initial)
+
+/** Explicit access to a current value; it does not create a second copy of that value. */
+public class Binding<T> internal constructor(
+    private val read: () -> T,
+    private val write: (T) -> Unit
+) {
+    public var value: T
+    get() = read()
+    set(value) {
+        write(value)
+    }
+}
+
+public fun <T> binding(get: () -> T, set: (T) -> Unit): Binding<T> = Binding(get, set)
+
+/** The latest parent input, replaced by the framework before render or update. */
+public class Props<P> internal constructor(initial: P) {
+    private val thread = currentThreadId()
+    private var current = initial
+    public val value: P get() {
+        checkUiThread(thread)
+        return current
+    }
+    internal fun replace(next: P) {
+        checkUiThread(thread)
+        current = next
+    }
+}
