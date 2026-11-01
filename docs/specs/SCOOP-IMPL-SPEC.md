@@ -2120,6 +2120,10 @@ Throwable 准备在 MIR 的具体正文与协程转换、内联完成后展开�
 
 非引用局部使用真实存储的 declare 记录，SSA 参数及分片使用 value／fragment 记录，并在实际读取时更新其位置。含 managed 引用的变量只观察程序已实际产生的值，不为调试新增读取、栈槽或 root；safepoint 后使未确认的位置 unavailable，已按该边 live set 回写的 canonical root storage 可立即提供新位置，其余变量等后续真实读取／赋值再更新。normal／unwind 边分别使用该边实际恢复的根，调用结果在旧观察失效之后建立位置。被复制、拆分或消除的聚合不能继续显示旧叶子地址。
 
+变量观察与失效记录按已有的有类型存储身份及同一存储中的声明顺序确定性发射，不依赖随机容器的遍历顺序。顺序稳定不改变变量可用范围、真实存储或 GC 根集合。
+
+已经具有终结指令的 LLVM 块，其后补充的变量观察和失效记录插在该终结指令之前，包括 invoke 正常返回的清理块；不得在终结指令之后留下未附着到指令的调试记录。单个对象销毁后，复用 LLVM Context 不能将其调试记录带入其他对象。
+
 已有 canonical root storage 先使用 declare，使 SROA 能按真实布局转移存储分片；GC lowering 后统一转换成带解引用及原 fragment 的 value 记录，避免机器发射将静态 declare 和失效位置混用。byval 参数的 LLVM pointer 表示调用者副本的地址；该地址落在固定栈位置时，机器调试记录不得额外解引用一次而把聚合首字段误作地址。参数声明及其观察位置属于实际函数作用域，内联参数属于对应内联函数，不能使用没有正文的独立文件词法块。RS4GC 更新机器 SSA 后，调试观察同步使用支配观察点的最新真实 relocation；无法确定的合流位置保持 unavailable，不为调试建立额外 phi、读取或 root。转换只修改 LLVM 调试记录，不加入读取、栈槽或保活用途的指令。LLVM C API 未提供的记录替换、表达式拼接及支配查询通过小型 C++ 绑定调用对应 LLVM 22.1 API。聚合拆分删除的旧 SSA 节点不得用零值替代其调试观察；未能迁移的观察保持 unavailable。
 
 2.5 使用 LLVM 22.1 的标准调试元数据和 debug records，在优化之前 finalize。调试记录不得改变异常入口的执行语义：landing-pad 标签必须位于该入口的调试记录及由 PHI 消除产生的值复制之前，使异常跳转仍执行所有必要复制。当前目标采用 DWARF 5、`DW_LANG_C` 静态类型视图，producer 标明 scoopc；Scoop 基础类型通过 typedef 保留名称。每个实际发射对象保存自身需要的编译单元、文件、函数和类型；函数同时保存源码名称与既有精确 linkageName，包括 line-tables 的最终 DWARF；LLVM 的发射模式不得省略该精确身份。line-tables 只创建函数／位置记录，不创建变量和类型定义。所有字段偏移、大小、对齐与参数分片来自已有目标布局／ABI。引用按真实原生地址描述，不将 LLVM GC address space 当作硬件地址空间。ZST 不因调试增加 payload 存储。
