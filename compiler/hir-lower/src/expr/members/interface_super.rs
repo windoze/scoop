@@ -238,13 +238,6 @@ impl Lowerer {
         qualifier: &ast::TypeRef,
         span: Span,
     ) -> Option<(hir::Expr, TypeId)> {
-        if self.initialization_context.is_some() {
-            self.error(
-                span,
-                "qualified interface `super` is not allowed during initialization".into(),
-            );
-            return None;
-        }
         if self.current_this.is_none() {
             self.error(
                 span,

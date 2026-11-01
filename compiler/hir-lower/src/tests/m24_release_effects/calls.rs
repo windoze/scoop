@@ -104,7 +104,9 @@ fn struct_secondary_constructors_participate_in_the_same_graph() {
         r#"
         @NoGC public fun <T> identity(value: T): T = value
         public struct Native<T>(val value: T) {
-            @NoGC public constructor(value: T, flag: Boolean): this(identity(value)) {}
+            @NoGC public constructor(value: T, flag: Boolean): this(identity(value)) {
+                identity(this)
+            }
         }
         @NoGC public fun <T> construct(value: T): Native<T> = Native(value, true)
     "#,

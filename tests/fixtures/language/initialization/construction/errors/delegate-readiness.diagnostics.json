@@ -1,0 +1,80 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `later` is not initialized during initializer of property `first` in class `ForwardRead`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 201,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 191
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `value` is not initialized during delegate initializer of property `value` in class `SelfRead`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 297,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 287
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `later` is not initialized during init block in class `ForwardWrite`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 344,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 339
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `later` is not initialized during init block in class `ForwardUpdate`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 431,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 426
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `callback` is not initialized during initializer of property `first` in class `ForwardInvoke`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 529,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 521
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `callback` is not initialized during initializer of property `first` in class `ForwardDelegateInvoke`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 630,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 622
+    },
+    "severity": "error"
+  }
+]

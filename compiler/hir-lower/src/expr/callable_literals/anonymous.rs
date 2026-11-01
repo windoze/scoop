@@ -64,7 +64,6 @@ impl Lowerer {
             scope::LiteralKind::AnonymousFunction,
             label,
             is_suspend,
-            receiver_ty.is_some(),
             span,
             |state, literal_origin, definition_path| {
                 state.current_return_ty = known_return.unwrap_or(state.unit);

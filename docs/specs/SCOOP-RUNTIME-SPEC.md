@@ -36,9 +36,9 @@ bit 0 为 collector 私有的 forwarded 标志，仅在 STW 内、对象已完�
 
 class 的基类对象布局是派生对象的完整前缀，包括基类尾部 padding；派生字段不得复用该 padding。构造最派生对象时只分配一次，整个构造期间对象头都指向最派生 exact type 的 TypeDescriptor，不随基类构造改变。
 
-对象在可被 GC 观察前必须具有有效对象头、精确分配大小与已初始化的 payload。语义上 payload 从全零开始；3.1 允许消除被确定初始化覆盖且覆盖前不可观察的无引用尾部零写入。对象头、引用槽、padding 和未证明覆盖的字节仍按原规则清零。含引用的字段在初始化完成前保持 null 或合法 managed reference。构造期间的 receiver 是普通精确 root；未完成的实例不能发布为可用对象。
+对象在可被 GC 观察前必须具有有效对象头、精确分配大小与已初始化的 payload。语义上 payload 从全零开始；3.1 允许消除被确定初始化覆盖且覆盖前不可观察的无引用尾部零写入。对象头、引用槽、padding 和未证明覆盖的字节仍按原规则清零。含引用的字段在初始化完成前保持 null 或合法 managed reference。构造期间的receiver是普通精确root，可以按语言规范9.1.1传参、保存及捕获，相关引用沿普通root、scan、写屏障与移动更新处理。可扫描的存储不表示尚未初始化的字段可以作为源码值读取；这种读取属于未定义行为，runtime不增加字段就绪检查。构造失败后的对象是否继续存活取决于普通可达性。
 
-带 release hook 的对象初始 `RELEASE_READY` 为 0。完整的最外层构造成功后、对象发布前，以 release 语义置为 1；构造失败时保持 0。其回收规则见 3.8。
+带release hook的对象初始`RELEASE_READY`为0。完整的最外层构造成功后、构造表达式正常返回前，以release语义置为1；构造失败时保持0，即使外部已经持有其引用也不改变此规则。该位只控制release hook，不限制构造期间的普通引用使用。其回收规则见3.8。
 
 ### 2.2 TypeDescriptor 与扫描描述
 
@@ -211,7 +211,7 @@ closure 不能直接作为 FunPtr 交给 native。静态 FunPtr 与 4.3 的 mana
 
 M55 的 companion bound、投影存在性与成员要求查询同样不触发初始化；正文或默认参数中实际求值的 `T.Companion` 在具体化后使用本节原有的 ensure、root 与 cell，不为不同要求或消费方创建另一份状态。
 
-winner 完成全部初始化后，先发布 property storage 或 singleton root，再以 release 语义发布 Initialized。waiter 以 acquire 观察终态后重新读取 storage。Initializing 期间不能读取临时 singleton；构造中的 receiver 只由正常 managed root 保活。ZST storage 也保留 initializer、ensure、cell 和副作用。
+winner 完成全部初始化后，先发布 property storage 或 singleton root，再以 release 语义发布 Initialized。waiter 以 acquire 观察终态后重新读取 storage。singleton ensure 在 Initializing 期间不能返回临时 singleton；语言规范9.1.1允许保存的构造 receiver 沿普通 managed root 保活，不改变 ensure 的初始化状态机。ZST storage 也保留 initializer、ensure、cell 和副作用。
 
 普通 typed InitializationEnter 调用可以先对共享 cell 的 state 做 acquire load；只有 Initialized 可直接产生 Ready，无 runtime 调用、TLS 查询、锁或根发布。其余状态仍进入原 managed coordinator，保留真实慢边 safepoint、正常／异常根和等待协议；invoke 形式可继续使用完整后备。快速读取只发生在已激活的 managed 线程内，不替代 gateway／函数入口和循环 poll；不得在该检查前读取结果 storage，或跨 safepoint 保存其中的对象地址。Initialized 是不可逆终态，GC 仍可更新 published root。失败发布先写 failure root，再 release store Failed；锁内 state 读取和 Initializing 写入可用 relaxed，锁仍串行化所有 winner 选择及状态转换。
 

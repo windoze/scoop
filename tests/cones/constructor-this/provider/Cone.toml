@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = "scoop.tests"
+name = "constructor-this-provider"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"

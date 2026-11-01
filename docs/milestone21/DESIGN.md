@@ -189,7 +189,7 @@ operator fun setValue(thisRef: R, value: T): Unit
 
 非局部delegated property仍必须显式声明type。local delegated property可以省略type：先在没有result expected type的条件下选出唯一`getValue`role，再把其concrete结果type作为local property type；`var`的`setValue`必须接受同一type。不能根据多个get/set组合反向猜一个type，也不能让setter单独改变getter已经确定的type。
 
-协议故意没有`KProperty`、property name、annotation数组或其他反射descriptor。需要名称、source location或注册key的delegate必须在`by`表达式中显式传入；编译器不为每次访问分配metadata对象。`provideDelegate()`也不接收owner，从而不会在class/object初始化期间发布受限`InitializingThis`。
+协议故意没有`KProperty`、property name、annotation数组或其他反射descriptor。需要名称、source location或注册key的delegate必须在`by`表达式中显式传入；编译器不为每次访问分配metadata对象。`provideDelegate()`不隐式接收owner；需要owner的delegate可以在`by`表达式中显式传入`this`，或由普通成员工厂创建并保存当前receiver，遵守语言规范9.1.1。
 
 ### 2.2 初始化、storage与求值
 
@@ -216,7 +216,7 @@ object Registry : Base(), Service {
 }
 ```
 
-`object O`同时声明一个nominal ref type和一个singleton value；两者使用不同typed id。object不能声明type parameter、primary/secondary constructor或`inner` modifier，可以继承至多一个class并实现interface。base constructor先执行，随后stored/delegated property与`init`按源码顺序执行；整个过程复用M19的exact allocation、readiness、受限`InitializingThis`、异常和moving-GC规则。
+`object O`同时声明一个nominal ref type和一个singleton value；两者使用不同typed id。object不能声明type parameter、primary/secondary constructor或`inner` modifier，可以继承至多一个class并实现interface。base constructor先执行，随后stored/delegated property与`init`按源码顺序执行；整个过程复用M19的exact allocation、直接字段readiness、普通构造receiver、异常和moving-GC规则。
 
 引用`O`本身、读取/写入其非const property或调用member，都会先通过初始化gate取得已经完整构造的唯一ref。object的type可用于type annotation、interface/class relation和RTTI，但不存在普通`O()`构造。只引用其static nested type/declaration或`const val`不初始化外层object；访问nested object只初始化nested unit，除非其initializer显式引用外层。singleton identity在进程生命周期内稳定为“同一逻辑对象”，物理地址仍可被moving GC更新；`O === O`为true。
 
@@ -482,7 +482,7 @@ parser以当前accessor/property/body item、object/nested closing brace为恢�
 
 - member/object/top-level/non-generic extension/local delegated val/var；member/extension role、可选provide、owner receiver与Unit receiver；
 - delegate expression/provide/get/set副作用顺序各一次，异常路径、closure capture与moving GC后hidden storage更新；
-- class delegate在common sequence中与stored property/`init`交错，不能经provide发布InitializingThis或提前访问computed/delegated member；
+- class delegate在common sequence中与stored property/`init`交错，可保存owner；直接访问尚未就绪的delegate storage仍报错，computed property沿普通accessor调用规则处理；
 - reflection-free golden确认没有name/KProperty参数或metadata allocation；generic delegated extension稳定拒绝。
 
 ### 10.3 object、default与visibility

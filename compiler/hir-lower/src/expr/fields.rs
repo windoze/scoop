@@ -106,16 +106,13 @@ impl Lowerer {
             && self.is_initializing_this_label(label.as_ref())
         {
             self.check_initializing_receiver_label(label.as_ref())?;
-            let ast::FieldSelector::Name(name) = &access.selector else {
-                self.error(
-                    access.span,
-                    "an initializing receiver only supports direct named field access".into(),
-                );
-                return None;
-            };
-            return self
-                .initializing_field(name, access.span, hir::EditingPropertyAccess::Read)
-                .map(|field| field.read);
+            if let ast::FieldSelector::Name(name) = &access.selector
+                && self.initializing_receiver_has_field(&name.text)
+            {
+                return self
+                    .initializing_field(name, access.span, hir::EditingPropertyAccess::Read)
+                    .map(|field| field.read);
+            }
         }
         let receiver = if let Some((ty, crate::NominalTarget::Object(object))) = applied {
             self.lower_qualified_singleton(object, Some(ty), access.receiver.span())?

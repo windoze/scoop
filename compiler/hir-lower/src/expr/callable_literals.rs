@@ -62,14 +62,10 @@ impl Lowerer {
             expected_signature.as_ref(),
         )?;
 
-        let has_receiver = expected_signature
-            .as_ref()
-            .is_some_and(|signature| signature.receiver.is_some());
         self.with_callable_literal_scope(
             scope::LiteralKind::Lambda,
             label,
             is_suspend,
-            has_receiver,
             span,
             |state, literal_origin, definition_path| {
                 let receiver_ty = expected_signature

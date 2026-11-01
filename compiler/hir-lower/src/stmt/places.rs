@@ -151,20 +151,23 @@ impl Lowerer {
                     && self.is_initializing_this_label(label.as_ref())
                 {
                     self.check_initializing_receiver_label(label.as_ref())?;
-                    let field = self.initializing_field(
-                        name,
-                        *span,
-                        hir::EditingPropertyAccess::ReadWrite,
-                    )?;
-                    let write = field
-                        .write
-                        .map(WriteCapability::Direct)
-                        .unwrap_or(WriteCapability::ReadOnly);
-                    return Some(ResolvedPlacePlan {
-                        ty: field.read.ty,
-                        read: field.read,
-                        write,
-                    });
+                    if self.initializing_receiver_has_field(&name.text) {
+                        let field = self.initializing_field(
+                            name,
+                            *span,
+                            hir::EditingPropertyAccess::ReadWrite,
+                        )?;
+                        let write = field
+                            .write
+                            .map(WriteCapability::Direct)
+                            .unwrap_or(WriteCapability::ReadOnly);
+                        return Some(ResolvedPlacePlan {
+                            ty: field.read.ty,
+                            read: field.read,
+                            write,
+                        });
+                    }
+                    self.check_initializing_named_property(name)?;
                 }
                 if let Some(property) = self
                     .qualified_object_const_property(receiver, &name.text)

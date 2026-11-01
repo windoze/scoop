@@ -145,6 +145,18 @@ impl Lowerer {
             );
             return None;
         }
+        if self.is_initializing_receiver(receiver.as_ref()) {
+            if self.initializing_receiver_has_field(&declaration.name) {
+                let name = ast::Ident {
+                    text: declaration.name,
+                    span,
+                };
+                return self
+                    .initializing_field(&name, span, hir::EditingPropertyAccess::Read)
+                    .map(|field| field.read);
+            }
+            self.check_initializing_property(property, span)?;
+        }
         // A local raw access retains its storage identity; the generated
         // accessor body supplies the ordinary cross-Cone callable.
         self.observe_property_reference(
@@ -242,6 +254,23 @@ impl Lowerer {
                 ),
             );
             return None;
+        }
+        if self.is_initializing_receiver(receiver.as_ref()) {
+            if self.initializing_receiver_has_field(&declaration.name) {
+                let name = ast::Ident {
+                    text: declaration.name,
+                    span,
+                };
+                let field =
+                    self.initializing_field(&name, span, hir::EditingPropertyAccess::Write)?;
+                return Some(hir::StatementKind::Assign {
+                    target: field
+                        .write
+                        .expect("an accessible stored setter is writable"),
+                    value,
+                });
+            }
+            self.check_initializing_property(property, span)?;
         }
         self.observe_property_reference(
             span,

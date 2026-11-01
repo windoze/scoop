@@ -17,6 +17,16 @@ impl Lowerer {
             {
                 continue;
             }
+            if source.body_kind == PropertyAccessorBodyKind::Delegate
+                && !matches!(
+                    self.properties[source.property].representation,
+                    hir::PropertyRepresentation::Delegated { .. }
+                        | hir::PropertyRepresentation::GenericDelegated { .. }
+                )
+            {
+                // A failed delegate initializer has no storage for an accessor.
+                continue;
+            }
             self.lower_property_accessor_body(&source);
         }
     }

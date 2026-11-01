@@ -42,7 +42,10 @@ impl Lowerer {
                     && self.is_initializing_this_label(label.as_ref())
                 {
                     self.check_initializing_receiver_label(label.as_ref())?;
-                    return self.lower_initializing_field_assign(assign, name, out);
+                    if self.initializing_receiver_has_field(&name.text) {
+                        return self.lower_initializing_field_assign(assign, name, out);
+                    }
+                    self.check_initializing_named_property(name)?;
                 }
                 if self
                     .qualified_object_const_property(receiver, &name.text)

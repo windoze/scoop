@@ -193,6 +193,32 @@ impl Lowerer {
             }
         }
         let outer_capture_scope = self.enter_local_type_captures(owner, capture_environment);
+        if let Some(ty) = self.initializing_receiver_type() {
+            let span = match source {
+                ConstructorSource::Class(id) => self.class_constructors[id].span,
+                ConstructorSource::Struct(id) => self.struct_constructors[id].span,
+            };
+            let receiver = hir::Expr {
+                kind: hir::ExprKind::ConstructorReceiver,
+                ty,
+                span,
+                origin: self.expression_origin(span),
+            };
+            let receiver =
+                self.materialize_temporary("this".into(), receiver, span, &mut statements);
+            let hir::ExprKind::Local(local) = receiver.kind else {
+                unreachable!("a saved constructor receiver is a local")
+            };
+            self.scopes.declare("this".into(), local);
+            self.current_this = Some((local, ty));
+            self.push_receiver_scope(
+                Some(self.receiver_owner_label(owner)),
+                Some(crate::ReceiverBinding {
+                    binding: self.locals[local].binding,
+                    ty,
+                }),
+            );
+        }
         self.observe_constructor_parameters(&parameters);
         let value = lower(self, &mut statements);
         let locals = std::mem::take(&mut self.locals).into_arena();
