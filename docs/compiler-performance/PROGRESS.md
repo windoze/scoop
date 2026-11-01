@@ -80,7 +80,7 @@ macOS 首次完整 CLI 验收为 4,295 项通过、25 项平台不适用、6 项
 
 归档组装从已经读取的依赖目录中匹配完整 ODR bundle：group、member、role、shared ABI、存储长度与摘要均相同才省去当前副本。不读取依赖机器对象，不重新计算依赖摘要；函数正文、私有 GC／EH／注册记录和共享 dispatch 数组一起选择。同步删除本地物理成员、defined owners 及来自该成员的符号使用，保留其他对象对这些符号的引用。含 Strong、C bridge、image 或当前导出明确绑定的物理定义继续保留。
 
-没有本地 primary 定义的 ODR 目录条目由真实依赖闭包满足，不能借用无依赖关系的兄弟库。私有 RegistrationRecord 只记录实际本地定义，随选定函数对象消费，避免要求 debug／release 具有相同 safepoint 集合。可复用 ODR 实现的可用性与 ABI 并入既有 LIR 指纹；依赖库内部不再生成某个实例时，消费者正常失效并重新编译。仅机器字节、调试信息或私有记录变化仍遵守原有更新规则，不新增缓存检查或目录副本。
+没有本地 primary 定义的 ODR 目录条目由真实依赖闭包满足，不能借用无依赖关系的兄弟库。私有 RegistrationRecord 只记录实际本地定义，随选定函数对象消费，避免要求 debug／release 具有相同 safepoint 集合。第三轮曾将可复用 ODR 实现的可用性与 ABI 并入 LIR 指纹；尺寸阶段统一验收发现它会错误拒绝混合优化 profile，已在下文修正为使用完整依赖的既有 Code 指纹更新源码缓存，不新增缓存检查或目录副本。
 
 本轮使用包含全部仓库补丁的 LLVM 22.1.8。先在合并主线后的 `4d4a5c8b98` 冻结工具并重新准备 29 库，基线仍为 403,881,794 bytes，再使用相同源码、目标、release 配置和 Apple Clang 重建。profile 升为 `cross-cone-generic/9`、`single-cone-production/10`；对象内容、压缩参数及 runtime ABI 不变。
 
@@ -228,7 +228,13 @@ release workspace all-targets Clippy、265 项 slib 测试、4 项真实泛型�
 
 已闭合其中 15 项：六个动态库用例的独立 link 命令遗漏公共 `link_args`，没有使用 build 的显式 C compiler／SDK 配置；补齐后保持原有计划指纹相等、链接、运行及五份专用 plan golden 断言。七个错误诊断用例同步主线已修复的错误恢复行为，移除派生的“未知名字”重复错误，保留首个类型／初始化错误及位置；不可调用整数现在断言明确的不可调用诊断。另同步一项 manifest 错误的新版源码片段显示。工具版本检查的一次失败来自本轮并行 Cargo 测试重建了部分 CLI，统一构建五个工具后闭合；后续 CLI 验收使用同一组工具，并与其重建错开。以上 15 项定向复测全部通过，覆盖 15 个 variant、63 次进程调用。
 
-剩余五项涉及混合优化 profile 和 GC stress 的 ODR 实现可用性指纹，正在修复；不把它们排除为基线问题。Linux／Windows 的完整验收继续记录并处理实际失败，其他目标的全量 CLI 在共同问题闭合后运行，不重复已通过的整套 AArch64 fixture。
+其余五项也已闭合。第三轮把物理 ODR 可用性混入 LIR 语义指纹，但优化会增删内部 callable、layout、descriptor 和 scan；真实 core 的 debug／release 产物相差 174 条非私有记录，不能据此拒绝语义与 ABI 相容的组合。本轮删除这项投影，优化前后 core 的 HIR／MIR／LIR 指纹现在全部相同，原有链接定义与 ABI 检查继续生效。
+
+源码编译缓存改用已有 Code 指纹跟踪对象生产变化，并采用与 child 请求相同的完整 direct／support 依赖投影。只看直接依赖不足：中间库的 Code 可以保持不变，而下层库已经改变可用实现。新增正式 CLI 用例保持源码与直接依赖的预编译产物不变，只切换间接依赖的优化 profile，确认顶层在 debug／release 下都重新编译，下一次构建恢复命中。机器代码变化也会使相关源码缓存更新；Code 不成为预编译消费者的语义相等条件，不增加独立可用性摘要、目录扫描或命中复核。profile 升为 `cross-cone-generic/15`，cache key domain 升为 v11。
+
+release workspace all-targets Clippy、264 项 slib、75 项 scoop 和 4 项真实泛型／ODR 测试完成；更新固定向量及配套工具后仅复测原失败项。12 个定向 fixture、15 个 variant、113 次进程调用全部通过，包括原来失败的五项、间接依赖缓存、泛型发布／读取与 ODR 选择。ODR 选择用例同步检查依赖 Code 改变后的重编译、重新链接和新产物的后续命中，不再错误要求消费者保持旧的物理成员集合。AArch64 29 库与四种 runtime 重新准备完成；独立检查确认全部 165,487 个原生对象及 296,503,136 bytes 原始内容、230,044 条 ODR 记录与物理 bundle 保持一致。总尺寸为 258,702,533 bytes，指纹改变后的 manifest 压缩波动比第九轮少 14 bytes，不计为新的优化收益。
+
+AArch64 首次全量的 20 项失败均已闭合，没有重跑整套 fixture。其他目标继续阶段验收。Linux 首次 Rust 测试遇到一次临时脚本执行的 ETXTBSY，原测试独立复测通过，后续完整批次继续覆盖；Windows 首批四项 runtime 测试失败定位为验收脚本漏配测试要求的 unwind 路径，已补齐三套 C／unwind 工具配置，等待完整复测。原始报告保留在仓库外，已经完成的 AArch64 全量与定向 fixture 工作目录及过期编译缓存已清理。
 
 ## 后续优先级
 

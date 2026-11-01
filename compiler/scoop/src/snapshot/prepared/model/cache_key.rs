@@ -12,14 +12,13 @@ use super::{PreparedBuildGraph, PreparedGraphNode};
 use crate::artifact::{ArtifactClosureValidationError, CompletedNode};
 use crate::cache::{
     CompileDependencyInputV1, ConeCompileCacheInputV1, ConeCompileCacheKeyV1,
-    CurrentConeSemanticProjectionV1, OptionalCoreCodeFingerprintV1, SourceCacheInputV1,
-    strong_profile_id,
+    CurrentConeSemanticProjectionV1, SourceCacheInputV1, strong_profile_id,
 };
 use crate::discovery::compare_coordinates;
 
 impl PreparedBuildGraph {
     /// Constructs the normalized semantic input for one source node after all
-    /// of its direct dependencies have completed.
+    /// of its actual direct and support dependencies have completed.
     pub fn compile_cache_input(
         &self,
         identity: ConeIdentity,
@@ -37,15 +36,22 @@ impl PreparedBuildGraph {
         }
 
         let completed = completed_map(identity, completed)?;
-        let direct: BTreeSet<_> = self
-            .edges
-            .values()
-            .filter(|edge| edge.dependent() == identity)
-            .map(|edge| edge.dependency())
-            .collect();
+        let projection = self
+            .source_inputs
+            .get(&identity)
+            .ok_or(CompileCacheKeyError::MissingSourceProjection(identity))?;
+        let mut inputs = projection
+            .direct()
+            .iter()
+            .chain(projection.support())
+            .copied()
+            .collect::<BTreeSet<_>>();
+        if identity != ConeIdentity::CORE {
+            inputs.insert(ConeIdentity::CORE);
+        }
         let plan = self.artifact_closure_plan();
-        let mut dependencies = Vec::with_capacity(direct.len());
-        for dependency in direct {
+        let mut dependencies = Vec::with_capacity(inputs.len());
+        for dependency in inputs {
             let completed =
                 completed
                     .get(&dependency)
@@ -61,25 +67,18 @@ impl PreparedBuildGraph {
                 })?;
             let summary = completed.artifact().summary();
             let semantic = summary.semantic_fingerprints();
-            let single_file_core_code =
-                if identity == ConeIdentity::SINGLE_FILE && dependency == ConeIdentity::CORE {
-                    match semantic.code() {
-                        FingerprintAvailability::Available(code) => {
-                            OptionalCoreCodeFingerprintV1::Some(code)
-                        }
-                        FingerprintAvailability::Unavailable => {
-                            return Err(CompileCacheKeyError::MissingSingleFileCoreCode);
-                        }
-                    }
-                } else {
-                    OptionalCoreCodeFingerprintV1::None
-                };
+            let code = match semantic.code() {
+                FingerprintAvailability::Available(code) => code,
+                FingerprintAvailability::Unavailable => {
+                    return Err(CompileCacheKeyError::MissingDependencyCode(dependency));
+                }
+            };
             dependencies.push(CompileDependencyInputV1::new(
                 summary.cone().clone(),
                 semantic.hir(),
                 semantic.mir(),
                 semantic.lir(),
-                single_file_core_code,
+                code,
             ));
         }
         dependencies.sort_by(|left, right| {
@@ -269,6 +268,7 @@ pub enum CompileCacheKeyError {
     Toolchain(scoop_toolchain::ToolchainError),
     UnknownNode(ConeIdentity),
     PrebuiltNode(ConeIdentity),
+    MissingSourceProjection(ConeIdentity),
     DuplicateSource(scoop_identity::SourceIdentity),
     DuplicateCompletedNode(ConeIdentity),
     CurrentNodeAlreadyCompleted(ConeIdentity),
@@ -281,7 +281,7 @@ pub enum CompileCacheKeyError {
         dependency: ConeIdentity,
         source: Box<ArtifactClosureValidationError>,
     },
-    MissingSingleFileCoreCode,
+    MissingDependencyCode(ConeIdentity),
     ConeRecord(ConeRecordError),
     Hash(HashError),
 }
@@ -297,6 +297,10 @@ impl fmt::Display for CompileCacheKeyError {
             Self::PrebuiltNode(identity) => write!(
                 formatter,
                 "prebuilt node {identity} does not have a source compile cache key"
+            ),
+            Self::MissingSourceProjection(identity) => write!(
+                formatter,
+                "source Cone {identity} has no resolved dependency projection"
             ),
             Self::DuplicateSource(source) => write!(
                 formatter,
@@ -328,8 +332,10 @@ impl fmt::Display for CompileCacheKeyError {
                 formatter,
                 "completed dependency {dependency} does not match cache plan for {dependent}: {source}"
             ),
-            Self::MissingSingleFileCoreCode => formatter
-                .write_str("single-file cache key requires the trusted core Code fingerprint"),
+            Self::MissingDependencyCode(identity) => write!(
+                formatter,
+                "compile cache key requires the Code fingerprint of dependency {identity}"
+            ),
             Self::ConeRecord(error) => error.fmt(formatter),
             Self::Hash(error) => error.fmt(formatter),
         }

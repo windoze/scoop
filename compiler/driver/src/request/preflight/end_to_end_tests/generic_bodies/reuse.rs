@@ -280,7 +280,7 @@ fn dependency_odr_reuse_preserves_physical_bundles_and_debug_info() {
 }
 
 #[test]
-fn removing_a_provider_instance_updates_the_existing_compile_dependency() {
+fn removing_a_provider_instance_requires_new_object_selection() {
     let target = resolved_target().expect("ODR availability requires a target");
     let workspace = tempfile::tempdir().unwrap();
     let core = bootstrap_core(workspace.path(), &target);
@@ -341,14 +341,14 @@ fn removing_a_provider_instance_updates_the_existing_compile_dependency() {
         provider
             .artifact()
             .summary()
-            .dependency_record()
-            .lir_fingerprint(),
+            .manifest_summary()
+            .code_fingerprint_availability(),
         updated
             .artifact()
             .summary()
-            .dependency_record()
-            .lir_fingerprint(),
-        "removing a shared implementation must invalidate the existing Compile dependency",
+            .manifest_summary()
+            .code_fingerprint_availability(),
+        "object production changes must update source consumers through the existing Code input",
     );
     let updated_file =
         ArtifactFile::open(updated.artifact().path(), target.lir_target_selection()).unwrap();

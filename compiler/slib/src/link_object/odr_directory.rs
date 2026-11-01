@@ -217,35 +217,6 @@ impl CanonicalOdrMemberDirectoryV1 {
         self.groups.retain(|group| !group.members.is_empty());
     }
 
-    pub(crate) fn encode_implementation_abis(
-        &self,
-        encoder: &mut Encoder,
-    ) -> Result<(), scoop_wire::cbor::EncodeError> {
-        let public =
-            |entry: &&OdrMemberDirectoryEntryV1| entry.role != OdrMemberRole::RegistrationRecord;
-        encoder.array(
-            self.groups
-                .iter()
-                .filter(|group| group.members.iter().any(|entry| public(&entry)))
-                .count() as u64,
-        )?;
-        for group in &self.groups {
-            let count = group.members.iter().filter(public).count();
-            if count == 0 {
-                continue;
-            }
-            encoder.map(2)?;
-            encoder.field(1)?;
-            group.group.encode(encoder)?;
-            encoder.field(2)?;
-            encoder.array(count as u64)?;
-            for entry in group.members.iter().filter(public) {
-                entry.encode(encoder)?;
-            }
-        }
-        Ok(())
-    }
-
     fn from_members(
         mut physical: BTreeSet<OdrMemberId>,
         entries: impl IntoIterator<Item = (OdrGroupId, OdrMemberDirectoryEntryV1)>,

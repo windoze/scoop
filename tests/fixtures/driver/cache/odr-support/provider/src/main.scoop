@@ -1,0 +1,4 @@
+package test.odr.cache.provider
+
+public fun <T> identity(value: T): T = value
+public fun forceInstance(): Int = identity(7)

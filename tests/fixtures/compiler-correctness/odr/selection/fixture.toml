@@ -76,8 +76,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${mixed.result.observations.child_invocations}", equals = []},
-  {actual = "${mixed.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+  {actual = "${mixed.result.observations.child_invocations}", equals = ["${mixed.result.root.identity}"]},
   {actual = "${mixed.result.dependencies.3.artifact_fingerprint}", equals = "${change_profile.result.root.artifact_fingerprint}"},
   {actual = "${mixed.result.link_plan_fingerprint}", not_equals = "${build.result.link_plan_fingerprint}"},
 ]
@@ -92,6 +91,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${warm.result.observations.child_invocations}", equals = []},
+  {actual = "${warm.result.root.artifact_fingerprint}", equals = "${mixed.result.root.artifact_fingerprint}"},
   {actual = "${warm.result.link_plan_fingerprint}", equals = "${mixed.result.link_plan_fingerprint}"},
 ]
 

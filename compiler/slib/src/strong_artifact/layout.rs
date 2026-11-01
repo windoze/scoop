@@ -182,9 +182,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
             &metadata.mir.sections,
             &metadata.lir.sections,
         )
-        .and_then(|fingerprints| {
-            fingerprints.with_odr_implementations(link_identity_closure.odr_members())
-        })
         .map_err(CrossConeLayoutArtifactWriteError::SemanticFingerprints)?;
         let semantic_fingerprints = SemanticFingerprintRecord::from_digests(
             foundation_fingerprints.hir(),

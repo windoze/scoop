@@ -704,7 +704,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 未知 optional capability 按目录跳过，不读取或计算其内容 hash，不进入语义 view。ExtensionBlob.required_for 只允许 0 或 Link bit；未知 Link-required capability 阻止 Link 消费。blob 不成为第二种对象入口，已知 Link contribution 只能表示规范化 native library requirements，不能注入 raw linker argv、脚本或未检查对象。
 
-完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/14`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
+完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/15`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
 
 早期 `single-cone-strong` 与 `cross-cone-semantics-strong` profile 不再是生产或消费入口，不随当前 section 版本维护正向 descriptor／fingerprint 矩阵。旧 profile 按不支持的产物 profile 报错，当前 profile 的 required inventory 和版本兼容检查保留。
 
@@ -773,7 +773,7 @@ distribution、output、image owner、typed registration projection、Optimizati
 
 ODR 目录中的条目同时表达定义和对已有定义的需求：有本产物 primary defined owner 的条目提供物理候选，没有本地 primary 的条目必须由实际依赖闭包中的候选满足。Compile 与 Link 按依赖先序合并完整 key、role 和 shared ABI；每个需求都必须有真实物理定义，不能由无依赖关系的兄弟产物补足。RegistrationRecord 只登记实际本地定义，不为省去的副本保存独立导入要求；GC／EH 与注册记录随最终选中的完整对象消费，不要求不同优化模式产生相同的私有 safepoint 集合。输出的合并目录总是包含至少一个完整候选，不保存空候选或递归转发条目。
 
-ODR 实现的可用性属于实际编译依赖。生产端将目录中除 RegistrationRecord 以外的 group、member、role 和 shared ABI 与原 LIR 语义摘要共同计算 LIR 指纹，不增加目录副本。新增或移除实现时，消费方沿既有依赖更新规则重新编译；只改变机器字节、调试信息或私有 GC／EH 记录而保持这些实现及 ABI 时，不因此重编译消费方。该投影同时包含由依赖满足的实现需求，使实际定义可沿既有依赖边传递；不读取命中产物、不在缓存判断时扫描对象，也不新增另一套更新机制。
+ODR 物理实现的可用性属于机器代码生产输入，不进入 HIR／MIR／LIR 语义指纹。优化会增删内部 callable、layout、descriptor 和 scan，不能因此拒绝语义与 ABI 相容的 debug／release 或 GC 配置组合。源码编译缓存将本次实际 direct／support 依赖摘要中已有的 Code 指纹纳入输入键；依赖机器代码或可用实现变化时，相关源码消费者重新执行对象生产与去重，不另存可用性目录或摘要。仅凭传递依赖的直接消费者 Code 未变不能复用更上层缓存；各源码节点使用与 child 请求相同的完整依赖投影。语义相容的预编译消费者仍由正常链接选择检查实际需要的定义；缺少被省去的 primary 实现时报告缺失定义，要求从源码重建该消费者。不读取命中产物、不在缓存判断时扫描对象，也不把 Code 指纹作为预编译依赖的语义相等条件。
 
 归档组装可省去依赖已有的完整 ODR 对象。选择使用现有目录的 member 集合、role、shared ABI 与原生对象内容摘要；只复用解压后内容相同的完整对象，不依赖各归档采用的字典或 frame 长度，不读取依赖机器对象或重新计算其摘要。函数正文与私有 GC／EH／注册记录、共享 dispatch 数组及别名必须作为整个物理对象处理。含 Strong、generated-C 或 Cone image 定义的对象继续保留。ODR definition plan 的身份仅由共享 OdrMemberId 与固定 primary role 确定，不包含 producer；导出记录的 provider 表达所选语义／ABI 记录来自哪个 Cone，不为这一共享 definition 指定唯一物理副本。导出的 ODR 定义同样可由实际依赖提供，继续使用原 definition、symbol 与 ABI，无须重写导出、建立转发层或添加目录。
 
@@ -989,7 +989,7 @@ M63统一采用包管理规范3.1的`target/<target>/<profile>/<group>/<name>/`�
 
 M63中上述manifest来源选择由PM执行：普通非`scoop`裸依赖改用明确registry，系统库候选需满足版本要求后锁成精确coordinate；core仍固定0.1.0。单文件与artifact-only链接保留原精确artifact查找方式，不沿PM自动下载缺失来源。
 
-配套 scoopc 默认来自 scoop executable 同目录，允许显式指定。首次使用或工具路径、修改时间、大小及配置改变时取得其能力／协议；未变化时复用记录，不启动探测、不完整读取程序计算指纹，不在执行前后重捕获工具。本机工具记录保存在 `tools-v1`，保存路径、mtime、长度、生效的配套协议配置和实际能力响应；工具输入摘要由这组普通输入生成。compile key domain 接续为 `scoop-cone-compile-cache-v7`，使用独立的 C 工具输入与 native 对象构建输入摘要，不改变语言实体或 runtime ABI。每个 source cache miss 启动一次 single-Cone 编译，传入实际 direct/support artifact 路径；direct 对应 manifest edge，support 为其余传递依赖，两组互斥。工具启动、协议读写和实际编译失败正常报告，缓存复用不重放 child 成功产物及依赖闭包的完整验证。
+配套 scoopc 默认来自 scoop executable 同目录，允许显式指定。首次使用或工具路径、修改时间、大小及配置改变时取得其能力／协议；未变化时复用记录，不启动探测、不完整读取程序计算指纹，不在执行前后重捕获工具。本机工具记录保存在 `tools-v1`，保存路径、mtime、长度、生效的配套协议配置和实际能力响应；工具输入摘要由这组普通输入生成。compile key domain 为 `scoop-cone-compile-cache-v11`，使用独立的 C 工具输入与 native 对象构建输入摘要，不改变语言实体或 runtime ABI。每个 source cache miss 启动一次 single-Cone 编译，传入实际 direct/support artifact 路径；direct 对应 manifest edge，support 为其余传递依赖，两组互斥。工具启动、协议读写和实际编译失败正常报告，缓存复用不重放 child 成功产物及依赖闭包的完整验证。
 
 C 工具链的版本、SDK／libc 配置和实际调用参数保存在 `native-tools-v2` 普通记录。发现语义版本也进入调用方使用的配置键，使工具选择或参数规则变更正常触发更新。更新依据为请求、影响工具选择的配置以及实际程序、探测所用头文件、specs 和相关搜索目录的路径／mtime／大小；命中不启动 xcrun、版本查询、预处理或探测编译。Darwin 记录选中的 developer／SDK 路径、SDK 版本和 deployment；Linux 记录 GCC 版本及实际预处理宏配置，不读取整个 GCC、cc1 或 assembler 内容来构造身份。Linux CBridge 合同中的 compiler inputs 摘要表示探测得到的编译配置；本机路径和文件 metadata 只进入构建更新键，不进入产物语义指纹。首次探测仍检查实际目标／libc 能力；失败不发布记录，普通输入缺失和工具执行失败正常报告。
 

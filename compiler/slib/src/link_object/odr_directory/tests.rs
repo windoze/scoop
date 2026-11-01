@@ -153,59 +153,6 @@ fn directory_reader_checks_record_shapes_roles_and_digest_widths() {
     }
 }
 
-#[test]
-fn odr_availability_changes_lir_dependencies_but_private_records_do_not() {
-    let base = crate::SemanticFingerprintRecord::from_foundation_digests(
-        crate::HirFingerprint::from_array([1; 32]),
-        crate::MirFingerprint::from_array([2; 32]),
-        crate::LirFingerprint::from_array([3; 32]),
-    );
-    let mut values = entries().to_vec();
-    let build = |values: &[(OdrGroupId, OdrMemberDirectoryEntryV1)]| {
-        CanonicalOdrMemberDirectoryV1::from_members(
-            values.iter().map(|(_, entry)| entry.member).collect(),
-            values.iter().copied(),
-        )
-        .unwrap()
-    };
-    let original = base.with_odr_implementations(&build(&values)).unwrap();
-    let group = values[0].0;
-    let member = OdrMemberId::from_key(
-        &OdrMemberKey::new(
-            group,
-            OdrMemberRole::RegistrationRecord,
-            OdrMemberDiscriminator::ExactType(exact("First")),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    values.push((
-        group,
-        OdrMemberDirectoryEntryV1 {
-            member,
-            role: OdrMemberRole::RegistrationRecord,
-            abi: OdrAbiFingerprintV1::from_array([4; 32]),
-        },
-    ));
-    assert_eq!(
-        original,
-        base.with_odr_implementations(&build(&values)).unwrap()
-    );
-    values.pop();
-    values[0].1.abi = OdrAbiFingerprintV1::from_array([5; 32]);
-    let changed = base.with_odr_implementations(&build(&values)).unwrap();
-    assert_eq!(original.hir(), changed.hir());
-    assert_eq!(original.mir(), changed.mir());
-    assert_ne!(original.lir(), changed.lir());
-    values.remove(0);
-    assert_ne!(
-        original.lir(),
-        base.with_odr_implementations(&build(&values))
-            .unwrap()
-            .lir()
-    );
-}
-
 fn assert_decode_error(directory: &CanonicalOdrMemberDirectoryV1, expected: WireErrorKind) {
     let error =
         decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&encode(directory).unwrap())

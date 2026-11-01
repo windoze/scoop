@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test.odr.cache"
+name = "root"
+version = "1.0.0"
+kind = "executable"
+[dependencies]
+"test.odr.cache:middle" = { version = "=1.0.0", artifact = "../../artifacts/test.odr.cache/middle/1.0.0/cone.slib" }
