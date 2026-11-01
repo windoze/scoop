@@ -1,12 +1,12 @@
 # Scoop Surface 基础库规范
 
-状态：第一期共享基础层及 macOS 后端已实现。更新：2026-11-01。本文件规定 window 输入前置、graphics 绘图／文本、Surface 宿主、动画和区域输入的当前合同；各项验证、执行环境和未测边界见 [实施记录](../surface/PROGRESS.md)。架构、平台接入和实施顺序见 [Surface 设计](../surface/DESIGN.md)。
+状态：第一期共享基础层及 macOS 后端已实现。更新：2026-11-02。本文件规定 window 输入前置、graphics 绘图／文本、Surface 宿主、动画和区域输入的当前合同；各项验证、执行环境和未测边界见 [实施记录](../surface/PROGRESS.md)。架构、平台接入和实施顺序见 [Surface 设计](../surface/DESIGN.md)。
 
 ## 1. 范围与依赖
 
 第一期提供基本 2D 绘图与 Path、动画、文本布局、指定区域的输入响应。它们是后续 component 的基础；本期不提供组件树、声明式 DSL、通用布局容器、完整文本编辑器或手势识别系统。
 
-基础 Cone 统一使用 `scoop.surface` 名称，类型为 SurfaceHost／SurfaceWindow／SurfaceWindowState，原生入口以 `scoop_surface_` 为前缀，不提供旧名称的兼容入口。上层由 [`scoop.ui` 自绘框架](SCOOP-UI-SPEC.md)和独立的 [`scoop.ui.component` 控件库](SCOOP-UI-COMPONENT-SPEC.md)组成；两者尚未实现，其设计未改变本文件的已实现 API。
+基础 Cone 统一使用 `scoop.surface` 名称，类型为 SurfaceHost／SurfaceWindow／SurfaceWindowState，原生入口以 `scoop_surface_` 为前缀，不提供旧名称的兼容入口。上层由 [`scoop.ui` 自绘框架](SCOOP-UI-SPEC.md)和独立的 [`scoop.ui.component` 控件库](SCOOP-UI-COMPONENT-SPEC.md)组成；框架及公共文本适配已在 macOS aarch64 交付，控件继续实施。本期新增独立[公共样式库](SCOOP-UI-STYLE-SPEC.md)，Surface 不依赖或识别这些上层类型。
 
 字体和 Paragraph／TextLayout 已迁入独立 [`scoop.graphics.text`](SCOOP-GRAPHICS-TEXT-SPEC.md)，内容输入统一为 StyledText／SpanStyle，并提供行内对象的测量输入和位置结果。Surface 的帧、动画、输入区域与 Rect caret 不反向依赖 graphics.text 或 UI；使用文本的示例和测试直接声明依赖。
 
@@ -32,7 +32,7 @@ Canvas 是一次绘制作用域内的借用对象，不得跨帧保存或在其�
 
 独立文本库使用同一 package 的 `@Unsafe fun <T> Canvas.withSkiaCanvas(block: (Ptr<Unit>) -> T): T`。它在当前有效 Canvas 的 owner 线程同步借出实际 SkCanvas 指针，调用前保存原生画布状态，正常返回或异常退出都恢复原状态；不施加第二次 DPI 变换。指针只在 block 内有效，不能保存、释放、跨线程或挂起使用。block 只通过该指针进行 Skia 绘制，不重入同一 Canvas 的 Scoop 操作或几何捕获，不恢复到借用入口保存层以下，不自行提交目标或变更 GPU context。调用方承担这项 Unsafe 约束；graphics 的私有包装、资源析构和 clip 记录不向另一 Cone 开放。
 
-SkSL／SkRuntimeEffect 的公开接入列为后续 graphics 增强，见[SkSL 设计](../graphics/sksl/DESIGN.md)。当前 Paint 只开放颜色／基础渐变等参数，saveLayer 只开放组透明度；shader 填充、输入图像和子树滤镜尚未接入。后续实现通过既有 Skia 后端与普通 FFI 扩展，不隐式创建时间驱动器，也不改变 Canvas 借用或第 4.1 节的按需停帧规则。
+SkSL／SkRuntimeEffect 的公开接入列为后续 graphics 增强，见[SkSL 设计](../graphics/sksl/DESIGN.md)。本期先按[图像滤镜与图层规范](SCOOP-GRAPHICS-EFFECTS-SPEC.md)补齐 Skia Gaussian blur、alpha 阴影、混合与图层滤镜，供离屏和公共 UI style 消费；这批已完成设计、待实施。RuntimeEffect／shader 填充仍未接入，不作为基础效果前置。后续实现通过既有 Skia 后端与普通 FFI 扩展，不隐式创建时间驱动器，也不改变 Canvas 借用或第 4.1 节的按需停帧规则。
 
 ## 3. 字体与文本布局
 
@@ -49,6 +49,8 @@ SurfaceHost 必须在 Closing／Exiting 及用户回调失败时关闭相关 Sur
 `SurfaceContent : Closeable` 定义同步 `paint(FrameContext)`，表示一个由 SurfaceWindow 拥有的内容根。`SurfaceHost.attach(window, content)` 在通过 owner 线程检查后接收新 content 的所有权；窗口状态、重复附着、renderer 创建或配置失败时，也负责关闭 content 并回滚本次取得的资源。错误线程调用在转移所有权前拒绝。一个 content 只能交给一个窗口，close 必须幂等。原有 painter 闭包重载通过不拥有额外资源的 SurfaceContent 适配，继续服务直接绘图。
 
 关闭覆盖 SurfaceHost 的事件处理器、内容 paint 和输入回调。回调内部请求关闭时先进入 Closing 并停止新工作，当前回调栈及 Canvas／frame 借用退出后才关闭 content；随后释放 renderer 和 lease。最外层 `SurfaceHost.use` 因而同时覆盖内容根、原生窗口关闭和异常退出。attach 尚未暴露给调用方的失败结果立即回滚，不等待另一个原生事件。
+
+公共 style 和滤镜没有独立时钟；参数动画复用 Surface Animatable，静态阴影／光晕／模糊不增加周期任务或帧需求。隐含的背景采样不属于普通内容滤镜；Backdrop blur 留待后续。
 
 每个 SurfaceWindow 合并重绘请求。只有 dirty 或活动动画需要新帧时才向平台请求帧机会；普通空闲保持 Wait。requestRedraw、WaitUntil 与 prePresentNotify 均不代表 vsync。
 

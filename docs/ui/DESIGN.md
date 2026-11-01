@@ -1,6 +1,6 @@
 # scoop.ui：自绘框架与独立控件库设计
 
-日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配已在 macOS aarch64 交付，`scoop.ui.component` 及组合验证继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
+日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配已在 macOS aarch64 交付，公共 `scoop.ui.style` 已加入本期设计，基础控件与组合验证继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
 
 ## 1. 分层目标
 
@@ -8,14 +8,15 @@ UI 框架提供构建完全自绘控件的能力，应用可以只使用框架�
 
 | 层 | 职责 |
 | --- | --- |
-| `scoop.graphics` | Canvas、Path、Image、几何与离屏绘图 |
+| `scoop.graphics` | Canvas、Path、Image、几何、离屏绘图、图像滤镜与图层合成 |
 | `scoop.graphics.text` | 字体、富文本描述、Paragraph／TextLayout、行内对象、文字绘制与查询 |
 | `scoop.window` | 原生窗口、事件循环、输入和 native lease |
 | `scoop.surface` | 窗口呈现、帧调度、统一动画时间轴、InputArea 和焦点 |
 | `scoop.ui` | Component／Element、状态、身份、挂载、测量／绘制接入、资源生命周期；text 子包提供公共段落适配 |
-| `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame 和基础样式 |
+| `scoop.ui.style` | 通用 Style、外框装饰、有序内容效果与公开自绘适配 |
+| `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame 及控件专用样式和交互外观 |
 
-主要依赖方向为 `scoop.ui.component → scoop.ui → scoop.surface → scoop.window + scoop.graphics`，文本支路为 `scoop.ui → scoop.graphics.text → scoop.graphics`。使用下层类型的 Cone 同时声明实际直接依赖。框架不依赖或转导出控件库，不根据 Label／Button 等具体类型做分派，不提供只有该库可以访问的控件入口。
+主要依赖方向为 `scoop.ui.component → scoop.ui.style → scoop.ui → scoop.surface → scoop.window + scoop.graphics`，文本支路为 `scoop.ui → scoop.graphics.text → scoop.graphics`。使用下层类型的 Cone 同时声明实际直接依赖。框架不依赖或转导出 style／控件库，不根据 Label／Button 等具体类型做分派，不提供只有该库可以访问的控件入口。
 
 这是目标分层；基础字体、布局、StyledText／SpanStyle 和行内对象已在 graphics.text 实现，UI 接入按实施批次继续推进。`scoop.ui.text` 是 UI Cone 中的公共适配包，不是额外的库或控件集合。它复用 graphics.text 的段落算法，连接子项测量与放置，第三方自绘元素可以直接使用。
 
@@ -205,7 +206,13 @@ scope.animation 将所属 SurfaceWindow.animations.value 创建的 Animatable �
 
 验证同时覆盖 render／update／measure／paint、原生帧唤醒、目标获取和 submit／present；仅跳过 Component.render 仍可能留下布局或 GPU 空转，仅跳过 GPU 提交也可能留下 CPU 周期唤醒。用真实后端观察收尾后的稳定区间，再触发一次变化并验证重新停帧。细节见[Surface 设计第 6.3 节](../surface/DESIGN.md#63-停帧机制与验证)。这些检查随首期批次交付，不推迟到移动端或局部重绘优化阶段。
 
-## 8. 控件库通过相同公开接口构建
+## 8. 公共样式与控件库通过相同公开接口构建
+
+公共外观独立为 `scoop.ui.style`，具体合同见[公共样式规范](../specs/SCOOP-UI-STYLE-SPEC.md)和[图像滤镜规范](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)。Style 是经 Props 更新的普通描述；styled 始终保留稳定包装和内容位置，空样式、添加或移除效果不会重建内容 State。StylePainter 是 Element 登记一次的可替换资源缓存，第三方自绘也可直接使用。UI 增加通用 PaintContext.withState 隔离嵌套绘制，子项绘制次数在同一元素的子作用域间共享；不增加专用效果节点。
+
+顺序为外框阴影、背景、经过有序效果的完整内容、边框。外框阴影使用圆角外框；内容阴影／glow 使用真实 alpha，文字无需转 Path。Glow 是零 offset 的着色 alpha 模糊与原内容 SrcOver 组合。内容效果数组区分先模糊再投影和投影后整体模糊；本节点装饰不进入其自身内容效果，嵌套装饰则属于子树内容。显式 clipContent 裁最终内容输出和子输入，不裁自己的外框阴影。
+
+样式原样传递约束、尺寸和基线，不产生点击区域或隐式 padding。图层不以布局框裁掉向外扩展像素；sigma／offset 使用局部逻辑单位，由根 DPI 变换一次。首批仅缓存当前滤镜与轮廓，不缓存子树像素；替换及时关闭旧资源，文字、图片和子动画持续使用当帧内容。参数动画由 Surface Animatable 采样，静态样式及缓存没有时钟、空投递或帧需求。Backdrop blur 采样背后内容，留为独立后续增强。
 
 `scoop.ui.component` 的公开 Label／Button／Checkbox 等是普通 Component class。便利函数 label／button／checkbox 等保存变化输入并延迟构造这些组件；对应 render 使用公开 Element 实现及子组件组合。
 
@@ -315,7 +322,10 @@ Context 传播 Store 引用，不改变线程和任务归属。只有 asyncio �
 | 0：命名整理，已完成 | scoop.surface 及公开类型／native 符号／调用方／文档直接改名 | 既有 Surface 验证见实施记录 |
 | 1：文本公共能力 | scoop.graphics.text、现有文本迁移、StyledText／SpanStyle、行内 metrics／结果及 Canvas 接入 | 只依赖 graphics.text／graphics 的真实图文排版；混排、基线、bidi、截断和位置语义 |
 | 2：独立自绘闭环 | scoop.ui、Component／Element／State／Props／Binding／View／ComponentScope、LayoutMetrics、UiHost 与 SurfaceContent | 自有与共享 State、Context 挂载时绑定；独立自绘、静止停帧／失效唤醒、Surface 动画、基线／可选放置、关闭与异常释放 |
-| 3：公共文本接入与基础控件 | scoop.ui.text 的 ParagraphHost／InlineView，以及独立控件库的 Label／Button／Checkbox | 自绘行内交互；Label 图文与 Button 混排；Counter、checked 与 enabled 联动、截断和焦点行为 |
+| 3a：公共文本接入，已完成 | scoop.ui.text 的 ParagraphHost／InlineView | 自绘行内交互、基线、截断、缓存与身份 |
+| 3b：graphics 基础效果 | ImageFilter、图层滤镜／混合与共用圆角 Path | 真实离屏／Metal 像素、alpha 阴影、顺序、外扩、clip、DPI、借用与资源 |
+| 3c：公共样式 | scoop.ui.style、Style／styled／StylePainter、通用 PaintContext.withState | 背景／边框／圆角、外框阴影、内容 drop shadow／glow／blur，身份、输入、资源与最终停帧 |
+| 3d：基础控件 | Label／Button／Checkbox，控件专用样式复用公共 style | 图文与 Button 混排；Counter、checked 与 enabled 联动、交互外观、截断和焦点 |
 | 4：布局与组合 | Row／Column／Stack／Frame、keyed 子项及资源组合 | 动态列表、基线透传、嵌套布局和动画重排 |
 | 5：宿主与生命周期组合 | 隐藏更新、现有 asyncio／HTTP 下载接入及多窗口 | 主线程进度、跨线程合并投递、任务取消／替换、Deferred 无空转、两种 run 的停帧／唤醒、清理失败及多根需求隔离 |
 
@@ -327,7 +337,7 @@ Context 传播 Store 引用，不改变线程和任务归属。只有 asyncio �
 
 图文绕排／分栏、离屏 UI、GPU 互操作、3D 与视频属于上述首期批次之后的增强方向，分别见[文本排版设计第 8 节](../graphics/text/DESIGN.md#8-后续增强图文绕排分栏与区域续排)和[本文第 13 节](#13-后续增强gpu-互操作3d-与视频)。这些调研结论不增加首期验收前置；相应阶段从实际场景出发补充规范、实现和验证。
 
-SkSL 填充、图像效果和组件动画也列为后续增强，见[第 14 节](#14-后续增强sksl-与组件效果)。graphics 的基础效果接入可以独立于外部 GPU 图像、3D 或媒体库推进，子树整体滤镜再增加所需图层能力。
+基础阴影、glow、内容 blur 及其动画组合已纳入本期 3b／3c；先补 graphics 再由 style 消费。SkSL 自定义填充／滤镜仍是[第 14 节](#14-后续增强sksl-与组件效果)的后续增强，复用已有图层合同，不阻塞基础效果，也不依赖 3D／媒体库。
 
 ## 12. 现有底层的命名迁移
 
@@ -424,4 +434,4 @@ SkSL 的职责、参数与资源模型、扫光示例及分批验证见 [graphic
 
 组件在挂载或加载时准备程序和绑定，使用 Props 传入业务参数，在实际帧读取 Surface Animatable 的采样值更新 uniform。程序复用，组件参数独立；自有资源由 ComponentScope 收尾，共享程序由长期所有者维护。有限动画完成后停帧，声明 time uniform 或持有 shader 不产生隐式时钟，遵守[第 7.1 节](#71-静止唤醒与能耗)。
 
-先支持形状填充和已有图像效果，再按具体场景扩展子树图层滤镜。背景 Paint 的 shader 不自动处理文字／子项；像素扭曲不自动改变布局、命中或 IME 几何，交互映射必须明确。验证包括多实例参数隔离、颜色／alpha／坐标、连续动画不重复编译、暂停／完成后停止提交以及卸载释放。
+本期先完成无须 SkSL 的 graphics 滤镜与公共 style；后续 SkSL 先支持形状填充和已有图像，再扩展自定义子树滤镜并复用图层接入。背景 Paint 的 shader 不自动处理文字／子项；像素扭曲不自动改变布局、命中或 IME 几何，交互映射必须明确。验证包括多实例参数隔离、颜色／alpha／坐标、连续动画不重复编译、暂停／完成后停止提交以及卸载释放。

@@ -1,12 +1,14 @@
 # Surface 基础架构与平台实现设计
 
-日期：2026-10-31。状态：第一期共享架构与 macOS 后端已实现。公共合同见 [Surface 基础库规范](../specs/SCOOP-SURFACE-SPEC.md)；window 的输入与生命周期合同见 [窗口库规范](../specs/SCOOP-WINDOW-SPEC.md)。实际交付、验证环境和未测边界见 [实施记录](PROGRESS.md)。
+日期：2026-11-02。状态：第一期共享架构与 macOS 后端已实现。公共合同见 [Surface 基础库规范](../specs/SCOOP-SURFACE-SPEC.md)；window 的输入与生命周期合同见 [窗口库规范](../specs/SCOOP-WINDOW-SPEC.md)。实际交付、验证环境和未测边界见 [实施记录](PROGRESS.md)。
 
 当前进入 Windows 阶段，方案与验收见第 13 节；第 1～12 节的“本期／第一期”保留为已交付的共享架构与 macOS 范围。Linux 留待后续。
 
-2026-11-01 按[文本排版设计](../graphics/text/DESIGN.md)将字体、Paragraph／TextLayout 迁入独立 `scoop.graphics.text`，通过公开画布借用绘制，保留独立资源所有权，并实现 StyledText／SpanStyle 与行内对象。本文下述 graphics 文本层现归该 Cone。[UI](../ui/DESIGN.md) 的基线、可选子项放置和公共段落宿主继续分批实施，结果见 [UI 实施记录](../ui/PROGRESS.md)。
+2026-11-01 按[文本排版设计](../graphics/text/DESIGN.md)将字体、Paragraph／TextLayout 迁入独立 `scoop.graphics.text`，通过公开画布借用绘制，保留独立资源所有权，并实现 StyledText／SpanStyle 与行内对象。本文下述 graphics 文本层现归该 Cone。[UI](../ui/DESIGN.md) 的自绘框架、基线、可选子项放置和公共段落宿主已在 macOS aarch64 交付，结果见 [UI 实施记录](../ui/PROGRESS.md)。
 
 同日补充的 [GPU／3D／视频调研](../ui/DESIGN.md#13-后续增强gpu-互操作3d-与视频)列为更后续的增强：graphics 接入外部目标与图像，surface 衔接离屏宿主、帧和输入，3D／媒体逻辑由独立库或应用承担。当前 Metal／D3D12 目标包装已有基础，但外部 GPU 图像导入、离屏 UI 根及视频选帧与播放时钟接入尚未实现，不改变本文已交付的窗口呈现合同。
+
+2026-11-02 的 UI 扩展先补 [graphics 图像滤镜／图层](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)，再实施独立 [scoop.ui.style](../specs/SCOOP-UI-STYLE-SPEC.md)，控件复用公共装饰和内容效果。它们使用既有 Canvas 借用、DPI、Surface 动画与停帧规则，不以 SkSL 为前置，不改变 Surface 的职责。此 UI 任务先完成 aarch64，最后补验 x86_64；Windows 的历史实施记录不等于本批效果已验证。
 
 ## 1. 本期决定
 
@@ -66,9 +68,12 @@ native frame source、Skia context、dirty 管理、Area 命中、逻辑 focus�
 
 ```mermaid
 flowchart TD
-    Controls[scoop.ui.component 基础控件] --> UI[scoop.ui 自绘框架]
+    Controls[scoop.ui.component 基础控件] --> Style[scoop.ui.style 公共样式]
+    Controls --> UI[scoop.ui 自绘框架]
+    Style --> UI
+    Style --> Graphics
     UI --> Surface[scoop.surface 共享逻辑]
-    Surface --> Graphics[scoop.graphics 公共绘图与文本]
+    Surface --> Graphics[scoop.graphics 绘图与滤镜]
     Surface --> Window[scoop.window]
     Surface --> Backend[scoop.surface 平台 renderer]
     Backend --> Native[scoop.graphics.native]
@@ -77,7 +82,7 @@ flowchart TD
     Native --> Skia
 ```
 
-graphics 与 Surface 都显式声明自己实际使用的 core／std／math／platform 依赖；几何变换、easing 和 spring 所需的三角、平方根及指数函数复用 scoop.math。graphics 不反向依赖 Surface 或 window；离屏绘图和文本测量不要求 Application 已运行。图中的两个 UI 层仍是待实施设计：框架提供公开自绘能力，Label／Button 等由独立控件库实现，详见 [UI 设计](../ui/DESIGN.md)。
+graphics 与 Surface 都显式声明自己实际使用的 core／std／math／platform 依赖；几何变换、easing 和 spring 所需的三角、平方根及指数函数复用 scoop.math。graphics 不反向依赖 Surface 或 window；离屏绘图和文本测量不要求 Application 已运行。UI 自绘框架和独立 graphics.text 的公共适配已交付；style／控件库继续分批实施，Label／Button 等由独立控件库实现，详见 [UI 设计](../ui/DESIGN.md)。
 
 | 内容 | 共享实现 | 平台独立实现 |
 | --- | --- | --- |

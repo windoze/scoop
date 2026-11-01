@@ -1,6 +1,6 @@
 # UI 实施记录
 
-日期：2026-11-02。实施依据为 [UI 设计](DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)、[文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)及[基础控件规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。本期先在 macOS aarch64 完成全部实施批次，再统一补验 x86_64，Windows 后续接入；图文绕排、GPU／3D／媒体互操作和 SkSL 仍属于设计中列出的后续增强。
+日期：2026-11-02。实施依据为 [UI 设计](DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)、[文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)、[图像滤镜规范](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)、[公共样式规范](../specs/SCOOP-UI-STYLE-SPEC.md)及[基础控件规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。本期先在 macOS aarch64 完成全部实施批次，再统一补验 x86_64，Windows 后续接入；图文绕排、GPU／3D／媒体互操作和 SkSL 仍属于设计中列出的后续增强。
 
 ## 1. 批次状态
 
@@ -9,11 +9,14 @@
 | 0. 已确认设计与平台范围 | 已记录 | 自绘分层、State／Context／Binding、资源所有权、静止停帧、macOS 首期与后续增强 |
 | 1. 文本公共能力 | aarch64 已完成 | 独立 graphics.text、Canvas 借用、StyledText／SpanStyle、行内 metrics／placement、位置与替代文字 |
 | 2. 独立自绘闭环 | aarch64 已完成 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入、UiHost 与独立自绘示例 |
-| 3. 公共文本适配与简单控件 | aarch64 接入中 | ParagraphHost／InlineView 已完成；Label／Button／Checkbox 待实施 |
+| 3a. 公共文本适配 | aarch64 已完成 | ParagraphHost／InlineView、固定字体共享测试数据与独立自绘组合 |
+| 3b. graphics 基础效果 | 设计已更新，待实施 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
+| 3c. 公共样式 | 设计已更新，待实施 | scoop.ui.style、稳定 styled、StylePainter、装饰／有序内容效果及动画／停帧 |
+| 3d. 简单控件 | aarch64 接入中 | Label／Button／Checkbox 初步代码已通过生产类型检查；待公共 style 接入后运行验收 |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
 | 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
 
-已有 scoop.surface 的窗口、动画和 InputArea 实现作为基础，独立 UI 框架已交付；公共文本适配、控件库和后续组合验证继续按批次推进。下文保存实际验证范围，不把设计示例和文档检查当成已交付功能。
+已有 scoop.surface 的窗口、动画和 InputArea 实现作为基础，独立 UI 框架和公共文本适配已交付；graphics 效果、公共样式、控件库和后续组合验证继续按批次推进。下文保存实际验证范围，不把设计示例和文档检查当成已交付功能。
 
 ## 2. 验证与提交方式
 
@@ -22,6 +25,8 @@
 每批先完成 aarch64 验证并提交，不把 x86_64 补验作为继续实现下一批的前置。已提前准备的部分 x86_64 资源和缓存保留，尚未进行本轮运行验收；本期 aarch64 功能完成后再更新资源并统一补验。
 
 每项完整变更通过格式化、检查和定向测试后提交并推送，再 fetch／merge origin/main；合并改变相关代码时补充必要验证后继续。每轮清理不再使用的临时日志、探测文件和构建输出，仍需复用的正常构建缓存及本期目标资源继续保留。记录只保存验证范围、结果和实际限制。
+
+2026-11-02 已同步 UI、控件、graphics／Surface、SkSL 的分层、顺序和当前状态：基础效果进入本期，SkSL／Backdrop blur 仍属后续。先补下层滤镜与通用绘制作用域，再交付公共样式及控件消费。此项仅为设计完成，不代表新增效果已通过运行验证。
 
 ## 3. 已完成变更
 

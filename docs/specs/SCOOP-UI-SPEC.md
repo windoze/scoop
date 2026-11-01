@@ -6,7 +6,7 @@
 
 `scoop.ui` 是普通 Scoop Cone，提供声明式组合、可观察状态、组件身份、自绘元素协议、测量／布局接入以及资源生命周期。它依赖实际使用的 core／std／platform、`scoop.graphics`、`scoop.graphics.text`、`scoop.surface` 和 `scoop.window`。窗口事件循环、呈现后端、动画求值、文本 shaping 和 GC 仍由对应下层负责。
 
-框架不提供 Label、Button、文本样式、点击判定或 Row／Column／Stack 等现成控件和布局策略。它提供实现这些控件所需的公开能力。`scoop.ui.component` 是独立的普通 Cone，使用与第三方控件相同的公开接口构建基础控件；`scoop.ui` 不依赖、转导出或识别该控件库中的类型。只依赖框架的应用可以完成自绘、输入和动画。
+框架不提供 Label、Button、文本样式、点击判定或 Row／Column／Stack 等现成控件和布局策略。它提供实现这些控件所需的公开能力。`scoop.ui.component` 是独立的普通 Cone，使用与第三方控件相同的公开接口构建基础控件；`scoop.ui` 不依赖、转导出或识别该控件库及独立 `scoop.ui.style` 中的类型。公共装饰／效果由[样式库](SCOOP-UI-STYLE-SPEC.md)通过相同公开协议实现，实际滤镜与图层由 [graphics](SCOOP-GRAPHICS-EFFECTS-SPEC.md)负责。只依赖框架的应用可以完成自绘、输入和动画。
 
 首期只实现和验证 macOS：先完成 aarch64 的各批功能，最后统一补验 x86_64；Windows 接入与验收留待后续，不因底层已有 Windows renderer 就声明 UI 已支持该平台。不发布空 renderer。实施批次及定向验证见 [UI 实施记录](../ui/PROGRESS.md)。
 
@@ -19,11 +19,12 @@ SkSL runtime effect 同样列为后续 graphics 增强，见[接入设计](../gr
 | Cone | 职责 |
 | --- | --- |
 | `scoop.window` | 原生窗口、事件循环、输入归一、IME 和 native lease |
-| `scoop.graphics` | 几何、Canvas、Path、Image 和绘图目标 |
+| `scoop.graphics` | 几何、Canvas、Path、Image、绘图目标、图像滤镜与图层合成 |
 | `scoop.graphics.text` | 字体、富文本内容与样式、Paragraph／TextLayout、行内对象排版、文字绘制与查询 |
 | `scoop.surface` | SurfaceHost／SurfaceWindow、窗口呈现、帧机会、动画、InputArea 和区域焦点 |
 | `scoop.ui` | Component／Element、State／Props／Binding、挂载树、测量与绘制接入、输入／动画的挂载归属；text 子包提供公共段落适配 |
-| `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame、基础样式与对应组合函数 |
+| `scoop.ui.style` | 通用 Style、外框装饰、有序内容效果与普通自绘适配 |
+| `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame、控件专用样式及交互外观 |
 
 表中是目标分层；字体与 Paragraph／TextLayout 已迁入 graphics.text，富文本／行内对象、独立自绘框架及公共适配 `scoop.ui.text` 已完成。适配直接依赖 graphics.text，只连接文本排版与正常子项，不提供 Label 或默认样式，也不改变 View 的基础形状。
 
@@ -327,6 +328,8 @@ PaintContext 提供本帧 time、元素最终 size 和借用的 `scoop.graphics.
 `paintChildren()` 按描述顺序绘制本次已测量、放置的直接子项，跳过未放置子树。有已放置子项时必须调用一次；没有已放置子项时可不调用或调用一次，均不产生子项绘制。重复调用报告状态错误。元素可以在此调用前后绘制背景和前景，并通过 Canvas 的 transform／clip／组透明度包裹子项。子项获得独立的绘制状态作用域；子项的变换不会污染后续兄弟。
 
 父子关系不隐式裁剪。边界裁剪或 Path 裁剪由 Element 显式使用 Canvas 设置，绘制与输入使用同一份几何状态。框架不附加默认背景、边框、字体、尺寸、颜色、点击行为或主题。
+
+`PaintContext.withState<T>(block: (PaintContext) -> T): T` 提供通用嵌套绘制作用域，继承 size、time、输入父区域与子项放置。它复用 FrameContext.withState，子作用域期间拒绝父上下文绘制／放置操作，退出后子 context 失效并恢复 Canvas。子项是否已经绘制在同一元素的全部作用域间共享：可以在子作用域 paintChildren，但不能在父／兄弟作用域再次绘制。正常与异常退出都结束借用，不新增挂载节点或样式专用分支。
 
 Canvas、MeasureContext 与 PaintContext 只在对应同步回调中有效，不能保存到下一帧、跨线程使用或跨挂起借用。用户绘制抛错时仍恢复当前绘制作用域，帧中止且不发布区域几何，随后按第 9 节关闭。
 
