@@ -1,6 +1,6 @@
 # Scoop 自绘 UI 框架规范
 
-日期：2026-11-02。状态：自绘框架、公共文本适配、独立基础控件／容器及主题展示已在 macOS aarch64 实现；宿主与异步进度组合继续分批验证。本文件规定框架公开合同；公共文本能力另见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，基础控件另见 [控件库规范](SCOOP-UI-COMPONENT-SPEC.md)，取舍、内部组织及实施顺序见 [UI 设计](../ui/DESIGN.md)。现有底层库以 `scoop.surface` 命名，已实现的绘图、窗口呈现及输入合同见 [Surface 规范](SCOOP-SURFACE-SPEC.md)。
+日期：2026-11-02。状态：自绘框架、公共文本适配、独立基础控件／容器、主题展示及宿主／后台下载组合已在 macOS aarch64 实现并完成 x86_64 补验；x86_64 运行环境为 Apple Silicon 上的 Rosetta，详见 [UI 实施记录](../ui/PROGRESS.md)。本文件规定框架公开合同；公共文本能力另见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，基础控件另见 [控件库规范](SCOOP-UI-COMPONENT-SPEC.md)，取舍、内部组织及实施顺序见 [UI 设计](../ui/DESIGN.md)。现有底层库以 `scoop.surface` 命名，已实现的绘图、窗口呈现及输入合同见 [Surface 规范](SCOOP-SURFACE-SPEC.md)。
 
 ## 1. 定位与依赖
 

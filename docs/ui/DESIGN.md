@@ -1,6 +1,6 @@
 # scoop.ui：自绘框架与独立控件库设计
 
-日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配、公共 `scoop.ui.style`、主题绘图／几何和三套风格、基础控件／容器及主题展示已在 macOS aarch64 交付，宿主和异步进度组合继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
+日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配、公共 `scoop.ui.style`、主题绘图／几何和三套风格、基础控件／容器、主题展示及后台下载组合已完成 macOS aarch64 实施与 x86_64 统一补验，范围见 [UI 实施记录](PROGRESS.md)。x86_64 使用 Apple Silicon 上的 Rosetta，Windows 后续接入。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
 
 ## 1. 分层目标
 
@@ -19,7 +19,7 @@ UI 框架提供构建完全自绘控件的能力，应用可以只使用框架�
 
 主要依赖方向为 `scoop.ui.component → scoop.ui.style → scoop.ui → scoop.surface → scoop.window + scoop.graphics`；三套主题实现分别依赖 style，component 不依赖具体主题，文本支路为 `scoop.ui → scoop.graphics.text → scoop.graphics`。使用下层类型的 Cone 同时声明实际直接依赖。框架不依赖或转导出 style／控件库，不根据 Label／Button 等具体类型做分派，不提供只有该库可以访问的控件入口。
 
-这是目标分层；基础字体、布局、StyledText／SpanStyle 和行内对象已在 graphics.text 实现，UI 接入按实施批次继续推进。`scoop.ui.text` 是 UI Cone 中的公共适配包，不是额外的库或控件集合。它复用 graphics.text 的段落算法，连接子项测量与放置，第三方自绘元素可以直接使用。
+这是当前分层；基础字体、布局、StyledText／SpanStyle 和行内对象已在 graphics.text 实现，UI 接入及控件组合已按实施批次完成。`scoop.ui.text` 是 UI Cone 中的公共适配包，不是额外的库或控件集合。它复用 graphics.text 的段落算法，连接子项测量与放置，第三方自绘元素可以直接使用。
 
 Row／Column／Stack 的布局策略也放在控件库。框架提供约束、基线、子项测量和放置协议；文字换行由 graphics.text 处理，点击语义、默认字体、背景、边框和主题不进入框架。`empty` 只表示结构上的空内容。
 
@@ -244,7 +244,7 @@ Component 与 Element 共用 ComponentScope 的资源登记方式：resource、o
 
 通过 owner 线程检查后，attach 接收新 content 的所有权；此后的配置失败也负责关闭 content 并回滚 renderer／lease。错误线程调用在转移前拒绝。UiWindow.close 先停止新工作并请求 Surface 安全关闭，不在活跃回调中提前释放子树资源。
 
-SurfaceContent 已在 aarch64 验证正常、原生和异常关闭，并接入现有 Surface 组合示例；合同见 Surface 规范第 4／7 节。UI 挂载树及其子节点清理继续按下述批次实施。
+SurfaceContent 已在 macOS 两架构验证正常、原生和异常关闭，并接入现有 Surface 组合示例；合同见 Surface 规范第 4／7 节。UI 挂载树及其子节点清理已按下述批次完成。
 
 异步继续复用 runWithAsyncio、CoroutineScope 和 Job。随组件结束的任务在 onDispose 发出取消；应用／文档拥有的下载可以跨页面继续，观察组件卸载只解除订阅。同步卸载不阻塞等待自己的回调或任意异步 finally，宿主继续驱动实际收尾。后台任务不跨挂起借用 Canvas 或组件资源，迟到结果在 owner 上检查挂载或当前业务任务身份；不另建 UI 调度器。
 

@@ -1,6 +1,6 @@
 # scoop.graphics.text：富文本排版与行内对象设计
 
-日期：2026-11-02。状态：独立字体和段落、StyledText／TextSpan／SpanStyle、行内对象及公共 UI 适配已在 macOS aarch64 实现；基础控件组合继续实施，x86_64 最后补验，进展见 [UI 实施记录](../../ui/PROGRESS.md)。目标合同见 [文本排版规范](../../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)，UI 对接见 [UI 规范第 7.5 节](../../specs/SCOOP-UI-SPEC.md#75-公共文本接入)，整体分层见 [UI 设计](../../ui/DESIGN.md)。
+日期：2026-11-02。状态：独立字体和段落、StyledText／TextSpan／SpanStyle、行内对象、公共 UI 适配及基础控件组合已完成 macOS aarch64 实施与 x86_64 补验，范围见 [UI 实施记录](../../ui/PROGRESS.md)；x86_64 使用 Apple Silicon 上的 Rosetta。目标合同见 [文本排版规范](../../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)，UI 对接见 [UI 规范第 7.5 节](../../specs/SCOOP-UI-SPEC.md#75-公共文本接入)，整体分层见 [UI 设计](../../ui/DESIGN.md)。
 
 ## 1. 从现有能力演进
 
@@ -23,7 +23,7 @@
 | Apple TextKit attachment | attributed string 含附件，view provider 处理 view 接入 | 文本描述和 UI 实例分工；这不是 SwiftUI.Text 可以任意嵌入 View 的承诺 |
 | WPF InlineUIContainer | Run／Span 之间可以包含 Button 等 UIElement | 样式范围与原子行内对象采用不同布局语义 |
 
-Skia 固定版本 `f326a1e25fc736704063922b9ce76b527b1c5efe` 提供 addPlaceholder、PlaceholderStyle 及 getRectsForPlaceholders。接入按可见文本范围匹配逻辑对象，保留截断项和零尺寸项，已有 bidi、截断及图片的运行回归。实现时发现并通过[底层补丁](../../../sysroot/vendor/skia/patches/text-baselines.patch)统一实际绘制基线和对象共同的 ideographic 参照；补丁及目标资源见 [vendor 说明](../../../sysroot/vendor/skia/README.md)。实际 UI 控件组合仍按后续批次验收。
+Skia 固定版本 `f326a1e25fc736704063922b9ce76b527b1c5efe` 提供 addPlaceholder、PlaceholderStyle 及 getRectsForPlaceholders。接入按可见文本范围匹配逻辑对象，保留截断项和零尺寸项，已有 bidi、截断及图片的运行回归。实现时发现并通过[底层补丁](../../../sysroot/vendor/skia/patches/text-baselines.patch)统一实际绘制基线和对象共同的 ideographic 参照；补丁及目标资源见 [vendor 说明](../../../sysroot/vendor/skia/README.md)。实际 UI 控件组合已在后续批次完成 macOS 两架构验收。
 
 ## 3. 描述与排版结果
 

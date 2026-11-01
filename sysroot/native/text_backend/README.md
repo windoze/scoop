@@ -6,6 +6,11 @@
 维护者通过 `scripts/build_text_backends.py` 准备同目标资源。固定依赖及其源码、许可见
 `sysroot/vendor/text_backend`；头文件为 `include/scoop_text_backend.h`。
 
+目标包装使用 `no_std + alloc`；固定的 encoding_rs、idna、ICU4X 和 unicode-width 均支持这条路径，
+idna 关闭默认 std feature，保留 alloc／compiled_data。系统分配器薄适配提供堆内存，panic handler 直接 abort。
+这移除了完整 UI／HTTP 消费者实际使用的 Rust unwind personality，不影响 Scoop、C++ 或 Objective-C 的异常机制。
+macOS 两架构的运行及最终链接验证见 [UI 实施记录](../../../docs/ui/PROGRESS.md)；x86_64 使用 Rosetta，Windows 新资源后续验收。
+
 独立维护检查（将工作目录设在仓库外）：
 
 ```sh

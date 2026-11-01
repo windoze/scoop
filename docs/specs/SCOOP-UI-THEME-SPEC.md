@@ -1,6 +1,6 @@
 # Scoop 公共主题绘图与几何规范
 
-日期：2026-11-02。状态：公共主题协议、四类部件几何／绘图、三套风格及 Light／Dark、基础控件消费和完整展示已在 macOS aarch64 交付，验证范围见 [UI 实施记录](../ui/PROGRESS.md)。最后统一补验 x86_64，Windows 后续。本文扩展 [公共样式规范](SCOOP-UI-STYLE-SPEC.md)，保留其内容效果、资源、稳定身份与停帧合同。
+日期：2026-11-02。状态：公共主题协议、四类部件几何／绘图、三套风格及 Light／Dark、基础控件消费和完整展示已在 macOS aarch64 交付并完成 x86_64 补验，验证范围见 [UI 实施记录](../ui/PROGRESS.md)。x86_64 使用 Apple Silicon 上的 Rosetta，Windows 后续。本文扩展 [公共样式规范](SCOOP-UI-STYLE-SPEC.md)，保留其内容效果、资源、稳定身份与停帧合同。
 
 ## 1. 本轮调整与分层
 
@@ -114,7 +114,7 @@ ThemePainter 缓存考虑本轮主题参数、几何、效果和本帧采样值�
 
 ## 8. 实施与验收
 
-顺序为：已完成 graphics 基础滤镜及通用嵌套 PaintContext → 公共 Style／装饰 → 主题协议与几何／绘图基础 → 三套主题及离屏展示 → 基础控件消费主题 → 完整展示示例和真实 UI 组合。原有布局、生命周期、异步进度目标继续推进。每批格式、检查与定向测试通过后提交、推送、merge origin/main，正常缓存保留。
+实施顺序为 graphics 基础滤镜及通用嵌套 PaintContext → 公共 Style／装饰 → 主题协议与几何／绘图基础 → 三套主题及离屏展示 → 基础控件消费主题 → 完整展示示例和真实 UI 组合。上述批次及原有布局、生命周期、异步进度目标均已完成本期 macOS 验收。每批格式、检查与定向测试通过后提交、推送、merge origin/main，正常缓存保留。
 
 主题展示示例并列显示四类公共部件和已实现控件的普通、hovered、pressed、disabled、selected／mixed 和 focused 状态；支持三风格、Light／Dark 和系统跟随。公共部件区域直接调用 Canvas 绘图，真实控件区域同时验证交互和主题切换。
 

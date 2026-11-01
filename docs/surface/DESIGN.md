@@ -8,7 +8,7 @@
 
 同日补充的 [GPU／3D／视频调研](../ui/DESIGN.md#13-后续增强gpu-互操作3d-与视频)列为更后续的增强：graphics 接入外部目标与图像，surface 衔接离屏宿主、帧和输入，3D／媒体逻辑由独立库或应用承担。当前 Metal／D3D12 目标包装已有基础，但外部 GPU 图像导入、离屏 UI 根及视频选帧与播放时钟接入尚未实现，不改变本文已交付的窗口呈现合同。
 
-2026-11-02 的 UI 扩展先补 [graphics 图像滤镜／图层](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)，再实施独立 [scoop.ui.style](../specs/SCOOP-UI-STYLE-SPEC.md)，控件复用公共装饰和内容效果，并消费 [Theme／ThemePainter](../specs/SCOOP-UI-THEME-SPEC.md) 的部件几何与绘图；macOS／Material／Fluent 三套主题分别提供明暗模式。它们使用既有 Canvas 借用、DPI、Surface 动画与停帧规则，不以 SkSL 为前置，不改变 Surface 的职责。此 UI 任务先完成 aarch64，最后补验 x86_64；Windows 的历史实施记录不等于本批效果已验证。
+2026-11-02 的 UI 扩展先补 [graphics 图像滤镜／图层](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)，再实施独立 [scoop.ui.style](../specs/SCOOP-UI-STYLE-SPEC.md)，控件复用公共装饰和内容效果，并消费 [Theme／ThemePainter](../specs/SCOOP-UI-THEME-SPEC.md) 的部件几何与绘图；macOS／Material／Fluent 三套主题分别提供明暗模式。它们使用既有 Canvas 借用、DPI、Surface 动画与停帧规则，不以 SkSL 为前置，不改变 Surface 的职责。此 UI 任务已完成 aarch64 实施及最后的 x86_64 Rosetta 补验；Windows 的历史实施记录不等于本批效果已验证。
 
 ## 1. 本期决定
 
@@ -83,7 +83,7 @@ flowchart TD
     Native --> Skia
 ```
 
-graphics 与 Surface 都显式声明自己实际使用的 core／std／math／platform 依赖；几何变换、easing 和 spring 所需的三角、平方根及指数函数复用 scoop.math。graphics 不反向依赖 Surface 或 window；离屏绘图和文本测量不要求 Application 已运行。UI 自绘框架和独立 graphics.text 的公共适配已交付；style／控件库继续分批实施，Label／Button 等由独立控件库实现，详见 [UI 设计](../ui/DESIGN.md)。
+graphics 与 Surface 都显式声明自己实际使用的 core／std／math／platform 依赖；几何变换、easing 和 spring 所需的三角、平方根及指数函数复用 scoop.math。graphics 不反向依赖 Surface 或 window；离屏绘图和文本测量不要求 Application 已运行。UI 自绘框架、独立 graphics.text 的公共适配、style 和控件库已交付；Label／Button 等由独立控件库实现，详见 [UI 设计](../ui/DESIGN.md)。
 
 | 内容 | 共享实现 | 平台独立实现 |
 | --- | --- | --- |
@@ -216,7 +216,7 @@ FrameClock 使用现有 MonotonicTimeSource，在 owner 开始本帧时采样一
 
 现有源码已有按需基础：[SurfaceWindow.refresh](../../sysroot/src/scoop.surface/src/shared/host/window.scoop)结合 dirty、AnimationTimeline.hasWork、尺寸与可见性设置需求；[macOS 适配](../../sysroot/src/scoop.surface/native/darwin/renderer.m)在需求撤销时暂停 CAMetalDisplayLink，[Windows 适配](../../sysroot/src/scoop.surface/native/windows/notifications.cpp)解除 frame-latency 等待并退休排队通知。[动画时间轴](../../sysroot/src/scoop.surface/src/shared/animation/timeline.scoop)区分持有的动画与活动集合，[Animatable](../../sysroot/src/scoop.surface/src/shared/animation/animatable.scoop)在完成、暂停和取消时退出活动集合。UI 接入必须保留这些行为，并使自己的逻辑队列同样按需运行。
 
-现有 [SurfaceHost 测试](../../sysroot/src/scoop.surface/tests/host.scoop)在一次性 WaitUntil 的静止区间检查 painter 计数不增加，也检查隐藏和最小化停帧。这是现有的绘制次数覆盖；完整 UI 静止及原生唤醒／GPU 提交的联合验收仍随 UI 实施补齐，不把已通过的 Surface 测试扩大解释为全部能耗指标已经测量。
+现有 [SurfaceHost 测试](../../sysroot/src/scoop.surface/tests/host.scoop)在一次性 WaitUntil 的静止区间检查 painter 计数不增加，也检查隐藏和最小化停帧。完整 UI 验收已补充逻辑／绘制入口、底层帧需求、display link 回调及提交计数的联合断言，见 [UI 实施记录](../ui/PROGRESS.md)；这些结果不代表已测量设备整体能耗或系统合成器活动。
 
 验收采用真实平台后端，至少检查以下组合：
 

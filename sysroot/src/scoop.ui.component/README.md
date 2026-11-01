@@ -41,4 +41,6 @@ Row／Column 按主轴排列，spacing 与交叉轴 AxisAlignment 通过 Props �
 
 [主题展示示例](examples/themes/README.md)并列展示公共绘图部件，提供三风格、明暗、系统跟随和真实控件／效果切换。
 
+[下载与后台校验示例](examples/download/README.md)展示 UI owner 的异步 HTTP 与真实后台 Thread 如何协作，通过 ApplicationProxy 合并发布进度；覆盖共享业务 State、组件自有状态、取消／替换以及应用退出后的线程回收。
+
 规范见 [基础控件规范](../../../docs/specs/SCOOP-UI-COMPONENT-SPEC.md)和[主题绘图规范](../../../docs/specs/SCOOP-UI-THEME-SPEC.md)。普通覆盖／来源／布局测试在本 Cone，真实 Metal／输入／主题切换组合位于 `tests-cones/interaction`，容器与富文本组合位于 `tests-cones/layout`；实施范围与运行结果记录在 [UI 实施记录](../../../docs/ui/PROGRESS.md)。

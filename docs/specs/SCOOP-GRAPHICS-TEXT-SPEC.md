@@ -1,6 +1,6 @@
 # Scoop 文本排版库规范
 
-日期：2026-11-01。状态：独立文本能力已在 macOS aarch64 实现，包括字体、StyledText／TextSpan／SpanStyle、Paragraph／TextLayout、行内对象及文字绘制查询。x86_64 在本期 aarch64 功能完成后统一补验，UI 接入继续实施，见 [UI 实施记录](../ui/PROGRESS.md)。取舍、迁移和调研依据见 [文本排版设计](../graphics/text/DESIGN.md)。UI 接入见 [UI 规范第 7.5 节](SCOOP-UI-SPEC.md#75-公共文本接入)。
+日期：2026-11-02。状态：独立文本能力及 UI 接入已完成 macOS aarch64 实施和 x86_64 补验，包括字体、StyledText／TextSpan／SpanStyle、Paragraph／TextLayout、行内对象及文字绘制查询。x86_64 使用 Apple Silicon 上的 Rosetta，范围见 [UI 实施记录](../ui/PROGRESS.md)。取舍、迁移和调研依据见 [文本排版设计](../graphics/text/DESIGN.md)。UI 接入见 [UI 规范第 7.5 节](SCOOP-UI-SPEC.md#75-公共文本接入)。
 
 ## 1. 定位与依赖
 

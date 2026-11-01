@@ -1,6 +1,6 @@
 # scoop.ui.style
 
-普通 Scoop 库，提供公共主题绘图协议、几何、语义参数，以及可复用的装饰与内容效果。`scoop.ui` 不依赖本库，基础控件和第三方自绘使用同一套公开接入。公共 Style、主题绘图及三套风格已在 macOS aarch64 验证，控件消费和完整展示按[实施记录](../../../docs/ui/PROGRESS.md)继续接入；x86_64 最后补验，Windows 后续。
+普通 Scoop 库，提供公共主题绘图协议、几何、语义参数，以及可复用的装饰与内容效果。`scoop.ui` 不依赖本库，基础控件和第三方自绘使用同一套公开接入。公共 Style、主题绘图、三套风格、控件消费和完整展示已完成 macOS aarch64 实施与 x86_64 补验，范围见[实施记录](../../../docs/ui/PROGRESS.md)；x86_64 使用 Apple Silicon 上的 Rosetta，Windows 后续。
 
 ```toml
 [dependencies]

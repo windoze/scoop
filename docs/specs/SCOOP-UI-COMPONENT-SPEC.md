@@ -1,6 +1,6 @@
 # Scoop 基础控件库规范
 
-日期：2026-11-02。状态：Label／Button／Checkbox、Row／Column／Stack／Frame 及完整主题展示已在 macOS aarch64 交付；异步进度与宿主组合继续实施。框架合同见 [UI 规范](SCOOP-UI-SPEC.md)，公共文本合同见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，主题绘图／几何见[主题规范](SCOOP-UI-THEME-SPEC.md)，分层与实施顺序见 [UI 设计](../ui/DESIGN.md)。
+日期：2026-11-02。状态：Label／Button／Checkbox、Row／Column／Stack／Frame、完整主题展示及后台下载／宿主组合已在 macOS aarch64 交付并完成 x86_64 补验；后者使用 Apple Silicon 上的 Rosetta，实际范围见 [UI 实施记录](../ui/PROGRESS.md)。框架合同见 [UI 规范](SCOOP-UI-SPEC.md)，公共文本合同见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，主题绘图／几何见[主题规范](SCOOP-UI-THEME-SPEC.md)，分层与实施顺序见 [UI 设计](../ui/DESIGN.md)。
 
 ## 1. 定位与依赖
 

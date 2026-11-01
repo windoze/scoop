@@ -1,6 +1,6 @@
 # Scoop 图像滤镜与图层规范
 
-日期：2026-11-02。状态：macOS aarch64 已实现并通过真实 Raster／Metal 定向验证，见 [UI 实施记录](../ui/PROGRESS.md)。完成本期功能后统一补验 x86_64。本文扩展 [Surface 规范第 2 节](SCOOP-SURFACE-SPEC.md#2-几何与绘制)的 graphics 合同；UI 应用方式见 [公共样式规范](SCOOP-UI-STYLE-SPEC.md)。Windows 留待后续验证。
+日期：2026-11-02。状态：macOS aarch64 已实现并通过真实 Raster／Metal 定向验证，x86_64 补验也已通过，见 [UI 实施记录](../ui/PROGRESS.md)；x86_64 使用 Apple Silicon 上的 Rosetta。本文扩展 [Surface 规范第 2 节](SCOOP-SURFACE-SPEC.md#2-几何与绘制)的 graphics 合同；UI 应用方式见 [公共样式规范](SCOOP-UI-STYLE-SPEC.md)。Windows 留待后续验证。
 
 ## 1. 职责与公开对象
 

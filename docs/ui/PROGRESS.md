@@ -1,29 +1,29 @@
 # UI 实施记录
 
-日期：2026-11-02。实施依据为 [UI 设计](DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)、[文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)、[图像滤镜规范](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)、[公共样式规范](../specs/SCOOP-UI-STYLE-SPEC.md)、[主题绘图规范](../specs/SCOOP-UI-THEME-SPEC.md)及[基础控件规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。本期先在 macOS aarch64 完成全部实施批次，再统一补验 x86_64，Windows 后续接入；图文绕排、GPU／3D／媒体互操作和 SkSL 仍属于设计中列出的后续增强。
+日期：2026-11-02。实施依据为 [UI 设计](DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)、[文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)、[图像滤镜规范](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)、[公共样式规范](../specs/SCOOP-UI-STYLE-SPEC.md)、[主题绘图规范](../specs/SCOOP-UI-THEME-SPEC.md)及[基础控件规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。本期已先在 macOS aarch64 完成全部实施批次，再完成 x86_64 的统一补验；x86_64 运行使用 Apple Silicon 上的 Rosetta，未在 Intel 实机验证。Windows 后续接入；图文绕排、GPU／3D／媒体互操作和 SkSL 仍属于设计中列出的后续增强。
 
 ## 1. 批次状态
 
 | 批次 | 状态 | 交付范围 |
 | --- | --- | --- |
 | 0. 已确认设计与平台范围 | 已记录 | 自绘分层、State／Context／Binding、资源所有权、静止停帧、macOS 首期与后续增强 |
-| 1. 文本公共能力 | aarch64 已完成 | 独立 graphics.text、Canvas 借用、StyledText／SpanStyle、行内 metrics／placement、位置与替代文字 |
-| 2. 独立自绘闭环 | aarch64 已完成 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入、UiHost 与独立自绘示例 |
-| 3a. 公共文本适配 | aarch64 已完成 | ParagraphHost／InlineView、固定字体共享测试数据与独立自绘组合 |
-| 3b. graphics 基础效果 | aarch64 已完成 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
-| 3c. 公共样式 | aarch64 已完成 | Style／StyleOverride、稳定 styled、StylePainter、装饰／有序效果、真实 Metal／UI 停帧与异常清理 |
-| 3d. 公共主题绘图 | aarch64 已完成 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
-| 3e. 简单控件 | aarch64 已完成 | Label／Button／Checkbox 消费公共主题，状态／绑定、局部覆盖、实例／焦点保留和真实停帧 |
-| 4. 布局、组合与主题展示 | aarch64 已完成 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合，公共部件和真实控件的完整主题展示 |
-| 5. 宿主与生命周期组合 | aarch64 已完成 | 独立下载示例、真实后台 SHA-256、asyncio／HTTP 进度、取消／替换、隐藏收尾、多窗口需求隔离及异常退出；见 §3.15～3.17 |
+| 1. 文本公共能力 | aarch64 完成，x86_64 补验通过 | 独立 graphics.text、Canvas 借用、StyledText／SpanStyle、行内 metrics／placement、位置与替代文字 |
+| 2. 独立自绘闭环 | aarch64 完成，x86_64 补验通过 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入、UiHost 与独立自绘示例 |
+| 3a. 公共文本适配 | aarch64 完成，x86_64 补验通过 | ParagraphHost／InlineView、固定字体共享测试数据与独立自绘组合 |
+| 3b. graphics 基础效果 | aarch64 完成，x86_64 补验通过 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
+| 3c. 公共样式 | aarch64 完成，x86_64 补验通过 | Style／StyleOverride、稳定 styled、StylePainter、装饰／有序效果、真实 Metal／UI 停帧与异常清理 |
+| 3d. 公共主题绘图 | aarch64 完成，x86_64 补验通过 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
+| 3e. 简单控件 | aarch64 完成，x86_64 补验通过 | Label／Button／Checkbox 消费公共主题，状态／绑定、局部覆盖、实例／焦点保留和真实停帧 |
+| 4. 布局、组合与主题展示 | aarch64 完成，x86_64 补验通过 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合，公共部件和真实控件的完整主题展示 |
+| 5. 宿主与生命周期组合 | aarch64 完成，x86_64 补验通过 | 独立下载示例、真实后台 SHA-256、asyncio／HTTP 进度、取消／替换、隐藏收尾、多窗口需求隔离及异常退出；见 §3.15～3.18 |
 
-本期各批功能已在 macOS aarch64 完成：独立 UI 框架、公共文本适配、graphics 效果、公共样式／主题、基础控件／容器，以及宿主和异步进度组合。下一步统一补验 x86_64；下文保存实际验证范围，不把设计示例和文档检查当成已交付功能。
+本期各批功能及 macOS 两架构的定向验收已完成：独立 UI 框架、公共文本适配、graphics 效果、公共样式／主题、基础控件／容器，以及宿主和异步进度组合。下文保存各批的实际验证范围；早期小节中的“下一批”和“待补验”描述当时的进度，最终补验结果见 §3.18。
 
 ## 2. 验证与提交方式
 
 普通 API、资源和控件行为使用所属 Cone 的 scoop.test；真实 GPU／窗口组合使用现有 macOS 后端。默认 release，定向验证改变的能力和必要消费者，不执行全量测试。遇到编译器、runtime 或其他系统库缺口时先修订其规范并修复该层，再补相应定向回归，不在 UI 中实现规避分支。
 
-每批先完成 aarch64 验证并提交，不把 x86_64 补验作为继续实现下一批的前置。已提前准备的部分 x86_64 资源和缓存保留，尚未进行本轮运行验收；本期 aarch64 功能完成后再更新资源并统一补验。
+每批先完成 aarch64 验证并提交，不把 x86_64 补验作为继续实现下一批的前置。本期 aarch64 功能完成后，已更新 x86_64 文本后端、Skia 和开发 sysroot，再使用相同源码统一补验；普通构建缓存继续复用。
 
 每项完整变更通过格式化、检查和定向测试后提交并推送，再 fetch／merge origin/main；合并改变相关代码时补充必要验证后继续。每轮清理不再使用的临时日志、探测文件和构建输出，仍需复用的正常构建缓存及本期目标资源继续保留。记录只保存验证范围、结果和实际限制。
 
@@ -267,3 +267,27 @@ Scoop 格式及生产／含测试类型检查通过，aarch64 release 应用已�
 挂载问题已按既有生命周期修正：组件构造时保存稳定 ThemeSource，首轮 render 不再依赖较晚的 onMount 初始化；绘制断言使用已发布的 Props，不把尚在排队的最新业务值当成本帧输入。原测试还误用了尚未提供的 Tab 遍历；改为实际按钮的原生指针事件后完整通过，键盘与焦点继续由控件专项验证。准备期诊断确认两个窗口已有首帧且 display link 暂停，系统可以拒绝后台激活请求，未改变 window 的请求式合同。
 
 本批未再改动编译器、core／std／test，未新增 fixture 或运行全量测试。此前独立闭合的 no_std 链接与终止路径定稿修复见 §3.15、3.16。aarch64 功能实施至此完成，接着更新资源并统一补验 x86_64；Windows 与后续增强不计入当前交付。
+
+### 3.18 macOS x86_64 统一补验
+
+在 aarch64 全部批次完成后，以当前工具链、源码和正常准备脚本更新 x86_64 的 no_std 文本归档、Skia 及开发 sysroot。验证使用 release 和共享 Cone cache；实际 x86_64 Mach-O 程序在 Apple Silicon 上经 Rosetta 执行。以下 24 个相关 Cone 共 169 项 scoop.test 全部通过，包含真实 Raster、Metal 和原生窗口组合。
+
+| 范围 | 结果 | 覆盖 |
+| --- | ---: | --- |
+| idna／charset／文本后端 C ABI | 32／32 | 文本适配、增量转换、C 聚合返回／长度与 Rust 分配释放 |
+| graphics／graphics.text | 52／52 | 画布借用、图层和有序滤镜、真实文字及行内对象、两类基线与一次 DPI |
+| Surface、basics、content／errors／asyncio／input | 30／30 | 动画、帧与输入、内容根所有权、异常及原生关闭、宿主与 I/O |
+| UI、drawing／errors／text | 12／12 | State／Props／Binding／Context、挂载与自绘、段落缓存、行内子项及失败清理 |
+| style、themes、style UI／errors | 26／26 | 三风格及明暗、公共几何与像素、外框／alpha 效果、组合顺序、替换与释放 |
+| component、interaction／layout | 9／9 | 公共主题调用、键盘／指针、焦点和 State 保留、容器、富文本与裁剪 |
+| 主题与下载示例 | 8／8 | 六种主题组合、真实 HTTP 与后台线程、双窗口共享模型、取消／替换／关闭 |
+
+安静区间继续同时断言 render／update／measure／paint 停止、原生帧需求撤销、display link 暂停，以及回调和提交计数不变；没有用截图或进程 CPU 百分比代替停帧证据。窗口与效果测试保留全部输入、几何和资源断言。
+
+补验闭合了两项准备问题。旧 x86_64 Skia 尚未应用现有的 text-baselines.patch，导致两项文字基线测试失败；按正常脚本重建并准备后，graphics.text 28／28 通过，没有添加架构补偿。后台启动的 Surface input 和 UI drawing 已有首帧但 focused=false；将相同测试可执行文件放入临时应用包，从 Finder 正常前台启动后分别通过，其余原生 UI 组合也依次采用该入口。结果仍由原有 scoop.test 的 SCOOP_TEST_RUN_DIR 事件报告确认完整结束，没有改动测试或放宽焦点要求。
+
+Rust 分配器的 x86_64 定向测试另有 1／1 通过，包含过度对齐、清零和 realloc 内容保留。初次未签名的独立 Rust 测试在进入程序前停滞；对同一测试程序作本地 ad-hoc 签名后立即通过，生产 Scoop 链接原本已带该签名。完整下载应用及其测试产物通过系统链接器，最终符号只含 Scoop、C++ 和 Objective-C personality，没有 Rust personality 或 panic unwind 引用；未选中归档成员的符号不作为最终链接依赖。
+
+独立自绘 Counter、完整主题展示和下载示例的生产 release 可执行文件也均完成 x86_64 构建。示例构建不额外计为运行用例，其行为由上述实际组合验证覆盖。
+
+本轮没有修改生产代码或新增 fixture，没有执行全量测试。Windows 专属 presentation Cone 在 macOS 不含测试，不计入上述结果。Intel Mac 实机、跨屏混合 DPI 和 Windows 新资源仍未验收；图文绕排、SkSL、Backdrop blur、外部 GPU／3D／媒体接入保持后续范围。
