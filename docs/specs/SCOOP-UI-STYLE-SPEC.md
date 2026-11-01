@@ -1,12 +1,12 @@
 # Scoop 公共 UI 样式规范
 
-日期：2026-11-02。状态：设计已确定，待底层图像滤镜与图层批次完成后实施。分批计划见 [UI 设计](../ui/DESIGN.md)与[实施记录](../ui/PROGRESS.md)。本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。
+日期：2026-11-02。状态：graphics 滤镜／图层与通用嵌套 PaintContext 已完成，公共 Style 及主题绘图按更新后的设计分批实施。分批计划见 [UI 设计](../ui/DESIGN.md)与[实施记录](../ui/PROGRESS.md)。本期先完成 macOS aarch64，最后统一补验 x86_64，Windows 后续。
 
 ## 1. 分层与接入
 
-`scoop.ui.style` 是独立普通 Cone，依赖实际使用的 ui、graphics、surface 及 core／std／platform。它提供通用 Style、外框装饰和内容效果的 UI 应用方式。graphics 提供[真正绘图、滤镜与图层](SCOOP-GRAPHICS-EFFECTS-SPEC.md)；ui 只提供挂载、State／Props、布局、输入和作用域，不依赖或识别 style／component。控件库负责 ButtonStyle／CheckboxStyle 及交互状态下选择外观，并复用本库。
+`scoop.ui.style` 是独立普通 Cone，依赖实际使用的 ui、graphics、surface 及 core／std／platform。它定义[公共主题绘图与几何协议](SCOOP-UI-THEME-SPEC.md)、视觉状态、语义颜色／字体／尺寸／动画参数，同时提供通用 Style、外框装饰和内容效果的 UI 应用方式。graphics 提供[真正绘图、滤镜与图层](SCOOP-GRAPHICS-EFFECTS-SPEC.md)；ui 只提供挂载、State／Props、布局、输入和作用域，不依赖或识别 style／component。控件库负责交互和 ButtonStyle／CheckboxStyle 的明确局部覆盖，向主题提交类型化视觉状态并消费同一几何与绘图。主题合同不在 component 中定义。
 
-文字继续使用 `scoop.graphics.text` 的 TextStyle／SpanStyle、ParagraphStyle；Style 不定义字体、段落或文本继承模型。第三方完全自绘组件和基础控件使用同一公开适配，没有专用 View 分支、控件节点或效果注册入口。
+文字继续使用 `scoop.graphics.text` 的 TextStyle／SpanStyle、ParagraphStyle；Theme 的公共 typography 也直接使用这些类型，Style 不定义另一套字体、段落或文本继承模型。第三方完全自绘组件和基础控件使用同一公开适配，没有专用 View 分支、控件节点或效果注册入口。
 
 `styled(content, style = Style(), key = ViewKey.Position)` 始终建立相同具体类型的普通组件／元素及单个内容子项，包括空 Style。更新只替换 Props；在相同 key 和类型下，从无效果到有阴影、阴影移除、参数或效果顺序改变，都保留内容的实例和 State。调用者改变 content 自身的 key／类型时继续执行正常重挂载规则。
 
@@ -14,7 +14,7 @@
 
 ## 2. 描述与参数
 
-Style 是普通不可变、可复用的描述 class，经 Props 传递，不拥有需要调用方 close 的 native 对象。
+Style 是普通不可变、可复用的完整描述 class，经 Props 传递，不拥有需要调用方 close 的 native 对象。主题的局部输入使用 StyleOverride，只替换明确指定的属性；StyleValue<T>.Inherit／Set 区分继承和显式清除。覆盖在最终几何计算前解析，具体协议见主题规范第 3 节。
 
 | 输入 | 合同 |
 | --- | --- |
@@ -60,7 +60,11 @@ StylePainter 是实际 Element 拥有的 Closeable 缓存，通过 ComponentScop
 
 动画完成、暂停、取消、隐藏及卸载遵守既有 Surface 停帧合同。稳定区间同时停止逻辑更新、测量／绘制、平台帧需求和 GPU 提交；只检查画面相同不足以验收。替换滤镜不会引入额外驱动器。
 
-## 5. 验证与后续
+## 5. 主题实现与验证
+
+三套可切换的自绘主题由独立 scoop.ui.style.macos／material／fluent 实现，同一套公共协议覆盖表面、Checkbox 标记、Radio 标记和 Scrollbar。geometry 方法不依赖 Canvas；ThemePainter 的绘图只需要 Canvas、同一几何和普通视觉数据，资源由 scope 登记的可替换缓存拥有。完整主题来源、覆盖、几何和展示验收见[主题规范](SCOOP-UI-THEME-SPEC.md)，这些能力纳入本期。
+
+### 5.1 效果验证与后续
 
 普通行为放在本 Cone 的 scoop.test，使用真实 RasterSurface 及必要的 Metal／UI 组合：
 

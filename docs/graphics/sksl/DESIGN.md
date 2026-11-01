@@ -10,7 +10,7 @@
 
 现有[构建配置](../../../scripts/build_skia.py)启用 Ganesh Metal，Windows 切换为 D3D12；SkSL 接入可从这些后端开展，不以前置实现 GL／GLES／Vulkan 为条件。这里使用的是 Skia 绘制流程中的 runtime effect，具体 3D 场景仍由[独立渲染接入](../../ui/DESIGN.md#133-在自绘组件内显示-3d-场景)负责。
 
-本期 UI 扩展中的 Gaussian blur、外框阴影、内容 drop shadow／glow 使用 Skia 现有滤镜，先于本设计实施；[scoop.ui.style](../../specs/SCOOP-UI-STYLE-SPEC.md)负责普通 UI 应用。控件库选择交互外观，UI 核心不依赖 style。后续 SkSL 可复用图层与资源适配，不重新建立效果节点。Backdrop blur 另需背后内容采样合同，不与当前内容 blur 混同。
+本期 UI 扩展中的 Gaussian blur、外框阴影、内容 drop shadow／glow 使用 Skia 现有滤镜，先于本设计实施；[scoop.ui.style](../../specs/SCOOP-UI-STYLE-SPEC.md)负责普通 UI 应用。公共[主题绘图协议](../../specs/SCOOP-UI-THEME-SPEC.md)及三套风格消费相同效果，控件提供视觉状态并使用主题几何／绘图，UI 核心不依赖 style。后续 SkSL 可复用图层与资源适配，不重新建立效果节点。Backdrop blur 另需背后内容采样合同，不与当前内容 blur 混同。
 
 ## 2. 三种使用方式
 

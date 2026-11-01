@@ -1,6 +1,6 @@
 # Scoop 基础控件库规范
 
-日期：2026-11-02。状态：`scoop.ui.component` 开始接入，框架与公共文本适配已在 macOS aarch64 交付。框架合同见 [UI 规范](SCOOP-UI-SPEC.md)，公共文本合同见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，分层与实施顺序见 [UI 设计](../ui/DESIGN.md)。
+日期：2026-11-02。状态：`scoop.ui.component` 开始接入，框架与公共文本适配已在 macOS aarch64 交付。框架合同见 [UI 规范](SCOOP-UI-SPEC.md)，公共文本合同见 [文本排版规范](SCOOP-GRAPHICS-TEXT-SPEC.md)，主题绘图／几何见[主题规范](SCOOP-UI-THEME-SPEC.md)，分层与实施顺序见 [UI 设计](../ui/DESIGN.md)。
 
 ## 1. 定位与依赖
 
@@ -60,9 +60,9 @@ label／button／checkbox／row／column／stack／frame 都属于 `scoop.ui.com
 
 ## 3. Label
 
-Label 接受 String 加 TextStyle 的便利输入，也接受公共 StyledText、字体来源、ParagraphStyle 和 `Array<InlineView>`。便利输入转换为相同的纯文本描述，不建立另一套排版路径。默认字体、字号和颜色由本库选定；框架不提供全局默认主题或文本控件。调用方可以传入自己的字体及样式，其资源默认借用。
+Label 接受 String 加 TextStyle 的便利输入，也接受公共 StyledText、字体来源、ParagraphStyle 和 `Array<InlineView>`。便利输入转换为相同的纯文本描述，不建立另一套排版路径。默认字体、字号和颜色来自当前 Theme 的公共 typography／语义参数；框架与控件库都不建立全局可变默认主题。调用方可以传入自己的字体及样式，其资源默认借用。
 
-显式组件接收 `Props<LabelProps>`。LabelProps 保存 `LabelText.Plain(String, TextStyle)` 或 `LabelText.Styled(StyledText)`、可选 FontCollection、ParagraphStyle 和行内绑定；label 的 String／StyledText 重载构造相同的输入。Plain 输入在文字值与 TextStyle 对象不变时保留规范化内容。字体为 None 时，挂载的 Label 自己创建一次系统 fallback 字体集合并登记到 scope；外部字体只借用，切换来源不关闭调用方资源。
+显式组件接收 `Props<LabelProps>`。LabelProps 保存纯文本及可选 SpanStyle 覆盖，或完整 StyledText，另有可选 FontCollection、ParagraphStyle、主题来源和行内绑定；label 的 String／StyledText 重载构造相同的输入。Plain 以当前主题 TextStyle 为基础，仅覆盖明确的 SpanStyle 属性；完整 StyledText 保留调用者指定的内容模型。文字与实际已解析样式不变时保留规范化内容。字体为 None 时，挂载的 Label 自己创建一次系统 fallback 字体集合并登记到 scope；外部字体只借用，切换来源不关闭调用方资源。
 
 Label.render 使用 scoop.ui.text.inlineChildren 把行内对象绑定成普通 keyed children；自己的 Element 在 onMount 中通过 ComponentScope 登记 ParagraphHost，在 measure／paint 中委托公共适配。字体混排、SpanStyle 继承和内容索引由 graphics.text 负责，Label 不复制这些算法。
 
@@ -78,9 +78,9 @@ Label 本身不创建 InputArea，其行内控件可以拥有并放置自己的�
 
 Button 的输入至少包括文字、onClick、enabled 及样式。它用普通状态保存 hover、pressed 和 focus 等交互表现，render 将这些值传给自己的 Element；文字可以组合 Label。绘制元素在 onMount 时取得 ComponentScope，创建一个允许焦点的 InputArea，在 paint 中使用实际布局矩形或明确的 Path 放置区域。
 
-显式组件接收 `Props<ButtonProps>`，其中 label 是 LabelProps，另有 onClick、enabled 和 ButtonStyle；button 提供 String 和 StyledText 入口，后者同样允许行内绑定。ButtonStyle 包含文本样式、常态／悬停／按下／禁用背景、焦点颜色、padding、最小尺寸、圆角和可选颜色过渡。默认点击区域为整个布局矩形，圆角只决定背景外观。
+显式组件接收 `Props<ButtonProps>`，其中 label 是 LabelProps，另有 onClick、enabled、ButtonStyle 和可选显式主题来源；button 提供 String 和 StyledText 入口，后者同样允许行内绑定。ButtonStyle 以 StyleOverride／SpanStyle 及可选尺寸／动画输入覆盖明确属性，未指定部分继续使用本轮主题；不再用一组固定默认背景颜色截断主题切换。默认点击区域为整个布局矩形，可根据主题几何与标签组合决定轮廓。
 
-Button 通过公共 StylePainter 在背景、子标签与焦点前景之间安排绘制，选定交互外观后组合为 Style，不在控件中复制阴影、滤镜或图层实现。ButtonStyle 可携带公共装饰／效果输入，背景颜色动画仍在 paint 读取 Surface 采样值。需要将子项输入纳入按钮冒泡路径时，先放置自己的区域，再调用 paintChildren(parent = area)。控件外观变化不改变区域身份；单纯换色不重新创建组件或区域。
+Button 查询公共 SurfaceMetrics，根据标签和内缩确定布局，使用 SurfaceGeometry 的内容区域放置标签，并在 ThemePainter 的 Background／Foreground 两阶段间绘制内容。几何与绘制来自同一主题，不在控件中复制表面、焦点、阴影或滤镜实现。公共 Style 可继续装饰完整控件子树，动画采样由控件交给主题绘图。需要将子项输入纳入按钮冒泡路径时，先放置自己的区域，再调用 paintChildren(parent = area)。控件外观变化不改变区域身份；单纯换色不重新创建组件或区域。
 
 Button 的 LayoutMetrics 将标签基线加上实际垂直放置偏移，使整个按钮可以和周围文字按基线对齐。没有对应标签基线时返回 None，不根据字号估算另一条基线。
 
@@ -101,6 +101,8 @@ enabled 和最新回调在 Element.update 的逻辑阶段生效。禁用不等�
 
 ## 5. Checkbox
 
+Checkbox 标记使用 Theme.checkboxGeometry 和 ThemePainter.drawCheckbox，向主题传入 Off／On 及交互视觉数据，布局与点击可组合标签／留白。公共主题另外提供 Mixed 标记供菜单／树／表格使用；首期 Checkbox 仍保留下面的布尔 Binding 行为，不自行维护另一套标记绘图。
+
 Checkbox 的 checked 是布尔值。最小入口为：
 
 ```text
@@ -116,7 +118,7 @@ fun checkbox(
 ): View
 ```
 
-显式 Checkbox 接收 `Props<CheckboxProps>`，保存 Binding、enabled 和 CheckboxStyle。便利函数另可接收该样式；样式包括盒子尺寸、padding、边框／焦点／勾选颜色、不同交互状态的背景以及可选颜色过渡。自有状态重载由独立的内部组件持有初始 State，并复用同一个 Checkbox。
+显式 Checkbox 接收 `Props<CheckboxProps>`，保存 Binding、enabled、CheckboxStyle 和可选显式主题来源。便利函数另可接收该样式；其尺寸、padding、标记颜色、Style 和动画输入都作为明确覆盖，未指定时使用主题 CheckboxMetrics／视觉外观。自有状态重载由独立的内部组件持有初始 State，并复用同一个 Checkbox。
 
 外部绑定入口以当前 Binding 的 value 为显示和交互的状态来源。有效激活时读取当前值并写入其取反值，随后由底层 State 通知读取者；绑定的业务 setter 可以按自身规则接受或拒绝修改，控件不先保存另一个乐观值。外部修改 checked 只更新显示，不合成用户激活。
 
@@ -167,11 +169,11 @@ Frame 先扣除 padding 得到子约束，再测量唯一子项，加回 padding
 
 ## 7. 样式与资源归属
 
-ButtonStyle／CheckboxStyle 是本库的普通输入对象，包含当前控件的状态外观、文字／勾选颜色、间距和可选动画参数，并组合公共 Style。背景、边框、圆角、外框阴影和有序内容效果由 scoop.ui.style 执行；不在本库再建通用装饰模型。默认样式、hover／pressed／focus／disabled 状态的视觉选择均属于本库；不在框架中建立控件主题、全局注册或控件样式继承系统。段落内 SpanStyle 的局部继承属于 graphics.text 的内容模型，复用其公共合同。
+ButtonStyle／CheckboxStyle 是本库的局部输入对象，使用公共 StyleOverride、SpanStyle 和明确的尺寸／动画覆盖。公共默认外观、视觉状态数据、表面／Checkbox／Radio／Scrollbar 的绘图和几何合同均属于 scoop.ui.style，三风格实现不依赖具体控件。本库把当前状态转换为主题视觉输入，消费同一几何和绘图，不按 macOS／Material／Fluent 分支。段落内 SpanStyle 的局部继承属于 graphics.text 的内容模型，复用其公共合同。
 
 `Insets(left, top, right, bottom)` 表达有限非负内边距，`Insets.all(value)` 构造四边相等的值。布局操作检查边距、尺寸及求和结果，颜色和绘图参数继续由 graphics 检查。背景过渡复用 Surface Animatable<Color>；目标相同的普通更新不重新启动动画，transition 为 None 时直接吸附到新颜色。
 
-只读的 `ComponentDefaults` 提供 labelText、paragraph、button、checkbox 四个默认输入对象，作为公开函数默认参数使用；它不包含可修改的全局主题或运行时配置。应用通过参数传入其他样式。
+此前 ComponentDefaults 的固定视觉默认值方案由 ThemeSource／Theme 取代。应用在实际运行入口绑定稳定 ThemeSource；控件挂载保存来源，在 render 读取当前 Theme，其余局部属性继续继承主题。显式来源可经 Props 提供，组合控件向子标签转交；不存在自动挂载树 Provider。切换风格、明暗或效果保持组件实例、State、区域和焦点，只更新 Props、必要布局及绘图资源。
 
 控件或其 Element 通过 ComponentScope.resource 登记自己创建的资源，或登记拥有可替换资源的缓存对象；输入区域和动画通过作用域的对应入口取得。卸载沿框架的子先父顺序清理，应用不为 Label／Button／Checkbox 逐个 use。借用的 Image／Path／字体、Binding 与外部模型不得由控件擅自关闭。
 
@@ -193,6 +195,6 @@ Element 构造、update、measure、paint 或回调失败沿框架与 Surface �
 10. Checkbox 的指针／Space 切换、自动重复抑制、禁用／失焦／取消；自有状态的初始值、重建保留和重新挂载重置。
 11. 外部 Binding 与 Checkbox 自绘同步、Form 的 enabled 派生输入、反向更新同一状态、卸载不重置共享值；更换 Binding 后读写新目标并移除旧依赖，切换状态归属模式按组件形状重新挂载。
 
-12. 控件通过公共 style 组合外框装饰、内容效果与状态外观；样式切换保持内部 State、基线和点击区域，参数动画完成／暂停／取消后下层帧需求停止。
+12. 控件消费公共 Theme／ThemePainter 的几何与绘图，三风格与明暗切换时未覆盖属性继续跟随主题；组合公共 Style 的外框装饰、内容效果与状态外观；样式切换保持内部 State、基线和点击区域，参数动画完成／暂停／取消后下层帧需求停止。
 
 控件库必须能作为独立 Cone 使用已编译的公开框架接口构建和测试；独立自绘示例继续只依赖框架。类型、可见性及链接规则使用现有编译器与 Cone 合同，不为本库引入专用编译规则或重复每个控件的通用负例。

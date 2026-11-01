@@ -828,6 +828,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - macOS aarch64 已交付独立框架、外部自绘示例及状态／绘制／异常定向测试；公共 ParagraphHost／InlineView 也已交付；graphics 基础效果、公共样式、基础控件和宿主组合继续分批接入，全部 aarch64 功能完成后再统一补验 x86_64。
 - 独立的 `scoop.ui.component` 使用与第三方控件相同的公开能力实现 Label／Button／Checkbox、Row／Column／Stack、Frame 和样式，见[控件库规范](specs/SCOOP-UI-COMPONENT-SPEC.md)。框架不依赖该库；`scoop.ui.text` 提供公共 ParagraphHost 和行内 View 适配，控件复用它并决定外观与点击语义。
 - 新增独立 [scoop.ui.style](specs/SCOOP-UI-STYLE-SPEC.md)，先补 [graphics 滤镜／图层](specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)，再交付背景／边框／圆角、外框阴影、有序内容 drop shadow／glow／Gaussian blur。Style 无调用方需关闭的资源，稳定包装保留内容身份；效果不增大测量或命中，动画复用 Surface，静态效果停止全部帧需求。控件专用样式消费公共能力，SkSL 不作前置。
+- [公共主题绘图与几何](specs/SCOOP-UI-THEME-SPEC.md)同属 style：表面、Checkbox 三态标记、Radio 标记和 Scrollbar 提供独立 metrics／geometry／Canvas 绘图；macOS／Material／Fluent 三组风格与 Light／Dark 可整体切换。控件消费公共协议，不按主题分支；ThemeSource 通过 State／Context 更新实际订阅者，局部覆盖保留其余主题属性，保持组件身份／焦点。展示示例同时覆盖公共部件和真实控件，完整 Radio 分组及 ScrollView 行为维持原范围。
 - Props／Binding、完整类型身份与父级内 key 保留实例；scope 统一管理资源、InputArea 和 Surface Animatable，应用不逐组件 use。逻辑更新及卸载独立于 drawable，动画沿同一帧进入布局和绘制，命中几何只在 surface 成功提交后发布。
 - [静止时停止渲染](specs/SCOOP-UI-SPEC.md#61-静止时停止渲染工作)属于首期硬性要求：无更新／绘制失效／活动动画时，UI 不遍历树或投递空任务，Surface 撤销原生帧需求，不获取目标或提交 GPU 工作。覆盖单次唤醒后再停止、动画收尾、多窗口需求隔离、隐藏／Deferred 及两种 run；同步观察逻辑入口、原生唤醒与 GPU 提交，不推迟到移动端或局部重绘优化阶段。
 - 自有 State 与委托外部 State 共用依赖追踪；普通业务 Store 集中持有状态，通过语言 Context 在实际挂载入口取得。首期采用挂载时绑定，不增加 UiLocal／Provider 或字符串 Store；共享状态不随某个观察组件卸载而重置。Checkbox.checked 通过 Binding 接入，Button.enabled 在 render 中派生。

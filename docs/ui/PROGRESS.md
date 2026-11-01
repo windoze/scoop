@@ -1,6 +1,6 @@
 # UI 实施记录
 
-日期：2026-11-02。实施依据为 [UI 设计](DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)、[文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)、[图像滤镜规范](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)、[公共样式规范](../specs/SCOOP-UI-STYLE-SPEC.md)及[基础控件规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。本期先在 macOS aarch64 完成全部实施批次，再统一补验 x86_64，Windows 后续接入；图文绕排、GPU／3D／媒体互操作和 SkSL 仍属于设计中列出的后续增强。
+日期：2026-11-02。实施依据为 [UI 设计](DESIGN.md)、[框架规范](../specs/SCOOP-UI-SPEC.md)、[文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)、[图像滤镜规范](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)、[公共样式规范](../specs/SCOOP-UI-STYLE-SPEC.md)、[主题绘图规范](../specs/SCOOP-UI-THEME-SPEC.md)及[基础控件规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。本期先在 macOS aarch64 完成全部实施批次，再统一补验 x86_64，Windows 后续接入；图文绕排、GPU／3D／媒体互操作和 SkSL 仍属于设计中列出的后续增强。
 
 ## 1. 批次状态
 
@@ -11,8 +11,9 @@
 | 2. 独立自绘闭环 | aarch64 已完成 | SurfaceContent 所有权、Component／Element／State／Props／Binding、挂载、布局、输入、UiHost 与独立自绘示例 |
 | 3a. 公共文本适配 | aarch64 已完成 | ParagraphHost／InlineView、固定字体共享测试数据与独立自绘组合 |
 | 3b. graphics 基础效果 | aarch64 已完成 | ImageFilter、Gaussian blur、alpha 阴影、图层／混合与圆角 Path |
-| 3c. 公共样式 | 设计已更新，待实施 | scoop.ui.style、稳定 styled、StylePainter、装饰／有序内容效果及动画／停帧 |
-| 3d. 简单控件 | aarch64 接入中 | Label／Button／Checkbox 初步代码已通过生产类型检查；待公共 style 接入后运行验收 |
+| 3c. 公共样式 | 设计已更新，待实施 | Style／StyleOverride、稳定 styled、StylePainter、装饰／有序效果；所需嵌套 PaintContext 已交付 |
+| 3d. 公共主题绘图 | 设计已更新，待实施 | Theme／ThemePainter、表面／Checkbox／Radio／Scrollbar 的几何与绘图，三风格及 Light／Dark |
+| 3e. 简单控件与主题展示 | aarch64 接入中 | 初步 Label／Button／Checkbox 代码待改为消费公共主题；展示各视觉状态及切换，尚未运行验收 |
 | 4. 布局与组合 | 待实施 | Row／Column／Stack／Frame、keyed 子项、基线与资源组合 |
 | 5. 宿主与生命周期组合 | 待实施 | 空闲停帧、动画收尾、隐藏更新、asyncio／HTTP 进度、取消和多窗口 |
 
@@ -26,7 +27,9 @@
 
 每项完整变更通过格式化、检查和定向测试后提交并推送，再 fetch／merge origin/main；合并改变相关代码时补充必要验证后继续。每轮清理不再使用的临时日志、探测文件和构建输出，仍需复用的正常构建缓存及本期目标资源继续保留。记录只保存验证范围、结果和实际限制。
 
-2026-11-02 已同步 UI、控件、graphics／Surface、SkSL 的分层、顺序和当前状态：基础效果进入本期，SkSL／Backdrop blur 仍属后续。先补下层滤镜与通用绘制作用域，再交付公共样式及控件消费。此项仅为设计完成，不代表新增效果已通过运行验证。
+2026-11-02 已同步 UI、控件、graphics／Surface、SkSL 的分层、顺序和当前状态：基础效果进入本期，SkSL／Backdrop blur 仍属后续。先补下层滤镜与通用绘制作用域，再交付公共样式及控件消费。其中 graphics 基础滤镜现已完成，见第 3.8 节；公共 style 尚待实施。
+
+2026-11-02 后续主题调整：公共默认外观、部件绘图协议及几何移至 style，取代 ComponentDefaults 固定视觉值和控件自绘标记方案；ThemeSource 的 State／Context 支持整体切换，StyleOverride／SpanStyle 保留未指定属性的主题继承。新增三风格、明暗和公共部件展示，完整 Radio 分组／ScrollView 不成为绘图批次前置。既有滤镜、内容身份、资源与停帧要求保留。
 
 ## 3. 已完成变更
 

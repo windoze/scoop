@@ -8,7 +8,7 @@
 
 同日补充的 [GPU／3D／视频调研](../ui/DESIGN.md#13-后续增强gpu-互操作3d-与视频)列为更后续的增强：graphics 接入外部目标与图像，surface 衔接离屏宿主、帧和输入，3D／媒体逻辑由独立库或应用承担。当前 Metal／D3D12 目标包装已有基础，但外部 GPU 图像导入、离屏 UI 根及视频选帧与播放时钟接入尚未实现，不改变本文已交付的窗口呈现合同。
 
-2026-11-02 的 UI 扩展先补 [graphics 图像滤镜／图层](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)，再实施独立 [scoop.ui.style](../specs/SCOOP-UI-STYLE-SPEC.md)，控件复用公共装饰和内容效果。它们使用既有 Canvas 借用、DPI、Surface 动画与停帧规则，不以 SkSL 为前置，不改变 Surface 的职责。此 UI 任务先完成 aarch64，最后补验 x86_64；Windows 的历史实施记录不等于本批效果已验证。
+2026-11-02 的 UI 扩展先补 [graphics 图像滤镜／图层](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)，再实施独立 [scoop.ui.style](../specs/SCOOP-UI-STYLE-SPEC.md)，控件复用公共装饰和内容效果，并消费 [Theme／ThemePainter](../specs/SCOOP-UI-THEME-SPEC.md) 的部件几何与绘图；macOS／Material／Fluent 三套主题分别提供明暗模式。它们使用既有 Canvas 借用、DPI、Surface 动画与停帧规则，不以 SkSL 为前置，不改变 Surface 的职责。此 UI 任务先完成 aarch64，最后补验 x86_64；Windows 的历史实施记录不等于本批效果已验证。
 
 ## 1. 本期决定
 
@@ -70,6 +70,7 @@ native frame source、Skia context、dirty 管理、Area 命中、逻辑 focus�
 flowchart TD
     Controls[scoop.ui.component 基础控件] --> Style[scoop.ui.style 公共样式]
     Controls --> UI[scoop.ui 自绘框架]
+    Themes[macOS / Material / Fluent] --> Style
     Style --> UI
     Style --> Graphics
     UI --> Surface[scoop.surface 共享逻辑]

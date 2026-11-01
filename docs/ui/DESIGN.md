@@ -1,6 +1,6 @@
 # scoop.ui：自绘框架与独立控件库设计
 
-日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配已在 macOS aarch64 交付，公共 `scoop.ui.style` 已加入本期设计，基础控件与组合验证继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
+日期：2026-11-02。状态：`scoop.ui` 的独立自绘框架和公共文本适配已在 macOS aarch64 交付，公共 `scoop.ui.style`、主题绘图／几何和三套风格已加入本期设计，基础控件与组合验证继续推进，进展见 [UI 实施记录](PROGRESS.md)。框架公开行为见 [UI 规范](../specs/SCOOP-UI-SPEC.md)，公共文本能力见 [文本排版规范](../specs/SCOOP-GRAPHICS-TEXT-SPEC.md)与[文本排版设计](../graphics/text/DESIGN.md)，基础控件行为见 [控件库规范](../specs/SCOOP-UI-COMPONENT-SPEC.md)。现有 `scoop.gui` 已直接改名为 `scoop.surface`；底层实现与验证沿用 [Surface 规范](../specs/SCOOP-SURFACE-SPEC.md)及[实施记录](../surface/PROGRESS.md)。
 
 ## 1. 分层目标
 
@@ -13,10 +13,11 @@ UI 框架提供构建完全自绘控件的能力，应用可以只使用框架�
 | `scoop.window` | 原生窗口、事件循环、输入和 native lease |
 | `scoop.surface` | 窗口呈现、帧调度、统一动画时间轴、InputArea 和焦点 |
 | `scoop.ui` | Component／Element、状态、身份、挂载、测量／绘制接入、资源生命周期；text 子包提供公共段落适配 |
-| `scoop.ui.style` | 通用 Style、外框装饰、有序内容效果与公开自绘适配 |
+| `scoop.ui.style` | 主题绘图协议／几何、视觉状态与语义参数；通用 Style、外框装饰、有序内容效果及自绘适配 |
+| `scoop.ui.style.macos／material／fluent` | 同一公共协议的三套自绘主题，各自支持 Light／Dark |
 | `scoop.ui.component` | Label、Button、Checkbox、Row／Column／Stack、Frame 及控件专用样式和交互外观 |
 
-主要依赖方向为 `scoop.ui.component → scoop.ui.style → scoop.ui → scoop.surface → scoop.window + scoop.graphics`，文本支路为 `scoop.ui → scoop.graphics.text → scoop.graphics`。使用下层类型的 Cone 同时声明实际直接依赖。框架不依赖或转导出 style／控件库，不根据 Label／Button 等具体类型做分派，不提供只有该库可以访问的控件入口。
+主要依赖方向为 `scoop.ui.component → scoop.ui.style → scoop.ui → scoop.surface → scoop.window + scoop.graphics`；三套主题实现分别依赖 style，component 不依赖具体主题，文本支路为 `scoop.ui → scoop.graphics.text → scoop.graphics`。使用下层类型的 Cone 同时声明实际直接依赖。框架不依赖或转导出 style／控件库，不根据 Label／Button 等具体类型做分派，不提供只有该库可以访问的控件入口。
 
 这是目标分层；基础字体、布局、StyledText／SpanStyle 和行内对象已在 graphics.text 实现，UI 接入按实施批次继续推进。`scoop.ui.text` 是 UI Cone 中的公共适配包，不是额外的库或控件集合。它复用 graphics.text 的段落算法，连接子项测量与放置，第三方自绘元素可以直接使用。
 
@@ -206,7 +207,14 @@ scope.animation 将所属 SurfaceWindow.animations.value 创建的 Animatable �
 
 验证同时覆盖 render／update／measure／paint、原生帧唤醒、目标获取和 submit／present；仅跳过 Component.render 仍可能留下布局或 GPU 空转，仅跳过 GPU 提交也可能留下 CPU 周期唤醒。用真实后端观察收尾后的稳定区间，再触发一次变化并验证重新停帧。细节见[Surface 设计第 6.3 节](../surface/DESIGN.md#63-停帧机制与验证)。这些检查随首期批次交付，不推迟到移动端或局部重绘优化阶段。
 
-## 8. 公共样式与控件库通过相同公开接口构建
+## 8. 公共样式、主题绘图与控件
+
+主题的核心调整见[公共主题规范](../specs/SCOOP-UI-THEME-SPEC.md)。本轮把公共主题合同、默认语义参数与基础绘图部件从控件层移到 style；取代控件自己硬编码背景／标记和 ComponentDefaults 固定视觉值的方案。控件保留持久 State、布局组合与交互，只提交类型化视觉状态，消费主题返回的同一份几何与绘图。三套实现可以表达字体、尺寸、内缩、边框、圆角、阴影、焦点及各状态差异，组件不按风格分支。
+
+公共部件首批包含表面／外框、Checkbox 三态标记、Radio 标记和横／纵 Scrollbar。metrics 查询提供建议／最小尺寸与内容内缩；geometry 只接收普通数据，返回对应部件的区域、轮廓及滑块行程，不需要 Canvas。Theme.createPainter 提供可复用 Closeable 绘图对象，draw 只接收 Canvas、同一几何和视觉数据；Element 登记一次 ThemePainterCache，主题变更时替换并关闭资源。离屏和第三方自绘采用同一入口，完整 Radio 分组和滚动行为不因绘图部件交付而扩入本批。
+
+应用通过真实运行入口的 Context 提供稳定 ThemeSource，控件挂载保存来源、render 读取其 State<Theme>，把当前主题传入持久 Element。一次更新切换 macOS／Material／Fluent 和 Light／Dark，保持实例、State、焦点及业务绑定，按新 metrics 重排。局部样式用 StyleOverride／SpanStyle 只覆盖指定属性，其他继续跟随当前主题；局部主题显式通过参数／Props 传递，首期不引入自动子树 Provider。系统跟随使用 window 的 ThemeChanged 通知。
+
 
 公共外观独立为 `scoop.ui.style`，具体合同见[公共样式规范](../specs/SCOOP-UI-STYLE-SPEC.md)和[图像滤镜规范](../specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)。Style 是经 Props 更新的普通描述；styled 始终保留稳定包装和内容位置，空样式、添加或移除效果不会重建内容 State。StylePainter 是 Element 登记一次的可替换资源缓存，第三方自绘也可直接使用。UI 增加通用 PaintContext.withState 隔离嵌套绘制，子项绘制次数在同一元素的子作用域间共享；不增加专用效果节点。
 
@@ -324,20 +332,21 @@ Context 传播 Store 引用，不改变线程和任务归属。只有 asyncio �
 | 2：独立自绘闭环 | scoop.ui、Component／Element／State／Props／Binding／View／ComponentScope、LayoutMetrics、UiHost 与 SurfaceContent | 自有与共享 State、Context 挂载时绑定；独立自绘、静止停帧／失效唤醒、Surface 动画、基线／可选放置、关闭与异常释放 |
 | 3a：公共文本接入，已完成 | scoop.ui.text 的 ParagraphHost／InlineView | 自绘行内交互、基线、截断、缓存与身份 |
 | 3b：graphics 基础效果 | ImageFilter、图层滤镜／混合与共用圆角 Path | 真实离屏／Metal 像素、alpha 阴影、顺序、外扩、clip、DPI、借用与资源 |
-| 3c：公共样式 | scoop.ui.style、Style／styled／StylePainter、通用 PaintContext.withState | 背景／边框／圆角、外框阴影、内容 drop shadow／glow／blur，身份、输入、资源与最终停帧 |
-| 3d：基础控件 | Label／Button／Checkbox，控件专用样式复用公共 style | 图文与 Button 混排；Counter、checked 与 enabled 联动、交互外观、截断和焦点 |
+| 3c：公共样式 | scoop.ui.style、Style／StyleOverride／styled／StylePainter，消费已交付的 PaintContext.withState | 背景／边框／圆角、外框阴影、内容 drop shadow／glow／blur，身份、输入、资源与最终停帧 |
+| 3d：公共主题绘图 | Theme／ThemePainter、四类部件的 metrics／geometry／draw、macOS／Material／Fluent 与 Light／Dark | 离屏输出、几何一致、尺寸／DPI、主题参数与资源替换 |
+| 3e：基础控件与主题展示 | Label／Button／Checkbox 消费主题绘图，ThemeSource／Context 及明确局部覆盖 | 图文与 Button 混排；Counter、checked 与 enabled 联动、交互外观、截断和焦点 |
 | 4：布局与组合 | Row／Column／Stack／Frame、keyed 子项及资源组合 | 动态列表、基线透传、嵌套布局和动画重排 |
 | 5：宿主与生命周期组合 | 隐藏更新、现有 asyncio／HTTP 下载接入及多窗口 | 主线程进度、跨线程合并投递、任务取消／替换、Deferred 无空转、两种 run 的停帧／唤醒、清理失败及多根需求隔离 |
 
 每批完成能运行的纵向能力，不先导出空组件类、空 renderer 或调用后报尚未支持的 API。Frame 和容器属于控件库，其所需的通用子项协议在框架批次中以实际自绘组合验证。
 
-普通行为测试放在所属 Cone。graphics.text 验证文本及行内排版；框架以实际 graphics.text／graphics 离屏能力及 Surface／Window 后端验证子项适配、几何、动画、输入和关闭；控件库验证组合、点击、布局和样式。额外的自绘示例 Cone 只消费框架及所需下层公开接口，不依赖控件库。新语言行为不属于本设计，不新增 UI 特判 fixture。
+普通行为测试放在所属 Cone。graphics.text 验证文本及行内排版；框架以实际 graphics.text／graphics 离屏能力及 Surface／Window 后端验证子项适配、几何、动画、输入和关闭；style 与主题实现库验证公共绘图／几何和三风格明暗；控件库验证组合、点击、布局、局部覆盖、切换保留身份与焦点。额外的自绘示例 Cone 只消费框架及所需下层公开接口，不依赖控件库。新语言行为不属于本设计，不新增 UI 特判 fixture。
 
 下载集成的独立示例／测试 Cone 通过真实本地 HTTP 服务和现有 window.asyncio 接入验证 UI 组合，显式声明 HTTP、asyncio 与窗口依赖；不扩大框架生产依赖，不重复网络库已有的全部协议测试。Context、属性委托和普通类型错误仍使用语言已有规则，UI 只验证实际挂载与任务组合。
 
 图文绕排／分栏、离屏 UI、GPU 互操作、3D 与视频属于上述首期批次之后的增强方向，分别见[文本排版设计第 8 节](../graphics/text/DESIGN.md#8-后续增强图文绕排分栏与区域续排)和[本文第 13 节](#13-后续增强gpu-互操作3d-与视频)。这些调研结论不增加首期验收前置；相应阶段从实际场景出发补充规范、实现和验证。
 
-基础阴影、glow、内容 blur 及其动画组合已纳入本期 3b／3c；先补 graphics 再由 style 消费。SkSL 自定义填充／滤镜仍是[第 14 节](#14-后续增强sksl-与组件效果)的后续增强，复用已有图层合同，不阻塞基础效果，也不依赖 3D／媒体库。
+基础阴影、glow、内容 blur 及其动画组合已纳入本期 3b／3c；先补 graphics 再由 style 消费。公共主题和三套绘图风格纳入 3d／3e。SkSL 自定义填充／滤镜仍是[第 14 节](#14-后续增强sksl-与组件效果)的后续增强，复用已有图层合同，不阻塞基础效果，也不依赖 3D／媒体库。
 
 ## 12. 现有底层的命名迁移
 
