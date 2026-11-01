@@ -242,13 +242,13 @@ Linux 修复后完整 release workspace 的 105 个测试组、6,377 项测试�
 
 Windows 首批四项 runtime 测试失败定位为验收脚本漏配测试要求的 unwind 路径，已补齐三套 C／unwind 工具配置；修复后 release workspace all-targets Clippy 与五个 CLI 构建通过。新批次发现的 23 项 HIR 快照失败已全部闭合：Windows checkout 将预期文件转换成 CRLF，逐项还原 LF 后内容全部相等。为 HIR 快照目录增加 `*.hir.txt text eol=lf`，在 `core.autocrlf=true` 下核对全部 23 份 Git checkout 投影与原文件逐字节相等；Windows 格式检查、相关 crate 的 release all-targets Clippy 及原 23 项测试定向复测通过，未改动快照正文或比较断言。Windows fixture runner 规则测试 80 项完成、3 项平台条件跳过，构建脚本测试 32 项完成、9 项平台条件跳过。
 
-另有 provider 实例删除用例稳定失败于重新发布：测试仍持有旧 consumer 的 reader，Windows 拒绝覆盖该路径。已将旧消费者检查限定在重建之前的作用域，保留 Code 变化、旧消费者失效与重建后成功链接的断言；macOS 格式检查、相关 crate 的 release all-targets Clippy 和该项复测通过，Windows 格式检查、release workspace all-targets Clippy 与该项定向复测也通过。至此完整 Rust 批次已出现的 24 项失败均已定向闭合，批次继续执行。MSVC 系统库已准备完成，全量 CLI 正在执行；两个 MinGW 目标仍在完成系统库与 runtime 准备。
+另有 provider 实例删除用例稳定失败于重新发布：测试仍持有旧 consumer 的 reader，Windows 拒绝覆盖该路径。已将旧消费者检查限定在重建之前的作用域，保留 Code 变化、旧消费者失效与重建后成功链接的断言；macOS 格式检查、相关 crate 的 release all-targets Clippy 和该项复测通过，Windows 格式检查、release workspace all-targets Clippy 与该项定向复测也通过。完整 Windows release workspace 批次和文档测试现已结束，原始日志汇总为 6,198 项通过、上述 24 项失败；失败均已定向闭合，最终没有新增失败。原始汇总包含嵌套子进程结果；两项带 ignored 标记的子进程入口由父测试实际调用，嵌套结果中的三项过滤并非排除正常验收。MSVC、MinGW MSVCRT 的系统库和四种 runtime 均已准备完成，MSVC 全量 CLI 继续执行；MinGW UCRT 仍在完成系统库准备。
 
 两项 `.slib` 长路径发布失败也已闭合。真实 Rust／tempfile 独立复现显示：父目录为 244 字符时，目标文件为 259 字符，临时文件达到 275 字符；父目录为 310 字符时同样失败。两者均在普通路径的发布步骤报 `os error 3`，使用 Windows 完整绝对父目录后成功。`.slib` writer 在实际发布时统一临时文件与目标的目录表示，仍返回请求的产物路径，不改变格式、实体身份或缓存命中规则。macOS 格式检查、release workspace all-targets Clippy 和真实发布失败保护用例通过；Windows 格式检查、release workspace all-targets Clippy、长路径首次发布／覆盖／失败保留与清理的定向测试及五个 CLI 构建通过。原两项 fixture 的三个 variant、22 次进程调用全部通过，保留间接依赖切换 profile 后的重建、定义处编译期环境值、运行结果与缓存命中断言。
 
-另有八项 Windows core 布局 fixture 达到既有 300 秒时限。当前任务的后台 Rust 编译／测试和系统库准备已调低优先级，后续同类用例在约 248～258 秒内通过；八项原失败仍待负载下降后定向复测，没有修改时限或功能断言。后续两个 MinGW 目标的全量 CLI 按目标依次执行。
+另有八项 Windows core 布局 fixture 在重负载下达到既有 300 秒时限。当前任务的后台 Rust 编译／测试和系统库准备调低优先级后，后续同类用例陆续通过；CLI 构建、MSVCRT 准备等任务结束后，以单并发定向复测原八项，八个 variant、八次实际编译全部通过，用时 227.00～240.61 秒。没有修改时限或功能断言，不将验收并发调整计为编译器提速。至此 MSVC 全量已出现的十项失败全部闭合，全量继续执行；后续两个 MinGW 目标的首次全量 CLI 按目标依次执行。
 
-原始报告保留在仓库外，已经完成的 macOS、Linux GNU／musl 全量与定向 fixture 工作目录及过期编译缓存已清理；另清理 macOS 第五轮缓存和旧基线工作目录、Linux 第二轮 fixture 缓存与 sysroot 工作目录，以及 Windows 长路径复测工作目录和独立复现程序。SDK、必要的基线产物和正在运行的 Windows 验收继续保留。
+原始报告保留在仓库外，已经完成的 macOS、Linux GNU／musl 全量与定向 fixture 工作目录及过期编译缓存已清理；另清理 macOS 第五轮缓存和旧基线工作目录、Linux 第二轮 fixture 缓存与 sysroot 工作目录，以及 Windows 长路径、超时复测工作目录和独立复现程序。SDK、必要的基线产物和正在运行的 Windows 验收继续保留。
 
 ## 后续优先级
 
