@@ -1,0 +1,40 @@
+package scoop.examples.ui.download
+
+import scoop.crypto.*
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.toHexString
+
+internal enum ChecksumOutcome {
+    Completed(val bytes: Long, val digest: String), Cancelled, Failed(val error: String)
+}
+
+/** Runs entirely on the caller's worker thread, including native resource cleanup. */
+internal fun checksumFile(
+    path: Path,
+    cancelled: AtomicBoolean,
+    onProgress: (DownloadProgress) -> Unit
+): ChecksumOutcome {
+    if (cancelled.load(MemoryOrder.Acquire))
+        return ChecksumOutcome.Cancelled
+    return File.open(path).use {
+        file -> NativeByteBuffer.allocate(262144L).use {
+            buffer -> Digest(DigestAlgorithm.Sha256).use {
+                digest ->
+                val total = file.size()
+                var bytes = 0L
+                onProgress(DownloadProgress(bytes, Some(total)))
+                while (!cancelled.load(MemoryOrder.Acquire)) {
+                    buffer.clear()
+                    val count = file.readInto(buffer, buffer.capacity)
+                    if (count == 0L)
+                        return@use ChecksumOutcome.Completed(bytes, digest.finish().toHexString())
+                    digest.update(buffer.readBytes(count))
+                    bytes += count
+                    onProgress(DownloadProgress(bytes, Some(total)))
+                }
+                ChecksumOutcome.Cancelled
+            }
+        }
+    }
+}

@@ -1,0 +1,103 @@
+package scoop.examples.ui.download
+
+import scoop.crypto.*
+import scoop.platform.concurrent.*
+import scoop.platform.fs.*
+import scoop.test.*
+import scoop.text.toHexString
+import scoop.ui.state
+
+@Test
+private class DownloadChecksumTest {
+    @Test
+    fun `a real worker hashes all chunks and a partial tail without accessing owner State`() {
+        val path = createTempFile(prefix = "scoop-ui-checksum-")
+        val bytes = Array<Byte>(1048699L) { index -> (index % 251L).toByte() }
+        val expected = digest(DigestAlgorithm.Sha256, bytes).toHexString()
+        val caller = currentThreadId()
+        val uiState = state(0L)
+        val calls = AtomicInt(0)
+        try {
+            path.writeAllBytes(bytes)
+            Thread.start {
+                val result =
+                    checksumFile(
+                        path,
+                        AtomicBoolean(false),
+                        {
+                            progress ->
+                            assertFalse(caller == currentThreadId())
+                            assertEquals(Some(bytes.size), progress.total)
+                            assertFailsWith<IllegalStateException> { uiState.value }
+                            assertFailsWith<IllegalStateException> {
+                                uiState.value = progress.bytes
+                            }
+                            calls.fetchAdd(1)
+                        }
+                    )
+                when (result) {
+                    case Completed(count, hash) -> {
+                        assertEquals(bytes.size, count);
+                        assertEquals(expected, hash)
+                    }
+                    else -> fail(Some("checksum did not complete"))
+                }
+            }.use { worker -> worker.join() }
+            assertEquals(6, calls.load())
+            assertEquals(0L, uiState.value)
+        } finally {
+            path.delete()
+        }
+    }
+    @Test
+    fun `worker cancellation and throwing progress finish before join returns`() {
+        val path = createTempFile(prefix = "scoop-ui-checksum-cancel-")
+        val bytes = Array<Byte>(524289L) { _ -> 7.toByte() }
+        val cancelled = AtomicBoolean(false)
+        val calls = AtomicInt(0)
+        val failure = Throwable()
+        try {
+            path.writeAllBytes(bytes)
+            Thread.start {
+                val result =
+                    checksumFile(
+                        path,
+                        cancelled,
+                        {
+                            progress ->
+                            calls.fetchAdd(1)
+                            if (progress.bytes > 0L)
+                                cancelled.store(true, MemoryOrder.Release)
+                        }
+                    )
+                assertTrue(
+                    when (result) {
+                        case Cancelled -> true;
+                        else -> false
+                    }
+                )
+            }.use { worker -> worker.join() }
+            assertEquals(2, calls.load())
+            val broken =
+                Thread.start { checksumFile(path, AtomicBoolean(false), { _ -> throw failure }) }
+            try {
+                assertSame(failure, assertFailsWith<Throwable> { broken.join() })
+            }
+            finally {
+                broken.dispose()
+            }
+            assertEquals(bytes.size, path.readAllBytes().size)
+            path.delete()
+            // A revoked task performs no I/O, even if its old destination has disappeared.
+            assertTrue(
+                when (checksumFile(path, cancelled, { _ -> fail() })) {
+                    case Cancelled -> true;
+                    else -> false
+                }
+            )
+        } finally {
+            if (path.exists())
+                path.delete()
+        }
+    }
+}

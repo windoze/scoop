@@ -315,6 +315,14 @@ HttpDownloadProgress 是包含 bytesWritten、可选 totalBytes 和 resumedBytes
 
 Context 传播 Store 引用，不改变线程和任务归属。只有 asyncio 自己的 I/O 保证排队恢复到 owner，任意第三方挂起点仍可能在别的线程恢复；外部回调通过投递返回 UI。业务 post 使用接收方的运行 Context，不能依赖它取得发送方的临时绑定。完整合同见[框架规范第 9.1 节](../specs/SCOOP-UI-SPEC.md#91-异步-io下载进度与跨线程更新)。
 
+第 5 批通过控件库的独立 `examples/download` Cone 交付实际用法：应用拥有 HttpClient、后台校验任务集合和业务 DownloadModel，组件作用域拥有当前 DownloadController。模型用一个普通只读 class 快照保存下载／校验阶段、字节数、可选总量、摘要和错误，组件另有自己的点击计数 State。控制器在 owner 上启动下载，以本次下载对象身份区分替换；取消先停止接受该任务的进度，再由实际清理完成后报告 Cancelled。卸载先撤销发布资格并取消 Job／后台任务，不能同步等待自身回调；HTTP 收尾继续由应用的 asyncio 作用域驱动，借用的 client 不随组件关闭。
+
+显示进度按真实回调的单调时间节流，没有定时发布任务。download 返回后才进入校验阶段；真实 `Thread.start` 在后台打开已提交文件、增量计算 SHA-256，并自己关闭文件／缓冲区／Digest。后台通过 ApplicationProxy 投递只读进度和结果，使用同步保护的最新快照及至多一个待执行进度通知。所有 State 写入仍在 UI owner；旧任务在取消／替换后的回调不能覆盖新任务。摘要返回后才显示整个示例的 Completed，下载提交与校验成功是两个明确阶段。
+
+校验线程在每个数据块之间检查取消标志；不跨线程访问 Canvas、组件状态或可变网络缓冲区。终态通知在计算及资源清理结束后发送，owner 回调回收线程句柄并从活动集合移除任务。组件卸载只停止发布及发出取消，不 join。应用最外层在事件循环退出后统一取消并 join 尚未回收的线程，覆盖关闭时 proxy 已拒绝或丢弃通知的情况；不能把资源清理寄托在必定执行的业务 post 上。示例使用现有 Thread、Mutex、ApplicationProxy 与 asyncio，不新增通用工作池或 UI 调度协议。
+
+示例只下载用户明确传入的 URL 到明确的目标路径，重启下载使用 HTTP 库的原子替换。测试使用临时目录和真实本地 HTTP 服务，覆盖已知／未知总量、失败、取消／替换、隐藏时收尾、原生关闭、仍活动的 I/O 与其他静止窗口的需求隔离；不重复 HTTP 库的全部协议测试。示例接受窗口 CloseRequested 和应用 ExitRequested，统一请求正常退出。
+
 ## 10. 失败与退出
 
 构造、render、update、measure、paint、动画业务完成回调和输入处理均可能抛错。首期沿 SurfaceHost 的现有异常通路关闭所管理的根和 Surface；不继续使用半更新树，不提供自动重试或错误边界。

@@ -454,6 +454,8 @@ SurfaceContent 的具体合同见 [Surface 规范第 4／7 节](SCOOP-SURFACE-SP
 
 对应下层合同见[窗口集成](SCOOP-WINDOW-SPEC.md#8-asyncio-集成)、[asyncio 宿主接入](SCOOP-ASYNCIO-SPEC.md#113-宿主接入合同)与[HTTP 下载](SCOOP-HTTP-CLIENT-SPEC.md#95-文件下载)；使用示例与取舍见[UI 设计](../ui/DESIGN.md#92-异步下载与-ui-线程)。
 
+具体控制器和显示节流策略归独立下载示例及其业务模型，不加入框架生产依赖或公共接口。组件可在 ComponentScope 中登记普通 Closeable 控制器：关闭时停止接受新发布并取消自己的 Job／后台计算，异步 finally 继续由现有宿主驱动。示例以真实 Thread 执行已下载文件的 SHA-256，线程内创建并关闭文件、缓冲区和 Digest，终态在计算及资源清理之后投递。应用持有活动线程集合，正常终态在 owner 回收句柄并移除任务，事件循环退出后取消并 join 尚未回收的线程；不能依赖可能被拒绝或丢弃的业务 post 完成最终清理。组件卸载不 join 任意后台工作。共享 State、HttpClient、外部字体等借用对象仍由应用所有者关闭；组件卸载不改变其他窗口对共享模型的正常订阅。
+
 ## 10. 验收要求
 
 框架的普通库行为归 `scoop.ui` 的 scoop.test。框架测试及自绘示例不依赖 `scoop.ui.component`；控件行为归控件库自身。验收覆盖公开行为，至少包括：

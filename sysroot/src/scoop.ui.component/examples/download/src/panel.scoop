@@ -1,0 +1,148 @@
+package scoop.examples.ui.download
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.style.*
+import scoop.window.ApplicationProxy
+
+internal class DownloadPanel(
+    private val jobs: CoroutineScope,
+    private val client: HttpClient,
+    private val workers: ChecksumWorkers,
+    private val proxy: ApplicationProxy,
+    val model: DownloadModel,
+    private val request: HttpRequest,
+    private val destination: Path,
+    private val fonts: FontCollection
+): Component {
+    var controller: DownloadController? = None
+    var clicks: Int by state(0)
+    private val themes = currentThemeSource()
+    public override fun onMount(scope: ComponentScope) {
+        controller =
+            Some(scope.resource { DownloadController(jobs, client, workers, proxy, model) })
+    }
+    public override fun render(): View {
+        val value = model.snapshot.value
+        val theme = themes.current.value
+        val text =
+            when (value.progress.total) {
+                case Some(total) -> f"${value.progress.bytes} / ${total} bytes"
+                case None -> f"${value.progress.bytes} bytes · total unknown"
+            }
+        return frame(
+            column(
+                [
+                    label(
+                        "Download + background SHA-256",
+                        Some(SpanStyle(fontSize = Some(24.0), weight = Some(700))),
+                        Some(fonts)
+                    ),
+                    label(phaseText(value.phase), fonts = Some(fonts)),
+                    label(text, fonts = Some(fonts)),
+                    element(
+                        ProgressInput(value, theme.tokens.palette),
+                        { props -> ProgressBar(props) }
+                    ),
+                    row(
+                        [
+                            button(
+                                "Start / Restart",
+                                { controller!!.start(request, destination) },
+                                fonts = Some(fonts)
+                            ),
+                            button(
+                                "Cancel",
+                                { controller!!.cancel() },
+                                enabled =
+                                    value.phase ==
+                                        DownloadPhase.Running ||
+                                        value.phase ==
+                                        DownloadPhase.Verifying,
+                                fonts = Some(fonts)
+                            ),
+                            button(f"Clicks: ${clicks}", { clicks += 1 }, fonts = Some(fonts))
+                        ],
+                        spacing = 10.0
+                    ),
+                    label(
+                        value.error ?:
+                            when (value.digest) {
+                                case Some(digest) -> "SHA-256: " + digest
+                                case None -> "Try the click counter during download or background verification."
+                            },
+                        fonts = Some(fonts)
+                    )
+                ],
+                spacing = 10.0
+            ),
+            padding = Some(Insets.all(16.0)),
+            alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start),
+            style =
+                StyleOverride(
+                    background = StyleValue.Set(Some(Paint(theme.tokens.palette.canvas))),
+                    clipContent = StyleValue.Set(true)
+                )
+        )
+    }
+}
+
+private class ProgressInput(val snapshot: DownloadSnapshot, val colors: ThemePalette)
+
+private class ProgressBar(private val props: Props<ProgressInput>): Element {
+    private var amount: Animatable<Double>? = None
+    private var target = 0.0
+    public override fun onMount(scope: ComponentScope) {
+        target = props.value.snapshot.fraction ?: 0.0
+        amount = Some(scope.animation(target))
+    }
+    public override fun update() {
+        val value = props.value.snapshot
+        val next = value.fraction ?: 0.0
+        if (
+            (value.phase != DownloadPhase.Running && value.phase != DownloadPhase.Verifying) ||
+                value.fraction ==
+                None
+        ) {
+            target = next
+            if (amount!!.state == AnimationState.Running || amount!!.value != next)
+                amount!!.snapTo(next)
+            return
+        }
+        if (next == target)
+            return
+        target = next
+        amount!!.animateTo(next, AnimationSpec.Tween(Duration.milliseconds(100L)))
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(constraints.maxWidth ?: 360.0, 12.0)))
+    public override fun paint(context: PaintContext) {
+        val value = props.value
+        context.canvas.drawRect(
+            Rect(0.0, 0.0, context.size.width, context.size.height),
+            Paint(value.colors.border)
+        )
+        when (value.snapshot.fraction) {
+            case Some(_) -> context.canvas.drawRect(
+                Rect(0.0, 0.0, context.size.width * amount!!.value, context.size.height),
+                Paint(value.colors.accent)
+            )
+            case None -> if (value.snapshot.phase == DownloadPhase.Running)
+                context.canvas.drawRect(
+                    Rect(
+                        context.size.width * 0.35,
+                        0.0,
+                        context.size.width * 0.3,
+                        context.size.height
+                    ),
+                    Paint(value.colors.accent)
+                )
+        }
+    }
+}

@@ -1,0 +1,84 @@
+package scoop.examples.ui.download
+
+import scoop.time.*
+import scoop.ui.*
+
+internal enum DownloadPhase {
+    Idle, Running, Verifying, Cancelling, Cancelled, Completed, Failed
+}
+
+internal class DownloadProgress(val bytes: Long, val total: Long?)
+
+internal class DownloadSnapshot(
+    val phase: DownloadPhase,
+    val progress: DownloadProgress = DownloadProgress(0L, None),
+    val error: String? = None,
+    val digest: String? = None
+) {
+    val fraction: Double? get() {
+        if (phase == DownloadPhase.Completed)
+            return Some(1.0)
+        return when (progress.total) {
+            case None -> None
+            case Some(total) -> Some(
+                if (total <= 0L)
+                    0.0
+                else
+                    if (progress.bytes >= total)
+                        1.0
+                    else
+                        progress.bytes.toDouble() / total.toDouble()
+            )
+        }
+    }
+}
+
+internal class DownloadModel {
+    val snapshot = state(DownloadSnapshot(DownloadPhase.Idle))
+}
+
+/** Only real callbacks advance the display cadence; terminal states bypass this helper. */
+internal class ProgressCadence {
+    private var last: TimeMark? = None
+    private var displayed: DownloadProgress? = None
+    fun accept(value: DownloadProgress, now: TimeMark): Boolean {
+        when (displayed) {
+            case Some(previous) -> {
+                if (previous.bytes == value.bytes && previous.total == value.total)
+                    return false
+                if (
+                    previous.total ==
+                        value.total &&
+                        !(previous.bytes == 0L && value.bytes > 0L) &&
+                        now -
+                        last!! <
+                        Duration.milliseconds(33L)
+                )
+                    return false
+            }
+            case None -> {}
+        }
+        displayed = Some(value)
+        last = Some(now)
+        return true
+    }
+}
+
+internal fun phaseText(phase: DownloadPhase): String =
+    when (phase) {
+        case Idle -> "Ready"
+        case Running -> "Downloading"
+        case Verifying -> "Verifying SHA-256 on a background thread"
+        case Cancelling -> "Cancelling"
+        case Cancelled -> "Cancelled"
+        case Completed -> "Completed"
+        case Failed -> "Failed"
+    }
+
+internal fun failureText(error: Throwable): String {
+    if (error is ResourceUseException)
+        return failureText(error.primaryFailure) + "; cleanup: " + failureText(error.cleanupFailure)
+    if (error is Exception)
+        return error.message ?: "Download or verification failed"
+    return "Download or verification failed"
+}

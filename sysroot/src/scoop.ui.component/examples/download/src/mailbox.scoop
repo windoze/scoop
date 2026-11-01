@@ -1,0 +1,83 @@
+package scoop.examples.ui.download
+
+import scoop.platform.concurrent.*
+import scoop.window.ApplicationProxy
+
+/** A concrete download-progress mailbox, not a second UI scheduler. */
+internal class ChecksumMailbox(
+    private val proxy: ApplicationProxy,
+    progress: (DownloadProgress) -> Unit
+): Closeable {
+    private val owner = currentThreadId()
+    private val lock = Mutex()
+    private var latest: DownloadProgress? = None
+    private var queued = false
+    private var accepting = true
+    private var callback: ((DownloadProgress) -> Unit)? = Some(progress)
+    private var closed = false
+
+    private fun checkThread() {
+        if (currentThreadId() != owner)
+            throw IllegalStateException(Some("checksum delivery requires its UI owner"))
+    }
+    /** Called by the worker. No State or UI objects are read here. */
+    fun publish(value: DownloadProgress) {
+        val post =
+            lock.withLock {
+                if (!accepting)
+                    return@withLock false
+                latest = Some(value)
+                if (queued)
+                    return@withLock false
+                queued = true
+                true
+            }
+        if (post && !proxy.post { _ -> deliver() }) {
+            lock.withLock {
+                accepting = false;
+                latest = None;
+                queued = false
+            }
+        }
+    }
+    private fun deliver() {
+        checkThread()
+        if (closed)
+            return
+        val value =
+            lock.withLock {
+                val result =
+                    if (accepting)
+                        latest
+                    else
+                        None
+                latest = None
+                queued = false
+                result
+            }
+        when (value) {
+            case Some(progress) -> callback!!(progress);
+            case None -> {}
+        }
+    }
+    /** Owner-side cancellation revokes queued progress without waiting for the worker. */
+    fun stop() {
+        checkThread()
+        if (closed)
+            return
+        lock.withLock {
+            accepting = false;
+            latest = None
+        }
+    }
+    /** The owner joins the producer before closing this mailbox. Queued callbacks become inert. */
+    public override fun close() {
+        checkThread()
+        if (closed)
+            return
+        stop()
+        closed = true
+        callback = None
+        lock.dispose()
+    }
+}

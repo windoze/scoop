@@ -1,0 +1,99 @@
+package scoop.examples.ui.download
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+/** Real loopback HTTP, with explicit test gates instead of an external service. */
+internal class DownloadServer(val listener: AsyncTcpListener, private val jobs: CoroutineScope) {
+    val connections = ArrayList<AsyncHttp1Connection>()
+    var slowRequests = 0
+    val known = Array<Byte>(524288L) { index -> (index % 251L).toByte() }
+    val unknown = Array<Byte>(98305L) { index -> (97L + index % 26L).toByte() }
+    fun request(path: String): HttpRequest =
+        HttpRequest.get(
+            Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + path)
+        )
+    fun start(): Job =
+        jobs.launch suspend {
+            coroutineScope suspend {
+                scope -> while (true) {
+                    val socket = listener.accept()
+                    scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(socket, scope).useAsync suspend {
+                            connection ->
+                            connections.add(connection)
+                            val request = connection.receiveRequest()!!
+                            val target =
+                                when (request.head.target) {
+                                    case Http1(bytes) -> String.fromUtf8(bytes)
+                                    else -> throw IllegalStateException(
+                                        Some("test requires HTTP/1")
+                                    )
+                                }
+                            request.body.close()
+                            when (target) {
+                                case "/known" -> respond(connection, known, false, false)
+                                case "/unknown" -> respond(connection, unknown, true, false)
+                                case "/slow" -> respond(connection, known, false, true)
+                                case "/error" -> connection.sendResponse(
+                                    HttpResponseHead(
+                                        HttpVersion.Http11,
+                                        503U,
+                                        fields = closeFields()
+                                    ),
+                                    Http1BodyFraming.Empty
+                                ).useAsync suspend { writer -> writer.finish() }
+                                else -> fail(Some("unexpected test request"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    private suspend fun respond(
+        connection: AsyncHttp1Connection,
+        bytes: Array<Byte>,
+        chunked: Boolean,
+        hold: Boolean
+    ) {
+        connection.sendResponse(
+            HttpResponseHead(HttpVersion.Http11, 200U, fields = closeFields()),
+            if (chunked)
+                Http1BodyFraming.Chunked
+            else
+                Http1BodyFraming.Length(bytes.size)
+        ).useAsync suspend {
+            writer -> NativeByteBuffer.allocate(32768L).use suspend {
+                buffer ->
+                var offset = 0L
+                while (offset < bytes.size) {
+                    val count =
+                        if (bytes.size - offset > buffer.capacity)
+                            buffer.capacity
+                        else
+                            bytes.size - offset
+                    buffer.clear()
+                    buffer.writeBytes(bytes, offset, count)
+                    writer.writeFully(buffer)
+                    offset += count
+                    if (hold) {
+                        slowRequests += 1
+                        suspendCancellableCoroutine<Unit> { _ -> }
+                    }
+                    // Only the test server delays packets; production never simulates progress.
+                    currentEventLoop().sleep(Duration.milliseconds(15L))
+                }
+                writer.finish()
+            }
+        }
+    }
+    private fun closeFields(): Array<HttpField> =
+        [HttpField("Connection".toByteArray(), "close".toByteArray())]
+}

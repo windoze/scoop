@@ -1,0 +1,43 @@
+package scoop.examples.ui.download
+
+import scoop.test.*
+import scoop.time.*
+
+@Test
+private class DownloadModelTest {
+    @Test
+    fun `real progress callbacks coalesce without timers and changing totals publish immediately`() {
+        val source = SampleClock()
+        val cadence = ProgressCadence()
+        assertTrue(cadence.accept(DownloadProgress(0L, None), source.markNow()))
+        assertTrue(cadence.accept(DownloadProgress(1L, None), source.markNow()))
+        for (index in 2L .. 1000L)
+            assertFalse(cadence.accept(DownloadProgress(index, None), source.markNow()))
+        source.time = Duration.milliseconds(33L)
+        assertTrue(cadence.accept(DownloadProgress(1000L, None), source.markNow()))
+        source.time = Duration.seconds(1L)
+        assertFalse(cadence.accept(DownloadProgress(1000L, None), source.markNow()))
+        assertTrue(cadence.accept(DownloadProgress(1001L, Some(2000L)), source.markNow()))
+        assertFalse(cadence.accept(DownloadProgress(1002L, Some(2000L)), source.markNow()))
+        assertTrue(cadence.accept(DownloadProgress(1002L, None), source.markNow()))
+    }
+    @Test
+    fun `unknown and empty lengths are distinct from download completion`() {
+        assertEquals(None, DownloadSnapshot(DownloadPhase.Running).fraction)
+        assertEquals(
+            Some(0.0),
+            DownloadSnapshot(DownloadPhase.Running, DownloadProgress(0L, Some(0L))).fraction
+        )
+        assertEquals(
+            Some(0.5),
+            DownloadSnapshot(DownloadPhase.Running, DownloadProgress(2L, Some(4L))).fraction
+        )
+        assertEquals(Some(1.0), DownloadSnapshot(DownloadPhase.Completed).fraction)
+        assertEquals(None, DownloadSnapshot(DownloadPhase.Failed).fraction)
+    }
+}
+
+private class SampleClock: TimeSource {
+    var time = Duration.ZERO
+    public override fun markNow(): TimeMark = TimeMark(this, time)
+}

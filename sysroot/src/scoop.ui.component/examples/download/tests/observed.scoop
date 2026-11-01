@@ -1,0 +1,125 @@
+package scoop.examples.ui.download
+
+import scoop.graphics.*
+import scoop.platform.concurrent.currentThreadId
+import scoop.test.*
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.style.*
+
+internal class DownloadCounts {
+    var mounts = 0
+    var unmounts = 0
+    var renders = 0
+    var updates = 0
+    var measures = 0
+    var paints = 0
+    var snapshot: DownloadSnapshot? = None
+    var sawUnknown = false
+    fun values(): Array<Int> = [renders, updates, measures, paints]
+}
+
+/** Observes the actual example subtree, without replacing its controls or progress painter. */
+internal class DownloadObservedRoot(
+    private val probe: DownloadWindowProbe,
+    private val index: Long
+): Component {
+    var clicks: Int by state(0)
+    public override fun onMount(scope: ComponentScope) {
+        probe.counts[index].mounts += 1
+        scope.onDispose { probe.counts[index].unmounts += 1 }
+    }
+    public override fun render(): View {
+        assertEquals(probe.owner, currentThreadId())
+        assertSame(probe.source, currentThemeSource())
+        val counts = probe.counts[index]
+        counts.renders += 1
+        val snapshot = probe.model.snapshot.value
+        counts.snapshot = Some(snapshot)
+        if (
+            snapshot.phase ==
+                DownloadPhase.Running &&
+                snapshot.progress.total ==
+                None &&
+                snapshot.progress.bytes >
+                0L
+        )
+            counts.sawUnknown = true
+        val content =
+            if (index == 0L)
+                component(
+                    {
+                        probe.panelCreates += 1
+                        val panel =
+                            DownloadPanel(
+                                probe.jobs!!,
+                                probe.client!!,
+                                probe.workers,
+                                probe.application.proxy(),
+                                probe.model,
+                                probe.server!!.request("/known"),
+                                probe.destination,
+                                probe.fonts
+                            )
+                        probe.panel = Some(panel)
+                        panel
+                    }
+                )
+            else
+                frame(
+                    column(
+                        [
+                            label(
+                                "A second window observes the same download",
+                                fonts = Some(probe.fonts)
+                            ),
+                            label(phaseText(snapshot.phase), fonts = Some(probe.fonts)),
+                            button(
+                                f"Observer clicks: ${clicks}",
+                                { clicks += 1 },
+                                fonts = Some(probe.fonts)
+                            )
+                        ],
+                        spacing = 10.0
+                    ),
+                    padding = Some(Insets.all(16.0)),
+                    style =
+                        StyleOverride(
+                            background =
+                                StyleValue.Set(
+                                    Some(Paint(probe.source.current.value.tokens.palette.canvas))
+                                )
+                        )
+                )
+        return element(
+            snapshot,
+            { props -> DownloadObservedCanvas(probe, index, props) },
+            [content]
+        )
+    }
+}
+
+private class DownloadObservedCanvas(
+    private val probe: DownloadWindowProbe,
+    private val index: Long,
+    private val props: Props<DownloadSnapshot>
+): Element {
+    public override fun update() {
+        assertEquals(probe.owner, currentThreadId())
+        probe.counts[index].updates += 1
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        assertEquals(probe.owner, currentThreadId())
+        probe.counts[index].measures += 1
+        val result = context.measureChild(0L, constraints)
+        context.placeChild(0L, Point(0.0, 0.0))
+        return result
+    }
+    public override fun paint(context: PaintContext) {
+        assertEquals(probe.owner, currentThreadId())
+        context.paintChildren()
+        probe.counts[index].paints += 1
+        // Painting consumes the last logical render; later model changes may still be queued.
+        assertSame(probe.counts[index].snapshot!!, props.value)
+    }
+}

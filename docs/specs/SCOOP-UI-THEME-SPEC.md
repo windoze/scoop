@@ -96,6 +96,8 @@ ScrollbarMetrics 包含建议厚度、最小滑块长度、轨道／滑块内缩
 
 `ThemeSource` 是应用持有的稳定普通 class，包含 `State<Theme>` 当前值。应用将来源通过语言 Context 绑定在真实 Application.run／runWithAsyncio 及挂载入口；控件挂载时取得来源，在每次 render 中读取当前值，使实际消费者订阅。一次来源更新合并逻辑工作和必要帧，不遍历未订阅的任意业务对象。
 
+Component 的挂载工厂在该入口构造实例，因此可以在构造阶段保存 ThemeSource 引用。首轮 render 早于 onMount，render 所需的普通来源引用不能等到 onMount 才初始化；onMount 继续用于登记控制器、订阅和 native 资源。保存来源不等于保存当时的 Theme，每次 render 仍读取 source.current.value。
+
 控件只保存来源和持久交互状态。Theme、已解析局部覆盖及几何经 Props／同帧 measure／paint 更新；切换风格或明暗可以按新的 metrics 重新布局，但保留组件实例、State、Binding、InputArea 和焦点。没有结构变化时不能通过更换 Element 类型或增删装饰包装实现主题切换。painter 资源替换不等于组件卸载。
 
 局部主题首期通过明确的 ThemeSource／Theme 参数和 Props 传入，组合控件显式转交需要继承的子项。不把临时 Context 当成 View 捕获或自动挂载树继承；需要子树 Provider 时另行设计。没有环境来源且未显式提供主题的控件，使用语言现有的缺失 Context 诊断，不偷偷建立全局可变默认主题。

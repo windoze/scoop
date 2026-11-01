@@ -1,0 +1,254 @@
+package scoop.examples.ui.download
+
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.crypto.x509.Certificate
+import scoop.graphics.text.*
+import scoop.http.client.*
+import scoop.platform.concurrent.*
+import scoop.platform.fs.*
+import scoop.platform.net.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.window.*
+import scoop.window.asyncio.*
+
+@Test
+private class DownloadWindowTest {
+    @Test
+    fun `real HTTP and workers update two Metal roots cancel replace close and stop frames`() {
+        val probe = DownloadWindowProbe()
+        val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+        val mailbox =
+            ChecksumMailbox(
+                probe.application.proxy(),
+                {
+                    progress ->
+                    assertEquals(probe.owner, currentThreadId())
+                    probe.deliveries += 1
+                    probe.delivered.value = progress.bytes
+                }
+            )
+        val revoked =
+            ChecksumMailbox(probe.application.proxy(), { _ -> fail(Some("revoked delivery")) })
+        try {
+            Thread.start {
+                for (value in 1L .. 10000L)
+                    mailbox.publish(DownloadProgress(value, Some(10000L)))
+                revoked.publish(DownloadProgress(1L, None))
+            }.use { worker -> worker.join() }
+            revoked.close()
+            var observedFailure = false
+            try {
+                context(probe.source) {
+                    host.use { owner -> probe.application.runWithAsyncio(owner) }
+                }
+            } catch (error: Throwable) {
+                if (!containsFailure(error, probe.expectedFailure)) {
+                    println("download phase: " + probe.phase)
+                    reportDownloadFailure(error)
+                    throw error
+                }
+                observedFailure = true
+            }
+            assertTrue(observedFailure)
+            assertTrue(probe.finished)
+            assertEquals(1, probe.deliveries)
+            assertEquals(10000L, probe.delivered.value)
+            assertEquals(0L, probe.workers.activeCount)
+            assertTrue(host.isClosed)
+            assertTrue(probe.client!!.isClosed)
+            assertTrue(probe.panel!!.controller!!.isClosed)
+            assertEquals(1, probe.panelCreates)
+            for (index in 0L ..< 2L) {
+                assertEquals(1, probe.counts[index].mounts)
+                assertEquals(1, probe.counts[index].unmounts)
+                assertTrue(probe.views[index].restored())
+                assertFalse(probe.frames[index].snapshot().attached)
+            }
+            for (connection in probe.server!!.connections)
+                assertTrue(connection.isClosed)
+            assertFalse(probe.fonts.isClosed)
+            assertFalse(probe.application.proxy().post { _ -> fail() })
+            // No event loop remains to deliver a terminal message. The application still owns
+            // and joins this task, even when the progress/final posts are rejected.
+            val rejected =
+                probe.workers.start(
+                    probe.application.proxy(),
+                    probe.destination,
+                    { _ -> fail(Some("closed application received progress")) },
+                    { _ -> fail(Some("closed application received completion")) }
+                )
+            probe.workers.close()
+            assertTrue(rejected.isClosed)
+            assertTrue(probe.workers.isClosed)
+            assertEquals(0L, probe.workers.activeCount)
+        } finally {
+            host.close()
+            probe.workers.close()
+            mailbox.close()
+            revoked.close()
+            for (view in probe.views)
+                view.close()
+            for (frames in probe.frames)
+                frames.close()
+            probe.fonts.close()
+            probe.directory.deleteRecursively()
+        }
+    }
+}
+
+internal class DownloadWindowProbe {
+    val owner = currentThreadId()
+    val application = Application()
+    val workers = ChecksumWorkers()
+    val source = ThemeSource(macosTheme())
+    val model = DownloadModel()
+    val delivered = state(0L)
+    var deliveries = 0
+    val fonts = FontCollection(false)
+    val directory = createTempDirectory(prefix = "scoop-download-ui-")
+    val destination = directory.resolve(Path.fromString("download.bin"))
+    val counts = [DownloadCounts(), DownloadCounts()]
+    val windows = ArrayList<Window>()
+    val views = ArrayList<ViewProbe>()
+    val frames = ArrayList<FrameProbe>()
+    val expectedFailure = Throwable()
+    var jobs: CoroutineScope? = None
+    var client: HttpClient? = None
+    var server: DownloadServer? = None
+    var panel: DownloadPanel? = None
+    var observer: DownloadObservedRoot? = None
+    var panelCreates = 0
+    var phase = "starting"
+    var finished = false
+    init {
+        for (family in source.current.value.tokens.typography.action.families)
+            fonts.register(testSansBytes, family)
+    }
+    fun event(host: UiHost, active: ActiveApplication, event: ApplicationEvent) {
+        assertEquals(owner, currentThreadId())
+        when (event) {
+            case Resumed -> {
+                active.setControlFlow(
+                    ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.seconds(30L))
+                )
+                currentApplicationScope().launch suspend {
+                    coroutineScope suspend {
+                        scope ->
+                        jobs = Some(scope)
+                        phase = "trust store"
+                        val anchors: Array<Certificate> = []
+                        TrustStore.fromCertificates(anchors).use suspend {
+                            trust ->
+                            phase = "listener"
+                            currentEventLoop().listenTcp(
+                                SocketAddress(IpAddress.IPV4_LOOPBACK, 0)
+                            ).useAsync suspend {
+                                listener ->
+                                phase = "server"
+                                val serving = DownloadServer(listener, scope)
+                                server = Some(serving)
+                                val accepting = serving.start()
+                                try {
+                                    phase = "client"
+                                    HttpClient.open(
+                                        scope,
+                                        HttpClientConfig(
+                                            tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                                            retries = HttpRetryOptions(maxRetries = 0L)
+                                        )
+                                    ).useAsync suspend {
+                                        http ->
+                                        client = Some(http)
+                                        phase = "mount"
+                                        mount(host, active)
+                                        runDownloadScenario(this, active)
+                                    }
+                                } finally {
+                                    accepting.cancel()
+                                    nonCancellableScope<Unit> suspend { _ -> accepting.join() }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            case NewEvents(StartCause.Deadline) -> fail(Some("download UI deadline: " + phase))
+            else -> {}
+        }
+    }
+    private fun mount(host: UiHost, active: ActiveApplication) {
+        for (index in 0L ..< 2L) {
+            val window =
+                active.createWindow(
+                    WindowAttributes(
+                        if (index == 0L)
+                            "Scoop download test"
+                        else
+                            "Shared progress observer",
+                        if (index == 0L)
+                            LogicalSize(580.0, 320.0)
+                        else
+                            LogicalSize(400.0, 200.0),
+                        position = Some(DesktopPosition(40.0 + index.toDouble() * 600.0, 80.0)),
+                        level = WindowLevel.AlwaysOnTop
+                    )
+                )
+            windows.add(window)
+            views.add(observeWindow(window))
+            frames.add(observeFrames(window))
+            host.attach(
+                window,
+                {
+                    val root = DownloadObservedRoot(this, index)
+                    if (index == 1L)
+                        observer = Some(root)
+                    root
+                }
+            )
+        }
+    }
+}
+
+private fun containsFailure(error: Throwable, expected: Throwable): Boolean =
+    if (error === expected)
+        true
+    else
+        if (error is ResourceUseException)
+            containsFailure(error.primaryFailure, expected) &&
+                containsFailure(error.cleanupFailure, expected)
+        else
+            false
+
+internal fun reportDownloadFailure(error: Throwable) {
+    error.printStackTrace()
+    if (error is ResourceUseException) {
+        reportDownloadFailure(error.primaryFailure)
+        reportDownloadFailure(error.cleanupFailure)
+    } else
+        if (error is AssertionFailure) {
+            println(
+                f"${error.kind} at ${error.location.file}:${error.location.line}: ${
+                    error.message ?: ""
+                }"
+            )
+            when (error.expected) {
+                case Text(text) -> println("expected: " + text);
+                else -> {}
+            }
+            when (error.actual) {
+                case Text(text) -> println("actual: " + text);
+                else -> {}
+            }
+        } else
+            if (error is Exception)
+                println(error.message ?: "download test failure")
+}

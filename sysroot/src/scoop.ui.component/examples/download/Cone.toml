@@ -1,0 +1,41 @@
+schema = 1
+[cone]
+group = "scoop.examples"
+name = "ui-download"
+version = "0.1.0"
+kind = "executable"
+
+[[sources]]
+path = "src"
+when = { os = "darwin" }
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.asyncio" = "0.1.0"
+"scoop:scoop.crypto" = "0.1.0"
+"scoop:scoop.http.client" = "0.1.0"
+"scoop:scoop.url" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.graphics" = "0.1.0"
+"scoop:scoop.graphics.text" = "0.1.0"
+"scoop:scoop.surface" = "0.1.0"
+"scoop:scoop.ui" = "0.1.0"
+"scoop:scoop.ui.style" = "0.1.0"
+"scoop:scoop.ui.style.macos" = "0.1.0"
+"scoop:scoop.ui.component" = "0.1.0"
+"scoop:scoop.window" = "0.1.0"
+"scoop:scoop.window.asyncio" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"scoop:scoop.http" = "0.1.0"
+"scoop:scoop.http.asyncio" = "0.1.0"
+"scoop:scoop.tls" = "0.1.0"
+"scoop.tests:surface-native" = { version = "0.1.0", path = "../../../scoop.surface/test-native" }
+"scoop.tests:graphics-native" = { version = "0.1.0", path = "../../../scoop.graphics/test-native" }
+"scoop.tests:text-fonts" = { version = "0.1.0", path = "../../../scoop.graphics.text/tests/data" }
+
+[[test.sources]]
+path = "tests"
+when = { os = "darwin" }

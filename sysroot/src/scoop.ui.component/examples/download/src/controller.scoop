@@ -1,0 +1,217 @@
+package scoop.examples.ui.download
+
+import scoop.http.client.*
+import scoop.platform.concurrent.currentThreadId
+import scoop.platform.fs.Path
+import scoop.platform.time.MonotonicTimeSource
+import scoop.window.ApplicationProxy
+
+/** Owns jobs for one mounted panel, and borrows the application's client and model. */
+internal class DownloadController(
+    private val jobs: CoroutineScope,
+    private val client: HttpClient,
+    private val workers: ChecksumWorkers,
+    private val proxy: ApplicationProxy,
+    val model: DownloadModel
+): Closeable {
+    private val thread = currentThreadId()
+    private var closed = false
+    private var current: DownloadAttempt? = None
+    val isClosed: Boolean get() = closed
+
+    private fun checkThread() {
+        if (thread != currentThreadId())
+            throw IllegalStateException(Some("download controller requires its UI owner"))
+    }
+    private fun owns(attempt: DownloadAttempt): Boolean =
+        !closed &&
+            when (current) {
+                case Some(value) -> value === attempt
+                case None -> false
+            }
+    fun start(request: HttpRequest, destination: Path): Job {
+        checkThread()
+        if (closed)
+            throw IllegalStateException(Some("download controller is closed"))
+        val previous = current
+        val attempt = DownloadAttempt()
+        current = Some(attempt)
+        when (previous) {
+            case Some(value) -> {
+                value.accepting = false
+                value.job?.cancel()
+                value.checksum?.cancel()
+            }
+            case None -> {}
+        }
+        model.snapshot.value = DownloadSnapshot(DownloadPhase.Running)
+        val job =
+            jobs.launch suspend {
+                try {
+                    val result =
+                        client.download(
+                            request,
+                            destination,
+                            HttpDownloadOptions(
+                                replaceExisting = true,
+                                onProgress =
+                                    suspend {
+                                        value ->
+                                        checkThread()
+                                        if (owns(attempt) && attempt.accepting) {
+                                            val progress =
+                                                DownloadProgress(
+                                                    value.bytesWritten,
+                                                    value.totalBytes
+                                                )
+                                            attempt.latest = progress
+                                            if (
+                                                attempt.cadence.accept(
+                                                    progress,
+                                                    MonotonicTimeSource.markNow()
+                                                )
+                                            )
+                                                model.snapshot.value =
+                                                    DownloadSnapshot(
+                                                        DownloadPhase.Running,
+                                                        progress
+                                                    )
+                                        }
+                                    }
+                            )
+                        )
+                    if (owns(attempt)) {
+                        if (attempt.accepting) {
+                            attempt.latest = DownloadProgress(0L, Some(result.byteCount))
+                            attempt.cadence = ProgressCadence()
+                            model.snapshot.value =
+                                DownloadSnapshot(DownloadPhase.Verifying, attempt.latest)
+                            attempt.checksum =
+                                Some(
+                                    workers.start(
+                                        proxy,
+                                        destination,
+                                        {
+                                            progress ->
+                                            checkThread()
+                                            if (owns(attempt) && attempt.accepting) {
+                                                attempt.latest = progress
+                                                if (
+                                                    attempt.cadence.accept(
+                                                        progress,
+                                                        MonotonicTimeSource.markNow()
+                                                    )
+                                                )
+                                                    model.snapshot.value =
+                                                        DownloadSnapshot(
+                                                            DownloadPhase.Verifying,
+                                                            progress
+                                                        )
+                                            }
+                                        },
+                                        {
+                                            outcome ->
+                                            checkThread()
+                                            attempt.checksum = None
+                                            if (owns(attempt)) {
+                                                when (outcome) {
+                                                    case Completed(bytes, digest) -> finish(
+                                                        attempt,
+                                                        DownloadSnapshot(
+                                                            DownloadPhase.Completed,
+                                                            DownloadProgress(bytes, Some(bytes)),
+                                                            digest = Some(digest)
+                                                        )
+                                                    )
+                                                    case Cancelled -> finish(
+                                                        attempt,
+                                                        DownloadSnapshot(
+                                                            DownloadPhase.Cancelled,
+                                                            attempt.latest
+                                                        )
+                                                    )
+                                                    case Failed(error) -> finish(
+                                                        attempt,
+                                                        DownloadSnapshot(
+                                                            DownloadPhase.Failed,
+                                                            attempt.latest,
+                                                            Some(error)
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    )
+                                )
+                        } else {
+                            finish(
+                                attempt,
+                                DownloadSnapshot(DownloadPhase.Cancelled, attempt.latest)
+                            )
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    if (owns(attempt))
+                        finish(attempt, DownloadSnapshot(DownloadPhase.Cancelled, attempt.latest))
+                    throw cancelled
+                } catch (error: Throwable) {
+                    if (owns(attempt))
+                        finish(
+                            attempt,
+                            DownloadSnapshot(
+                                DownloadPhase.Failed,
+                                attempt.latest,
+                                Some(failureText(error))
+                            )
+                        )
+                } finally {
+                    attempt.job = None
+                }
+            }
+        if (!job.isCompleted)
+            attempt.job = Some(job)
+        return job
+    }
+    private fun finish(attempt: DownloadAttempt, result: DownloadSnapshot) {
+        attempt.accepting = false
+        attempt.done = true
+        model.snapshot.value = result
+    }
+    fun cancel() {
+        checkThread()
+        when (current) {
+            case Some(attempt) -> if (attempt.accepting && !attempt.done) {
+                attempt.accepting = false
+                model.snapshot.value = DownloadSnapshot(DownloadPhase.Cancelling, attempt.latest)
+                attempt.job?.cancel()
+                attempt.checksum?.cancel()
+            }
+            case None -> {}
+        }
+    }
+    public override fun close() {
+        checkThread()
+        if (closed)
+            return
+        closed = true
+        val previous = current
+        current = None
+        when (previous) {
+            case Some(value) -> {
+                value.accepting = false
+                value.job?.cancel()
+                value.checksum?.cancel()
+            }
+            case None -> {}
+        }
+    }
+}
+
+private class DownloadAttempt {
+    var job: Job? = None
+    var checksum: ChecksumTask? = None
+    var accepting = true
+    var done = false
+    var latest = DownloadProgress(0L, None)
+    var cadence = ProgressCadence()
+}

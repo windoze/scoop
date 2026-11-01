@@ -51,6 +51,6 @@ metrics 可查询建议／最小尺寸、padding、边框内缩及焦点外扩�
 
 `theme.tokens` 提供 palette、typography、spacing、corners、effects 和 motion。文字覆盖用 SpanStyle.resolve；外框与内容效果继续使用本库 Style。Theme 不持有 native 资源；ThemePainterCache 保留当前 painter，换主题时先创建再替换，及时关闭旧资源。绘图中的临时 Canvas 不能保存，颜色和动画采样不会创建独立时钟。
 
-应用持有稳定 ThemeSource，使用 `context(source) { ... }` 包围实际 Application.run／runWithAsyncio 及挂载入口。控件挂载时保存来源，在 render 中读取 `source.current.value`；更新这个 State 通知实际订阅者。局部主题通过明确 Props 传入，临时 Context 不会自动成为挂载树 Provider。基础控件接入和完整展示例子继续按实施记录推进。
+应用持有稳定 ThemeSource，使用 `context(source) { ... }` 包围实际 Application.run／runWithAsyncio 及挂载入口。Component 可在挂载工厂的构造阶段保存来源，在 render 中读取 `source.current.value`；首轮 render 早于 onMount，不应等到 onMount 才初始化这个引用。更新主题 State 通知实际订阅者。局部主题通过明确 Props 传入，临时 Context 不会自动成为挂载树 Provider。三套主题、公共绘图部件和实际控件的完整用法见[主题展示](../scoop.ui.component/examples/themes/README.md)。
 
 详细合同见[公共样式规范](../../../docs/specs/SCOOP-UI-STYLE-SPEC.md)、[图像滤镜规范](../../../docs/specs/SCOOP-GRAPHICS-EFFECTS-SPEC.md)和[主题绘图规范](../../../docs/specs/SCOOP-UI-THEME-SPEC.md)。普通绘图／缓存测试位于本 Cone，实际窗口与错误收尾位于 tests-cones/ui 和 tests-cones/errors，均使用 scoop.test。

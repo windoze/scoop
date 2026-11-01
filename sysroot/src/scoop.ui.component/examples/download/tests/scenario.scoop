@@ -1,0 +1,221 @@
+package scoop.examples.ui.download
+
+import scoop.asyncio.*
+import scoop.crypto.*
+import scoop.platform.fs.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.text.toHexString
+import scoop.time.Duration
+import scoop.window.*
+
+internal suspend fun runDownloadScenario(probe: DownloadWindowProbe, active: ActiveApplication) {
+    awaitDownload(probe, "initial frames") {
+        probe.counts[0L].paints > 0 && probe.counts[1L].paints > 0
+    }
+    val controller = probe.panel!!.controller!!
+    val server = probe.server!!
+    val proxy = probe.application.proxy()
+    val initialFile = "prior destination"
+    probe.destination.writeText(initialFile)
+    val slow = controller.start(server.request("/slow"), probe.destination)
+    awaitDownload(probe, "partial download") { probe.model.snapshot.value.progress.bytes > 0L }
+    // Pending network I/O has no frame demand once the real progress change settles.
+    // Wait for the current controls' input geometry to be committed before interaction.
+    awaitDownloadQuiet(probe)
+    val observerFrames = probe.frames[1L].snapshot()
+    val observerCounts = probe.counts[1L].values()
+    // This point is inside Clicks in the fixed-font panel. Input reaches the actual control;
+    // the download example does not provide a separate focus-navigation implementation.
+    assertTrue(moveSurfacePointer(probe.windows[0L], 246.0, 140.0))
+    assertTrue(probe.views[0L].button(246.0, 140.0, true))
+    assertTrue(probe.views[0L].button(246.0, 140.0, false))
+    awaitDownload(probe, "interactive download") { probe.panel!!.clicks == 1 }
+    assertEquals(0, probe.observer!!.clicks)
+    awaitDownloadQuiet(probe)
+    assertEquals(observerFrames, probe.frames[1L].snapshot())
+    sameCounts(observerCounts, probe.counts[1L].values())
+    controller.cancel()
+    assertTrue(
+        probe.model.snapshot.value.phase ==
+            DownloadPhase.Cancelling ||
+            probe.model.snapshot.value.phase ==
+            DownloadPhase.Cancelled
+    )
+    slow.join()
+    assertEquals(DownloadPhase.Cancelled, probe.model.snapshot.value.phase)
+    assertEquals(initialFile, probe.destination.readText())
+    assertEquals(0L, probe.workers.activeCount)
+    awaitDownloadQuiet(probe)
+
+    probe.phase = "cancel background verification"
+    controller.start(server.request("/known"), probe.destination).join()
+    // Job completion is the HTTP boundary. Its owner continuation runs before queued worker
+    // messages, so cancellation here deterministically targets the real verification task.
+    assertEquals(DownloadPhase.Verifying, probe.model.snapshot.value.phase)
+    assertEquals(1L, probe.workers.activeCount)
+    controller.cancel()
+    awaitDownload(probe, "verification cancelled") {
+        probe.model.snapshot.value.phase == DownloadPhase.Cancelled
+    }
+    assertEquals(server.known.size, probe.destination.metadata().size)
+    assertEquals(0L, probe.workers.activeCount)
+
+    probe.phase = "replace verification"
+    controller.start(server.request("/known"), probe.destination).join()
+    assertEquals(DownloadPhase.Verifying, probe.model.snapshot.value.phase)
+    val replacement = controller.start(server.request("/unknown"), probe.destination)
+    replacement.join()
+    awaitDownload(probe, "unknown total completed") {
+        probe.model.snapshot.value.phase == DownloadPhase.Completed
+    }
+    assertEquals(
+        digest(DigestAlgorithm.Sha256, server.unknown).toHexString(),
+        probe.model.snapshot.value.digest!!
+    )
+    assertEquals(1, probe.panel!!.clicks)
+    assertEquals(0L, probe.workers.activeCount)
+    awaitDownload(probe, "both roots observe completion") {
+        probe.counts[0L].snapshot!!.phase ==
+            DownloadPhase.Completed &&
+            probe.counts[1L].snapshot!!.phase ==
+            DownloadPhase.Completed
+    }
+    assertTrue(probe.counts[0L].sawUnknown)
+    assertTrue(probe.counts[1L].sawUnknown)
+    awaitDownloadQuiet(probe)
+
+    controller.start(server.request("/error"), probe.destination).join()
+    assertEquals(DownloadPhase.Failed, probe.model.snapshot.value.phase)
+    assertTrue(
+        when (probe.model.snapshot.value.error) {
+            case Some(_) -> true;
+            case None -> false
+        }
+    )
+    assertEquals(String.fromUtf8(server.unknown), probe.destination.readText())
+    assertEquals(0L, probe.workers.activeCount)
+
+    probe.windows[0L].setVisible(false)
+    awaitDownload(probe, "hidden root") {
+        !probe.windows[0L].isVisible && probe.frames[0L].snapshot().paused
+    }
+    val hiddenFrames = probe.frames[0L].snapshot()
+    controller.start(server.request("/known"), probe.destination).join()
+    awaitDownload(probe, "hidden download and verification") {
+        probe.model.snapshot.value.phase == DownloadPhase.Completed
+    }
+    assertEquals(hiddenFrames, probe.frames[0L].snapshot())
+    assertEquals(
+        digest(DigestAlgorithm.Sha256, server.known).toHexString(),
+        probe.model.snapshot.value.digest!!
+    )
+    probe.windows[0L].setVisible(true)
+    awaitDownload(probe, "restored frame") {
+        probe.frames[0L].snapshot().presentations > hiddenFrames.presentations
+    }
+    awaitDownloadQuiet(probe)
+
+    val closing = controller.start(server.request("/slow"), probe.destination)
+    awaitDownload(probe, "native close during I/O") {
+        probe.model.snapshot.value.progress.bytes > 0L
+    }
+    probe.windows[0L].requestDestroy()
+    closing.join()
+    awaitDownload(probe, "one native root closes") { probe.counts[0L].unmounts == 1 }
+    assertTrue(controller.isClosed)
+    assertEquals(0, probe.counts[1L].unmounts)
+    assertFalse(probe.client!!.isClosed)
+    val retired = probe.counts[0L].values()
+    val settled = DownloadSnapshot(DownloadPhase.Cancelled)
+    probe.model.snapshot.value = settled
+    probe.observer!!.clicks = 2
+    awaitDownload(probe, "surviving root") { probe.counts[1L].snapshot!! === settled }
+    sameCounts(retired, probe.counts[0L].values())
+    assertEquals(1, probe.panel!!.clicks)
+    assertEquals(2, probe.observer!!.clicks)
+    awaitDownloadQuiet(probe, true)
+
+    probe.phase = "worker callback failure"
+    probe.finished = true
+    probe.workers.start(
+        proxy,
+        probe.destination,
+        { _ -> },
+        {
+            outcome ->
+            assertTrue(
+                when (outcome) {
+                    case Completed(_, _) -> true;
+                    else -> false
+                }
+            )
+            assertEquals(0L, probe.workers.activeCount)
+            // Reaping precedes user delivery, even if that delivery aborts the application.
+            throw probe.expectedFailure
+        }
+    )
+    suspendCancellableCoroutine<Unit> { _ -> }
+}
+
+internal suspend fun awaitDownload(
+    probe: DownloadWindowProbe,
+    phase: String,
+    ready: () -> Boolean
+) {
+    probe.phase = phase
+    val deadline = MonotonicTimeSource.markNow() + Duration.seconds(10L)
+    while (!ready()) {
+        if (MonotonicTimeSource.markNow() >= deadline) {
+            for (index in 0L ..< probe.windows.size) {
+                val window = probe.windows[index]
+                val frames = probe.frames[index].snapshot()
+                println(
+                    f"window ${index}: open=${window.state == WindowState.Open}, paints=${
+                        probe.counts[index].paints
+                    }, " +
+                        f"attached=${frames.attached}, required=${frames.required}, paused=${
+                            frames.paused
+                        }, " +
+                        f"callbacks=${frames.callbacks}, presentations=${frames.presentations}"
+                )
+                if (window.state == WindowState.Open)
+                    println(
+                        f"visible=${window.isVisible}, occluded=${window.isOccluded}, focused=${
+                            window.isFocused
+                        }"
+                    )
+            }
+            fail(Some("download wait: " + phase))
+        }
+        currentEventLoop().sleep(Duration.milliseconds(5L))
+    }
+}
+
+private suspend fun awaitDownloadQuiet(probe: DownloadWindowProbe, firstClosed: Boolean = false) {
+    probe.phase = "idle"
+    currentEventLoop().sleep(Duration.milliseconds(250L))
+    val frames = [probe.frames[0L].snapshot(), probe.frames[1L].snapshot()]
+    for (index in 0L ..< 2L) {
+        if (index == 0L && firstClosed)
+            assertFalse(frames[index].attached)
+        else {
+            assertFalse(frames[index].required);
+            assertTrue(frames[index].paused)
+        }
+    }
+    val counters = [probe.counts[0L].values(), probe.counts[1L].values()]
+    // Only the test deadline is scheduled by the UI; stalled I/O can remain registered.
+    currentEventLoop().sleep(Duration.milliseconds(180L))
+    for (index in 0L ..< 2L) {
+        assertEquals(frames[index], probe.frames[index].snapshot())
+        sameCounts(counters[index], probe.counts[index].values())
+    }
+    assertEquals(0L, probe.workers.activeCount)
+}
+
+private fun sameCounts(expected: Array<Int>, actual: Array<Int>) {
+    for (index in 0L ..< expected.size)
+        assertEquals(expected[index], actual[index])
+}

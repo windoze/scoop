@@ -1,0 +1,190 @@
+package scoop.examples.ui.download
+
+import scoop.platform.concurrent.*
+import scoop.platform.fs.Path
+import scoop.window.ApplicationProxy
+
+/** Application-owned join handles outlive component unmount and discarded business posts. */
+internal class ChecksumWorkers: Closeable {
+    private val owner = currentThreadId()
+    private val active = ArrayList<ChecksumTask>()
+    private var closed = false
+    val activeCount: Long get() {
+        checkThread();
+        return active.size
+    }
+    val isClosed: Boolean get() {
+        checkThread();
+        return closed
+    }
+
+    private fun checkThread() {
+        if (currentThreadId() != owner)
+            throw IllegalStateException(Some("checksum workers require their UI owner"))
+    }
+    fun start(
+        proxy: ApplicationProxy,
+        path: Path,
+        onProgress: (DownloadProgress) -> Unit,
+        onComplete: (ChecksumOutcome) -> Unit
+    ): ChecksumTask {
+        checkThread()
+        if (closed)
+            throw IllegalStateException(Some("checksum workers are closed"))
+        val task = ChecksumTask(proxy, onProgress, onComplete)
+        active.add(task)
+        try {
+            task.start(
+                path,
+                {
+                    result ->
+                    remove(task)
+                    task.complete(result)
+                }
+            )
+        } catch (error: Throwable) {
+            remove(task)
+            try {
+                task.close()
+            }
+            catch (cleanup: Throwable) {
+                throw ResourceUseException(error, cleanup)
+            }
+            throw error
+        }
+        return task
+    }
+    private fun remove(task: ChecksumTask) {
+        var index = 0L
+        while (index < active.size) {
+            if (active[index] === task) {
+                active.removeAt(index)
+                return
+            }
+            index += 1L
+        }
+    }
+    /** Called after Application.runWithAsyncio returns, never by ComponentScope. */
+    public override fun close() {
+        checkThread()
+        if (closed)
+            return
+        closed = true
+        for (task in active)
+            task.cancel()
+        var failure: Throwable? = None
+        for (task in active) {
+            try {
+                task.close()
+            }
+            catch (error: Throwable) {
+                failure =
+                    Some(
+                        when (failure) {
+                            case None -> error
+                            case Some(previous) -> ResourceUseException(previous, error)
+                        }
+                    )
+            }
+        }
+        active.clear()
+        when (failure) {
+            case Some(error) -> throw error;
+            case None -> {}
+        }
+    }
+}
+
+/** Owns the thread and its progress delivery; the application performs the final join. */
+internal class ChecksumTask(
+    private val proxy: ApplicationProxy,
+    progress: (DownloadProgress) -> Unit,
+    complete: (ChecksumOutcome) -> Unit
+): Closeable {
+    private val owner = currentThreadId()
+    private val cancelled = AtomicBoolean(false)
+    private val mailbox = ChecksumMailbox(proxy, progress)
+    private var thread: Thread? = None
+    private var completeCallback: ((ChecksumOutcome) -> Unit)? = Some(complete)
+    private var closed = false
+    val isClosed: Boolean get() {
+        checkThread();
+        return closed
+    }
+
+    private fun checkThread() {
+        if (currentThreadId() != owner)
+            throw IllegalStateException(Some("checksum task requires its UI owner"))
+    }
+    fun start(path: Path, finish: (ChecksumOutcome) -> Unit) {
+        checkThread()
+        thread =
+            Some(
+                Thread.start {
+                    val outcome =
+                        try {
+                            checksumFile(path, cancelled, { value -> mailbox.publish(value) })
+                        }
+                        catch (error: Throwable) {
+                            ChecksumOutcome.Failed(failureText(error))
+                        }
+                    // All file and crypto cleanup precedes this final post. A UI join only waits for
+                    // the native thread epilogue; the worker never waits for a UI acknowledgement.
+                    proxy.post { _ -> finish(outcome) }
+                }
+            )
+    }
+    fun cancel() {
+        checkThread()
+        if (closed)
+            return
+        cancelled.store(true, MemoryOrder.Release)
+        mailbox.stop()
+    }
+    fun complete(outcome: ChecksumOutcome) {
+        checkThread()
+        val callback = completeCallback
+        val result =
+            if (cancelled.load(MemoryOrder.Acquire))
+                ChecksumOutcome.Cancelled
+            else
+                outcome
+        close()
+        when (callback) {
+            case Some(value) -> value(result);
+            case None -> {}
+        }
+    }
+    public override fun close() {
+        checkThread()
+        if (closed)
+            return
+        cancel()
+        var failure: Throwable? = None
+        try {
+            thread?.join()
+        }
+        catch (error: Throwable) {
+            failure = Some(error)
+        }
+        thread = None
+        closed = true
+        completeCallback = None
+        try {
+            mailbox.close()
+        }
+        catch (error: Throwable) {
+            failure =
+                Some(
+                    when (failure) {
+                        case None -> error
+                        case Some(previous) -> ResourceUseException(previous, error)
+                    }
+                )
+        }
+        when (failure) {
+            case Some(error) -> throw error;
+            case None -> {}
+        }
+    }
+}

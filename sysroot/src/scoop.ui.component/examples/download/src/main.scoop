@@ -1,0 +1,70 @@
+package scoop.examples.ui.download
+
+import scoop.asyncio.*
+import scoop.graphics.text.FontCollection
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.url.Url
+import scoop.window.*
+import scoop.window.asyncio.*
+
+fun main(args: Array<String>) {
+    if (args.size != 3L) {
+        println("Usage: ui-download <url> <destination>")
+        return
+    }
+    val request = HttpRequest.get(Url.parse(args[1L]))
+    val destination = Path.fromString(args[2L])
+    val themes = ThemeSource(macosTheme())
+    val model = DownloadModel()
+    val application = Application()
+    ChecksumWorkers().use {
+        workers -> FontCollection().use {
+            fonts -> context(themes) {
+                UiHost {
+                    host,
+                    active,
+                    event -> when (event) {
+                        case Resumed -> currentApplicationScope().launch suspend {
+                            coroutineScope suspend {
+                                jobs -> HttpClient.open(jobs).useAsync suspend {
+                                    client ->
+                                    val window =
+                                        active.createWindow(
+                                            WindowAttributes(
+                                                "Scoop — download",
+                                                LogicalSize(580.0, 320.0)
+                                            )
+                                        )
+                                    host.attach(
+                                        window,
+                                        {
+                                            DownloadPanel(
+                                                jobs,
+                                                client,
+                                                workers,
+                                                application.proxy(),
+                                                model,
+                                                request,
+                                                destination,
+                                                fonts
+                                            )
+                                        }
+                                    )
+                                    window.requestFocus()
+                                    suspendCancellableCoroutine<Unit> { _ -> }
+                                }
+                            }
+                        }
+                        case Window(_, WindowEvent.CloseRequested) -> active.requestExit()
+                        case ExitRequested(_) -> active.requestExit()
+                        else -> {}
+                    }
+                }.use { host -> application.runWithAsyncio(host) }
+            }
+        }
+    }
+}
