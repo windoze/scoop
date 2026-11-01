@@ -519,11 +519,11 @@ Scoop 的 LLVM 对象以拥有所有权的原生字节交接，在内存中完�
 
 每个 callable 的 LLVM module 只声明正文实际引用的类型描述符、数组描述符、普通全局量和初始化登记，并完整发射该 body 所属的 C 字符串等关联定义。归属和初始化登记的查询表按 Cone 建立一次；元数据分区仍取得其完整定义。逐函数 module 可复用同一个 LLVM Context，但对象、ODR、registration 与 GC 的物理选择边界保持独立，不以合并函数对象消除准备开销。
 
-独立 callable 可在多个编译 worker 中并行发射。每个 worker 独占 LLVM Context 与 TargetMachine，逐对象独立运行 LLVM passes；LIR、符号规划和 GC effect 表只读共享。TargetMachine 可持有 Context 中的调试 metadata，必须先于所使用的 Context 销毁；callable、元数据和 IR 输出入口的正常返回、错误返回与栈展开均遵守这一生命周期。完成的对象及生产记录按原 canonical 身份顺序合并，worker 数和任务分配顺序不改变产物、诊断选择或 GC／ABI 合同。元数据分区在 callable 生产记录完成后沿原路径发射。
+独立 callable 可在多个编译 worker 中并行发射。每个 worker 独占 LLVM Context 与 TargetMachine，逐对象独立运行 LLVM passes；LIR、符号规划和 GC effect 表只读共享。TargetMachine 可持有 Context 中的调试 metadata，必须先于所使用的 Context 销毁；callable、元数据和 IR 输出入口的正常返回、错误返回与栈展开均遵守这一生命周期。完成的对象及生产记录按原 canonical 身份顺序合并，worker 数和任务分配顺序不改变产物、诊断选择或 GC／ABI 合同。元数据分区在 callable 生产记录完成后发射，两者共用本次编译的 jobs 上限。
 
 ELF callable module 在普通优化、statepoint lowering 与实际 safepoint 登记完成后，先用 LLVM 的全局死引用清理去除无实际使用的声明及其孤立常量使用链，再准备最终 visibility／COMDAT 并发射对象。清理覆盖当前 module 的全部声明，包括不在当前 Cone 定义计划中的外部声明；不能仅凭原始 use-list 非空推断仍有代码或数据引用。真实引用、Strong／ODR 定义、alias owner 和登记数据保持原链接合同；不可达的 TD 不因无重定位的残留 hidden 声明而成为链接根。元数据 module 复用既有分区清理，不增加链接期保留全部声明或 TD 的规则。
 
-元数据对象按已经确定的物理定义集合投影。实现先按对象序列逐层拆分候选模块，再从较小的模块生成最终对象，避免为每个对象重复复制全部 LLVM 元数据。每层只保留所选定义及其实际引用声明，沿用同一别名、TLS 边界与可见性处理；拆分过程不改变最终对象划分、符号、布局、注册内容或 ABI。
+元数据对象按已经确定的物理定义集合投影。实现先按对象序列逐层拆分候选模块，再从较小的模块生成最终对象，避免为每个对象重复复制全部 LLVM 元数据。每层只保留所选定义及其实际引用声明，沿用同一别名、TLS 边界与可见性处理；拆分过程不改变最终对象划分、符号、布局、注册内容或 ABI。并行发射先沿同一拆分树形成不超过 worker 份额的独立子树，经内存中的 LLVM bitcode 转交各 worker 的独立 Context 与 TargetMachine，再沿原树完成裁剪和发射。转交保留模块标识、source filename、布局及调试 metadata；结果与错误按原对象顺序汇集。单 worker 继续使用原串行路径。
 
 仅含静态元数据与外部函数声明的分区直接使用 LLVM 的目标 AsmPrinter／MC 对象发射，不为其建立指令选择、寄存器分配和机器函数优化流水线。其 LLVM 数据布局、目标选项、别名、TLS、COMDAT、调试信息和 module assembly 仍由同一目标后端处理；函数对象继续使用完整机器代码生成流程。该选择只消除无函数分区的准备工作，不另建原生对象编码器，不改变物理分区和产物格式。
 

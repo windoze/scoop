@@ -3,6 +3,15 @@ use std::num::NonZeroUsize;
 
 #[test]
 fn parallel_emission_preserves_complete_objects_on_every_target() {
+    check_parallel_emission(false);
+}
+
+#[test]
+fn parallel_metadata_only_emission_preserves_complete_objects_on_every_target() {
+    check_parallel_emission(true);
+}
+
+fn check_parallel_emission(metadata_only: bool) {
     let source = std::sync::Arc::new(scoop_source::DebugFile {
         identity: std::sync::Arc::new(scoop_identity::SourceIdentity::single_file()),
         path: "parallel.scoop".into(),
@@ -29,6 +38,9 @@ fn parallel_emission_preserves_complete_objects_on_every_target() {
                 block.terminator_origin = function.debug_origin.clone();
             }
         }
+        if metadata_only {
+            module.functions.clear();
+        }
         let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
         for optimization in [
             scoop_lir::OptimizationMode::Debug,
@@ -51,11 +63,24 @@ fn parallel_emission_preserves_complete_objects_on_every_target() {
                 )
                 .unwrap_or_else(|error| panic!("{target:?}/{optimization:?}/{jobs}: {error}"))
             };
+            // Exercise metadata initialization before any serial emission.
+            let first_parallel = metadata_only.then(|| (8, emit(8)));
             let serial = emit(1);
+            let metadata_count = serial
+                .members
+                .iter()
+                .filter(|member| member.kind == EmittedConeObjectMemberKindV1::NonCallable)
+                .count();
+            assert!(metadata_count > 1, "exercise independent metadata subtrees");
+            if metadata_only {
+                assert_eq!(metadata_count, serial.members.len());
+            }
             // Reuse contexts within workers and request more workers than bodies.
             // Repeating a parallel run also changes the assignment of short bodies.
-            for jobs in [2, 8, 2] {
-                let parallel = emit(jobs);
+            for (jobs, parallel) in first_parallel
+                .into_iter()
+                .chain([2, 8, 2].map(|jobs| (jobs, emit(jobs))))
+            {
                 assert_eq!(serial.foundation, parallel.foundation);
                 assert_eq!(serial.production, parallel.production);
                 assert_eq!(serial.partition, parallel.partition);

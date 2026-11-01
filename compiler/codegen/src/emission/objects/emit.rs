@@ -51,9 +51,13 @@ pub(super) fn emit_object_set_with_production<
     )?;
     let metadata =
         metadata_partition::MetadataModule::new(metadata_llvm, production.canonical_definitions())?;
-    let mut metadata_members =
-        metadata.map_partitions(&machine, profile, &partition, |units, llvm| {
-            let mut bytes = metadata_object::emit(&machine, &llvm)?;
+    let mut metadata_members = metadata.map_partitions_parallel(
+        &machine,
+        profile,
+        &partition,
+        jobs,
+        |units, llvm, machine| {
+            let mut bytes = metadata_object::emit(machine, &llvm)?;
             atom_boundaries::materialize_global_linkages_v1(
                 &mut bytes,
                 module.meta.target_profile,
@@ -65,7 +69,8 @@ pub(super) fn emit_object_set_with_production<
                 bytes,
                 kind: EmittedConeObjectMemberKindV1::NonCallable,
             })
-        })?;
+        },
+    )?;
     let mut members = Vec::with_capacity(partition.objects().len());
     for units in partition.objects() {
         let member = match units.kind() {
