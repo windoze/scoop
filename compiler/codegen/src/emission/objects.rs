@@ -1,5 +1,6 @@
 use super::*;
 
+mod callables;
 mod emit;
 mod finalization;
 mod render;
@@ -68,6 +69,7 @@ pub fn emit_object_set(
     direct_dependencies: &[scoop_lir::ConeIdentity],
     entry_source: scoop_lir::EntryProductionSourceV1,
     profile: ValidatedBackendProfile,
+    jobs: std::num::NonZeroUsize,
 ) -> Result<EmittedConeObjectSetV1, CodegenError> {
     profile.validate_lir_target_profile(input.module().meta.target_profile)?;
     let production = input
@@ -75,7 +77,7 @@ pub fn emit_object_set(
         .map_err(|error| {
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;
-    emit_object_set_with_production(input, production, profile)
+    emit_object_set_with_production(input, production, profile, jobs)
 }
 
 /// Emits the complete LIR and Strong V2 production records for one Cone.
@@ -83,7 +85,8 @@ pub fn emit_object_set_v2(
     input: &scoop_lir::ConeLirOutput,
     production: scoop_lir::ConeProductionSectionV2,
     profile: ValidatedBackendProfile,
+    jobs: std::num::NonZeroUsize,
 ) -> Result<EmittedConeObjectSetV2, CodegenError> {
     profile.validate_lir_target_profile(input.module().meta.target_profile)?;
-    emit_object_set_with_production(input, production, profile)
+    emit_object_set_with_production(input, production, profile, jobs)
 }

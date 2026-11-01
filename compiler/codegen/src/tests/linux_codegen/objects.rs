@@ -51,6 +51,7 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 profile,
+                std::num::NonZeroUsize::MIN,
             )
             .unwrap_or_else(|error| panic!("{target:?}/ODR={odr}: {error}"));
             let mut observed_tls = Vec::new();

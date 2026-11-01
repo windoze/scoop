@@ -309,11 +309,38 @@ macOS、Linux 的 release workspace all-targets Clippy 和各 4 项对象字典�
 
 最小字典／对象／压缩帧复现与原始验证报告移至仓库外，临时 C 实验程序、失败产物及已完成的独立对照副本已清理。
 
+## 第十四轮：在统一 jobs 上限内并行发射 callable
+
+独立 callable 的 LLVM module 现在由多个 worker 发射，每个 worker 独占 Context 和 TargetMachine，只读共享 LIR、符号规划、声明索引及 GC effect 表。逐对象 passes、物理分区与 GC／异常展开合同保持；完成结果按原 canonical 身份排序，错误也按原顺序选择。所有已启动线程完成后再处理元数据分区，后者继续使用原串行路径。
+
+`scoop build/run/test --jobs` 同时限制 Cone 调度与 Cone 内代码生成。父进程按就绪节点分配剩余 worker，所有活跃 child 的份额之和不超过指定值；单个就绪 Cone 可以取得全部空闲份额。直接 `scoopc build` 也接受 `-j/--jobs`。此执行参数不进入 machine CBOR、缓存 key、语言身份或产物格式，命中与等待锁的节点不占用编译份额。
+
+采用同一组最终 release 编译器，比较 jobs=1 与宿主并行度（macOS 32、Linux 20）。每项执行三组交替顺序的源码重编译，使用相同路径与预编译依赖，每次独立清空构建缓存；随后检查一次热构建。下表为三次墙钟中位数，收益仅归于并行发射。
+
+| 宿主与源码 Cone | Scoop profile | 单 worker | 并行 worker | 耗时减少 |
+| --- | --- | ---: | ---: | ---: |
+| macOS `scoop.std` | debug | 7.319 s | 6.485 s | 11.4% |
+| macOS `scoop.std` | release | 8.280 s | 6.614 s | 20.1% |
+| macOS `scoop.http.client` | debug | 63.868 s | 47.274 s | 26.0% |
+| macOS `scoop.http.client` | release | 68.318 s | 44.320 s | 35.1% |
+| Linux `scoop.std` | debug | 11.346 s | 10.002 s | 11.8% |
+| Linux `scoop.std` | release | 12.254 s | 9.958 s | 18.7% |
+
+36 次源码重编译均确认只有目标 Cone 启动编译 child；对应 36 次热构建均命中且没有 child。每种宿主／Cone／profile 的六份完整 `.slib` SHA-256 全部相同。热构建中位数为 macOS 19.29～24.36 ms、Linux 13.34～13.56 ms，未将它们计为本轮收益。
+
+三次运行中最大的单进程 RSS，macOS 标准库 debug／release 分别增加 39.6／39.9 MiB；HTTP debug 从 13,298,155,520 增至 13,904,576,512 bytes，增加 578.3 MiB，release 从 11,384,602,624 降至 11,318,640,640 bytes。Linux 标准库 debug／release 分别增加 77.3／65.2 MiB。独立 LLVM context 带来可见的并行内存成本，使用同一个 jobs 上限控制，不另加压缩线程池。
+
+macOS、Linux 的 release workspace all-targets Clippy 均通过；调度、后端与真实泛型／跨产物定向测试分别为 52／107 项通过。新增后端对照在七目标的 debug、release/full 下共执行 56 次对象发射，逐项比较完整 bytes、分区和生产记录。调度测试覆盖独立 Cone 的份额总和、单 Cone 使用空闲 worker、重复根与锁等待、canonical 错误选择和缓存 key 不受 jobs 影响。
+
+正式 CLI 使用最终工具，在 Darwin AArch64、Darwin x86_64（Rosetta）、Linux GNU、Linux musl 各执行确定性、并行 Cone、泛型异常控制流三个 fixture，合计 12 个 fixture、20 个 variant、108 次进程调用，全部通过。确定性用例在同一路径上分别使用 jobs=1、4、2，检查 debug 与 release/full 的完整文件相同。没有重跑全量 fixture；Windows 原有全量的失败已在第十二轮记录中全部闭合，其工作目录也已清理。
+
+原始配对测量、独立解压对照与 CLI 报告保存在仓库外。每次测量的构建缓存、已完成的定向 fixture 工作目录与缓存、旧实验工具及重复产物已清理；保留最终工具和每种 profile 的一份代表产物，供下一轮共有路径优化对照。
+
 ## 后续优先级
 
 尺寸优化按用户补充要求，优先精简结构、删除不必要或重复的信息；压缩只作为最后的补充，且不采用 CPU／内存消耗过大的算法。
 
-1. 按用户最新要求，尺寸优化告一段落，转入编译速度大项，优先处理 debug／release 共有路径。已启动的 Windows 验收继续收尾并修复实际失败，尚未启动的两个 MinGW 全量 CLI 留到速度大项完成后的统一验收。已消除 Scoop 对象生产的重复临时文件读写；已有 debug 发射不确定性也已修复，接着处理共有计算热点与独立 LLVM context 的并行发射，保持全部 GC／ABI 合同。
+1. 按用户最新要求，尺寸优化告一段落，转入编译速度大项，优先处理 debug／release 共有路径。Windows MSVC 原有完整验收及全部失败复测已结束，两个 MinGW 全量 CLI 留到速度大项完成后的统一验收。已落地 Scoop 对象内存交接和独立 LLVM context 的并行发射，并修复实际遇到的调试信息、压缩与 Windows 路径错误。下一项根据并行后的实际耗时评估对象缓存按需落盘、元数据分区及 production 构造热点，继续保持全部 GC／ABI 合同。
 2. 当前完整 29 库的 HIR／MIR／LIR 字符串表投影仅省约 1.05～1.06 MiB，其中 LIR 约 0.04～0.08 MiB。注册记录 ABI 去掉重复 group／member hash 输入的投影约省 1.93 MiB，该估算尚保留旧索引，仅用于候选排序。跨三层 metadata 的重复 ID 原始字节上限为 7.03 MiB，尚未扣映射开销；全局 union 会让只请求 HIR 的读取载入大量 LIR 专用 ID，先保留阶段局部读取。这些候选后置。manifest 的全量 ID 表此前反而增加约 2.10 MiB，不采用。
 
 已排除直接复用 LLVM 22.1 的对象发射 pass manager：即使 AsmPrinter／MCStreamer／MachineModuleInfo 有逐模块收尾，带 GC statepoint 与异常展开的第二个函数模块仍残留前一模块的栈映射记录；仅数据流水线在 COFF debug → 无 debug 切换时也残留字符串表空间。独立的连续模块字节对照发现两者，实验实现均已撤下，未进入生产。本轮仅补齐数据发射入口自身的 LLVM pass 注册，并将测试顺序调整为先调用数据入口，避免测试依赖完整代码生成的先行初始化。格式检查、workspace all-targets Clippy 和七目标两配置的数据对象对照通过；不为撤下的实验记录性能收益。

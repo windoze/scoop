@@ -88,6 +88,10 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         self.request.optimization
     }
 
+    pub const fn jobs(&self) -> std::num::NonZeroUsize {
+        self.request.jobs
+    }
+
     pub const fn debug_info(&self) -> scoop_lir::DebugInfoLevel {
         self.request.debug_info
     }

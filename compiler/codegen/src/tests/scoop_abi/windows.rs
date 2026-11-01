@@ -94,6 +94,7 @@ fn windows_aggregate_values_roundtrip_between_scoop_and_native_c() {
             &[scoop_identity::ConeIdentity::CORE],
             scoop_lir::EntryProductionSourceV1::Library,
             profile,
+            std::num::NonZeroUsize::MIN,
         )
         .unwrap();
         let source = directory.path().join("win64-aggregate.c");

@@ -59,6 +59,7 @@ fn windows_debug_functions_retain_source_declarations_in_codeview() {
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 profile,
+                std::num::NonZeroUsize::MIN,
             )
             .unwrap();
             let mut found = false;

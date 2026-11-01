@@ -79,6 +79,7 @@ fn callable_cstring_has_one_disjoint_definition_range() {
                     &[ConeIdentity::CORE],
                     scoop_lir::EntryProductionSourceV1::Library,
                     profile,
+                    std::num::NonZeroUsize::MIN,
                 )
                 .unwrap();
                 let member = emitted

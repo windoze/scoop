@@ -88,6 +88,7 @@ fn native_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 profile,
+                std::num::NonZeroUsize::MIN,
             )
             .unwrap();
             let member = emitted

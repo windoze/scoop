@@ -67,6 +67,7 @@ fn emitted_registration_and_stackmap_use_final_ssa_root_count() {
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 profile(target, OptimizationMode::Release),
+                std::num::NonZeroUsize::MIN,
             )
             .unwrap_or_else(|error| panic!("{target:?}/null={null}: {error}"));
             let registrations = emitted
@@ -178,6 +179,7 @@ fn deleted_invokes_leave_no_site_registration_image_entry_or_stackmap() {
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 profile(target, mode),
+                std::num::NonZeroUsize::MIN,
             )
             .unwrap_or_else(|error| panic!("{target:?}/{mode:?}: {error}"));
             // Both profiles fold the equal expressions before root finalization.

@@ -32,6 +32,7 @@ impl SlibObjects {
             &[scoop_identity::ConeIdentity::CORE],
             scoop_lir::EntryProductionSourceV1::Library,
             backend,
+            std::num::NonZeroUsize::MIN,
         )
         .unwrap();
         let c_emitted =

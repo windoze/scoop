@@ -8,6 +8,7 @@ mod constants;
 mod cstrings;
 mod no_gc;
 mod optimized;
+mod parallel;
 mod references;
 mod switches;
 
@@ -197,6 +198,7 @@ fn emitted_object_set_owns_complete_members() {
         &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
         host_profile(),
+        std::num::NonZeroUsize::MIN,
     )
     .unwrap();
 
@@ -243,6 +245,7 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
         &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
         host_profile(),
+        std::num::NonZeroUsize::MIN,
     )
     .unwrap();
     let normalization = input

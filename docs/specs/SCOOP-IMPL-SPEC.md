@@ -519,6 +519,8 @@ Scoop 的 LLVM 对象以拥有所有权的原生字节交接，在内存中完�
 
 每个 callable 的 LLVM module 只声明正文实际引用的类型描述符、数组描述符、普通全局量和初始化登记，并完整发射该 body 所属的 C 字符串等关联定义。归属和初始化登记的查询表按 Cone 建立一次；元数据分区仍取得其完整定义。逐函数 module 可复用同一个 LLVM Context，但对象、ODR、registration 与 GC 的物理选择边界保持独立，不以合并函数对象消除准备开销。
 
+独立 callable 可在多个编译 worker 中并行发射。每个 worker 独占 LLVM Context 与 TargetMachine，逐对象独立运行 LLVM passes；LIR、符号规划和 GC effect 表只读共享。完成的对象及生产记录按原 canonical 身份顺序合并，worker 数和任务分配顺序不改变产物、诊断选择或 GC／ABI 合同。元数据分区在 callable 生产记录完成后沿原路径发射。
+
 ELF callable module 在普通优化、statepoint lowering 与实际 safepoint 登记完成后，先用 LLVM 的全局死引用清理去除无实际使用的声明及其孤立常量使用链，再准备最终 visibility／COMDAT 并发射对象。清理覆盖当前 module 的全部声明，包括不在当前 Cone 定义计划中的外部声明；不能仅凭原始 use-list 非空推断仍有代码或数据引用。真实引用、Strong／ODR 定义、alias owner 和登记数据保持原链接合同；不可达的 TD 不因无重定位的残留 hidden 声明而成为链接根。元数据 module 复用既有分区清理，不增加链接期保留全部声明或 TD 的规则。
 
 元数据对象按已经确定的物理定义集合投影。实现先按对象序列逐层拆分候选模块，再从较小的模块生成最终对象，避免为每个对象重复复制全部 LLVM 元数据。每层只保留所选定义及其实际引用声明，沿用同一别名、TLS 边界与可见性处理；拆分过程不改变最终对象划分、符号、布局、注册内容或 ABI。
@@ -981,7 +983,7 @@ M63统一采用包管理规范3.1的`target/<target>/<profile>/<group>/<name>/`�
 
 编译输入的依赖均使用exact version、全部为library，同一程序闭包中同一group:name只允许一个版本。M63中原manifest要求/来源由PM求解为该精确图，循环/来源冲突在解析边界诊断；实际产物消费继续检查target/ABI/schema与精确语义绑定，不因manifest范围兼容而重绑旧`.slib`。不为复用已完成节点重读产物或重算语义/内容摘要。canonical记录顺序由每个静态图生成，逐次取全部前驱已排序的coordinate bytes最小者，不按输入顺序或并发完成顺序决定。实际执行使用依赖完成后的ready set，按canonical顺序优先启动可运行节点；独立源码Cone可以并发，每个child仍只编译一个Cone。
 
-`scoop build/run/test` 的 `-j N`／`--jobs N` 指定同时运行的编译 child 上限，N 必须为正，默认使用宿主可用并行度。并发数只影响调度，不进入语言身份、编译键、产物格式或 machine protocol。缓存更新判定与锁内重查先于 child 请求准备；命中节点不占用编译 worker，缺失的显式观察沿相同调度执行。同键锁覆盖实际编译／观察到结果发布，不在运行 child 时释放。持有运行任务的锁时，其他键的锁获取不得阻塞该任务完成与释放锁；繁忙键延期到后续调度。节点成功后立即供其 dependents 使用；观察记录和 warning 按 canonical 顺序汇集。
+`scoop build/run/test` 的 `-j N`／`--jobs N` 指定同时运行的编译 worker 上限，N 必须为正，默认使用宿主可用并行度。父调度器在就绪 Cone 间分配剩余并行度，各活跃 child 获得的 worker 数之和不超过 N；只有一个就绪 Cone 时可使用全部剩余并行度。直接 `scoopc build` 接受同样的选项。并发数通过 child 的执行参数传递，只影响调度，不进入语言身份、编译键、产物格式或 machine protocol。缓存更新判定与锁内重查先于 child 请求准备；命中节点与等待其他任务锁的节点不占用编译 worker，缺失的显式观察沿相同调度执行。同键锁覆盖实际编译／观察到结果发布，不在运行 child 时释放。持有运行任务的锁时，其他键的锁获取不得阻塞该任务完成与释放锁；繁忙键延期到后续调度。节点成功后立即供其 dependents 使用；观察记录和 warning 按 canonical 顺序汇集。
 
 多个workspace根共用此jobs上限；诊断先按root key、再按各图canonical顺序汇集，不能为每个根另开N个worker。PM只准备依赖，不调度编译child；源码包下载锁与编译任务锁分别协调各自结果。
 

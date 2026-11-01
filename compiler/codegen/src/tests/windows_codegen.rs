@@ -69,6 +69,7 @@ fn windows_members_preserve_seh_stackmaps_tls_and_definition_boundaries() {
                     &[scoop_identity::ConeIdentity::CORE],
                     scoop_lir::EntryProductionSourceV1::Library,
                     profile,
+                    std::num::NonZeroUsize::MIN,
                 )
                 .unwrap_or_else(|error| panic!("{target:?}/{optimization:?}/ODR={odr}: {error}"));
                 let mut saw_stackmap = false;

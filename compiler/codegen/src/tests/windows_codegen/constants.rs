@@ -88,6 +88,7 @@ fn windows_constant_pools_follow_callable_selection_and_preserve_alignment() {
             &[scoop_identity::ConeIdentity::CORE],
             scoop_lir::EntryProductionSourceV1::Library,
             profile,
+            std::num::NonZeroUsize::MIN,
         )
         .unwrap_or_else(|error| panic!("{target:?}: {error}"));
         let mut callables = Vec::new();

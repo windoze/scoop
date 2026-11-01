@@ -157,6 +157,7 @@ pub(in super::super) fn check(
         &[layout.provider()],
         lir::EntryProductionSourceV1::Library,
         profile,
+        std::num::NonZeroUsize::MIN,
     )
     .unwrap();
     assert_eq!(objects.members.len(), cases.len() + 1);

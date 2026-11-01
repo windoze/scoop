@@ -12,7 +12,7 @@ options = ["${root}", "--sysroot", "${sysroot}", "--direct-slib", "${sysroot}/li
 
 [[steps]]
 name = "first"
-argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}"]
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}", "--jobs", "1"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -23,7 +23,7 @@ files = [{copy = {from = "${work}/program.slib", to = "${work}/first.slib"}}]
 
 [[steps]]
 name = "second"
-argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}"]
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}", "--jobs", "4"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -31,7 +31,7 @@ checks = [{file = "${work}/program.slib", same_as = "${work}/first.slib"}]
 
 [[steps]]
 name = "third"
-argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}"]
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, {each = "${options}"}, "--profile", "${profile}", "--jobs", "2"]
 exit = 0
 stdout = ""
 stderr = ""

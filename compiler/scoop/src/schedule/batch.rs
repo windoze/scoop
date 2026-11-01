@@ -35,24 +35,37 @@ pub(super) fn execute(
         })
         .collect::<Result<Vec<_>, BuildGraphExecutionFailure>>()?;
     std::thread::scope(|scope| {
-        let (sender, receiver) = std::sync::mpsc::channel::<(usize, usize, CompilerResponse)>();
-        let mut active = 0;
+        let (sender, receiver) =
+            std::sync::mpsc::channel::<(usize, usize, std::num::NonZeroUsize, CompilerResponse)>();
+        let mut active_jobs = 0;
         loop {
-            while let Ok((graph, position, response)) = receiver.try_recv() {
+            while let Ok((graph, position, worker_jobs, response)) = receiver.try_recv() {
                 executions[graph].receive(graphs[graph], (position, response));
-                active -= 1;
+                active_jobs -= worker_jobs.get();
             }
             let mut failed = executions
                 .iter()
                 .any(|execution| !execution.failures.is_empty());
-            for (index, (graph, execution)) in graphs.iter().zip(&mut executions).enumerate() {
+            for (index, graph) in graphs.iter().enumerate() {
                 let mut waiting = Vec::new();
-                while !failed && active < jobs {
+                while !failed && active_jobs < jobs {
+                    let ready = executions
+                        .iter()
+                        .map(|execution| execution.ready.len())
+                        .sum::<usize>()
+                        .max(1);
+                    let worker_jobs =
+                        std::num::NonZeroUsize::new(((jobs - active_jobs) / ready).max(1)).unwrap();
+                    let execution = &mut executions[index];
                     let Some(position) = execution.ready.pop() else {
                         break;
                     };
-                    match execution.prepare(graph, position, offsets[index] + position, active == 0)
-                    {
+                    match execution.prepare(
+                        graph,
+                        position,
+                        offsets[index] + position,
+                        active_jobs == 0,
+                    ) {
                         Ok(PreparedNode::WaitingForLock(key)) => {
                             execution.waiting_keys.insert(position, key);
                             waiting.push(position);
@@ -62,7 +75,8 @@ pub(super) fn execute(
                         }
                         Ok(PreparedNode::Pending(key, pending)) => {
                             let request = pending.invocation.request().clone();
-                            let io = pending.invocation.io().clone();
+                            let mut io = pending.invocation.io().clone();
+                            io.jobs = worker_jobs;
                             let sender = sender.clone();
                             let compiler = graph.compiler();
                             let worker = std::thread::Builder::new()
@@ -73,12 +87,12 @@ pub(super) fn execute(
                                             || runner.invoke(compiler, &request, &io),
                                         ))
                                         .unwrap_or(Err(ChildTransportError::WorkerPanicked));
-                                    let _ = sender.send((index, position, response));
+                                    let _ = sender.send((index, position, worker_jobs, response));
                                 });
                             match worker {
                                 Ok(_) => {
                                     execution.pending.insert(position, (key, pending));
-                                    active += 1;
+                                    active_jobs += worker_jobs.get();
                                 }
                                 Err(source) => {
                                     execution.failures.insert(
@@ -100,18 +114,18 @@ pub(super) fn execute(
                         }
                     }
                 }
-                execution.ready.defer(waiting);
+                executions[index].ready.defer(waiting);
             }
-            if active == 0 {
+            if active_jobs == 0 {
                 break;
             }
             // All locks remain on the parent thread. Drain started workers even
             // after failure, so another root cannot wait on an undelivered result.
-            let (graph, position, response) = receiver
+            let (graph, position, worker_jobs, response) = receiver
                 .recv()
                 .expect("an active compiler worker returns a response");
             executions[graph].receive(graphs[graph], (position, response));
-            active -= 1;
+            active_jobs -= worker_jobs.get();
         }
     });
     if let Some((_, cause)) = executions

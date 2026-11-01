@@ -50,7 +50,8 @@ fn source_identity(graph: &PreparedBuildGraph, name: &str) -> ConeIdentity {
 }
 
 struct OverlappingFailures {
-    requests: Mutex<Vec<RequestCorrelationId>>,
+    requests: Mutex<Vec<(RequestCorrelationId, NonZeroUsize)>>,
+    expected: usize,
     entered: Condvar,
     slow: RequestCorrelationId,
 }
@@ -63,12 +64,12 @@ impl SingleConeCompilerRunner for OverlappingFailures {
         io: &ChildIoPlan,
     ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
         let mut requests = self.requests.lock().unwrap();
-        requests.push(request.request_id());
+        requests.push((request.request_id(), io.jobs));
         self.entered.notify_all();
         let (requests, timeout) = self
             .entered
             .wait_timeout_while(requests, Duration::from_secs(5), |requests| {
-                requests.len() < 2
+                requests.len() < self.expected
             })
             .unwrap();
         assert!(
@@ -84,29 +85,37 @@ impl SingleConeCompilerRunner for OverlappingFailures {
 }
 
 #[test]
-fn independent_children_overlap_and_failures_stop_new_work_in_canonical_order() {
-    let temp = tempfile::tempdir().unwrap();
-    write_parallel_graph(temp.path());
-    let graph = prepare_jobs(temp.path(), 2);
-    let first = source_identity(&graph, "first");
-    let ordinal = graph
-        .dependency_first()
-        .iter()
-        .position(|id| *id == first)
-        .unwrap() as u128
-        + 1;
-    let runner = OverlappingFailures {
-        requests: Mutex::new(Vec::new()),
-        entered: Condvar::new(),
-        slow: RequestCorrelationId::from_array(ordinal.to_be_bytes()),
-    };
-    let error = graph.execute_with_runner(&runner).unwrap_err();
-    assert!(
-        matches!(error.cause(), BuildGraphExecutionError::Ordinary(id, source)
-        if *id == first && matches!(source.as_ref(), OrdinarySourceExecutionError::ChildFailure(_)))
-    );
-    // The third sibling and dependent root must not start after failure.
-    assert_eq!(runner.requests.into_inner().unwrap().len(), 2);
+fn independent_children_share_the_worker_limit_and_fail_in_canonical_order() {
+    for jobs in [2, 8] {
+        let temp = tempfile::tempdir().unwrap();
+        write_parallel_graph(temp.path());
+        let graph = prepare_jobs(temp.path(), jobs);
+        let first = source_identity(&graph, "first");
+        let ordinal = graph
+            .dependency_first()
+            .iter()
+            .position(|id| *id == first)
+            .unwrap() as u128
+            + 1;
+        let runner = OverlappingFailures {
+            requests: Mutex::new(Vec::new()),
+            entered: Condvar::new(),
+            expected: jobs.min(3),
+            slow: RequestCorrelationId::from_array(ordinal.to_be_bytes()),
+        };
+        let error = graph.execute_with_runner(&runner).unwrap_err();
+        assert!(
+            matches!(error.cause(), BuildGraphExecutionError::Ordinary(id, source)
+            if *id == first && matches!(source.as_ref(), OrdinarySourceExecutionError::ChildFailure(_)))
+        );
+        // Failures prevent the dependent root and any unstarted sibling from running.
+        let requests = runner.requests.into_inner().unwrap();
+        assert_eq!(requests.len(), jobs.min(3));
+        assert_eq!(
+            requests.iter().map(|(_, jobs)| jobs.get()).sum::<usize>(),
+            jobs
+        );
+    }
 }
 
 #[test]
@@ -114,9 +123,42 @@ fn one_job_stops_before_starting_other_ready_nodes() {
     let temp = tempfile::tempdir().unwrap();
     write_parallel_graph(temp.path());
     let graph = prepare_jobs(temp.path(), 1);
-    let runner = RecordingFailureRunner::default();
+    let runner = OverlappingFailures {
+        requests: Mutex::new(Vec::new()),
+        entered: Condvar::new(),
+        expected: 1,
+        slow: RequestCorrelationId::from_array([0; 16]),
+    };
     assert!(graph.execute_with_runner(&runner).is_err());
-    assert_eq!(runner.current.into_inner().unwrap().len(), 1);
+    let requests = runner.requests.into_inner().unwrap();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].1.get(), 1);
+}
+
+#[test]
+fn a_single_ready_cone_receives_all_available_workers() {
+    let temp = tempfile::tempdir().unwrap();
+    write_parallel_graph(temp.path());
+    let graph = request(&temp.path().join("first"), temp.path())
+        .with_jobs(NonZeroUsize::new(7).unwrap())
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap()
+        .resolve()
+        .unwrap()
+        .prepare()
+        .unwrap();
+    let runner = OverlappingFailures {
+        requests: Mutex::new(Vec::new()),
+        entered: Condvar::new(),
+        expected: 1,
+        slow: RequestCorrelationId::from_array([0; 16]),
+    };
+    assert!(graph.execute_with_runner(&runner).is_err());
+    let requests = runner.requests.into_inner().unwrap();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].1.get(), 7);
 }
 
 #[test]
@@ -147,6 +189,7 @@ fn independent_roots_share_the_job_limit_without_blocking_on_their_own_key_lock(
     let runner = OverlappingFailures {
         requests: Mutex::new(Vec::new()),
         entered: Condvar::new(),
+        expected: 2,
         slow: RequestCorrelationId::from_array(ordinal.to_be_bytes()),
     };
     let error =
@@ -154,7 +197,11 @@ fn independent_roots_share_the_job_limit_without_blocking_on_their_own_key_lock(
     assert!(matches!(error.cause(), BuildGraphExecutionError::Ordinary(id, _) if *id == first));
     let requests = runner.requests.into_inner().unwrap();
     assert_eq!(requests.len(), 2);
-    assert_ne!(requests[0], requests[1]);
+    assert_ne!(requests[0].0, requests[1].0);
+    assert_eq!(
+        requests.iter().map(|(_, jobs)| jobs.get()).sum::<usize>(),
+        2
+    );
 }
 
 #[test]

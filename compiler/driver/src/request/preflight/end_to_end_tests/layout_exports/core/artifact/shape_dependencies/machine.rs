@@ -269,7 +269,9 @@ fn emit(
             assert!(declaration.contains("external"), "{declaration}");
         }
     }
-    let objects = scoop_codegen::emit_object_set_v2(output, production, profile).unwrap();
+    let objects =
+        scoop_codegen::emit_object_set_v2(output, production, profile, std::num::NonZeroUsize::MIN)
+            .unwrap();
     assert_eq!(
         objects
             .members

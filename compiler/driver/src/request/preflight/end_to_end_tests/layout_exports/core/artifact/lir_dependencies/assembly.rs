@@ -21,6 +21,7 @@ pub(in super::super) fn assemble_with_production(
             target.c_bridge_toolchain().profile().contract(),
         )
         .unwrap(),
+        std::num::NonZeroUsize::MIN,
     )
     .unwrap();
     let generated =

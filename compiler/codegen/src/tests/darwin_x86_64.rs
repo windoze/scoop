@@ -45,6 +45,7 @@ fn members_preserve_dwarf_stackmaps_tls_and_definition_boundaries() {
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 profile,
+                std::num::NonZeroUsize::MIN,
             )
             .unwrap_or_else(|error| panic!("{optimization:?}/ODR={odr}: {error}"));
             let mut saw_stackmap = false;

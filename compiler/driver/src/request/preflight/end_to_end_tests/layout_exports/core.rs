@@ -267,6 +267,7 @@ fn check_core_layout_exports(names: &[&str]) {
                 target.c_bridge_toolchain().profile().contract(),
             )
             .unwrap(),
+            std::num::NonZeroUsize::MIN,
         )
         .unwrap();
         assert!(!objects.members.is_empty());

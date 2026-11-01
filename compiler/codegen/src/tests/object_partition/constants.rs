@@ -97,6 +97,7 @@ fn machine_lookup_tables_are_owned_and_absent_tables_are_pruned() {
                 &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 profile,
+                std::num::NonZeroUsize::MIN,
             )
             .unwrap();
             let member = emitted

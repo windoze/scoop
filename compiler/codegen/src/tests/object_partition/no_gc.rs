@@ -67,6 +67,7 @@ fn no_gc_calls_with_elided_results_keep_the_planned_compact_unwind_atoms() {
         &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
         host_profile(),
+        std::num::NonZeroUsize::MIN,
     )
     .unwrap();
     let mut count = 0;

@@ -108,6 +108,7 @@ pub struct SingleConeBuildRequest {
     native_inputs: NativeInputOrigin,
     generators: scoop_toolchain::GeneratorPrograms,
     object_cache_root: Option<PathBuf>,
+    jobs: std::num::NonZeroUsize,
 }
 
 #[derive(Debug)]
@@ -164,11 +165,17 @@ impl SingleConeBuildRequest {
             native_inputs: NativeInputOrigin::Source { sysroot: None },
             generators: scoop_toolchain::GeneratorPrograms::default(),
             object_cache_root: None,
+            jobs: std::num::NonZeroUsize::MIN,
         })
     }
 
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
+        self
+    }
+
+    pub fn with_jobs(mut self, jobs: std::num::NonZeroUsize) -> Self {
+        self.jobs = jobs;
         self
     }
 

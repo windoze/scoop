@@ -232,6 +232,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 target.c_bridge_toolchain().profile().contract(),
             )
             .unwrap(),
+            std::num::NonZeroUsize::MIN,
         )
         .unwrap();
         let mut actual_bodies = objects
@@ -307,6 +308,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                         target.c_bridge_toolchain().profile().contract(),
                     )
                     .unwrap(),
+                    std::num::NonZeroUsize::MIN,
                 )
                 .unwrap();
                 let changed_body = objects::change_associated_atom(&mut changed, role);
