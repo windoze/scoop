@@ -7,7 +7,7 @@ import scoop.ui.style.*
 import scoop.ui.text.InlineView
 
 public enum ButtonContent {
-    Label(LabelProps), Custom(View)
+    Label(LabelProps), Custom(View), Resolved((ActionContentStyle) -> View)
 }
 
 public class ButtonProps public constructor(
@@ -16,7 +16,10 @@ public class ButtonProps public constructor(
     public val enabled: Boolean = true,
     public val style: ButtonStyle = buttonStyle(),
     public val theme: ThemeSource? = None,
-    public val focus: FocusOptions = FocusOptions()
+    public val focus: FocusOptions = FocusOptions(),
+    public val invalid: Boolean = false,
+    public val variant: ButtonVariant = ButtonVariant.Default,
+    public val size: ButtonSize = ButtonSize.Default
 )
 
 public class Button public constructor(private val props: Props<ButtonProps>): Component {
@@ -39,42 +42,33 @@ public class Button public constructor(private val props: Props<ButtonProps>): C
                 case Some(value) -> value.press.interaction
                 case None -> InteractionState()
             }
-        val visual = SurfaceVisual(input.style.kind, interaction.asVisual(input.enabled))
+        val visual =
+            SurfaceVisual(input.style.kind, interaction.asVisual(input.enabled, input.invalid))
+        val shape = ActionShape.Button(input.size)
         val base =
             text.resolve(
                 theme.tokens.typography.action,
-                theme.surfaceTextColor(visual),
-                input.style.text
+                actionTextColor(theme, shape, input.variant, visual),
+                input.style.text,
+                actionFontScale(shape),
+                actionLineHeight(shape)
             )
-        val content =
-            when (input.content) {
-                case Custom(view) -> view
-                case Label(label) -> {
-                    val labelBase =
-                        when (label.baseStyle) {
-                            case Some(value) -> Some(value)
-                            case None -> when (label.theme) {
-                                case Some(_) -> None
-                                case None -> Some(base)
-                            }
-                        }
-                    component(
-                        LabelProps(
-                            label.text,
-                            label.fonts,
-                            label.settings,
-                            label.inlines,
-                            label.theme,
-                            labelBase
-                        ),
-                        { current -> Label(current) }
-                    )
-                }
-            }
         return element(
-            ButtonInkProps(input, theme, control, visual, input.style.options(visual.interaction)),
-            { current -> ButtonInk(current) },
-            [content]
+            ActionInkProps(
+                theme,
+                shape,
+                input.variant,
+                input.style,
+                visual,
+                ActionBehavior.Press(control, input.onClick, input.focus)
+            ),
+            { current -> ActionInk(current) },
+            [
+                actionContent(
+                    input.content,
+                    actionContentStyle(base, shape, input.variant, visual.interaction)
+                )
+            ]
         )
     }
 }
@@ -97,89 +91,8 @@ public fun button(
     configure: ContentButtonBuilder.() -> Unit = {}
 ): View = makeContentButton(content, onClick, configure)
 
-private class ButtonInkProps(
-    val input: ButtonProps,
-    val theme: Theme,
-    val control: State<PressControl?>,
-    val visual: SurfaceVisual,
-    val options: SurfaceOptions
-)
-
-private class ButtonDrawing(val geometry: SurfaceGeometry, val visual: SurfaceVisual)
-
-private class ButtonInk(private val props: Props<ButtonInkProps>): Element {
-    private var motion: InteractionMotion? = None
-    private var painters: ThemePainterCache? = None
-    private var content: StylePainter? = None
-    private var drawing: ButtonDrawing? = None
-    public override fun onMount(scope: ComponentScope) {
-        painters = Some(scope.resource { ThemePainterCache() })
-        content = Some(scope.resource { StylePainter() })
-        motion = Some(InteractionMotion(scope, props.value.visual.interaction))
-    }
-    public override fun update() {
-        val value = props.value
-        val control = value.control.value!!
-        control.press.update(PressOptions(value.input.enabled), value.input.onClick)
-        control.area.scope.enabled = value.input.enabled
-        control.focus.options = value.input.focus
-        val specs = value.theme.tokens.motion
-        motion!!.update(
-            value.visual.interaction,
-            value.input.style.transition.resolve(specs.hover),
-            value.input.style.transition.resolve(specs.press)
-        )
-        painters!!.get(value.theme)
-    }
-    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
-        val value = props.value
-        val visual = SurfaceVisual(value.visual.kind, motion!!.sample(value.visual.interaction))
-        val metrics = value.theme.surfaceMetrics(visual, value.options, context.layoutDirection)
-        val inset = metrics.contentInsets.totals()
-        val child = context.measureChild(0L, childConstraints(constraints, inset))
-        val size =
-            constraints.constrain(
-                Size(
-                    lowerBound(
-                        child.size.width + inset.width,
-                        lowerBound(metrics.minimumSize.width, metrics.suggestedSize.width)
-                    ),
-                    lowerBound(
-                        child.size.height + inset.height,
-                        lowerBound(metrics.minimumSize.height, metrics.suggestedSize.height)
-                    )
-                )
-            )
-        val geometry =
-            value.theme.surfaceGeometry(
-                Rect(0.0, 0.0, size.width, size.height),
-                visual,
-                value.options,
-                context.layoutDirection
-            )
-        drawing = Some(ButtonDrawing(geometry, visual))
-        val origin =
-            Point(
-                geometry.content.x + (geometry.content.width - child.size.width) / 2.0,
-                geometry.content.y + (geometry.content.height - child.size.height) / 2.0
-            )
-        context.placeChild(0L, origin)
-        return offsetMetrics(child, size, origin.y)
-    }
-    public override fun scene(context: SceneContext) {
-        val value = props.value
-        val visual = drawing!!.visual
-        val geometry = drawing!!.geometry
-        val painter = painters!!.get(value.theme)
-        context.draw {
-            paint -> painter.drawSurface(paint.canvas, geometry, visual, SurfaceLayer.Background)
-        }
-        context.place(value.control.value!!.area, geometry.bounds)
-        content!!.scene(context, geometry.bounds, geometry.contentStyle) {
-            children -> children.children()
-        }
-        context.draw {
-            paint -> painter.drawSurface(paint.canvas, geometry, visual, SurfaceLayer.Foreground)
-        }
-    }
-}
+public fun button(
+    content: (ActionContentStyle) -> View,
+    onClick: () -> Unit,
+    configure: ContentButtonBuilder.() -> Unit = {}
+): View = makeResolvedButton(content, onClick, configure)

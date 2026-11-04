@@ -1,0 +1,122 @@
+package scoop.tests.ui.themes
+
+import scoop.graphics.*
+import scoop.test.*
+import scoop.ui.LayoutDirection
+import scoop.ui.style.*
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+import scoop.ui.style.fluent.fluentTheme
+import scoop.ui.style.shadcn.shadcnTheme
+
+@Test
+private class ThemeValidationTest {
+    @Test
+    fun `invalid rings are independent of focus and preserve layout across all themes`() {
+        val bounds = Rect(20.0, 20.0, 80.0, 32.0)
+        for (mode in [ThemeMode.Light, ThemeMode.Dark]) {
+            for (
+                theme in [
+                    macosTheme(mode),
+                    materialTheme(mode),
+                    fluentTheme(mode),
+                    shadcnTheme(mode)
+                ]
+            ) {
+                val plain = theme.surfaceGeometry(bounds, SurfaceVisual())
+                val error = InteractionVisual(invalid = true)
+                val invalid = theme.surfaceGeometry(bounds, SurfaceVisual(interaction = error))
+                val both =
+                    theme.surfaceGeometry(
+                        bounds,
+                        SurfaceVisual(
+                            interaction = InteractionVisual(focusVisible = true, invalid = true)
+                        )
+                    )
+                assertEquals(None, plain.ring)
+                assertEquals(theme.tokens.validation.color, invalid.ring!!.border.color)
+                assertEquals(
+                    theme.tokens.validation.borderColor!!,
+                    invalid.style.border!!.resolve(LayoutDirection.Ltr).left.color
+                )
+                assertEquals(invalid.ring, both.ring)
+                assertEquals(plain.content, invalid.content)
+                val disabled =
+                    theme.surfaceGeometry(
+                        bounds,
+                        SurfaceVisual(
+                            interaction = InteractionVisual(enabled = false, invalid = true)
+                        )
+                    )
+                assertEquals(
+                    theme.tokens.validation.color.alpha,
+                    disabled.ring!!.border.color.alpha
+                )
+                assertEquals(theme.tokens.disabledOpacity, disabled.opacity)
+                val checkbox =
+                    theme.checkboxGeometry(
+                        Rect(20.0, 20.0, 16.0, 16.0),
+                        CheckboxVisual(interaction = error)
+                    )
+                val radio =
+                    theme.radioGeometry(
+                        Rect(20.0, 20.0, 16.0, 16.0),
+                        RadioVisual(interaction = error)
+                    )
+                assertEquals(invalid.ring!!.border, checkbox.ring!!.border)
+                assertEquals(invalid.ring!!.border, radio.ring!!.border)
+                theme.createPainter().use {
+                    painter ->
+                    val ordinary =
+                        pixels { canvas -> painter.drawSurface(canvas, plain, SurfaceVisual()) }
+                    val marked =
+                        pixels {
+                            canvas -> painter.drawSurface(
+                                canvas,
+                                invalid,
+                                SurfaceVisual(interaction = error)
+                            )
+                        }
+                    assertTrue(differences(ordinary, marked) > 100)
+                    assertTrue(channel(marked, 128, 18, 36, 3) > channel(ordinary, 128, 18, 36, 3))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `nova focus borders and explicit outline overrides use the same resolved geometry`() {
+        val theme = shadcnTheme()
+        val bounds = Rect(20.0, 20.0, 80.0, 32.0)
+        val focused = SurfaceVisual(interaction = InteractionVisual(focusVisible = true))
+        val geometry = theme.surfaceGeometry(bounds, focused)
+        assertEquals(
+            theme.tokens.palette.ring,
+            geometry.style.border!!.resolve(LayoutDirection.Ltr).left.color
+        )
+        val error = SurfaceVisual(interaction = InteractionVisual(invalid = true))
+        val options =
+            surfaceOptions {
+                this.validation = Some(OutlineStyle(Color.Black, 1.0, 5.0, Some(Color.White)))
+                style { this.border(Some(Border.all(2.0, Color.Black))) }
+            }
+        val local = theme.surfaceGeometry(bounds, error, options)
+        assertEquals(Some(Border.all(2.0, Color.Black)), local.style.border)
+        assertEquals(
+            OutlineRing(
+                RoundedOutline(bounds, CornerRadii.all(10.0)).expanded(5.0),
+                BorderEdge(1.0, Color.Black)
+            ),
+            local.ring!!
+        )
+        assertEquals(5.0, theme.surfaceMetrics(error, options).focusOutset)
+        assertEquals(
+            None,
+            theme.surfaceGeometry(
+                bounds,
+                error,
+                surfaceOptions { this.validation = Some(OutlineStyle(Color.Black, 0.0, 0.0)) }
+            ).ring
+        )
+    }
+}

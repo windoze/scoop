@@ -17,6 +17,8 @@ public class InputArea internal constructor(
     private var acceptsFocus = focusable
     private var acceptsText = textInput
     internal var lastFocusRequest: ULong? = None
+    internal var lastFocusOrigin = FocusOrigin.Programmatic
+    private var visibility = FocusVisibility.Automatic
     public val scope: InputScope = InputScope(owner, Some(this), Some(parent), handler)
     internal val closed: Boolean get() = scope.closed
     private var ignored = false
@@ -49,6 +51,32 @@ public class InputArea internal constructor(
     public val isFocusActive: Boolean get() {
         owner.checkThread();
         return sameArea(owner.activeFocus, Some(this))
+    }
+    public val focusOrigin: FocusOrigin get() {
+        owner.checkThread()
+        return lastFocusOrigin
+    }
+    public var focusVisibility: FocusVisibility
+    get() {
+        owner.checkThread();
+        return visibility
+    }
+    set(value) {
+        checkOpen()
+        if (visibility != value) {
+            visibility = value
+            owner.changed()
+        }
+    }
+    public val isFocusVisible: Boolean get() {
+        owner.checkThread()
+        return !closed &&
+            isFocusActive &&
+            when (visibility) {
+                case Automatic -> textInput || lastFocusOrigin != FocusOrigin.Pointer
+                case Always -> true
+                case Never -> false
+            }
     }
     /** Window sequence of the last successful focus request, including pointer focus. */
     public val focusRevision: ULong? get() {
@@ -126,9 +154,9 @@ public class InputArea internal constructor(
         }
     }
     /** Returns false when this area has no active placement or does not accept focus. */
-    public fun requestFocus(): Boolean {
+    public fun requestFocus(origin: FocusOrigin = FocusOrigin.Programmatic): Boolean {
         checkOpen();
-        return owner.focus(this)
+        return owner.focus(this, origin)
     }
     public fun clearFocus() {
         checkOpen()

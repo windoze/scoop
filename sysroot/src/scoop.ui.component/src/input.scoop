@@ -25,7 +25,8 @@ public class InputProps public constructor(
     public val onSubmit: (TextEditorState) -> Unit = { _ -> Unit },
     public val policy: TextEditPolicy = textEditPolicy(),
     public val projection: TextProjection = textProjection(),
-    public val copy: TextCopyPolicy = TextCopyPolicy.Default
+    public val copy: TextCopyPolicy = TextCopyPolicy.Default,
+    public val labelTarget: FieldTarget? = None
 )
 
 /** A themed single-line view of the caller's editing model. */
@@ -60,7 +61,8 @@ public class Input public constructor(private val props: Props<InputProps>): Com
                 1L,
                 ScrollbarVisibility.Hidden,
                 input.onEdited,
-                input.onSubmit
+                input.onSubmit,
+                input.labelTarget
             )
         )
     }

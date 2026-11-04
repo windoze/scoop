@@ -9,7 +9,7 @@ public fun markerAppearance(
     border: StateColors,
     selectedBorder: StateColors,
     mark: StateColors,
-    focus: FocusStyle,
+    focus: OutlineStyle,
     configure: MarkerAppearanceBuilder.() -> Unit = {}
 ): MarkerAppearance =
     configureMarkerAppearance(
@@ -40,7 +40,7 @@ public class MarkerAppearanceBuilder internal constructor(initial: MarkerAppeara
     public var border: StateColors = initial.border
     public var selectedBorder: StateColors = initial.selectedBorder
     public var mark: StateColors = initial.mark
-    public var focus: FocusStyle = initial.focus
+    public var focus: OutlineStyle = initial.focus
     public var shadows: Array<BoxShadow> = initial.shadows
 
     internal fun snapshot(): MarkerAppearance =

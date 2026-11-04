@@ -1,5 +1,6 @@
 package scoop.ui.component
 
+import scoop.graphics.Color
 import scoop.graphics.text.*
 import scoop.ui.*
 import scoop.ui.style.ThemeSource
@@ -10,6 +11,7 @@ public open class LabelBuilder internal constructor() {
     public var fonts: FontCollection? = None
     public var settings: ParagraphStyle? = None
     public var theme: ThemeSource? = None
+    public var underline: Color? = None
     public var key: ViewKey = ViewKey.Position
 
     public fun settings(configure: ParagraphStyleBuilder.() -> Unit): Unit {
@@ -17,7 +19,7 @@ public open class LabelBuilder internal constructor() {
     }
 
     internal fun properties(text: LabelText, inlines: Array<InlineView> = []): LabelProps =
-        LabelProps(text, fonts, settings, inlines, theme)
+        LabelProps(text, fonts, settings, inlines, theme, underline = underline)
 }
 
 /** Plain text inherits the current theme and accepts a local span override. */

@@ -8,6 +8,8 @@ import scoop.ui.direction as makeDirection
 import scoop.ui.style.StyledBuilder
 import scoop.ui.style.styled as makeStyled
 import scoop.ui.text.TextEditorState
+import scoop.window.ShortcutChord
+import scoop.window.ShortcutLabel
 
 /** Collects one ordered child sequence; members append exactly once. */
 public open class ChildrenBuilder internal constructor() {
@@ -26,6 +28,21 @@ public open class ChildrenBuilder internal constructor() {
 
     public fun label(text: String, configure: PlainLabelBuilder.() -> Unit = {}): Unit {
         add(makePlainLabel(text, configure))
+    }
+
+    public fun fieldLabel(
+        text: String,
+        target: FieldTarget,
+        configure: FieldLabelBuilder.() -> Unit = {}
+    ): Unit {
+        add(makeFieldLabel(LabelText.Plain(text, None), target, configure))
+    }
+    public fun fieldLabel(
+        text: StyledText,
+        target: FieldTarget,
+        configure: FieldLabelBuilder.() -> Unit = {}
+    ): Unit {
+        add(makeFieldLabel(LabelText.Styled(text), target, configure))
     }
 
     public fun imageView(
@@ -76,6 +93,128 @@ public open class ChildrenBuilder internal constructor() {
         configure: ContentButtonBuilder.() -> Unit = {}
     ): Unit {
         add(makeContentButton(content, onClick, configure))
+    }
+
+    public fun button(
+        content: (ActionContentStyle) -> View,
+        onClick: () -> Unit,
+        configure: ContentButtonBuilder.() -> Unit = {}
+    ): Unit {
+        add(makeResolvedButton(content, onClick, configure))
+    }
+    public fun badge(text: String, configure: BadgeBuilder.() -> Unit = {}): Unit {
+        add(makeTextBadge(text, configure))
+    }
+    public fun badge(text: StyledText, configure: StyledBadgeBuilder.() -> Unit = {}): Unit {
+        add(makeStyledBadge(text, configure))
+    }
+    public fun badge(content: View, configure: ContentBadgeBuilder.() -> Unit = {}): Unit {
+        add(makeContentBadge(content, configure))
+    }
+    public fun badge(
+        content: (ActionContentStyle) -> View,
+        configure: ContentBadgeBuilder.() -> Unit = {}
+    ): Unit {
+        add(makeResolvedBadge(content, configure))
+    }
+    public fun spinner(configure: SpinnerBuilder.() -> Unit = {}): Unit {
+        add(makeSpinner(configure))
+    }
+
+    public fun avatar(fallback: String, configure: AvatarBuilder.() -> Unit = {}): Unit {
+        add(makeAvatar(PanelContent.Label(LabelProps(LabelText.Plain(fallback, None))), configure))
+    }
+    public fun avatar(fallback: StyledText, configure: AvatarBuilder.() -> Unit = {}): Unit {
+        add(makeAvatar(PanelContent.Label(LabelProps(LabelText.Styled(fallback))), configure))
+    }
+    public fun avatar(fallback: View, configure: AvatarBuilder.() -> Unit = {}): Unit {
+        add(makeAvatar(PanelContent.Custom(fallback), configure))
+    }
+    public fun avatarGroup(
+        size: AvatarSize = AvatarSize.Default,
+        configure: AvatarGroupBuilder.() -> Unit
+    ): Unit {
+        add(makeAvatarGroup(size, configure))
+    }
+    public fun skeleton(configure: SkeletonBuilder.() -> Unit = {}): Unit {
+        add(makeSkeleton(empty(), Some(16.0), configure))
+    }
+    public fun skeleton(content: View, configure: SkeletonBuilder.() -> Unit = {}): Unit {
+        add(makeSkeleton(content, None, configure))
+    }
+    public fun progress(value: Double?, configure: ProgressBuilder.() -> Unit = {}): Unit {
+        add(makeProgress(value, configure))
+    }
+    public fun progress(value: Double, configure: ProgressBuilder.() -> Unit = {}): Unit {
+        add(makeProgress(Some(value), configure))
+    }
+
+    public fun typography(
+        text: String,
+        role: TypographyRole = TypographyRole.P,
+        configure: TypographyBuilder.() -> Unit = {}
+    ): Unit {
+        add(makeTypography(TypographyContent.Plain(text), role, configure))
+    }
+    public fun typography(
+        content: StyledText,
+        role: TypographyRole = TypographyRole.P,
+        configure: TypographyBuilder.() -> Unit = {}
+    ): Unit {
+        add(makeTypography(TypographyContent.Styled(content), role, configure))
+    }
+    public fun typography(
+        role: TypographyRole = TypographyRole.P,
+        configure: TypographyTextBuilder.() -> Unit
+    ): Unit {
+        add(makeTypographyText(role, configure))
+    }
+    public fun typographyList(configure: TypographyListBuilder.() -> Unit): Unit {
+        add(makeTypographyList(configure))
+    }
+    public fun typographyTable(configure: TypographyTableBuilder.() -> Unit): Unit {
+        add(makeTypographyTable(configure))
+    }
+    public fun kbd(text: String, configure: KbdBuilder.() -> Unit = {}): Unit {
+        add(makeKbd(KbdContent.Text(text), false, configure))
+    }
+    public fun kbd(content: View, configure: KbdBuilder.() -> Unit = {}): Unit {
+        add(makeKbd(KbdContent.Custom(content), false, configure))
+    }
+    public fun kbd(chord: ShortcutChord, configure: KbdBuilder.() -> Unit = {}): Unit {
+        add(makeKbd(KbdContent.Chord(chord), false, configure))
+    }
+    public fun kbd(label: ShortcutLabel, configure: KbdBuilder.() -> Unit = {}): Unit {
+        add(makeKbd(KbdContent.Label(label), false, configure))
+    }
+    public fun kbdGroup(chord: ShortcutChord, configure: KbdBuilder.() -> Unit = {}): Unit {
+        add(makeKbd(KbdContent.Chord(chord), true, configure))
+    }
+    public fun kbdGroup(label: ShortcutLabel, configure: KbdBuilder.() -> Unit = {}): Unit {
+        add(makeKbd(KbdContent.Label(label), true, configure))
+    }
+    public fun kbdGroup(configure: KbdGroupBuilder.() -> Unit): Unit {
+        add(makeKbdGroup(configure))
+    }
+
+    public fun card(content: View, configure: CardBuilder.() -> Unit = {}): Unit {
+        add(makeCard(content, configure))
+    }
+    public fun alert(content: View, configure: AlertBuilder.() -> Unit = {}): Unit {
+        add(makeAlert(content, configure))
+    }
+    public fun emptyState(content: View, configure: EmptyStateBuilder.() -> Unit = {}): Unit {
+        add(makeEmptyState(content, configure))
+    }
+    public fun separator(configure: SeparatorBuilder.() -> Unit = {}): Unit {
+        add(makeSeparator(configure))
+    }
+    public fun aspectRatio(
+        content: View,
+        ratio: Double,
+        configure: AspectRatioBuilder.() -> Unit = {}
+    ): Unit {
+        add(makeAspectRatio(content, ratio, configure))
     }
 
     public fun checkbox(

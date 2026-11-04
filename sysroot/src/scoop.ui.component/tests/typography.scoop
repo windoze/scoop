@@ -1,0 +1,170 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.test.*
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.style.shadcn.shadcnTheme
+import scoop.ui.text.inlineChildren
+import scoop.window.*
+
+@Test
+private class TypographyTest {
+    @Test
+    fun `roles scale with body density while decorations use logical edges and local overrides`() {
+        val theme = shadcnTheme()
+        val h1 = typographyStyle(TypographyRole.H1, theme)
+        assertEquals(36.0, h1.fontSize)
+        assertEquals(800, h1.weight)
+        assertEquals(Some(40.0 / 36.0), h1.lineHeight)
+        assertEquals(-0.9, h1.letterSpacing)
+        assertEquals(FontSlant.Italic, typographyStyle(TypographyRole.Blockquote, theme).slant)
+        assertEquals("monospace", typographyStyle(TypographyRole.InlineCode, theme).families[0L])
+        assertEquals(
+            theme.tokens.palette.muted.foreground,
+            typographyStyle(TypographyRole.Lead, theme).color
+        )
+        val scaled = shadcnTheme { tokens { typography { body { this.fontSize = 28.0 } } } }
+        assertEquals(60.0, typographyStyle(TypographyRole.H2, scaled).fontSize)
+        val border =
+            typographyDecoration(TypographyRole.Blockquote, scaled).resolve(style()).border!!
+        assertEquals(4.0, border.resolve(LayoutDirection.Ltr).left.width)
+        assertEquals(0.0, border.resolve(LayoutDirection.Ltr).right.width)
+        assertEquals(4.0, border.resolve(LayoutDirection.Rtl).right.width)
+        assertEquals(
+            48.0,
+            typographyPadding(TypographyRole.Blockquote, 2.0).resolve(LayoutDirection.Rtl).right
+        )
+        val cleared =
+            typographyDecoration(TypographyRole.InlineCode, theme).then(
+                styleOverride { this.background(None) }
+            ).resolve(style())
+        assertFalse(panelPresent(cleared.background))
+    }
+
+    @Test
+    fun `explicit text bases and fragments preserve source styles and code alternate text`() {
+        val base =
+            textStyle {
+                this.fontSize = 18.0;
+                this.color = Color.Black
+            }
+        val source =
+            styledText {
+                this.style = base;
+                this.text("中文 α")
+            }
+        val untouched = typographyContent(TypographyContent.Styled(source), textStyle(), None)
+        assertSame(base, untouched.style)
+        val local =
+            typographyContent(
+                TypographyContent.Styled(source),
+                textStyle(),
+                Some(spanStyle { this.weight = Some(700) })
+            )
+        assertEquals(18.0, local.style.fontSize)
+        assertEquals(700, local.style.weight)
+        val builder = TypographyTextBuilder()
+        builder.text("Run ")
+        builder.code("scoop build", Some(InlineKey.Text("command")))
+        builder.text(" 中文")
+        val snapshot = builder.snapshotText(TypographyRole.P)
+        builder.text(" later")
+        val content = typographyContent(snapshot.content, base, None)
+        assertEquals("Run \u{fffc} 中文", content.text)
+        assertEquals("Run scoop build 中文", content.toPlainText())
+        assertEquals(TextRange(4L, 7L), content.inlineObjects[0L].range)
+        assertEquals(1L, inlineChildren(content, snapshot.inlines).size)
+        assertEquals(InlineKey.Text("command"), snapshot.inlines[0L].key)
+        builder.code("duplicate", Some(InlineKey.Text("command")))
+        assertFailsWith<IllegalArgumentException> {
+            typographyContent(builder.snapshotText(TypographyRole.P).content, base, None)
+        }
+    }
+
+    @Test
+    fun `typography tables reject mismatched columns and duplicate stable rows before mounting`() {
+        typographyTable {}
+        typographyTable {
+            this.header {
+                this.cell("A");
+                this.cell("B")
+            };
+            this.row {
+                this.cell("C");
+                this.cell("D")
+            }
+        }
+        assertFailsWith<IllegalArgumentException> { typographyTable { this.row {} } }
+        assertFailsWith<IllegalArgumentException> {
+            typographyTable {
+                this.row { this.cell("A") };
+                this.row {
+                    this.cell("B");
+                    this.cell("C")
+                }
+            }
+        }
+        assertFailsWith<IllegalArgumentException> {
+            typographyTable {
+                this.row { this.cell("A") };
+                this.header { this.cell("B") }
+            }
+        }
+        assertFailsWith<IllegalArgumentException> {
+            typographyTable {
+                this.columns = Some([GridTrack.Fixed(10.0), GridTrack.Auto]);
+                this.row { this.cell("A") }
+            }
+        }
+        assertFailsWith<IllegalArgumentException> {
+            typographyTable {
+                this.row(ViewKey.Text("same")) { this.cell("A") };
+                this.row(ViewKey.Text("same")) { this.cell("B") }
+            }
+        }
+        assertFailsWith<IllegalArgumentException> {
+            typographyTable {
+                this.columns = Some([GridTrack.Fraction(0.0)]);
+                this.row { this.cell("A") }
+            }
+        }
+    }
+
+    @Test
+    fun `typography and keyboard child members append once without activating content`() {
+        val captured = ArrayList<LinearBuilder>()
+        val calls = ArrayList<Int>()
+        val action = button("Action", { calls.add(1) })
+        val chord =
+            ShortcutChord(
+                ShortcutKey.Logical(LogicalKey.Character("k")),
+                ShortcutModifiers(primary = true)
+            )
+        column {
+            captured.add(this)
+            this.typography("Heading", TypographyRole.H1)
+            this.typography {
+                this.text("Body ");
+                this.code("inline")
+            }
+            this.typographyList {
+                this.item("First");
+                this.item("Second")
+            }
+            this.typographyTable { this.row { this.cell("Cell") } }
+            this.kbd(chord)
+            this.kbdGroup(chord)
+            this.kbdGroup {
+                this.kbd("Ctrl");
+                this.label("+");
+                this.kbd("K")
+            }
+            this.kbd(action)
+        }
+        assertEquals(8L, captured[0L].snapshot().children.size)
+        assertEquals(0L, calls.size)
+        assertFailsWith<IllegalArgumentException> { kbdGroup { this.spacing = Double.NaN } }
+    }
+}

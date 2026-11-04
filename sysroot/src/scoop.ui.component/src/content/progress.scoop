@@ -1,0 +1,193 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.math.floor
+import scoop.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.component.column as progressColumn
+import scoop.ui.style.*
+
+public class ProgressProps public constructor(
+    public val value: Double?,
+    public val minimum: Double = 0.0,
+    public val maximum: Double = 100.0,
+    public val label: PanelContent? = None,
+    public val valueLabel: PanelContent? = None,
+    public val showValue: Boolean = false,
+    public val thickness: Double? = None,
+    public val indicatorColor: Color? = None,
+    public val style: StyleOverride = styleOverride(),
+    public val transition: StyleValue<AnimationSpec?> = StyleValue.Inherit,
+    public val period: Duration = Duration.seconds(2L),
+    public val fonts: FontCollection? = None,
+    public val theme: ThemeSource? = None
+) {
+    public val position: Double? = progressPosition(value, minimum, maximum)
+    init {
+        when (thickness) {
+            case Some(value) -> nonnegative(value, "invalid progress thickness");
+            case None -> {}
+        }
+        requireComponent(period > Duration.ZERO, "progress period must be positive")
+    }
+}
+
+internal fun progressPosition(value: Double?, minimum: Double, maximum: Double): Double? {
+    val range = RangeSpec(minimum, maximum)
+    requireComponent(maximum > minimum, "progress maximum must exceed minimum")
+    return when (value) {
+        case Some(current) -> Some(range.positionOf(current));
+        case None -> None
+    }
+}
+
+public class Progress public constructor(private val props: Props<ProgressProps>): Component {
+    private val themes = ThemeAccess()
+    private val labels = ActionTextStyle()
+    private val values = ActionTextStyle()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val palette = theme.tokens.palette
+        val density = theme.tokens.typography.body.fontSize / 14.0
+        val labelStyle =
+            labels.resolve(theme.tokens.typography.action, palette.background.foreground, None)
+        val valueStyle =
+            values.resolve(theme.tokens.typography.body, palette.muted.foreground, None)
+        val valueCaption =
+            when (input.valueLabel) {
+                case Some(value) -> Some(panelCaption(value, valueStyle, input.fonts))
+                case None -> if (input.showValue)
+                    Some(
+                        panelCaption(
+                            PanelContent.Label(
+                                LabelProps(LabelText.Plain(progressCaption(input.position), None))
+                            ),
+                            valueStyle,
+                            input.fonts
+                        )
+                    )
+                else
+                    None
+            }
+        val labelCaption =
+            when (input.label) {
+                case Some(value) -> Some(panelCaption(value, labelStyle, input.fonts))
+                case None -> None
+            }
+        val track =
+            element(
+                ProgressInkProps(
+                    input.position,
+                    input.thickness ?: 4.0 * density,
+                    input.indicatorColor ?: palette.primary.background,
+                    palette.muted.background,
+                    input.style,
+                    theme.tokens.motion.resolve(
+                        input.transition.resolve(theme.tokens.motion.selection)
+                    ),
+                    theme.tokens.motion.preference == MotionPreference.Full,
+                    input.period
+                ),
+                { current -> ProgressInk(current) }
+            )
+        return progressColumn {
+            if (panelPresent(labelCaption) || panelPresent(valueCaption))
+                this.add(
+                    panelSlot(
+                        panelAside(
+                            labelCaption,
+                            valueCaption,
+                            8.0 * density,
+                            theme.tokens.typography.body.fontSize * 4.0
+                        ),
+                        0L
+                    )
+                )
+            this.add(panelSlot(track, 1L))
+            this.spacing = 12.0 * density
+            this.alignment = CrossAlignment.Stretch
+        }
+    }
+}
+
+internal fun progressCaption(position: Double?): String =
+    when (position) {
+        case Some(value) -> f"${floor(value * 100.0 + 0.5).toLong()}%"
+        case None -> "…"
+    }
+
+public class ProgressBuilder internal constructor() {
+    public var minimum: Double = 0.0
+    public var maximum: Double = 100.0
+    public var label: PanelContent? = None
+    public var valueLabel: PanelContent? = None
+    public var showValue: Boolean = false
+    public var thickness: Double? = None
+    public var indicatorColor: Color? = None
+    public var style: StyleOverride = styleOverride()
+    public var transition: StyleValue<AnimationSpec?> = StyleValue.Inherit
+    public var period: Duration = Duration.seconds(2L)
+    public var fonts: FontCollection? = None
+    public var theme: ThemeSource? = None
+    public var key: ViewKey = ViewKey.Position
+    public fun label(text: String): Unit {
+        label = Some(PanelContent.Label(LabelProps(LabelText.Plain(text, None))))
+    }
+    public fun label(text: StyledText): Unit {
+        label = Some(PanelContent.Label(LabelProps(LabelText.Styled(text))))
+    }
+    public fun label(content: View): Unit {
+        label = Some(PanelContent.Custom(content))
+    }
+    public fun valueLabel(text: String): Unit {
+        valueLabel = Some(PanelContent.Label(LabelProps(LabelText.Plain(text, None))))
+    }
+    public fun valueLabel(text: StyledText): Unit {
+        valueLabel = Some(PanelContent.Label(LabelProps(LabelText.Styled(text))))
+    }
+    public fun valueLabel(content: View): Unit {
+        valueLabel = Some(PanelContent.Custom(content))
+    }
+    public fun style(configure: StyleOverrideBuilder.() -> Unit): Unit {
+        style = style.copy(configure)
+    }
+    public fun transition(value: AnimationSpec?): Unit {
+        transition = StyleValue.Set(value)
+    }
+}
+
+public fun progress(value: Double?, configure: ProgressBuilder.() -> Unit = {}): View =
+    makeProgress(value, configure)
+
+public fun progress(value: Double, configure: ProgressBuilder.() -> Unit = {}): View =
+    makeProgress(Some(value), configure)
+
+internal fun makeProgress(value: Double?, configure: ProgressBuilder.() -> Unit): View {
+    val builder = ProgressBuilder()
+    builder.configure()
+    return component(
+        ProgressProps(
+            value,
+            builder.minimum,
+            builder.maximum,
+            builder.label,
+            builder.valueLabel,
+            builder.showValue,
+            builder.thickness,
+            builder.indicatorColor,
+            builder.style,
+            builder.transition,
+            builder.period,
+            builder.fonts,
+            builder.theme
+        ),
+        { current -> Progress(current) },
+        builder.key
+    )
+}

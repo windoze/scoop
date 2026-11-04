@@ -115,6 +115,8 @@ internal class GalleryPainter(private val fonts: FontCollection): Closeable {
                         Rect(left + 4.0, 30.0 + rowHeight * 4.0, cellWidth, 32.0),
                         button
                     )
+                if (geometry.opacity < 1.0)
+                    canvas.saveLayer(geometry.opacity)
                 painter.drawSurface(canvas, geometry, button, SurfaceLayer.Background)
                 val label = labels[13L + column]
                 canvas.drawText(
@@ -125,6 +127,8 @@ internal class GalleryPainter(private val fonts: FontCollection): Closeable {
                     )
                 )
                 painter.drawSurface(canvas, geometry, button, SurfaceLayer.Foreground)
+                if (geometry.opacity < 1.0)
+                    canvas.restore()
             } else
                 dash(canvas, left, 32.0 + rowHeight * 4.0)
         }
@@ -191,7 +195,7 @@ private fun sampleInteraction(column: Long): InteractionVisual =
         case 1L -> InteractionVisual(hovered = true)
         case 2L -> InteractionVisual(hovered = true, pressed = true)
         case 3L -> InteractionVisual(enabled = false)
-        case 6L -> InteractionVisual(focused = true)
+        case 6L -> InteractionVisual(focusVisible = true)
         else -> InteractionVisual()
     }
 

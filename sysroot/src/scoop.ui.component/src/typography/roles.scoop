@@ -1,0 +1,80 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.style.*
+
+public enum TypographyRole {
+    H1, H2, H3, H4, P, Blockquote, InlineCode, Lead, Large, Small, Muted
+}
+
+internal fun typographyStyle(role: TypographyRole, theme: Theme): TextStyle {
+    val body = theme.tokens.typography.body
+    val density = body.fontSize / 14.0
+    val(size, height, weight) =
+        when (role) {
+            case H1 -> (36.0, 40.0, 800)
+            case H2 -> (30.0, 36.0, 600)
+            case H3 -> (24.0, 32.0, 600)
+            case H4 -> (20.0, 28.0, 600)
+            case P -> (16.0, 28.0, 400)
+            case Blockquote -> (16.0, 24.0, 400)
+            case InlineCode -> (14.0, 20.0, 600)
+            case Lead -> (20.0, 28.0, 400)
+            case Large -> (18.0, 28.0, 600)
+            case Small -> (14.0, 14.0, 500)
+            case Muted -> (14.0, 20.0, 400)
+        }
+    return body.copy {
+        this.fontSize = size * density
+        this.lineHeight = Some(height / size)
+        this.weight = weight
+        this.color =
+            if (role == TypographyRole.Lead || role == TypographyRole.Muted)
+                theme.tokens.palette.muted.foreground
+            else
+                theme.tokens.palette.background.foreground
+        this.letterSpacing =
+            when (role) {
+                case H1 -> -0.025 * size * density
+                case H2 -> -0.025 * size * density
+                case H3 -> -0.025 * size * density
+                case H4 -> -0.025 * size * density
+                else -> 0.0
+            }
+        if (role == TypographyRole.Blockquote)
+            this.slant = FontSlant.Italic
+        if (role == TypographyRole.InlineCode)
+            this.families = ["monospace"]
+    }
+}
+
+internal fun typographyDecoration(role: TypographyRole, theme: Theme): StyleOverride {
+    val density = theme.tokens.typography.body.fontSize / 14.0
+    return styleOverride {
+        when (role) {
+            case H2 -> this.border(Some(bottomBorder(theme.tokens.palette.border)))
+            case Blockquote -> this.border(
+                Some(Border.Logical(start = BorderEdge(2.0 * density, theme.tokens.palette.border)))
+            )
+            case InlineCode -> {
+                this.background(Some(Paint(theme.tokens.palette.muted.background)))
+                this.corners(Corners.all(theme.tokens.corners.small))
+            }
+            else -> {}
+        }
+    }
+}
+
+internal fun typographyPadding(role: TypographyRole, density: Double): LogicalInsets =
+    when (role) {
+        case H2 -> LogicalInsets(bottom = 8.0 * density)
+        case Blockquote -> LogicalInsets(start = 24.0 * density)
+        case InlineCode -> LogicalInsets(
+            start = 4.8 * density,
+            end = 4.8 * density,
+            top = 3.2 * density,
+            bottom = 3.2 * density
+        )
+        else -> LogicalInsets()
+    }

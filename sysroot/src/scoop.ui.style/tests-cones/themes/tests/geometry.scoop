@@ -14,13 +14,13 @@ private class ThemeGeometryTest {
         val all = themes()
         for (theme in all) {
             val metrics = theme.surfaceMetrics(SurfaceVisual(SurfaceKind.Action))
-            val visual = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focused = true))
+            val visual = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focusVisible = true))
             val geometry = theme.surfaceGeometry(Rect(10.0, 20.0, 80.0, 40.0), visual)
             contains(geometry.bounds, geometry.content)
             contains(geometry.bounds, geometry.borderInner.bounds)
             near(10.0 + metrics.contentInsets.left, geometry.content.x)
             near(20.0 + metrics.contentInsets.top, geometry.content.y)
-            assertTrue(geometry.focus!!.outline.bounds.width > geometry.bounds.width)
+            assertTrue(geometry.ring!!.outline.bounds.width > geometry.bounds.width)
             assertTrue(theme.tokens.effects.raised.size > 0L)
             assertTrue(theme.tokens.effects.emphasis.size > 0L)
             assertEquals(Corners.Physical(metrics.corners), geometry.style.corners)
@@ -41,8 +41,14 @@ private class ThemeGeometryTest {
         for (i in [0L, 2L, 4L]) {
             assertEquals(ThemeMode.Light, all[i].tokens.mode)
             assertEquals(ThemeMode.Dark, all[i + 1L].tokens.mode)
-            assertTrue(all[i].tokens.palette.canvas != all[i + 1L].tokens.palette.canvas)
-            assertTrue(all[i].tokens.palette.text != all[i + 1L].tokens.palette.text)
+            assertTrue(
+                all[i].tokens.palette.background.background !=
+                    all[i + 1L].tokens.palette.background.background
+            )
+            assertTrue(
+                all[i].tokens.palette.background.foreground !=
+                    all[i + 1L].tokens.palette.background.foreground
+            )
             assertTrue(all[i].tokens.palette.border != all[i + 1L].tokens.palette.border)
         }
     }
@@ -63,7 +69,7 @@ private class ThemeGeometryTest {
             assertEquals(Rect(30.0, 30.0, 60.0, 20.0), geometry.content)
             assertEquals(Rect(23.0, 23.0, 74.0, 34.0), geometry.borderInner.bounds)
             assertEquals(CornerRadii.all(6.0), geometry.borderInner.radii)
-            assertEquals(theme.tokens.palette.accent, geometry.style.background!!.color)
+            assertEquals(theme.tokens.palette.primary.background, geometry.style.background!!.color)
             val mark =
                 theme.checkboxGeometry(
                     Rect(5.0, 5.0, 24.0, 20.0),

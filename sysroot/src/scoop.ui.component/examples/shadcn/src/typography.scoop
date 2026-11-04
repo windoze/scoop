@@ -1,0 +1,191 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.component.column as makeColumn
+import scoop.ui.component.frame as makeFrame
+import scoop.ui.component.typography as makeTypography
+import scoop.ui.component.kbd as makeKbd
+import scoop.ui.style.*
+import scoop.ui.text.*
+import scoop.window.Utf8Selection
+
+internal val typographyPrefix = "Copy α 中文 "
+
+internal val typographySuffix = " — open help."
+
+internal val typographyPlain = typographyPrefix + "scoop build" + typographySuffix
+
+internal val typographyText = typographyPrefix + "\u{fffc}" + typographySuffix
+
+internal fun typographyExamples(model: GalleryModel, fonts: FontCollection): View {
+    val palette = model.source.current.value.tokens.palette
+    val helpStart = (typographyPrefix + "\u{fffc} — ").byteLength
+    return makeColumn {
+        this.typography("Typography", TypographyRole.H1) { this.fonts = Some(fonts) }
+        this.typography(
+            "Headings, readable text, lists, tables, and inline content.",
+            TypographyRole.Lead
+        ) { this.fonts = Some(fonts) }
+        this.row {
+            this.button(
+                if (model.typographyNarrow.value)
+                    "Widen content"
+                else
+                    "Narrow content",
+                { model.typographyNarrow.value = !model.typographyNarrow.value }
+            ) {
+                this.fonts = Some(fonts);
+                this.variant = ButtonVariant.Outline
+            }
+            this.button(
+                if (model.typographySelectable.value)
+                    "Disable selection"
+                else
+                    "Enable selection",
+                { model.typographySelectable.value = !model.typographySelectable.value }
+            ) {
+                this.fonts = Some(fonts);
+                this.variant = ButtonVariant.Outline
+            }
+            this.spacing = 8.0
+        }
+        this.add(
+            makeFrame(
+                makeColumn {
+                    this.typography {
+                        this.fonts = Some(fonts)
+                        this.selectable = model.typographySelectable.value
+                        this.focus { this.handle = Some(model.typographyFocus) }
+                        this.onSelectionChanged =
+                            {
+                                a,
+                                c -> model.typographySelection =
+                                    Utf8Selection(a.byteOffset, c.byteOffset)
+                            }
+                        this.actions =
+                            [
+                                TextRangeAction(
+                                    "help",
+                                    TextRange(helpStart, helpStart + 9L),
+                                    { model.typographyActions.value += 1 },
+                                    focus =
+                                        Some(
+                                            focusOptions {
+                                                this.handle = Some(model.typographyActionFocus)
+                                            }
+                                        )
+                                )
+                            ]
+                        this.decorations =
+                            [
+                                TextRangeDecoration(
+                                    TextRange(helpStart, helpStart + 9L),
+                                    underline = Some(palette.primary.background)
+                                )
+                            ]
+                        this.text(typographyPrefix)
+                        this.code("scoop build", Some(InlineKey.Text("command")))
+                        this.text(typographySuffix)
+                    }
+                    this.typography(
+                        "Select the paragraph, then use your platform's Select All and Copy shortcuts. Inline code copies as ordinary text.",
+                        TypographyRole.Muted
+                    ) { this.fonts = Some(fonts) }
+                    this.typography(
+                        f"Inline action count: ${model.typographyActions.value}",
+                        TypographyRole.Small
+                    ) { this.fonts = Some(fonts) }
+                    this.typography("A second-level heading", TypographyRole.H2) {
+                        this.fonts = Some(fonts)
+                    }
+                    this.typography("A third-level heading", TypographyRole.H3) {
+                        this.fonts = Some(fonts)
+                    }
+                    this.typography("A fourth-level heading", TypographyRole.H4) {
+                        this.fonts = Some(fonts)
+                    }
+                    this.typography(
+                        "A paragraph can contain 中文, Greek αβ, and ordinary English while wrapping at the actual available width."
+                    ) { this.fonts = Some(fonts) }
+                    this.typography(
+                        "Readable interfaces give content room to breathe.",
+                        TypographyRole.Blockquote
+                    ) { this.fonts = Some(fonts) }
+                    this.typography {
+                        this.fonts = Some(fonts)
+                        this.text("Press ")
+                        this.inline(
+                            InlineKey.Text("shortcut"),
+                            makeKbd(model.shortcut) { this.fonts = Some(fonts) },
+                            "Primary+I"
+                        )
+                        this.text(" in the Kbd example to activate its button.")
+                    }
+                    this.typographyList {
+                        this.fonts = Some(fonts)
+                        this.item("A short item", ViewKey.Text("short"))
+                        this.item(
+                            "A longer item wraps with a hanging indent while its bullet keeps the first text baseline.",
+                            ViewKey.Text("long")
+                        )
+                        this.item(
+                            makeTypography {
+                                this.fonts = Some(fonts);
+                                this.text("Use ");
+                                this.code("scoop test");
+                                this.text(" to run tests.")
+                            },
+                            ViewKey.Text("code")
+                        )
+                    }
+                    this.typographyTable {
+                        this.fonts = Some(fonts)
+                        this.header {
+                            this.cell("Command");
+                            this.cell("Purpose")
+                        }
+                        this.row(ViewKey.Text("build")) {
+                            this.cell("scoop build");
+                            this.cell("Compile the application and its changed dependencies.")
+                        }
+                        this.row(ViewKey.Text("test")) {
+                            this.cell("scoop test");
+                            this.cell("Run the Cone's tests.")
+                        }
+                        this.row(ViewKey.Text("check")) {
+                            this.cell("scoop check");
+                            this.cell("Check types and diagnostics.")
+                        }
+                    }
+                    this.row {
+                        this.typography("Large", TypographyRole.Large) { this.fonts = Some(fonts) }
+                        this.typography("Small", TypographyRole.Small) { this.fonts = Some(fonts) }
+                        this.typography("Muted", TypographyRole.Muted) { this.fonts = Some(fonts) }
+                        this.typography("inline code", TypographyRole.InlineCode) {
+                            this.fonts = Some(fonts)
+                        }
+                        this.spacing = 16.0
+                        this.alignment = CrossAlignment.Baseline
+                    }
+                    this.spacing = 20.0
+                    this.alignment = CrossAlignment.Stretch
+                }
+            ) {
+                this.width =
+                    Some(
+                        if (model.typographyNarrow.value)
+                            320.0
+                        else
+                            720.0
+                    )
+                this.alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start)
+            }
+        )
+        this.spacing = 20.0
+        this.padding = Insets(6.0, 6.0, 12.0, 12.0)
+        this.alignment = CrossAlignment.Start
+    }
+}

@@ -1,0 +1,114 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.*
+import scoop.ui.style.*
+
+internal enum ActionBehavior {
+    Passive, Press(State<PressControl?>, () -> Unit, FocusOptions)
+}
+
+internal class ActionInkProps(
+    val theme: Theme,
+    val shape: ActionShape,
+    val variant: ButtonVariant,
+    val style: ButtonStyle,
+    val visual: SurfaceVisual,
+    val behavior: ActionBehavior
+)
+
+private class ActionDrawing(val geometry: SurfaceGeometry, val visual: SurfaceVisual)
+
+/** Buttons and badges use one layout and surface renderer, with optional activation behavior. */
+internal class ActionInk(private val props: Props<ActionInkProps>): Element {
+    private var motion: InteractionMotion? = None
+    private var painters: ThemePainterCache? = None
+    private var content: StylePainter? = None
+    private var drawing: ActionDrawing? = None
+    public override fun onMount(scope: ComponentScope) {
+        painters = Some(scope.resource { ThemePainterCache() })
+        content = Some(scope.resource { StylePainter() })
+        motion = Some(InteractionMotion(scope, props.value.visual.interaction))
+    }
+    public override fun update() {
+        val value = props.value
+        when (value.behavior) {
+            case Press(owner, action, focus) -> {
+                val control = owner.value!!
+                control.press.update(PressOptions(value.visual.interaction.enabled), action)
+                control.area.scope.enabled = value.visual.interaction.enabled
+                control.focus.options = focus
+            }
+            case Passive -> {}
+        }
+        val specs = value.theme.tokens.motion
+        motion!!.update(
+            value.visual.interaction,
+            specs.resolve(value.style.transition.resolve(specs.hover)),
+            specs.resolve(value.style.transition.resolve(specs.press))
+        )
+        painters!!.get(value.theme)
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val value = props.value
+        val visual = SurfaceVisual(value.visual.kind, motion!!.sample(value.visual.interaction))
+        val options =
+            actionOptions(value.theme, value.shape, value.variant, value.style, visual.interaction)
+        val metrics = value.theme.surfaceMetrics(visual, options, context.layoutDirection)
+        val inset = metrics.contentInsets.totals()
+        val child = context.measureChild(0L, childConstraints(constraints, inset))
+        var width =
+            lowerBound(
+                child.size.width + inset.width,
+                lowerBound(metrics.minimumSize.width, metrics.suggestedSize.width)
+            )
+        var height =
+            lowerBound(
+                child.size.height + inset.height,
+                lowerBound(metrics.minimumSize.height, metrics.suggestedSize.height)
+            )
+        if (isIconAction(value.shape)) {
+            width = lowerBound(width, height)
+            height = width
+        }
+        val size = constraints.constrain(Size(width, height))
+        val geometry =
+            value.theme.surfaceGeometry(
+                Rect(0.0, 0.0, size.width, size.height),
+                visual,
+                options,
+                context.layoutDirection
+            )
+        drawing = Some(ActionDrawing(geometry, visual))
+        val origin =
+            Point(
+                geometry.content.x + (geometry.content.width - child.size.width) / 2.0,
+                geometry.content.y + (geometry.content.height - child.size.height) / 2.0
+            )
+        context.placeChild(0L, origin)
+        return offsetMetrics(child, size, origin.y)
+    }
+    public override fun scene(context: SceneContext) {
+        val value = props.value
+        val visual = drawing!!.visual
+        val geometry = drawing!!.geometry
+        val painter = painters!!.get(value.theme)
+        if (geometry.opacity < 1.0)
+            context.saveLayer(geometry.opacity)
+        context.draw {
+            paint -> painter.drawSurface(paint.canvas, geometry, visual, SurfaceLayer.Background)
+        }
+        when (value.behavior) {
+            case Press(owner, _, _) -> context.place(owner.value!!.area, geometry.bounds)
+            case Passive -> {}
+        }
+        content!!.scene(context, geometry.bounds, geometry.contentStyle) {
+            children -> children.children()
+        }
+        context.draw {
+            paint -> painter.drawSurface(paint.canvas, geometry, visual, SurfaceLayer.Foreground)
+        }
+        if (geometry.opacity < 1.0)
+            context.restore()
+    }
+}

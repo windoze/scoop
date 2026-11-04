@@ -13,32 +13,38 @@ internal fun configureThemePalette(
 
 /** Mutable configuration initialized from a complete immutable value. */
 public class ThemePaletteBuilder internal constructor(initial: ThemePalette) {
-    public var canvas: Color = initial.canvas
-    public var surface: Color = initial.surface
-    public var elevated: Color = initial.elevated
-    public var text: Color = initial.text
-    public var secondaryText: Color = initial.secondaryText
-    public var disabledText: Color = initial.disabledText
+    public var background: ColorPair = initial.background
+    public var card: ColorPair = initial.card
+    public var popover: ColorPair = initial.popover
+    public var primary: ColorPair = initial.primary
+    public var secondary: ColorPair = initial.secondary
+    public var muted: ColorPair = initial.muted
+    public var accent: ColorPair = initial.accent
+    public var destructive: ColorPair = initial.destructive
     public var border: Color = initial.border
-    public var accent: Color = initial.accent
-    public var onAccent: Color = initial.onAccent
-    public var focus: Color = initial.focus
+    public var input: Color = initial.input
+    public var ring: Color = initial.ring
+    public var chart: ChartPalette = initial.chart
+    public var sidebar: SidebarPalette = initial.sidebar
+    public var disabledText: Color = initial.disabledText
     public var shadow: Color = initial.shadow
-    public var error: Color = initial.error
 
     internal fun snapshot(): ThemePalette =
         ThemePalette(
-            canvas = canvas,
-            surface = surface,
-            elevated = elevated,
-            text = text,
-            secondaryText = secondaryText,
-            disabledText = disabledText,
-            border = border,
+            background = background,
+            card = card,
+            popover = popover,
+            primary = primary,
+            secondary = secondary,
+            muted = muted,
             accent = accent,
-            onAccent = onAccent,
-            focus = focus,
-            shadow = shadow,
-            error = error
+            destructive = destructive,
+            border = border,
+            input = input,
+            ring = ring,
+            chart = chart,
+            sidebar = sidebar,
+            disabledText = disabledText,
+            shadow = shadow
         )
 }

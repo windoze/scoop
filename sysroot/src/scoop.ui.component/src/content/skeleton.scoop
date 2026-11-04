@@ -1,0 +1,198 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.math.min
+import scoop.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.style.*
+
+public enum SkeletonShape {
+    Rectangle, Circle
+}
+
+public class SkeletonProps public constructor(
+    public val content: View,
+    public val loading: Boolean = true,
+    public val animated: Boolean = true,
+    public val shape: SkeletonShape = SkeletonShape.Rectangle,
+    public val width: Double? = None,
+    public val height: Double? = None,
+    public val period: Duration = Duration.seconds(2L),
+    public val color: Color? = None,
+    public val theme: ThemeSource? = None
+) {
+    init {
+        when (width) {
+            case Some(value) -> nonnegative(value, "invalid skeleton width");
+            case None -> {}
+        }
+        when (height) {
+            case Some(value) -> nonnegative(value, "invalid skeleton height");
+            case None -> {}
+        }
+        requireComponent(period > Duration.ZERO, "skeleton period must be positive")
+    }
+}
+
+public class Skeleton public constructor(private val props: Props<SkeletonProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        return element(
+            SkeletonInkProps(
+                input,
+                input.color ?: theme.tokens.palette.muted.background,
+                theme.tokens.corners.small,
+                theme.tokens.motion.preference == MotionPreference.Full
+            ),
+            { current -> SkeletonInk(current) },
+            [input.content]
+        )
+    }
+}
+
+public class SkeletonBuilder internal constructor() {
+    public var loading: Boolean = true
+    public var animated: Boolean = true
+    public var shape: SkeletonShape = SkeletonShape.Rectangle
+    public var width: Double? = None
+    public var height: Double? = None
+    public var period: Duration = Duration.seconds(2L)
+    public var color: Color? = None
+    public var theme: ThemeSource? = None
+    public var key: ViewKey = ViewKey.Position
+}
+
+public fun skeleton(configure: SkeletonBuilder.() -> Unit = {}): View =
+    makeSkeleton(empty(), Some(16.0), configure)
+
+public fun skeleton(content: View, configure: SkeletonBuilder.() -> Unit = {}): View =
+    makeSkeleton(content, None, configure)
+
+internal fun makeSkeleton(
+    content: View,
+    height: Double?,
+    configure: SkeletonBuilder.() -> Unit
+): View {
+    val builder = SkeletonBuilder()
+    builder.height = height
+    builder.configure()
+    return component(
+        SkeletonProps(
+            content,
+            builder.loading,
+            builder.animated,
+            builder.shape,
+            builder.width,
+            builder.height,
+            builder.period,
+            builder.color,
+            builder.theme
+        ),
+        { current -> Skeleton(current) },
+        builder.key
+    )
+}
+
+private class SkeletonInkProps(
+    val input: SkeletonProps,
+    val color: Color,
+    val radius: Double,
+    val motion: Boolean
+)
+
+private class SkeletonInk(private val props: Props<SkeletonInkProps>): Element {
+    private var motion: LoadingMotion? = None
+    private var visible = false
+    private val easing = Easing.cubicBezier(0.4, 0.0, 0.6, 1.0)
+    public override fun onMount(scope: ComponentScope) {
+        motion = Some(LoadingMotion(scope))
+    }
+    public override fun update() {
+        val value = props.value
+        motion!!.update(
+            value.input.loading && value.input.animated && value.motion && value.color.alpha > 0.0,
+            value.input.period
+        )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val input = props.value.input
+        val child = context.measureChild(0L, skeletonConstraints(input, constraints))
+        if (!input.loading)
+            context.placeChild(0L, Point(0.0, 0.0))
+        return child
+    }
+    public override fun scene(context: SceneContext) {
+        val value = props.value
+        val size = context.size
+        if (value.input.loading) {
+            val bounds = skeletonBounds(size, value.input.shape)
+            val opacity = skeletonOpacity(motion!!.phase.value, easing)
+            context.draw {
+                paint ->
+                visible = loadingVisible(paint.canvas, bounds, value.color.alpha)
+                if (visible)
+                    paint.canvas.drawRoundRect(
+                        bounds,
+                        if (value.input.shape == SkeletonShape.Circle)
+                            bounds.width / 2.0
+                        else
+                            value.radius,
+                        if (value.input.shape == SkeletonShape.Circle)
+                            bounds.width / 2.0
+                        else
+                            value.radius,
+                        Paint(value.color.withAlpha(value.color.alpha * opacity))
+                    )
+            }
+        } else {
+            visible = false
+            context.children()
+        }
+        loadingParticipation(context, motion!!.phase, visible)
+    }
+}
+
+internal fun skeletonConstraints(input: SkeletonProps, limits: Constraints): Constraints {
+    val width =
+        when (input.width) {
+            case Some(value) -> Some(limits.constrain(Size(value, 0.0)).width)
+            case None -> limits.maxWidth
+        }
+    val height =
+        when (input.height) {
+            case Some(value) -> Some(limits.constrain(Size(0.0, value)).height)
+            case None -> None
+        }
+    return Constraints(
+        width ?: limits.minWidth,
+        width,
+        height ?: limits.minHeight,
+        when (height) {
+            case Some(value) -> Some(value);
+            case None -> limits.maxHeight
+        }
+    )
+}
+
+internal fun skeletonBounds(size: Size, shape: SkeletonShape): Rect {
+    if (shape == SkeletonShape.Rectangle)
+        return Rect(0.0, 0.0, size.width, size.height)
+    val side = min(size.width, size.height)
+    return Rect((size.width - side) / 2.0, (size.height - side) / 2.0, side, side)
+}
+
+internal fun skeletonOpacity(phase: Double, easing: Easing): Double =
+    1.0 -
+        0.5 *
+        easing.transform(
+            if (phase <= 0.5)
+                phase * 2.0
+            else
+                (1.0 - phase) * 2.0
+        )

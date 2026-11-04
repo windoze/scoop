@@ -1,5 +1,7 @@
 package scoop.ui
 
+import scoop.surface.FocusVisibility
+
 public fun focusOptions(configure: FocusOptionsBuilder.() -> Unit = {}): FocusOptions =
     FocusOptions().copy(configure)
 
@@ -13,5 +15,6 @@ public class FocusOptionsBuilder internal constructor(value: FocusOptions) {
     public var handle: FocusHandle? = value.handle
     public var tabStop: Boolean = value.tabStop
     public var order: Int = value.order
-    internal fun snapshot(): FocusOptions = FocusOptions(handle, tabStop, order)
+    public var visibility: FocusVisibility = value.visibility
+    internal fun snapshot(): FocusOptions = FocusOptions(handle, tabStop, order, visibility)
 }

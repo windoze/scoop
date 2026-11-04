@@ -1,0 +1,337 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.text.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.surface.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.style.*
+import scoop.ui.style.shadcn.shadcnTheme
+import scoop.ui.text.TextEditorState
+import scoop.window.*
+
+@Test
+private class FieldLabelWindowTest {
+    @Test
+    fun `labels use current controls and reject disabled hidden detached foreign and modal targets`() {
+        val probe = FieldLabelProbe()
+        val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+        try {
+            context(probe.theme) {
+                host.use { owner -> Application().run(owner) }
+            }
+            assertTrue(probe.finished)
+            assertFalse(probe.fonts.isClosed)
+            assertFalse(probe.frames!!.snapshot().attached)
+            for (target in probe.targets)
+                assertFalse(target.isAttached)
+            assertFalse(probe.foreignTarget.isAttached)
+            assertFalse(probe.foreignFocus.isAttached)
+            for (focus in probe.focus)
+                assertFalse(focus.isAttached)
+        } catch (error: Throwable) {
+            println(f"field label phase=${probe.phase}, rendered=${probe.rendered}")
+            galleryFailure(error)
+            throw error
+        } finally {
+            host.close()
+            probe.view?.close()
+            probe.frames?.close()
+            probe.fonts.close()
+        }
+    }
+}
+
+internal class FieldLabelProbe {
+    val theme = ThemeSource(shadcnTheme())
+    val fonts = FontCollection(false)
+    val targets = [FieldTarget(), FieldTarget(), FieldTarget(), FieldTarget()]
+    val focus = [FocusHandle(), FocusHandle(), FocusHandle(), FocusHandle()]
+    val foreignTarget = FieldTarget()
+    val foreignFocus = FocusHandle()
+    val foreignChecked = state(false)
+    val text = TextEditorState("Scoop", Some(Utf8Selection(1L, 3L)))
+    val notes = TextEditorState("Notes")
+    val modal = state(false)
+    val generation = state(0)
+    var rendered = -1
+    var foreignReady = false
+    var observedEnabled = false
+    var first = false
+    var second = true
+    var actions = 0
+    var enabled = true
+    var hidden = false
+    var mounted = true
+    var alternate = false
+    var rebound = false
+    var labelRebound = false
+    var readOnly = false
+    var gone = false
+    var direction = LayoutDirection.Ltr
+    var phase = 0
+    var finished = false
+    var native: Window? = None
+    var foreign: Window? = None
+    var view: ViewProbe? = None
+    var frames: FrameProbe? = None
+    private var started = false
+    private var destroyed = 0
+    private var quiet: FrameSnapshot? = None
+    private val deadline = MonotonicTimeSource.markNow() + Duration.seconds(30L)
+    init {
+        for (family in theme.current.value.tokens.typography.body.families)
+            fonts.register(testSansBytes, family)
+        for (target in targets) {
+            assertFalse(target.isAttached)
+            assertFalse(target.isEnabled)
+        }
+    }
+    fun currentTarget(): FieldTarget =
+        targets[
+            if (rebound)
+                3L
+            else
+                2L
+        ]
+    fun currentFocus(): FocusHandle =
+        focus[
+            if (alternate)
+                3L
+            else
+                2L
+        ]
+    fun event(host: UiHost, active: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val other =
+                    active.createWindow(
+                        windowAttributes {
+                            this.title = "Field label target window"
+                            this.position = Some(DesktopPosition(20.0, 80.0))
+                            this.size = LogicalSize(200.0, 100.0)
+                        }
+                    )
+                foreign = Some(other)
+                other.setWindowLevel(WindowLevel.AlwaysOnTop)
+                host.attach(other, { ForeignField(this) })
+                val window =
+                    active.createWindow(
+                        windowAttributes {
+                            this.title = "Scoop field label test"
+                            this.position = Some(DesktopPosition(280.0, 80.0))
+                            this.size = LogicalSize(800.0, 600.0)
+                        }
+                    )
+                native = Some(window)
+                window.setWindowLevel(WindowLevel.AlwaysOnTop)
+                view = Some(observeWindow(window))
+                frames = Some(observeFrames(window))
+                host.attach(window, { FieldLabelScene(this) })
+                window.requestFocus()
+                wait(active)
+            }
+            case NewEvents(StartCause.Deadline) -> {
+                assertTrue(MonotonicTimeSource.markNow() < deadline, Some("field label timeout"))
+                if (native!!.isFocused && foreignReady && rendered >= generation.value) {
+                    started = true
+                    advance()
+                } else
+                    if (started && !native!!.isFocused)
+                        native!!.requestFocus()
+                if (phase < 32)
+                    wait(active)
+            }
+            case Window(_, WindowEvent.Destroyed) -> {
+                destroyed += 1
+                if (destroyed == 2) {
+                    finished = phase == 32
+                    active.requestExit()
+                }
+            }
+            else -> {}
+        }
+    }
+    private fun advance() {
+        when (phase) {
+            case 0 -> click(40.0, 36.0)
+            case 1 -> {
+                assertTrue(focus[0L].hasFocus)
+                assertEquals(Utf8Selection(1L, 3L), text.selection)
+                assertEquals(0, galleryKey(native!!, 48, "\t"))
+            }
+            case 2 -> {
+                assertTrue(focus[1L].hasFocus)
+                click(100.0, 226.0)
+            }
+            case 3 -> {
+                assertEquals(1, actions)
+                assertTrue(first)
+                assertTrue(focus[2L].hasFocus)
+                assertFalse(focus[2L].isFocusVisible)
+                assertEquals(0, galleryKey(native!!, 49, " "))
+            }
+            case 4 -> {
+                assertEquals(2, actions)
+                assertFalse(first)
+                alternate = true
+                change()
+            }
+            case 5 -> click(100.0, 226.0)
+            case 6 -> {
+                assertEquals(3, actions)
+                assertFalse(first)
+                assertFalse(second)
+                assertFalse(focus[2L].isAttached)
+                assertTrue(focus[3L].hasFocus)
+                enabled = false
+                change()
+            }
+            case 7 -> {
+                assertTrue(targets[2L].isAttached)
+                assertFalse(targets[2L].isEnabled)
+                assertFalse(observedEnabled)
+                click(100.0, 226.0)
+            }
+            case 8 -> {
+                assertEquals(3, actions)
+                enabled = true
+                hidden = true
+                change()
+            }
+            case 9 -> click(100.0, 226.0)
+            case 10 -> {
+                assertEquals(3, actions)
+                assertFalse(focus[3L].hasFocus)
+                assertFalse(focus[3L].isPending)
+                hidden = false
+                mounted = false
+                change()
+            }
+            case 11 -> {
+                assertFalse(targets[2L].isAttached)
+                click(100.0, 226.0)
+            }
+            case 12 -> {
+                assertEquals(3, actions)
+                mounted = true
+                rebound = true
+                change()
+            }
+            case 13 -> {
+                assertFalse(targets[2L].isAttached)
+                assertTrue(targets[3L].isAttached)
+                click(100.0, 226.0)
+            }
+            case 14 -> {
+                assertEquals(3, actions)
+                click(100.0, 266.0)
+            }
+            case 15 -> {
+                assertEquals(4, actions)
+                assertTrue(second)
+                assertTrue(moveSurfacePointer(native!!, 100.0, 266.0))
+                assertTrue(view!!.button(100.0, 266.0, true))
+            }
+            case 16 -> {
+                rebound = false
+                labelRebound = true
+                change()
+            }
+            case 17 -> assertTrue(view!!.button(100.0, 266.0, false))
+            case 18 -> {
+                assertEquals(4, actions)
+                click(100.0, 266.0)
+            }
+            case 19 -> {
+                assertEquals(5, actions)
+                assertFalse(second)
+                theme.current.value = shadcnTheme(ThemeMode.Dark)
+                direction = LayoutDirection.Rtl
+                change()
+            }
+            case 20 -> click(100.0, 226.0)
+            case 21 -> {
+                assertEquals(6, actions)
+                assertTrue(second)
+                modal.value = true
+                change()
+            }
+            case 22 -> click(425.0, 355.0)
+            case 23 -> {
+                assertEquals(6, actions)
+                assertFalse(focus[3L].isFocusActive)
+                modal.value = false
+                change()
+            }
+            case 24 -> {
+                assertTrue(foreignTarget.isEnabled)
+                assertTrue(foreignFocus.requestFocus())
+                assertTrue(foreignFocus.hasFocus)
+                click(100.0, 316.0)
+            }
+            case 25 -> {
+                assertFalse(foreignChecked.value)
+                readOnly = true
+                change()
+            }
+            case 26 -> click(40.0, 36.0)
+            case 27 -> {
+                assertTrue(focus[0L].hasFocus)
+                assertEquals(Utf8Selection(1L, 3L), text.selection)
+                // Read-only controls retain focus without opening native text input.
+                assertEquals(1, galleryText(native!!, "ignored", false))
+            }
+            case 28 -> {
+                assertEquals("Scoop", text.text)
+                click(40.0, 116.0)
+            }
+            case 29 -> {
+                assertTrue(focus[1L].hasFocus)
+                gone = true
+                change()
+            }
+            case 30 -> {
+                for (target in targets)
+                    assertFalse(target.isAttached)
+                quiet = Some(frames!!.snapshot())
+            }
+            case 31 -> {
+                assertEquals(quiet!!, frames!!.snapshot())
+                foreign!!.requestDestroy()
+                native!!.requestDestroy()
+            }
+            else -> fail(Some("unexpected field label phase"))
+        }
+        phase += 1
+    }
+    private fun click(x: Double, y: Double) {
+        assertTrue(moveSurfacePointer(native!!, x, y))
+        assertTrue(view!!.button(x, y, true))
+        assertTrue(view!!.button(x, y, false))
+    }
+    private fun change() {
+        generation.value += 1
+    }
+    private fun wait(active: ActiveApplication) {
+        active.setControlFlow(
+            ControlFlow.WaitUntil(MonotonicTimeSource.markNow() + Duration.milliseconds(100L))
+        )
+    }
+}
+
+private class ForeignField(private val probe: FieldLabelProbe): Component {
+    public override fun render(): View =
+        element(
+            { ForeignFieldReady(probe) },
+            [
+                checkbox(probe.foreignChecked.binding()) {
+                    this.labelTarget = Some(this @ForeignField.probe.foreignTarget)
+                    this.focus { this.handle = Some(this @ForeignField.probe.foreignFocus) }
+                }
+            ]
+        )
+}

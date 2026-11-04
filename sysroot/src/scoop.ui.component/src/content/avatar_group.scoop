@@ -1,0 +1,153 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.math.min
+import scoop.math.max
+import scoop.ui.*
+import scoop.ui.style.*
+
+private class AvatarGroupEntry(val content: View, val key: ViewKey)
+
+public class AvatarGroupBuilder internal constructor(private val size: AvatarSize) {
+    private val entries = ArrayList<AvatarGroupEntry>()
+    public var overlap: Double = 8.0
+    public var key: ViewKey = ViewKey.Position
+    public fun avatar(fallback: String, configure: AvatarBuilder.() -> Unit = {}): Unit {
+        append(PanelContent.Label(LabelProps(LabelText.Plain(fallback, None))), configure)
+    }
+    public fun avatar(fallback: StyledText, configure: AvatarBuilder.() -> Unit = {}): Unit {
+        append(PanelContent.Label(LabelProps(LabelText.Styled(fallback))), configure)
+    }
+    public fun avatar(fallback: View, configure: AvatarBuilder.() -> Unit = {}): Unit {
+        append(PanelContent.Custom(fallback), configure)
+    }
+    public fun count(value: Long, key: ViewKey = ViewKey.Position): Unit {
+        requireComponent(value >= 0L, "avatar group count must be nonnegative")
+        avatar(f"+${value}") { this.key = key }
+    }
+    public fun count(content: View, key: ViewKey = ViewKey.Position): Unit {
+        avatar(content) { this.key = key }
+    }
+    private fun append(fallback: PanelContent, configure: AvatarBuilder.() -> Unit) {
+        val builder = AvatarBuilder()
+        builder.size = size
+        builder.configure()
+        entries.add(
+            AvatarGroupEntry(
+                component(builder.snapshot(fallback), { current -> Avatar(current) }),
+                builder.key
+            )
+        )
+    }
+    internal fun build(): View {
+        nonnegative(overlap, "invalid avatar group overlap")
+        return component(
+            AvatarGroupProps(entries.toArray(), overlap),
+            { current -> AvatarGroup(current) },
+            key
+        )
+    }
+}
+
+public fun avatarGroup(
+    size: AvatarSize = AvatarSize.Default,
+    configure: AvatarGroupBuilder.() -> Unit
+): View = makeAvatarGroup(size, configure)
+
+internal fun makeAvatarGroup(size: AvatarSize, configure: AvatarGroupBuilder.() -> Unit): View {
+    val builder = AvatarGroupBuilder(size)
+    builder.configure()
+    return builder.build()
+}
+
+private class AvatarGroupProps(val entries: Array<AvatarGroupEntry>, val overlap: Double)
+
+private class AvatarGroup(private val props: Props<AvatarGroupProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(None)
+    }
+    public override fun render(): View {
+        val color = themes.read(None).tokens.palette.background.background
+        val input = props.value
+        val children =
+            Array<View>(input.entries.size) {
+                index ->
+                val entry = input.entries[index]
+                avatarRing(
+                    entry.content,
+                    color,
+                    if (entry.key == ViewKey.Position)
+                        ViewKey.Number(index)
+                    else
+                        entry.key
+                )
+            }
+        return element(
+            AvatarGroupLayoutProps(input.entries.size, input.overlap),
+            { current -> AvatarGroupLayout(current) },
+            children
+        )
+    }
+}
+
+private struct AvatarGroupLayoutProps(val count: Long, val overlap: Double)
+
+private class AvatarGroupLayout(private val props: Props<AvatarGroupLayoutProps>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val input = props.value
+        if (input.count == 0L)
+            return LayoutMetrics(constraints.constrain(Size(0.0, 0.0)))
+        val children =
+            Array<Size>(input.count) {
+                index -> context.measureChild(
+                    index,
+                    Constraints(
+                        maxWidth = insetMaximum(constraints.maxWidth, 4.0),
+                        maxHeight = insetMaximum(constraints.maxHeight, 4.0)
+                    )
+                ).size
+            }
+        val positions = avatarGroupPositions(children, input.overlap)
+        var height = 0.0
+        var width = 0.0
+        for (index in 0L ..< children.size) {
+            width = max(width, positions[index] + children[index].width)
+            height = max(height, children[index].height)
+        }
+        val natural = Size(width + 4.0, height + 4.0)
+        validSize(natural)
+        val size = constraints.constrain(natural)
+        for (index in 0L ..< children.size) {
+            val child = children[index]
+            context.placeChild(
+                index,
+                Point(
+                    if (context.layoutDirection == LayoutDirection.Rtl)
+                        size.width - 2.0 - positions[index] - child.width
+                    else
+                        2.0 + positions[index],
+                    (size.height - child.height) / 2.0
+                )
+            )
+        }
+        return LayoutMetrics(size)
+    }
+    public override fun scene(context: SceneContext) {
+        context.children()
+    }
+}
+
+internal fun avatarGroupPositions(children: Array<Size>, overlap: Double): Array<Double> {
+    val positions = ArrayList<Double>()
+    var x = 0.0
+    for (index in 0L ..< children.size) {
+        if (index > 0L)
+            x += children[index - 1L].width -
+                min(overlap, min(children[index - 1L].width, children[index].width))
+        requireComponent(x.isFinite(), "avatar group geometry is not representable")
+        positions.add(x)
+    }
+    return positions.toArray()
+}

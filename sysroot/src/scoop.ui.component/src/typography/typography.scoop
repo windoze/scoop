@@ -1,0 +1,157 @@
+package scoop.ui.component
+
+import scoop.graphics.Point
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.text.*
+
+public enum TypographyContent {
+    Plain(String), Styled(StyledText), Fragments(Array<TextSpan>)
+}
+
+public class TypographyProps public constructor(
+    public val content: TypographyContent,
+    public val role: TypographyRole = TypographyRole.P,
+    public val fonts: FontCollection? = None,
+    public val theme: ThemeSource? = None,
+    public val textStyle: SpanStyle? = None,
+    public val style: StyleOverride = styleOverride(),
+    public val settings: ParagraphStyle? = None,
+    public val selectable: Boolean = true,
+    public val selection: SelectableTextOptions = SelectableTextOptions(),
+    public val focus: FocusOptions = FocusOptions(),
+    public val actions: Array<TextRangeAction> = [],
+    public val decorations: Array<TextRangeDecoration> = [],
+    public val onSelectionChanged: (TextPosition, TextPosition) -> Unit = { _, _ -> Unit },
+    public val inlines: Array<InlineView> = []
+)
+
+public class Typography public constructor(private val props: Props<TypographyProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val content =
+            typographyContent(input.content, typographyStyle(input.role, theme), input.textStyle)
+        val body =
+            if (input.selectable)
+                selectableStyledText(content) {
+                    this.fonts = input.fonts
+                    this.settings = input.settings
+                    this.inlines = input.inlines
+                    this.options = input.selection
+                    this.focus = input.focus
+                    this.actions = input.actions
+                    this.decorations = input.decorations
+                    this.onSelectionChanged = input.onSelectionChanged
+                }
+            else
+                label(content) {
+                    this.fonts = input.fonts
+                    this.settings = input.settings
+                    this.inlines = input.inlines
+                }
+        val framed =
+            frame(body) {
+                this.logicalPadding =
+                    Some(
+                        typographyPadding(input.role, theme.tokens.typography.body.fontSize / 14.0)
+                    )
+                this.alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start)
+                this.style = typographyDecoration(input.role, theme).then(input.style)
+            }
+        return if (input.role == TypographyRole.InlineCode)
+            element({ InlineCodeWidth() }, [framed])
+        else
+            framed
+    }
+}
+
+/** A paragraph's inline limit is an upper bound, not the code token's preferred width. */
+private class InlineCodeWidth: Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val natural = context.measureChild(0L, Constraints(maxHeight = constraints.maxHeight))
+        val width = constraints.constrain(natural.size).width
+        val child =
+            context.measureChild(
+                0L,
+                Constraints(
+                    minWidth = constraints.minWidth,
+                    maxWidth = Some(width),
+                    minHeight = constraints.minHeight,
+                    maxHeight = constraints.maxHeight
+                )
+            )
+        context.placeChild(0L, Point(0.0, 0.0))
+        return child
+    }
+    public override fun scene(context: SceneContext) {
+        context.children()
+    }
+}
+
+internal fun typographyContent(
+    input: TypographyContent,
+    base: TextStyle,
+    local: SpanStyle?
+): StyledText {
+    val resolved =
+        when (input) {
+            case Styled(value) -> value.style
+            else -> base
+        }
+    return styledText {
+        this.style = local?.resolve(resolved) ?: resolved
+        when (input) {
+            case Plain(value) -> this.text(value)
+            case Styled(value) -> for (fragment in value.spans)
+                this.add(fragment)
+            case Fragments(values) -> for (fragment in values)
+                this.add(fragment)
+        }
+    }
+}
+
+public fun typography(
+    text: String,
+    role: TypographyRole = TypographyRole.P,
+    configure: TypographyBuilder.() -> Unit = {}
+): View = makeTypography(TypographyContent.Plain(text), role, configure)
+
+public fun typography(
+    content: StyledText,
+    role: TypographyRole = TypographyRole.P,
+    configure: TypographyBuilder.() -> Unit = {}
+): View = makeTypography(TypographyContent.Styled(content), role, configure)
+
+public fun typography(
+    role: TypographyRole = TypographyRole.P,
+    configure: TypographyTextBuilder.() -> Unit
+): View = makeTypographyText(role, configure)
+
+internal fun makeTypography(
+    content: TypographyContent,
+    role: TypographyRole,
+    configure: TypographyBuilder.() -> Unit
+): View {
+    val builder = TypographyBuilder()
+    builder.configure()
+    return component(
+        builder.snapshot(content, role),
+        { current -> Typography(current) },
+        builder.key
+    )
+}
+
+internal fun makeTypographyText(
+    role: TypographyRole,
+    configure: TypographyTextBuilder.() -> Unit
+): View {
+    val builder = TypographyTextBuilder()
+    builder.configure()
+    return component(builder.snapshotText(role), { current -> Typography(current) }, builder.key)
+}

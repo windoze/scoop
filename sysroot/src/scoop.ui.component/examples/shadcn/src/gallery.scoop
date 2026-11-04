@@ -1,0 +1,287 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.component.column as makeColumn
+import scoop.ui.component.row as makeRow
+import scoop.ui.component.frame as makeFrame
+import scoop.ui.component.scrollArea as makeScrollArea
+import scoop.ui.component.*
+import scoop.ui.style.*
+
+internal class Gallery(
+    private val model: GalleryModel,
+    private val fonts: FontCollection
+): Component {
+    public override fun render(): View {
+        val palette = model.source.current.value.tokens.palette
+        val entries = model.entries()
+        val current = model.current(entries)
+        return direction(
+            makeFrame(
+                makeColumn {
+                    this.row {
+                        this.add(this @Gallery.text("Scoop / shadcn", 22.0, 700))
+                        this.item(empty()) { this.grow = 1.0 }
+                        this.button(
+                            if (this @Gallery.model.mode.value == ThemeMode.Light)
+                                "Dark theme"
+                            else
+                                "Light theme",
+                            { this @Gallery.model.toggleTheme() }
+                        ) {
+                            this.fonts = Some(this @Gallery.fonts)
+                            style { this.kind = SurfaceKind.Plain }
+                        }
+                        this.button(
+                            if (this @Gallery.model.direction.value == LayoutDirection.Ltr)
+                                "Switch to RTL"
+                            else
+                                "Switch to LTR",
+                            { this @Gallery.model.toggleDirection() }
+                        ) {
+                            this.fonts = Some(this @Gallery.fonts)
+                            style { this.kind = SurfaceKind.Plain }
+                        }
+                        this.spacing = 12.0
+                        this.alignment = CrossAlignment.Center
+                    }
+                    this.item(
+                        makeRow {
+                            this.frame(
+                                makeScrollArea(
+                                    makeColumn {
+                                        this.input(this @Gallery.model.query) {
+                                            this.placeholder = "Search components..."
+                                            this.fonts = Some(this @Gallery.fonts)
+                                        }
+                                        this.add(this @Gallery.text("COMPONENTS", 11.0, 600, true))
+                                        for (entry in entries)
+                                            this.button(
+                                                demoTitle(entry),
+                                                { this @Gallery.model.selected.value = entry }
+                                            ) {
+                                                this.fonts = Some(this @Gallery.fonts)
+                                                style {
+                                                    this.kind =
+                                                        if (current == Some(entry))
+                                                            SurfaceKind.Action
+                                                        else
+                                                            SurfaceKind.Plain
+                                                    surface {
+                                                        this.suggestedSize = Some(Size(190.0, 32.0))
+                                                    }
+                                                }
+                                            }
+                                        this.spacing = 12.0
+                                        this.alignment = CrossAlignment.Stretch
+                                        this.padding = Insets(4.0, 4.0, 12.0, 4.0)
+                                    }
+                                )
+                            ) {
+                                this.width = Some(190.0)
+                                this.alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start)
+                            }
+                            this.item(
+                                makeScrollArea(
+                                    when (current) {
+                                        case Some(value) -> this @Gallery.demo(value)
+                                        case None -> makeColumn {
+                                            this.add(
+                                                this @Gallery.text(
+                                                    "No matching components",
+                                                    24.0,
+                                                    600
+                                                )
+                                            )
+                                            this.add(
+                                                this @Gallery.text(
+                                                    "Try Card, Alert, Button, Input, or Empty.",
+                                                    14.0,
+                                                    400,
+                                                    true
+                                                )
+                                            )
+                                            this.spacing = 12.0
+                                        }
+                                    }
+                                )
+                            ) {
+                                this.grow = 1.0;
+                                this.basis = FlexBasis.Fixed(0.0)
+                            }
+                            this.spacing = 32.0
+                            this.alignment = CrossAlignment.Stretch
+                        }
+                    ) {
+                        this.grow = 1.0;
+                        this.basis = FlexBasis.Fixed(0.0)
+                    }
+                    this.add(
+                        this @Gallery.text(
+                            "Base Nova · Neutral  /  Native Scoop controls",
+                            12.0,
+                            400,
+                            true
+                        )
+                    )
+                    this.spacing = 24.0
+                    this.padding = Insets.all(28.0)
+                    this.alignment = CrossAlignment.Stretch
+                }
+            ) { style { this.background(Some(Paint(palette.background.background))) } },
+            model.direction.value
+        )
+    }
+
+    internal fun text(
+        value: String,
+        size: Double = 14.0,
+        weight: Int = 400,
+        muted: Boolean = false
+    ): View {
+        val palette = model.source.current.value.tokens.palette
+        return label(value) {
+            this.fonts = Some(this @Gallery.fonts)
+            this.style =
+                Some(
+                    spanStyle {
+                        this.fontSize = Some(size)
+                        this.weight = Some(weight)
+                        this.color =
+                            Some(
+                                if (muted)
+                                    palette.muted.foreground
+                                else
+                                    palette.background.foreground
+                            )
+                    }
+                )
+        }
+    }
+
+    private fun demo(value: Demo): View =
+        when (value) {
+            case Button -> controlDemo(ControlDemo.Button)
+            case Input -> controlDemo(ControlDemo.Input)
+            case Checkbox -> controlDemo(ControlDemo.Checkbox)
+            case Badge -> badgeExamples(model, fonts)
+            case Spinner -> spinnerExamples(model, fonts)
+            case Card -> cardExamples(model, fonts)
+            case Separator -> separatorExamples(fonts)
+            case AspectRatio -> component({ AspectExamples(fonts) })
+            case Alert -> alertExamples(model, fonts)
+            case Empty -> emptyExamples(model, fonts)
+            case Avatar -> component({ AvatarExamples(model, fonts) })
+            case Skeleton -> skeletonExamples(model, fonts)
+            case Progress -> progressExamples(model, fonts)
+            case Typography -> typographyExamples(model, fonts)
+            case Kbd -> component({ KbdExamples(model, fonts) })
+            case Label -> fieldLabelExamples(model.fields, fonts)
+        }
+
+    private fun controlDemo(value: ControlDemo): View =
+        makeColumn {
+            this.add(
+                this @Gallery.text(
+                    when (value) {
+                        case Button -> "Button";
+                        case Input -> "Input";
+                        case Checkbox -> "Checkbox"
+                    },
+                    32.0,
+                    650
+                )
+            )
+            this.add(
+                this @Gallery.text(
+                    when (value) {
+                        case Button -> "A real action with pointer, keyboard, and validation states."
+                        case Input -> "One text model, native text services, and theme-aware validation."
+                        case Checkbox -> "A controlled value with one activation path and a visible state ring."
+                    },
+                    14.0,
+                    400,
+                    true
+                )
+            )
+            this.row {
+                for (state in [PreviewState.Normal, PreviewState.Invalid, PreviewState.Disabled])
+                    this.item(this @Gallery.preview(value, state)) {
+                        this.grow = 1.0;
+                        this.basis = FlexBasis.Fixed(0.0)
+                    }
+                this.spacing = 16.0
+                this.alignment = CrossAlignment.Stretch
+            }
+            this.add(this @Gallery.text("Keyboard focus", 18.0, 600))
+            this.add(
+                this @Gallery.text(
+                    "Tab between controls. Pointer focus keeps the action ring quiet; keyboard and programmatic focus show it. Text inputs keep a visible ring when clicked.",
+                    14.0,
+                    400,
+                    true
+                )
+            )
+            this.button(
+                "Focus the normal control",
+                {
+                    this @Gallery.model.focus(value).requestFocus();
+                    Unit
+                }
+            ) {
+                this.fonts = Some(this @Gallery.fonts)
+                style { this.kind = SurfaceKind.Plain }
+            }
+            this.add(
+                this @Gallery.text(
+                    when (value) {
+                        case Button -> f"Action count: ${this @Gallery.model.clicks.value}"
+                        case Input -> f"Current value: ${this @Gallery.model.name.text}"
+                        case Checkbox -> if (this @Gallery.model.checked.value)
+                            "Current value: checked"
+                        else
+                            "Current value: unchecked"
+                    },
+                    14.0,
+                    500
+                )
+            )
+            this.add(
+                this @Gallery.text(
+                    "Theme and direction changes retain the same application state. Invalid controls remain interactive; disabled controls do not activate.",
+                    14.0,
+                    400,
+                    true
+                )
+            )
+            if (value == ControlDemo.Button)
+                this.add(buttonExamples(this @Gallery.model, this @Gallery.fonts))
+            this.spacing = 24.0
+            this.padding = Insets(6.0, 6.0, 12.0, 12.0)
+            this.alignment = CrossAlignment.Stretch
+        }
+
+    private fun preview(value: ControlDemo, state: PreviewState): View {
+        val palette = model.source.current.value.tokens.palette
+        return makeFrame(
+            makeColumn {
+                this.add(this @Gallery.text(previewTitle(state), 12.0, 500, true))
+                this.frame(previewControl(this @Gallery.model, this @Gallery.fonts, value, state)) {
+                    this.height = Some(84.0)
+                    this.alignment = Alignment(AxisAlignment.Center, AxisAlignment.Center)
+                }
+                this.spacing = 16.0
+                this.alignment = CrossAlignment.Stretch
+            }
+        ) {
+            this.padding = Some(Insets.all(16.0))
+            style {
+                this.background(Some(Paint(palette.card.background)))
+                this.border(Some(Border.all(1.0, palette.border)))
+                this.corners(Corners.all(10.0))
+            }
+        }
+    }
+}

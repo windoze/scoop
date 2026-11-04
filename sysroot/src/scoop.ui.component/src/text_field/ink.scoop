@@ -16,6 +16,7 @@ internal class TextFieldInk(internal val props: Props<TextFieldInkProps>): Eleme
     internal val lineHeight = TextFieldLineHeight()
     internal var drawing: TextFieldDrawing? = None
     private var padding: InputArea? = None
+    private var field: FieldLink? = None
     private var horizontal: ScrollBarControl? = None
     private var vertical: ScrollBarControl? = None
     private var painters: ThemePainterCache? = None
@@ -32,6 +33,7 @@ internal class TextFieldInk(internal val props: Props<TextFieldInkProps>): Eleme
                 TextEditHost(scope, value.input.state, appearance(), value.input.options)
             }
         host = Some(adapter)
+        field = Some(scope.resource { FieldLink(scope, adapter.area, adapter.focus) })
         value.mounted.value = Some(adapter)
         val area = scope.createArea()
         padding = Some(area)
@@ -43,7 +45,7 @@ internal class TextFieldInk(internal val props: Props<TextFieldInkProps>): Eleme
                     case Pointer(
                         InputPointerEvent.Button(_, MouseButton.Left, ElementState.Pressed, _)
                     ) -> {
-                        adapter.focus.handle.requestFocus()
+                        adapter.focus.handle.requestFocus(FocusOrigin.Pointer)
                         context.consume()
                     }
                     else -> {}
@@ -77,10 +79,10 @@ internal class TextFieldInk(internal val props: Props<TextFieldInkProps>): Eleme
             fonts!!,
             value.text,
             value.placeholder,
-            style.selectionColor ?: palette.accent.withAlpha(0.30),
-            style.inactiveSelectionColor ?: palette.secondaryText.withAlpha(0.20),
-            style.caretColor ?: palette.accent,
-            style.markedColor ?: palette.accent,
+            style.selectionColor ?: palette.primary.background.withAlpha(0.30),
+            style.inactiveSelectionColor ?: palette.muted.foreground.withAlpha(0.20),
+            style.caretColor ?: palette.primary.background,
+            style.markedColor ?: palette.primary.background,
             style.caretWidth
         )
     }
@@ -115,6 +117,7 @@ internal class TextFieldInk(internal val props: Props<TextFieldInkProps>): Eleme
             input.onEdited,
             input.onSubmit
         )
+        field!!.update(input.labelTarget, input.options.enabled)
         padding!!.scope.enabled = input.options.enabled
         horizontal!!.update()
         vertical!!.update()
@@ -127,6 +130,8 @@ internal class TextFieldInk(internal val props: Props<TextFieldInkProps>): Eleme
         val current = drawing!!
         val geometry = current.geometry
         val painter = painters!!.get(value.theme)
+        if (geometry.opacity < 1.0)
+            context.saveLayer(geometry.opacity)
         context.draw {
             paint -> painter.drawSurface(
                 paint.canvas,
@@ -151,6 +156,8 @@ internal class TextFieldInk(internal val props: Props<TextFieldInkProps>): Eleme
                 SurfaceLayer.Foreground
             )
         }
+        if (geometry.opacity < 1.0)
+            context.restore()
         context.children()
     }
     public override fun onUnmount() {

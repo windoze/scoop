@@ -30,10 +30,31 @@ internal fun near(expected: Double, actual: Double) {
 
 internal fun pixelColor(pixels: Array<Byte>, width: Int, x: Int, y: Int, expected: Color) {
     val parts = [expected.red, expected.green, expected.blue, expected.alpha]
-    for (i in 0 ..< 4)
+    val alpha = channel(pixels, width, x, y, 3).toDouble() / 255.0
+    for (i in 0 ..< 4) {
+        // Compare composited channels; unpremultiplication magnifies 8-bit rounding at low alpha.
+        val expectedChannel =
+            parts[i.toLong()] *
+                255.0 *
+                if (i == 3)
+                    1.0
+                else
+                    expected.alpha
+        val actualChannel =
+            channel(pixels, width, x, y, i).toDouble() *
+                if (i == 3)
+                    1.0
+                else
+                    alpha
         assertTrue(
-            abs(channel(pixels, width, x, y, i).toDouble() - parts[i.toLong()] * 255.0) <= 2.0
+            abs(actualChannel - expectedChannel) <= 2.0,
+            Some(
+                f"pixel (${x}, ${y}) channel ${i}: expected ${expectedChannel}, got ${
+                    actualChannel
+                }"
+            )
         )
+    }
 }
 
 internal fun differences(a: Array<Byte>, b: Array<Byte>): Int {

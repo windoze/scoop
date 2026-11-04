@@ -3,6 +3,7 @@ package scoop.ui
 import scoop.graphics.*
 import scoop.surface.FrameContext
 import scoop.surface.FrameCompletion
+import scoop.surface.FrameSubmission
 import scoop.surface.InputArea
 import scoop.time.TimeMark
 
@@ -236,6 +237,13 @@ public class SceneContext internal constructor(
             presentChild(index)
     }
     private fun presentChild(index: Long) {
+        val child = node.children[index]
+        val placed = node.placements[index] != None
+        if (child.participatesInFrame != placed)
+            node.root.addCompletion(child) {
+                completion -> if (completion.submission == FrameSubmission.Accepted)
+                    child.setFrameParticipation(placed)
+            }
         when (node.placements[index]) {
             case Some(origin) -> node.children[index].scene(
                 frame,
@@ -252,6 +260,8 @@ public class SceneContext internal constructor(
             for (origin in node.placements)
                 if (origin != None)
                     throw IllegalStateException(Some("placed children must be presented"))
+            for (index in 0L ..< node.children.size)
+                presentChild(index)
         }
         node.paintLayers.retain(pass.paintKeys)
     }

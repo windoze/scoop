@@ -1,6 +1,6 @@
 # 公共 API、主题与组合合同
 
-日期：2026-11-04。状态：设计。下列新增签名表达拟议 API；实施前须把完整字段、默认值和错误合同写入所属 spec。现有接口是否可用以各库现行规范为准。
+日期：2026-11-04。状态：分批实施，见 [实施记录](PROGRESS.md)。尚未闭合批次的新增签名表达拟议 API；实施前须把完整字段、默认值和错误合同写入所属 spec。现有接口是否可用以各库现行规范为准。
 
 ## 1. 沿用 Scoop 的声明与状态模型
 
@@ -149,7 +149,7 @@ ButtonGroup 和 InputGroup 不能通过检查不透明 View 来修改子组件�
 
 ## 4. 键盘、焦点与隐藏内容
 
-增加公共焦点指示判定，数据来自同一焦点入口的来源：指针聚焦默认不显示 focus-visible ring，键盘导航和显式程序聚焦默认显示；文本输入按明确的输入控件策略显示。FocusOptions 可显式覆盖显示策略。FocusHandle、roving 导航、延迟显露和 Portal 恢复保留同一来源语义；样式只消费 `focusVisible`，不保存自己的最后输入设备。
+公共焦点指示判定的数据来自同一焦点入口的 `FocusOrigin.Pointer／Keyboard／Programmatic` 来源：指针聚焦默认不显示 focus-visible ring，键盘导航和显式程序聚焦默认显示；文本输入按明确的输入控件策略显示。`FocusOptions.visibility` 使用 `FocusVisibility.Automatic／Always／Never` 显式覆盖。FocusHandle、roving 导航、延迟显露和 Portal 恢复保留同一来源语义；样式只消费 `focusVisible`，不保存自己的最后输入设备。仅指示变化不重建实际焦点或 IME 会话。
 
 候选活动项、真实焦点、已提交选择三者分开：
 

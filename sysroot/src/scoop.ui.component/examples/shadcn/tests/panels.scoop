@@ -1,0 +1,135 @@
+package scoop.examples.ui.shadcn
+
+import scoop.test.*
+import scoop.tests.surface.FrameSnapshot
+import scoop.window.*
+
+/** Exercises the actual gallery controls without repeating the earlier animation scenario. */
+internal class GalleryPanels(private val probe: GalleryProbe) {
+    private var quiet: FrameSnapshot? = None
+    private var paints = 0
+    fun advance(active: ActiveApplication) {
+        val model = probe.model
+        when (probe.phase) {
+            case 43 -> {
+                assertTrue(model.cardFocus.requestFocus())
+                probe.phase = 44
+            }
+            case 44 -> probe.key(active, 49)
+            case 45 -> {
+                assertEquals(1, model.panelClicks.value)
+                model.panelExpanded.value = false
+                probe.phase = 46
+            }
+            case 46 -> {
+                assertTrue(model.cardFocus.hasFocus)
+                model.panelExpanded.value = true
+                model.panelNarrow.value = true
+                model.panelCompact.value = true
+                model.panelStep.value = 10
+                model.toggleTheme()
+                model.toggleDirection()
+                probe.phase = 47
+            }
+            case 47 -> {
+                assertTrue(model.cardFocus.isFocusVisible)
+                probe.key(active, 49)
+            }
+            case 48 -> {
+                assertEquals(11, model.panelClicks.value)
+                model.selected.value = Demo.Alert
+                probe.phase = 49
+            }
+            case 49 -> {
+                assertFalse(model.cardFocus.isAttached)
+                assertTrue(model.alertFocus.requestFocus())
+                probe.phase = 50
+            }
+            case 50 -> probe.key(active, 49)
+            case 51 -> {
+                assertEquals(21, model.panelClicks.value)
+                model.panelExpanded.value = false
+                probe.phase = 52
+            }
+            case 52 -> {
+                assertTrue(model.alertFocus.hasFocus)
+                model.panelExpanded.value = true
+                model.panelNarrow.value = false
+                model.toggleTheme()
+                probe.phase = 53
+            }
+            case 53 -> {
+                assertTrue(model.alertFocus.isFocusVisible)
+                model.selected.value = Demo.Empty
+                probe.phase = 54
+            }
+            case 54 -> {
+                assertFalse(model.alertFocus.isAttached)
+                assertTrue(model.emptyFocus.requestFocus())
+                model.emptyQuery.replaceAll("Keep this project")
+                probe.phase = 55
+            }
+            case 55 -> probe.key(active, 49)
+            case 56 -> {
+                assertEquals(31, model.panelClicks.value)
+                model.panelExpanded.value = false
+                probe.phase = 57
+            }
+            case 57 -> {
+                assertTrue(model.emptyFocus.hasFocus)
+                assertEquals("Keep this project", model.emptyQuery.text)
+                model.panelExpanded.value = true
+                model.panelNarrow.value = true
+                model.panelCompact.value = false
+                probe.phase = 58
+            }
+            case 58 -> {
+                assertTrue(model.emptyFocus.isFocusVisible)
+                model.selected.value = Demo.Separator
+                probe.phase = 59
+            }
+            case 59 -> {
+                assertFalse(model.emptyFocus.isAttached)
+                model.selected.value = Demo.AspectRatio
+                probe.phase = 60
+            }
+            case 60 -> {
+                model.toggleTheme()
+                model.toggleDirection()
+                probe.phase = 61
+            }
+            case 61 -> {
+                model.selected.value = Demo.Empty
+                probe.phase = 62
+            }
+            case 62 -> {
+                assertEquals("Keep this project", model.emptyQuery.text)
+                model.panelExpanded.value = false
+                probe.phase = 63
+                probe.waitFor(active, 300L)
+            }
+            case 63 -> {}
+            case 64 -> {}
+            else -> fail(Some(f"unexpected panel phase ${probe.phase}"))
+        }
+    }
+    fun deadline(active: ActiveApplication) {
+        when (probe.phase) {
+            case 63 -> {
+                assertFalse(probe.frames!!.snapshot().required)
+                assertTrue(probe.frames!!.snapshot().paused)
+                quiet = Some(probe.frames!!.snapshot())
+                paints = probe.paints
+                probe.phase = 64
+                probe.waitFor(active, 180L)
+            }
+            case 64 -> {
+                assertEquals(quiet!!, probe.frames!!.snapshot())
+                assertEquals(paints, probe.paints)
+                probe.phase = 65
+                probe.native!!.requestDestroy()
+            }
+            else -> fail(Some(f"gallery panels timed out at phase ${probe.phase}"))
+        }
+    }
+}

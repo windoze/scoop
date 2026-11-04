@@ -60,7 +60,7 @@ private class ComponentReceiverDslTests {
         assertEquals(Some(17.0), original.style.text!!.fontSize)
         when (original.content) {
             case Label(value) -> assertEquals(TextAlignment.Center, value.settings!!.alignment)
-            case Custom(_) -> fail(Some("expected label button"))
+            else -> fail(Some("expected label button"))
         }
         assertEquals(0L, clicked.size)
         original.onClick()

@@ -1,0 +1,79 @@
+package scoop.ui.component
+
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.ThemeSource
+import scoop.ui.text.InlineView
+
+public open class ContentBadgeBuilder internal constructor() {
+    public var onClick: (() -> Unit)? = None
+    public var variant: ButtonVariant = ButtonVariant.Default
+    public var enabled: Boolean = true
+    public var invalid: Boolean = false
+    public var style: ButtonStyle = buttonStyle()
+    public var theme: ThemeSource? = None
+    public var focus: FocusOptions = FocusOptions()
+    public var key: ViewKey = ViewKey.Position
+    public fun style(configure: ButtonStyleBuilder.() -> Unit): Unit {
+        style = style.copy(configure)
+    }
+    public fun focus(configure: FocusOptionsBuilder.() -> Unit): Unit {
+        focus = focus.copy(configure)
+    }
+    internal fun snapshot(content: ButtonContent): BadgeProps =
+        BadgeProps(content, onClick, variant, enabled, invalid, style, theme, focus)
+}
+
+public open class BadgeBuilder internal constructor(): ContentBadgeBuilder() {
+    public var fonts: FontCollection? = None
+}
+
+public class StyledBadgeBuilder internal constructor(): BadgeBuilder() {
+    public var settings: ParagraphStyle? = None
+    public var inlines: Array<InlineView> = []
+    public fun settings(configure: ParagraphStyleBuilder.() -> Unit): Unit {
+        settings = Some((settings ?: paragraphStyle()).copy(configure))
+    }
+}
+
+internal fun makeTextBadge(text: String, configure: BadgeBuilder.() -> Unit): View {
+    val builder = BadgeBuilder()
+    builder.configure()
+    return badgeView(
+        builder.snapshot(
+            ButtonContent.Label(LabelProps(LabelText.Plain(text, None), builder.fonts))
+        ),
+        builder.key
+    )
+}
+
+internal fun makeStyledBadge(text: StyledText, configure: StyledBadgeBuilder.() -> Unit): View {
+    val builder = StyledBadgeBuilder()
+    builder.configure()
+    return badgeView(
+        builder.snapshot(
+            ButtonContent.Label(
+                LabelProps(LabelText.Styled(text), builder.fonts, builder.settings, builder.inlines)
+            )
+        ),
+        builder.key
+    )
+}
+
+internal fun makeContentBadge(content: View, configure: ContentBadgeBuilder.() -> Unit): View {
+    val builder = ContentBadgeBuilder()
+    builder.configure()
+    return badgeView(builder.snapshot(ButtonContent.Custom(content)), builder.key)
+}
+
+internal fun makeResolvedBadge(
+    content: (ActionContentStyle) -> View,
+    configure: ContentBadgeBuilder.() -> Unit
+): View {
+    val builder = ContentBadgeBuilder()
+    builder.configure()
+    return badgeView(builder.snapshot(ButtonContent.Resolved(content)), builder.key)
+}
+
+private fun badgeView(input: BadgeProps, key: ViewKey): View =
+    component(input, { current -> Badge(current) }, key)

@@ -114,7 +114,7 @@ internal fun inputPointer(x: Double, y: Double, scale: Double = 1.0): PointerSta
         InputTime.Observed(MonotonicTimeSource.markNow())
     )
 
-internal fun inputKey(): KeyEvent =
+internal fun inputKey(synthetic: Boolean = false): KeyEvent =
     KeyEvent(
         PhysicalKey.Code(KeyCode.KeyA),
         LogicalKey.Character("a"),
@@ -122,7 +122,7 @@ internal fun inputKey(): KeyEvent =
         ElementState.Pressed,
         false,
         inputModifiers(),
-        false,
+        synthetic,
         inputObservation()
     )
 
@@ -145,4 +145,8 @@ internal fun inputKind(event: InputEvent): String =
             "focus"
         else
             "blur"
+        case FocusVisibilityChanged(value) -> if (value)
+            "focus-visible"
+        else
+            "focus-hidden"
     }

@@ -8,6 +8,9 @@ import scoop.ui.text.InlineView
 /** Button input is published through Props, including the current click callback. */
 public open class ContentButtonBuilder internal constructor() {
     public var enabled: Boolean = true
+    public var invalid: Boolean = false
+    public var variant: ButtonVariant = ButtonVariant.Default
+    public var size: ButtonSize = ButtonSize.Default
     public var style: ButtonStyle = buttonStyle()
     public var theme: ThemeSource? = None
     public var key: ViewKey = ViewKey.Position
@@ -25,7 +28,17 @@ public open class ContentButtonBuilder internal constructor() {
 public open class ButtonBuilder internal constructor(): ContentButtonBuilder() {
     public var fonts: FontCollection? = None
     internal fun properties(label: LabelProps, onClick: () -> Unit): ButtonProps =
-        ButtonProps(ButtonContent.Label(label), onClick, enabled, style, theme, focus)
+        ButtonProps(
+            ButtonContent.Label(label),
+            onClick,
+            enabled,
+            style,
+            theme,
+            focus,
+            invalid,
+            variant,
+            size
+        )
 
     internal fun snapshot(text: String, onClick: () -> Unit): ButtonProps =
         properties(
@@ -88,7 +101,33 @@ internal fun makeContentButton(
             builder.enabled,
             builder.style,
             builder.theme,
-            builder.focus
+            builder.focus,
+            builder.invalid,
+            builder.variant,
+            builder.size
+        ),
+        builder.key
+    )
+}
+
+internal fun makeResolvedButton(
+    content: (ActionContentStyle) -> View,
+    onClick: () -> Unit,
+    configure: ContentButtonBuilder.() -> Unit
+): View {
+    val builder = ContentButtonBuilder()
+    builder.configure()
+    return buttonView(
+        ButtonProps(
+            ButtonContent.Resolved(content),
+            onClick,
+            builder.enabled,
+            builder.style,
+            builder.theme,
+            builder.focus,
+            builder.invalid,
+            builder.variant,
+            builder.size
         ),
         builder.key
     )

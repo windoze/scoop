@@ -1,0 +1,205 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.component.column as makeColumn
+import scoop.ui.component.row as makeRow
+import scoop.ui.component.card as makeCard
+import scoop.ui.style.*
+
+internal fun skeletonExamples(model: GalleryModel, fonts: FontCollection): View =
+    makeColumn {
+        this.add(panelHeading("Skeleton", fonts))
+        this.label("Keep content in place while it loads. Reveal it when ready.") {
+            this.fonts = Some(fonts)
+        }
+        this.row {
+            this.skeleton {
+                this.shape = SkeletonShape.Circle;
+                this.width = Some(40.0);
+                this.height = Some(40.0);
+                this.animated = false
+            }
+            this.column {
+                this.skeleton {
+                    this.width = Some(220.0);
+                    this.animated = false
+                }
+                this.skeleton {
+                    this.width = Some(160.0);
+                    this.height = Some(12.0);
+                    this.animated = false
+                }
+                this.spacing = 8.0
+            }
+            this.spacing = 12.0
+            this.alignment = CrossAlignment.Center
+        }
+        this.scrollArea(
+            makeColumn {
+                this.skeleton(component({ LoadedSkeletonCard(model, fonts) })) {
+                    this.loading = model.skeletonLoading.value
+                    this.animated = model.skeletonAnimated.value
+                    this.width = Some(model.loadingExtent.value)
+                }
+                this.frame(empty()) { this.height = Some(400.0) }
+                this.label("Scroll up to return to the preview.") { this.fonts = Some(fonts) }
+                this.spacing = 24.0
+                this.padding = Insets.all(8.0)
+                this.alignment = CrossAlignment.Start
+            }
+        ) {
+            this.state = Some(model.skeletonScroll);
+            this.width = Some(600.0);
+            this.height = Some(180.0)
+        }
+        this.row {
+            this.button(
+                if (model.skeletonLoading.value)
+                    "Reveal content"
+                else
+                    "Show skeleton",
+                { model.skeletonLoading.value = !model.skeletonLoading.value }
+            ) { this.fonts = Some(fonts) }
+            this.button(
+                if (model.skeletonAnimated.value)
+                    "Pause pulse"
+                else
+                    "Animate pulse",
+                { model.skeletonAnimated.value = !model.skeletonAnimated.value }
+            ) {
+                this.fonts = Some(fonts);
+                this.variant = ButtonVariant.Outline
+            }
+            this.button(
+                if (model.reduced.value)
+                    "Use full motion"
+                else
+                    "Reduce motion",
+                { model.toggleMotion() }
+            ) {
+                this.fonts = Some(fonts);
+                this.variant = ButtonVariant.Outline
+            }
+            this.spacing = 8.0
+        }
+        this.spacing = 24.0
+        this.padding = Insets.all(6.0)
+        this.alignment = CrossAlignment.Start
+    }
+
+private class LoadedSkeletonCard(
+    private val model: GalleryModel,
+    private val fonts: FontCollection
+): Component {
+    private val count = state(0)
+    public override fun onMount(scope: ComponentScope) {
+        model.skeletonCreates += 1
+    }
+    public override fun render(): View =
+        makeCard(
+            makeRow {
+                this.button(
+                    f"Saved ${this @LoadedSkeletonCard.count.value}",
+                    {
+                        this @LoadedSkeletonCard.count.value += 1
+                        this @LoadedSkeletonCard.model.skeletonCount =
+                            this @LoadedSkeletonCard.count.value
+                    }
+                ) {
+                    this.fonts = Some(this @LoadedSkeletonCard.fonts);
+                    this.focus = FocusOptions(Some(this @LoadedSkeletonCard.model.skeletonFocus))
+                }
+                this.spinner {
+                    this.running = this @LoadedSkeletonCard.model.skeletonChildRunning.value
+                }
+                this.button(
+                    "Toggle activity",
+                    {
+                        this @LoadedSkeletonCard.model.skeletonChildRunning.value =
+                            !this @LoadedSkeletonCard.model.skeletonChildRunning.value
+                    }
+                ) {
+                    this.fonts = Some(this @LoadedSkeletonCard.fonts)
+                    this.variant = ButtonVariant.Ghost
+                }
+                this.spacing = 12.0
+                this.alignment = CrossAlignment.Center
+            }
+        ) {
+            this.title("Your workspace is ready");
+            this.fonts = Some(this @LoadedSkeletonCard.fonts)
+        }
+}
+
+internal fun progressExamples(model: GalleryModel, fonts: FontCollection): View =
+    makeColumn {
+        this.add(panelHeading("Progress", fonts))
+        this.label("Track a known value, or show ongoing work until a total becomes available.") {
+            this.fonts = Some(fonts)
+        }
+        this.scrollArea(
+            makeColumn {
+                this.progress(model.progressValue.value) {
+                    this.label("Uploading project files")
+                    this.showValue = true
+                    this.fonts = Some(fonts)
+                    if (model.loadingTransparent.value)
+                        this.indicatorColor = Some(Color.Transparent)
+                }
+                this.progress(3.0) {
+                    this.minimum = 0.0;
+                    this.maximum = 8.0;
+                    this.label("Processing tasks");
+                    this.valueLabel("3 of 8")
+                    this.fonts = Some(fonts)
+                    this.thickness = Some(8.0)
+                    this.indicatorColor = Some(Color(0.22, 0.55, 0.42))
+                }
+                this.frame(empty()) { this.height = Some(400.0) }
+                this.label("Scroll up to return to the preview.") { this.fonts = Some(fonts) }
+                this.spacing = 24.0
+                this.padding = Insets.all(8.0)
+                this.alignment = CrossAlignment.Stretch
+            }
+        ) {
+            this.state = Some(model.progressScroll);
+            this.width = Some(600.0);
+            this.height = Some(180.0)
+        }
+        this.row {
+            this.button("Start", { model.progressValue.value = Some(0.0) }) {
+                this.fonts = Some(fonts)
+            }
+            this.button(
+                "Advance 20%",
+                {
+                    model.progressValue.value =
+                        Some(((model.progressValue.value ?: 0.0) + 20.0) % 120.0)
+                }
+            ) {
+                this.fonts = Some(fonts);
+                this.variant = ButtonVariant.Outline
+            }
+            this.button("Unknown total", { model.progressValue.value = None }) {
+                this.fonts = Some(fonts);
+                this.variant = ButtonVariant.Outline
+            }
+            this.button(
+                if (model.reduced.value)
+                    "Use full motion"
+                else
+                    "Reduce motion",
+                { model.toggleMotion() }
+            ) {
+                this.fonts = Some(fonts);
+                this.variant = ButtonVariant.Outline
+            }
+            this.spacing = 8.0
+        }
+        this.spacing = 24.0
+        this.padding = Insets.all(6.0)
+        this.alignment = CrossAlignment.Start
+    }

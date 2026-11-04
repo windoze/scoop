@@ -18,7 +18,8 @@ internal class TextFieldInput(
     val rows: Long,
     val scrollbars: ScrollbarVisibility,
     val onEdited: (TextEditorState) -> Unit,
-    val onSubmit: (TextEditorState) -> Unit
+    val onSubmit: (TextEditorState) -> Unit,
+    val labelTarget: FieldTarget?
 )
 
 /** Shares composition while keeping the two public component identities distinct. */
@@ -44,7 +45,8 @@ internal class TextFieldRenderer {
                 InteractionVisual(
                     input.options.enabled,
                     interaction.hovered,
-                    focused = interaction.focused
+                    focusVisible = interaction.focusVisible,
+                    invalid = input.invalid
                 )
             )
         val theme = themes.read(input.theme)
@@ -58,10 +60,7 @@ internal class TextFieldRenderer {
         val placeholder =
             hint.resolve(
                 theme.tokens.typography.body,
-                if (input.options.enabled)
-                    palette.secondaryText
-                else
-                    palette.disabledText,
+                palette.muted.foreground,
                 input.style.placeholder
             )
         val children: Array<View> =
@@ -81,9 +80,9 @@ internal class TextFieldRenderer {
                                             palette.disabledText
                                         else
                                             if (input.invalid)
-                                                palette.error
+                                                palette.destructive.background
                                             else
-                                                palette.secondaryText,
+                                                palette.muted.foreground,
                                         input.style.description
                                     )
                                 )
@@ -96,7 +95,7 @@ internal class TextFieldRenderer {
                 input,
                 theme,
                 visual,
-                input.style.options(theme, visual.interaction, input.invalid),
+                input.style.options(visual.interaction),
                 text,
                 placeholder,
                 mounted

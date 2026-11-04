@@ -1,0 +1,64 @@
+package scoop.ui.component
+
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.InteractionVisual
+
+internal fun actionLineHeight(shape: ActionShape): Double? =
+    when (shape) {
+        case Badge -> Some(16.0 / 12.0)
+        case Button(size) -> when (size) {
+            case Xs -> Some(16.0 / 12.0)
+            case IconXs -> Some(16.0 / 12.0)
+            case Sm -> Some(20.0 / 12.8)
+            case IconSm -> Some(20.0 / 12.8)
+            else -> None
+        }
+    }
+
+internal fun actionContentStyle(
+    text: TextStyle,
+    shape: ActionShape,
+    variant: ButtonVariant,
+    visual: InteractionVisual
+): ActionContentStyle {
+    val scale = text.fontSize / (14.0 * actionFontScale(shape))
+    return ActionContentStyle(
+        text,
+        actionIconSize(shape) * scale,
+        actionSpacing(shape) * scale,
+        visual,
+        variant == ButtonVariant.Link && visual.enabled && visual.hovered
+    )
+}
+
+internal fun actionContent(content: ButtonContent, appearance: ActionContentStyle): View =
+    when (content) {
+        case Custom(view) -> view
+        case Resolved(build) -> build(appearance)
+        case Label(label) -> {
+            val base =
+                when (label.baseStyle) {
+                    case Some(value) -> Some(value)
+                    case None -> when (label.theme) {
+                        case Some(_) -> None
+                        case None -> Some(appearance.text)
+                    }
+                }
+            component(
+                LabelProps(
+                    label.text,
+                    label.fonts,
+                    label.settings,
+                    label.inlines,
+                    label.theme,
+                    base,
+                    if (label.underline == None && appearance.underline)
+                        Some(appearance.text.color)
+                    else
+                        label.underline
+                ),
+                { current -> Label(current) }
+            )
+        }
+    }

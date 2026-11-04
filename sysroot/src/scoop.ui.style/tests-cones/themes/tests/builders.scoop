@@ -9,6 +9,7 @@ import scoop.ui.style.*
 import scoop.ui.style.macos.macosTheme
 import scoop.ui.style.material.materialTheme
 import scoop.ui.style.fluent.fluentTheme
+import scoop.ui.style.shadcn.shadcnTheme
 
 @Test
 private class ThemeBuilderTest {
@@ -24,7 +25,7 @@ private class ThemeBuilderTest {
                 tokens {
                     palette {
                         palettes.add(this)
-                        error = Color.White
+                        destructive = ColorPair(Color.White, destructive.foreground)
                     }
                     palette {}
                     typography {
@@ -61,16 +62,17 @@ private class ThemeBuilderTest {
             [
                 macosTheme(ThemeMode.Dark, configure),
                 materialTheme(ThemeMode.Dark, configure),
-                fluentTheme(ThemeMode.Dark, configure)
+                fluentTheme(ThemeMode.Dark, configure),
+                shadcnTheme(ThemeMode.Dark, configure)
             ]
-        palettes[0L].error = Color.Black
+        palettes[0L].destructive = ColorPair(Color.Black, Color.White)
         fonts[0L].fontSize = 90.0
         parts[0L].fill = StateColors.solid(Color.White)
-        assertEquals(3L, calls.size)
+        assertEquals(4L, calls.size)
         assertEquals(13.0, configured[0L].tokens.typography.action.fontSize)
         for (theme in configured) {
             assertEquals(ThemeMode.Dark, theme.tokens.mode)
-            assertEquals(Color.White, theme.tokens.palette.error)
+            assertEquals(Color.White, theme.tokens.palette.destructive.background)
             assertEquals(700, theme.tokens.typography.action.weight)
             assertEquals(1.2, theme.tokens.typography.action.letterSpacing)
             assertEquals(0L, theme.tokens.effects.emphasis.size)
@@ -99,12 +101,13 @@ private class ThemeBuilderTest {
     @Test
     fun `copy preserves other descriptions while assignments replace only the selected field`() {
         val original = materialTheme()
-        val replacement = original.tokens.palette.copy { accent = Color.White }
+        val replacement =
+            original.tokens.palette.copy { primary = ColorPair(Color.White, primary.foreground) }
         val derived =
             original.copy {
                 tokens {
                     palette = replacement
-                    palette { error = Color.Black }
+                    palette { destructive = ColorPair(Color.Black, destructive.foreground) }
                     typography { body { fontSize = 21.0 } }
                 }
                 tokens {}
@@ -114,10 +117,15 @@ private class ThemeBuilderTest {
                     action { foreground = StateColors.solid(Color.Black) }
                 }
             }
-        assertEquals(Color.White, derived.tokens.palette.accent)
-        assertEquals(Color.Black, derived.tokens.palette.error)
-        assertEquals(original.tokens.palette.error, replacement.error)
-        assertTrue(original.tokens.palette.accent != derived.tokens.palette.accent)
+        assertEquals(Color.White, derived.tokens.palette.primary.background)
+        assertEquals(Color.Black, derived.tokens.palette.destructive.background)
+        assertEquals(
+            original.tokens.palette.destructive.background,
+            replacement.destructive.background
+        )
+        assertTrue(
+            original.tokens.palette.primary.background != derived.tokens.palette.primary.background
+        )
         assertEquals(21.0, derived.tokens.typography.body.fontSize)
         assertEquals(
             original.tokens.typography.action.fontSize,
@@ -128,14 +136,23 @@ private class ThemeBuilderTest {
             original.surfaces.plain.metrics.suggestedSize,
             derived.surfaces.action.metrics.suggestedSize
         )
-        assertEquals(original.surfaces.action.fill.normal, original.tokens.palette.accent)
+        assertEquals(
+            original.surfaces.action.fill.normal,
+            original.tokens.palette.primary.background
+        )
         assertEquals(
             original.checkbox.appearance.selected.normal,
             derived.checkbox.appearance.selected.normal
         )
         assertEquals(Color.Black, derived.surfaceTextColor(SurfaceVisual(SurfaceKind.Action)))
-        assertEquals(original.tokens.palette.error, original.copy().tokens.palette.error)
-        assertEquals(derived.tokens.palette.error, derived.tokens.copy().palette.error)
+        assertEquals(
+            original.tokens.palette.destructive.background,
+            original.copy().tokens.palette.destructive.background
+        )
+        assertEquals(
+            derived.tokens.palette.destructive.background,
+            derived.tokens.copy().palette.destructive.background
+        )
     }
 
     @Test
@@ -146,7 +163,8 @@ private class ThemeBuilderTest {
                 seed.tokens.palette,
                 seed.tokens.typography,
                 seed.tokens.spacing,
-                seed.tokens.corners
+                seed.tokens.corners,
+                seed.tokens.validation
             )
         assertEquals(ThemeMode.Light, defaults.mode)
         assertEquals(0L, defaults.effects.raised.size)
@@ -206,7 +224,7 @@ private class ThemeBuilderTest {
     @Test
     fun `nested configuration errors propagate without changing the original theme`() {
         val original = macosTheme()
-        val errorColor = original.tokens.palette.error
+        val errorColor = original.tokens.palette.destructive.background
         val failure = IllegalStateException(Some("theme configuration failed"))
         assertSame(
             failure,
@@ -214,14 +232,14 @@ private class ThemeBuilderTest {
                 original.copy {
                     tokens {
                         palette {
-                            error = Color.White;
+                            destructive = ColorPair(Color.White, destructive.foreground);
                             throw failure
                         }
                     }
                 }
             }
         )
-        assertEquals(errorColor, original.tokens.palette.error)
+        assertEquals(errorColor, original.tokens.palette.destructive.background)
         assertSame(
             failure,
             assertFailsWith<IllegalStateException> {

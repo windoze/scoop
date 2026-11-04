@@ -1,0 +1,211 @@
+package scoop.ui.component
+
+import scoop.collections.HashSet
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.component.frame as makeFrame
+
+internal class TypographyTableRow(
+    val cells: Array<PanelContent>,
+    val header: Boolean,
+    val key: ViewKey
+)
+
+public class TypographyTableRowBuilder internal constructor() {
+    private val cells = ArrayList<PanelContent>()
+    public fun cell(value: String): Unit {
+        cells.add(PanelContent.Label(LabelProps(LabelText.Plain(value, None))))
+    }
+    public fun cell(value: StyledText): Unit {
+        cells.add(PanelContent.Label(LabelProps(LabelText.Styled(value))))
+    }
+    public fun cell(value: View): Unit {
+        cells.add(PanelContent.Custom(value))
+    }
+    internal fun snapshot(header: Boolean, key: ViewKey): TypographyTableRow =
+        TypographyTableRow(cells.toArray(), header, key)
+}
+
+public class TypographyTableBuilder internal constructor() {
+    private val rows = ArrayList<TypographyTableRow>()
+    public var columns: Array<GridTrack>? = None
+    public var fonts: FontCollection? = None
+    public var theme: ThemeSource? = None
+    public var key: ViewKey = ViewKey.Position
+    public fun header(configure: TypographyTableRowBuilder.() -> Unit): Unit {
+        requireComponent(rows.size == 0L, "typography table header must be the first row")
+        append(true, ViewKey.Text("header"), configure)
+    }
+    public fun row(
+        key: ViewKey = ViewKey.Position,
+        configure: TypographyTableRowBuilder.() -> Unit
+    ): Unit {
+        append(false, key, configure)
+    }
+    private fun append(
+        header: Boolean,
+        key: ViewKey,
+        configure: TypographyTableRowBuilder.() -> Unit
+    ) {
+        val builder = TypographyTableRowBuilder()
+        builder.configure()
+        rows.add(builder.snapshot(header, key))
+    }
+    internal fun build(): View {
+        val values = rows.toArray()
+        val tracks = typographyTableTracks(values, columns)
+        return component(
+            TypographyTableProps(values, tracks, fonts, theme),
+            { current -> TypographyTable(current) },
+            key
+        )
+    }
+}
+
+internal fun typographyTableTracks(
+    rows: Array<TypographyTableRow>,
+    columns: Array<GridTrack>?
+): Array<GridTrack> {
+    if (rows.size == 0L) {
+        when (columns) {
+            case Some(value) -> checkGridTracks(value);
+            case None -> {}
+        }
+        return []
+    }
+    val count = rows[0L].cells.size
+    requireComponent(count > 0L, "typography table rows must have cells")
+    val keys = HashSet<ViewKey>()
+    for (index in 0L ..< rows.size) {
+        val row = rows[index]
+        requireComponent(
+            row.cells.size == count,
+            "typography table rows must have the same column count"
+        )
+        requireComponent(
+            keys.add(typographyRowKey(row, index)),
+            "duplicate typography table row key"
+        )
+    }
+    val tracks = columns ?: Array<GridTrack>(count) { _ -> GridTrack.Fraction(1.0) }
+    requireComponent(tracks.size == count, "typography table tracks must cover every column")
+    checkGridTracks(tracks)
+    return tracks
+}
+
+private fun typographyRowKey(row: TypographyTableRow, index: Long): ViewKey =
+    if (row.key == ViewKey.Position)
+        ViewKey.Number(index)
+    else
+        row.key
+
+private fun typographyCellKey(row: ViewKey, column: Long): ViewKey =
+    when (row) {
+        case Text(value) -> ViewKey.Text(f"text:${value}:${column}")
+        case Number(value) -> ViewKey.Text(f"number:${value}:${column}")
+        case Position -> throw IllegalArgumentException(Some("table row key must be resolved"))
+    }
+
+public fun typographyTable(configure: TypographyTableBuilder.() -> Unit): View =
+    makeTypographyTable(configure)
+
+internal fun makeTypographyTable(configure: TypographyTableBuilder.() -> Unit): View {
+    val builder = TypographyTableBuilder()
+    builder.configure()
+    return builder.build()
+}
+
+private class TypographyTableProps(
+    val rows: Array<TypographyTableRow>,
+    val columns: Array<GridTrack>,
+    val fonts: FontCollection?,
+    val theme: ThemeSource?
+)
+
+private class TypographyTable(private val props: Props<TypographyTableProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        if (input.rows.size == 0L)
+            return empty()
+        val theme = themes.read(input.theme)
+        val density = theme.tokens.typography.body.fontSize / 14.0
+        val palette = theme.tokens.palette
+        val base = typographyStyle(TypographyRole.P, theme).copy { this.lineHeight = Some(1.5) }
+        val header = base.copy { this.weight = 700 }
+        val firstBody =
+            if (input.rows[0L].header)
+                1L
+            else
+                0L
+        return grid {
+            this.columns = input.columns
+            this.rows = Array<GridTrack>(input.rows.size) { _ -> GridTrack.Auto }
+            for (r in 0L ..< input.rows.size) {
+                val row = input.rows[r]
+                for (c in 0L ..< row.cells.size) {
+                    val border =
+                        Border.Logical(
+                            start =
+                                BorderEdge(
+                                    if (c == 0L)
+                                        density
+                                    else
+                                        0.0,
+                                    palette.border
+                                ),
+                            top =
+                                BorderEdge(
+                                    if (r == 0L)
+                                        density
+                                    else
+                                        0.0,
+                                    palette.border
+                                ),
+                            end = BorderEdge(density, palette.border),
+                            bottom = BorderEdge(density, palette.border)
+                        )
+                    this.item(
+                        makeFrame(
+                            typographyCaption(
+                                row.cells[c],
+                                if (row.header)
+                                    header
+                                else
+                                    base,
+                                input.fonts,
+                                input.theme
+                            )
+                        ) {
+                            this.key = typographyCellKey(typographyRowKey(row, r), c)
+                            this.padding =
+                                Some(
+                                    Insets(
+                                        16.0 * density,
+                                        8.0 * density,
+                                        16.0 * density,
+                                        8.0 * density
+                                    )
+                                )
+                            this.alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start)
+                            this.style =
+                                styleOverride {
+                                    this.border(Some(border))
+                                    if (!row.header && (r - firstBody) % 2L == 1L)
+                                        this.background(Some(Paint(palette.muted.background)))
+                                }
+                        }
+                    ) {
+                        this.column = c;
+                        this.row = r
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,179 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.component.column as makeColumn
+import scoop.ui.component.label as makeLabel
+import scoop.ui.component.avatarGroup as makeAvatarGroup
+import scoop.ui.component.button as makeButton
+import scoop.ui.style.*
+
+internal class AvatarExamples(
+    private val model: GalleryModel,
+    private val fonts: FontCollection
+): Component {
+    private val images = state<Array<Image>>([])
+    public override fun onMount(scope: ComponentScope) {
+        val first = scope.resource { avatarPortrait(false) }
+        val second = scope.resource { avatarPortrait(true) }
+        images.value = [first, second]
+        model.avatarImages = [first, second]
+    }
+    public override fun render(): View {
+        val pictures = images.value
+        val badgeColor = model.source.current.value.tokens.palette.primary.foreground
+        val image =
+            if (pictures.size == 0L)
+                AvatarImageState.Empty
+            else
+                when (model.avatarMode.value) {
+                    case 1 -> AvatarImageState.Loading
+                    case 2 -> AvatarImageState.Ready(pictures[0L])
+                    case 3 -> AvatarImageState.Ready(pictures[1L])
+                    case 4 -> AvatarImageState.Failed
+                    else -> AvatarImageState.Empty
+                }
+        val icon =
+            makeLabel("+") {
+                this.fonts = Some(this @AvatarExamples.fonts)
+                this.style =
+                    Some(
+                        spanStyle {
+                            this.fontSize = Some(9.0);
+                            this.color = Some(badgeColor)
+                        }
+                    )
+            }
+        return makeColumn {
+            this.add(panelHeading("Avatar", this @AvatarExamples.fonts))
+            this.label("Faces, initials, status dots, and overlapping groups.") {
+                this.fonts = Some(this @AvatarExamples.fonts)
+            }
+            for (size in [AvatarSize.Sm, AvatarSize.Default, AvatarSize.Lg]) {
+                this.row {
+                    this.avatar("SC") {
+                        this.size = size;
+                        this.image = image;
+                        this.fonts = Some(this @AvatarExamples.fonts)
+                    }
+                    this.avatar("CX") {
+                        this.size = size;
+                        this.fonts = Some(this @AvatarExamples.fonts)
+                    }
+                    this.avatar("SC") {
+                        this.size = size;
+                        this.image = image;
+                        this.badge();
+                        this.fonts = Some(this @AvatarExamples.fonts)
+                    }
+                    this.avatar("SC") {
+                        this.size = size;
+                        this.image = image;
+                        this.badge(icon);
+                        this.fonts = Some(this @AvatarExamples.fonts)
+                    }
+                    this.spacing = 20.0
+                    this.alignment = CrossAlignment.Center
+                }
+            }
+            this.add(panelHeading("Avatar groups", this @AvatarExamples.fonts, 18.0))
+            this.row {
+                for (size in [AvatarSize.Sm, AvatarSize.Default, AvatarSize.Lg])
+                    this.avatarGroup(size) {
+                        this.avatar("SC") {
+                            this.image = image;
+                            this.fonts = Some(this @AvatarExamples.fonts)
+                        }
+                        this.avatar("AL") { this.fonts = Some(this @AvatarExamples.fonts) }
+                        this.avatar("MK") { this.fonts = Some(this @AvatarExamples.fonts) }
+                        this.count(12L)
+                    }
+                this.spacing = 28.0
+                this.alignment = CrossAlignment.Center
+            }
+            this.label(
+                when (this @AvatarExamples.model.avatarMode.value) {
+                    case 1 -> "Image state: loading"
+                    case 2 -> "Image state: first portrait"
+                    case 3 -> "Image state: second portrait"
+                    case 4 -> "Image state: failed"
+                    else -> "Image state: empty"
+                }
+            ) { this.fonts = Some(this @AvatarExamples.fonts) }
+            this.button(
+                "Change image state",
+                {
+                    this @AvatarExamples.model.avatarMode.value =
+                        (this @AvatarExamples.model.avatarMode.value + 1) % 5
+                }
+            ) {
+                this.fonts = Some(this @AvatarExamples.fonts)
+                this.variant = ButtonVariant.Outline
+            }
+            this.emptyState(
+                makeButton(
+                    "Invite collaborator",
+                    { this @AvatarExamples.model.avatarMode.value = 2 }
+                ) { this.fonts = Some(this @AvatarExamples.fonts) }
+            ) {
+                this.media(
+                    makeAvatarGroup {
+                        this.avatar("SC") {
+                            this.image = image;
+                            this.fonts = Some(this @AvatarExamples.fonts)
+                        }
+                        this.avatar("AL") { this.fonts = Some(this @AvatarExamples.fonts) }
+                        this.count(2L)
+                    }
+                )
+                this.title("Build a team")
+                this.description("Share this workspace with the people you work with.")
+                this.fonts = Some(this @AvatarExamples.fonts)
+                this.outlined = true
+            }
+            this.spacing = 24.0
+            this.padding = Insets.all(6.0)
+            this.alignment = CrossAlignment.Start
+        }
+    }
+}
+
+private fun avatarPortrait(alternate: Boolean): Image =
+    RasterSurface(128, 128).use {
+        raster ->
+        raster.draw {
+            canvas ->
+            canvas.clear(
+                if (alternate)
+                    Color(0.77, 0.84, 0.95)
+                else
+                    Color(0.94, 0.79, 0.63)
+            )
+            canvas.drawCircle(
+                Point(64.0, 123.0),
+                45.0,
+                Paint(
+                    if (alternate)
+                        Color(0.24, 0.31, 0.52)
+                    else
+                        Color(0.33, 0.43, 0.35)
+                )
+            )
+            canvas.drawCircle(Point(64.0, 47.0), 26.0, Paint(Color(0.25, 0.18, 0.15)))
+            canvas.drawCircle(
+                Point(64.0, 55.0),
+                22.0,
+                Paint(
+                    if (alternate)
+                        Color(0.86, 0.64, 0.46)
+                    else
+                        Color(0.99, 0.85, 0.71)
+                )
+            )
+            canvas.drawCircle(Point(56.0, 54.0), 2.0, Paint(Color(0.25, 0.18, 0.15)))
+            canvas.drawCircle(Point(72.0, 54.0), 2.0, Paint(Color(0.25, 0.18, 0.15)))
+        }
+        raster.snapshot()
+    }

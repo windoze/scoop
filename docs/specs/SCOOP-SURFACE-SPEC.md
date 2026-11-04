@@ -148,7 +148,7 @@ enabled = false 使节点及其后代退出交互；ignoreSelf 只忽略区域�
 
 主按钮按下的默认阶段先在当前 hover 路径中最内层可聚焦区域请求焦点，再执行该节点的 defaultAction，仍未消费时继续祖先；拖出后追加按键不会将焦点送到已离开的捕获目标。传播处理器可用 preventDefault 取消这次默认焦点变化；控件自己的按压、释放和激活由其默认行为实现。窗口活动但没有焦点区域时，Keyboard 从窗口根 scope 开始；窗口未获 OS 焦点时不执行键盘默认动作。指针没有命中区域时也向窗口根交付普通事件，根的 localPosition 为 None，供窗口级观察与默认动作使用。
 
-Entered／Left、FocusChanged、ModifiersChanged、Cancelled 和 TextInput 使用 Notification 阶段，不可取消。此时三个取消方法均不改变派发或状态收尾。Entered／Left 按 hover 路径差异通知；FocusChanged 与 TextInput 只交付所属区域；ModifiersChanged 完整通知当前焦点路径，缺省为活动窗口根。Cancel 向整条旧路径交付，不因中途节点消费或退休遗漏祖先收尾。close 或禁用发生在处理器内时，退出派发后再交付必要的 Cancel／Left／失焦通知。Left 与 Cancel 只有时间及终结原因，没有局部位置。
+Entered／Left、FocusChanged／FocusVisibilityChanged、ModifiersChanged、Cancelled 和 TextInput 使用 Notification 阶段，不可取消。此时三个取消方法均不改变派发或状态收尾。Entered／Left 按 hover 路径差异通知；FocusChanged 与 TextInput 只交付所属区域；ModifiersChanged 完整通知当前焦点路径，缺省为活动窗口根。Cancel 向整条旧路径交付，不因中途节点消费或退休遗漏祖先收尾。close 或禁用发生在处理器内时，退出派发后再交付必要的 Cancel／Left／失焦通知。Left 与 Cancel 只有时间及终结原因，没有局部位置。
 
 第一期沿用 window 的鼠标与滚轮模型，不虚构 touch contact。首次按钮按下固定该次鼠标按钮序列的目标与路径，未命中区域时固定窗口根路径，直到最后一个已按按钮释放或收到取消；中途移动／抬起继续送到该路径，使用最新有效 placement 换算局部坐标。区域移除／禁用、窗口失焦或捕获丢失结束序列，交付 Cancel，不能合成可能触发点击的正常 Up。
 
@@ -175,6 +175,10 @@ graphics.native.CanvasGeometry.bounds／visibleBounds 提供上述查询所需�
 SurfaceWindow.focusRevision 是每窗口焦点请求序号。合法区域的显式 requestFocus（包括不能兑现和重复请求同一区域）及 clearFocus 都推进序号；OS 激活变化、自动清理失效目标不构成新的用户焦点请求。reserveFocusRequest() 推进并返回同一个窗口序号，但不改变当前焦点，供上层登记尚未有可用几何的请求或记录被当前域拒绝的显式请求；不能为这些请求另设一套不可比较的版本。上层待处理请求记录序号，后续请求到来后取消旧意图，不用反复比较 focusedArea 猜测用户是否选择了同一控件。
 
 InputArea.focusRevision 保存该区域最近一次成功聚焦请求的窗口序号，初始及关闭后为 None。鼠标默认聚焦与程序化请求使用同一记录；失败请求、失焦、clearFocus 和 OS 激活变化不重写该区域的成功历史。导航组据此恢复最近使用的有效成员，不安装第二套焦点处理器。比较同窗口记录时使用当前窗口序号减去记录的无符号距离，最近者距离最小。
+
+`FocusOrigin.Pointer／Keyboard／Programmatic` 记录同一聚焦入口的来源。`InputArea.requestFocus(origin = Programmatic)` 仅在成功时更新 `focusOrigin`（初始为 Programmatic）；默认鼠标聚焦使用 Pointer，非 synthetic 的实际键盘按下将当前区域来源改为 Keyboard，失败请求及 OS 失焦／恢复不重写来源。按键引起的来源改变不推进 focusRevision，也不创建另一份焦点目标；显式聚焦请求沿原有修订号规则。相同目标且指示未变的重复请求不产生额外帧需求。
+
+`InputArea.focusVisibility: FocusVisibility = Automatic` 支持 Automatic／Always／Never。`isFocusVisible` 仅在未关闭且 isFocusActive 时为真：Automatic 对键盘／程序聚焦以及 textInput 区域显示，Pointer 聚焦普通区域不显示；Always／Never 显式覆盖。仅指示变化时发送不可取消的 `InputEvent.FocusVisibilityChanged(Boolean)` Notification，不重发 FocusChanged、不重建 IME。样式策略更新及真实按键都使用该通知，禁用、隐藏、卸载和 OS 失焦仍沿原焦点合同退出。
 
 每个区域用 `setCaret(rect: Rect?, revision: Long? = None)` 保存局部 caret 和可选文档修订；None 明确表示没有可用几何，初始为 None。应用可传入 TextLayout.caret 的结果，Surface 不保留段落或编辑文档。区域因移除而取消的按钮序列在全部原生按钮释放前保持空路径，不能让剩余 Move／Up 或追加按钮突然命中其他区域。
 

@@ -1,0 +1,53 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.Size
+import scoop.graphics.text.FontCollection
+import scoop.test.*
+import scoop.ui.*
+import scoop.ui.component.*
+
+internal fun typographyMeasurements(fonts: FontCollection): Array<View> =
+    [
+        kbd("A") { this.fonts = Some(fonts) },
+        typographyTable {
+            this.fonts = Some(fonts)
+            this.header {
+                this.cell("Name");
+                this.cell("Description")
+            }
+            this.row {
+                this.cell("Scoop");
+                this.cell(
+                    "One long sentence is measured using shared column widths and real line wrapping."
+                )
+            }
+        },
+        typography {
+            this.fonts = Some(fonts);
+            this.text("Run ");
+            this.code("scoop build");
+            this.text(" now.")
+        }
+    ]
+
+internal fun measureTypography(context: MeasureContext) {
+    val cap = context.measureChild(1L, Constraints(maxWidth = Some(320.0)))
+    assertEquals(Size(20.0, 20.0), cap.size)
+    assertTrue(cap.alphabeticBaseline!! > 0.0)
+    assertEquals(4.0, context.measureChild(1L, Constraints(maxWidth = Some(4.0))).size.width)
+    val wide = context.measureChild(2L, Constraints(maxWidth = Some(320.0)))
+    val narrow = context.measureChild(2L, Constraints(maxWidth = Some(160.0)))
+    val natural = context.measureChild(2L, Constraints())
+    assertEquals(320.0, wide.size.width)
+    assertEquals(160.0, narrow.size.width)
+    assertTrue(narrow.size.height > wide.size.height)
+    assertTrue(natural.size.width > wide.size.width)
+    val paragraph = context.measureChild(3L, Constraints(maxWidth = Some(400.0)))
+    val naturalParagraph = context.measureChild(3L, Constraints())
+    assertEquals(400.0, paragraph.size.width)
+    assertTrue(naturalParagraph.size.width < 400.0)
+    assertEquals(naturalParagraph.size.height, paragraph.size.height)
+    val wrapped = context.measureChild(3L, Constraints(maxWidth = Some(100.0)))
+    assertTrue(wrapped.size.height > paragraph.size.height)
+    assertTrue(paragraph.alphabeticBaseline!! > 0.0)
+}

@@ -13,7 +13,8 @@ private class ThemePaintingTest {
         for (theme in themes())
             theme.createPainter().use {
                 painter ->
-                val visual = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focused = true))
+                val visual =
+                    SurfaceVisual(SurfaceKind.Action, InteractionVisual(focusVisible = true))
                 val geometry =
                     theme.surfaceGeometry(
                         Rect(20.0, 20.0, 60.0, 40.0),
@@ -44,7 +45,7 @@ private class ThemePaintingTest {
                     }
                 pixelColor(result, 128, 21, 40, Color(0.0, 1.0, 0.0))
                 pixelColor(result, 128, 50, 40, Color(1.0, 0.0, 0.0))
-                val focus = geometry.focus!!
+                val focus = geometry.ring!!
                 val fx = (focus.outline.bounds.x + focus.border.width / 2.0).toInt()
                 assertTrue(channel(result, 128, fx, 40, 3) > 80)
                 assertEquals(0, channel(result, 128, 8, 40, 3))
@@ -93,7 +94,7 @@ private class ThemePaintingTest {
                         InteractionVisual(hovered = true),
                         InteractionVisual(pressed = true),
                         InteractionVisual(enabled = false),
-                        InteractionVisual(focused = true)
+                        InteractionVisual(focusVisible = true)
                     ]
                 ) {
                     val visual = CheckboxVisual(CheckMark.On, interaction)

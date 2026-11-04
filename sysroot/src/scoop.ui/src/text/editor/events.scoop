@@ -6,7 +6,12 @@ import scoop.ui.*
 import scoop.window.*
 
 internal fun editorInteraction(host: TextEditHost, focused: Boolean, hovered: Boolean) {
-    val next = TextEditInteraction(focused && host.options.enabled, hovered && host.options.enabled)
+    val next =
+        TextEditInteraction(
+            focused && host.options.enabled,
+            hovered && host.options.enabled,
+            host.area.isFocusVisible && host.options.enabled
+        )
     if (host.visual.value != next)
         host.visual.value = next
 }
@@ -17,6 +22,11 @@ internal fun editorHandle(host: TextEditHost, context: RoutedEventContext, event
     if (context.phase == RoutedPhase.Notification) {
         when (event) {
             case FocusChanged(value) -> editorFocused(host, value)
+            case FocusVisibilityChanged(_) -> editorInteraction(
+                host,
+                host.area.isFocusActive,
+                host.visual.value.hovered
+            )
             case TextInput(value) -> editorNative(host, value)
             case Pointer(InputPointerEvent.Entered(_)) -> editorInteraction(
                 host,

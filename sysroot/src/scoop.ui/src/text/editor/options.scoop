@@ -60,4 +60,8 @@ public class TextEditAppearance public constructor(
     }
 }
 
-public struct TextEditInteraction(val focused: Boolean = false, val hovered: Boolean = false)
+public struct TextEditInteraction(
+    val focused: Boolean = false,
+    val hovered: Boolean = false,
+    val focusVisible: Boolean = false
+)

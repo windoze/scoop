@@ -1,0 +1,174 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.component.column as panelColumn
+import scoop.ui.component.frame as panelBox
+import scoop.ui.style.*
+
+public enum EmptyMediaVariant {
+    Default, Icon
+}
+
+public class EmptyStateProps public constructor(
+    public val content: View,
+    public val title: PanelContent? = None,
+    public val description: PanelContent? = None,
+    public val header: View? = None,
+    public val media: View? = None,
+    public val mediaVariant: EmptyMediaVariant = EmptyMediaVariant.Default,
+    public val outlined: Boolean = false,
+    public val fonts: FontCollection? = None,
+    public val theme: ThemeSource? = None,
+    public val style: StyleOverride = styleOverride()
+)
+
+public class EmptyState public constructor(private val props: Props<EmptyStateProps>): Component {
+    private val themes = ThemeAccess()
+    private val titles = ActionTextStyle()
+    private val descriptions = ActionTextStyle()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val colors = theme.tokens.palette
+        val density = theme.tokens.typography.body.fontSize / 14.0
+        val titleStyle =
+            titles.resolve(theme.tokens.typography.action, colors.background.foreground, None)
+        val descriptionStyle =
+            descriptions.resolve(
+                theme.tokens.typography.body,
+                colors.muted.foreground,
+                None,
+                lineHeight = Some(1.625)
+            )
+        val header =
+            panelColumn {
+                when (input.media) {
+                    case Some(value) -> {
+                        val icon = input.mediaVariant == EmptyMediaVariant.Icon
+                        val media =
+                            panelBox(value) {
+                                this.width =
+                                    if (icon)
+                                        Some(32.0 * density)
+                                    else
+                                        None
+                                this.height =
+                                    if (icon)
+                                        Some(32.0 * density)
+                                    else
+                                        None
+                                style {
+                                    if (icon) {
+                                        this.background(Some(Paint(colors.muted.background)))
+                                        this.corners(Corners.all(theme.tokens.corners.medium))
+                                    }
+                                }
+                            }
+                        this.add(
+                            panelFrame(
+                                media,
+                                Insets(0.0, 0.0, 0.0, 8.0 * density),
+                                key = ViewKey.Number(0L)
+                            )
+                        )
+                    }
+                    case None -> {}
+                }
+                when (input.header) {
+                    case Some(value) -> this.add(panelSlot(value, 1L));
+                    case None -> {}
+                }
+                when (input.title) {
+                    case Some(value) -> this.add(
+                        panelSlot(panelCaption(value, titleStyle, input.fonts, true), 2L)
+                    );
+                    case None -> {}
+                }
+                when (input.description) {
+                    case Some(value) -> this.add(
+                        panelSlot(panelCaption(value, descriptionStyle, input.fonts, true), 3L)
+                    );
+                    case None -> {}
+                }
+                this.spacing = 8.0 * density
+                this.alignment = CrossAlignment.Center
+            }
+        val body =
+            panelColumn {
+                if (
+                    panelPresent(input.media) ||
+                        panelPresent(input.header) ||
+                        panelPresent(input.title) ||
+                        panelPresent(input.description)
+                )
+                    this.add(emptyRegion(header, 384.0 * density, 0L))
+                this.add(emptyRegion(input.content, 384.0 * density, 1L))
+                this.spacing = 16.0 * density
+                this.padding = Insets.all(24.0 * density)
+                this.alignment = CrossAlignment.Center
+            }
+        val visual =
+            styleOverride { this.corners(Corners.all(theme.tokens.corners.large)) }.then(
+                input.style
+            ).resolve(style())
+        val outlined =
+            when (input.style.border) {
+                case Inherit -> input.outlined;
+                case Set(_) -> false
+            }
+        return element(
+            EmptyFrameProps(visual, outlined, colors.border),
+            { current -> EmptyFrame(current) },
+            [body]
+        )
+    }
+}
+
+private fun emptyRegion(content: View, width: Double, key: Long): View =
+    frame(content) {
+        this.key = ViewKey.Number(key)
+        this.width = Some(width)
+        this.alignment = Alignment(AxisAlignment.Center, AxisAlignment.Start)
+    }
+
+public class EmptyStateBuilder internal constructor(): PanelBuilder() {
+    public var header: View? = None
+    public var media: View? = None
+    public var mediaVariant: EmptyMediaVariant = EmptyMediaVariant.Default
+    public var outlined: Boolean = false
+    public fun header(content: View): Unit {
+        header = Some(content)
+    }
+    public fun media(content: View): Unit {
+        media = Some(content)
+    }
+}
+
+public fun emptyState(content: View, configure: EmptyStateBuilder.() -> Unit = {}): View =
+    makeEmptyState(content, configure)
+
+internal fun makeEmptyState(content: View, configure: EmptyStateBuilder.() -> Unit): View {
+    val builder = EmptyStateBuilder()
+    builder.configure()
+    return component(
+        EmptyStateProps(
+            content,
+            builder.title,
+            builder.description,
+            builder.header,
+            builder.media,
+            builder.mediaVariant,
+            builder.outlined,
+            builder.fonts,
+            builder.theme,
+            builder.style
+        ),
+        { current -> EmptyState(current) },
+        builder.key
+    )
+}

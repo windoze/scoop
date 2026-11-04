@@ -94,7 +94,7 @@ internal class DownloadPanel(
             this.alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start)
             this.style =
                 styleOverride {
-                    this.background(Some(Paint(theme.tokens.palette.canvas)))
+                    this.background(Some(Paint(theme.tokens.palette.background.background)))
                     this.clipContent(true)
                 }
         }

@@ -185,7 +185,7 @@ internal fun fieldCaret(probe: FieldProbe, model: TextEditorState, drawing: Fiel
 
 internal fun assertFieldTheme(probe: FieldProbe) {
     assertTrue(probe.focus[0L].hasFocus)
-    assertTrue(probe.primaryDrawing!!.visual.interaction.focused)
+    assertTrue(probe.primaryDrawing!!.visual.interaction.focusVisible)
     assertEquals("replacement新", probe.main.text)
     assertEquals(1, probe.inputCreates)
     assertEquals(1, probe.textareaCreates)

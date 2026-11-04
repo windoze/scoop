@@ -1,0 +1,181 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.*
+
+public enum AvatarSize {
+    Sm, Default, Lg
+}
+
+public enum AvatarImageState {
+    Empty, Loading, Failed, Ready(Image)
+}
+
+public enum AvatarBadge {
+    None, Dot(Color?), Content(View, Color?)
+}
+
+public class AvatarProps public constructor(
+    public val fallback: PanelContent,
+    public val image: AvatarImageState = AvatarImageState.Empty,
+    public val size: AvatarSize = AvatarSize.Default,
+    public val badge: AvatarBadge = AvatarBadge.None,
+    public val fonts: FontCollection? = None,
+    public val theme: ThemeSource? = None,
+    public val style: StyleOverride = styleOverride()
+)
+
+public class Avatar public constructor(private val props: Props<AvatarProps>): Component {
+    private val themes = ThemeAccess()
+    private val captions = ActionTextStyle()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val palette = theme.tokens.palette
+        val density = theme.tokens.typography.body.fontSize / 14.0
+        val text =
+            captions.resolve(
+                theme.tokens.typography.body,
+                palette.muted.foreground,
+                None,
+                if (input.size == AvatarSize.Sm)
+                    12.0 / 14.0
+                else
+                    1.0
+            )
+        val content =
+            when (input.image) {
+                case Ready(image) -> imageView(
+                    image,
+                    Size(image.width.toDouble(), image.height.toDouble())
+                ) { this.fit = ContentFit.Cover }
+                else -> panelCaption(input.fallback, text, input.fonts, true)
+            }
+        val ready =
+            when (input.image) {
+                case Ready(_) -> true;
+                else -> false
+            }
+        val badge =
+            when (input.badge) {
+                case None -> None
+                case Dot(color) -> Some(
+                    avatarBadge(
+                        empty(),
+                        avatarBadgeSide(input.size) * density,
+                        color ?: palette.primary.background,
+                        palette.background.background
+                    )
+                )
+                case Content(view, color) -> Some(
+                    avatarBadge(
+                        if (input.size == AvatarSize.Sm)
+                            empty()
+                        else
+                            view,
+                        avatarBadgeSide(input.size) * density,
+                        color ?: palette.primary.background,
+                        palette.background.background
+                    )
+                )
+            }
+        val children = ArrayList<View>()
+        children.add(
+            panelSlot(
+                element(
+                    AvatarInkProps(
+                        avatarSide(input.size) * density,
+                        ready,
+                        palette.muted.background,
+                        palette.border,
+                        theme.tokens.mode,
+                        input.style
+                    ),
+                    { current -> AvatarInk(current) },
+                    [content]
+                ),
+                0L
+            )
+        )
+        when (badge) {
+            case Some(value) -> children.add(panelSlot(value, 1L));
+            case None -> {}
+        }
+        return element(
+            panelPresent(badge),
+            { current -> AvatarLayout(current) },
+            children.toArray()
+        )
+    }
+}
+
+internal fun avatarSide(size: AvatarSize): Double =
+    when (size) {
+        case Sm -> 24.0;
+        case Default -> 32.0;
+        case Lg -> 40.0
+    }
+
+internal fun avatarBadgeSide(size: AvatarSize): Double =
+    when (size) {
+        case Sm -> 8.0;
+        case Default -> 10.0;
+        case Lg -> 12.0
+    }
+
+private fun avatarBadge(content: View, side: Double, color: Color, ring: Color): View =
+    avatarRing(
+        frame(content) {
+            this.width = Some(side)
+            this.height = Some(side)
+            this.padding = Some(Insets())
+            this.style =
+                styleOverride {
+                    this.background(Some(Paint(color)))
+                    this.corners(Corners.all(side / 2.0))
+                    this.clipContent(true)
+                }
+        },
+        ring
+    )
+
+public class AvatarBuilder internal constructor() {
+    public var image: AvatarImageState = AvatarImageState.Empty
+    public var size: AvatarSize = AvatarSize.Default
+    public var badge: AvatarBadge = AvatarBadge.None
+    public var fonts: FontCollection? = None
+    public var theme: ThemeSource? = None
+    public var style: StyleOverride = styleOverride()
+    public var key: ViewKey = ViewKey.Position
+    public fun badge(color: Color? = None): Unit {
+        badge = AvatarBadge.Dot(color)
+    }
+    public fun badge(content: View, color: Color? = None): Unit {
+        badge = AvatarBadge.Content(content, color)
+    }
+    public fun style(configure: StyleOverrideBuilder.() -> Unit): Unit {
+        style = style.copy(configure)
+    }
+    internal fun snapshot(fallback: PanelContent): AvatarProps =
+        AvatarProps(fallback, image, size, badge, fonts, theme, style)
+}
+
+public fun avatar(fallback: String, configure: AvatarBuilder.() -> Unit = {}): View =
+    makeAvatar(PanelContent.Label(LabelProps(LabelText.Plain(fallback, None))), configure)
+
+public fun avatar(fallback: StyledText, configure: AvatarBuilder.() -> Unit = {}): View =
+    makeAvatar(PanelContent.Label(LabelProps(LabelText.Styled(fallback))), configure)
+
+public fun avatar(fallback: View, configure: AvatarBuilder.() -> Unit = {}): View =
+    makeAvatar(PanelContent.Custom(fallback), configure)
+
+internal fun makeAvatar(fallback: PanelContent, configure: AvatarBuilder.() -> Unit): View {
+    val builder = AvatarBuilder()
+    builder.configure()
+    return component(builder.snapshot(fallback), { current -> Avatar(current) }, builder.key)
+}

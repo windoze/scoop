@@ -1,0 +1,192 @@
+package scoop.tests.ui.themes
+
+import scoop.graphics.*
+import scoop.surface.AnimationSpec
+import scoop.test.*
+import scoop.time.Duration
+import scoop.ui.style.*
+import scoop.ui.style.shadcn.shadcnTheme
+
+@Test
+private class ShadcnThemeTest {
+    @Test
+    fun `neutral tokens preserve converted channels alpha and distinct semantic roles`() {
+        val light = shadcnTheme().tokens.palette
+        val dark = shadcnTheme(ThemeMode.Dark).tokens.palette
+        assertEquals(Color.White, light.background.background)
+        near(0.039388235, light.background.foreground.red)
+        near(0.090527405, light.primary.background.red)
+        near(0.980255980, light.primary.foreground.red)
+        near(0.960586987, light.accent.background.red)
+        assertTrue(light.primary != light.accent)
+        assertTrue(light.chart.one != light.chart.two)
+        assertTrue(dark.sidebar.primary != dark.primary)
+        assertEquals(0.1, dark.border.alpha)
+        assertEquals(0.15, dark.input.alpha)
+        assertTrue(dark.card.background != dark.background.background)
+        assertTrue(light.destructive.background.red > light.destructive.background.green)
+        val derived =
+            light.copy {
+                this.primary = ColorPair(Color.Black, Color.White)
+                this.sidebar =
+                    SidebarPalette(
+                        this.background,
+                        this.primary,
+                        this.accent,
+                        this.border,
+                        this.ring
+                    )
+            }
+        assertEquals(Color.Black, derived.primary.background)
+        assertEquals(light.chart, derived.chart)
+        assertTrue(light.primary != derived.primary)
+    }
+
+    @Test
+    fun `nova dimensions focus ring and disabled surface share the actual painter geometry`() {
+        for (mode in [ThemeMode.Light, ThemeMode.Dark]) {
+            val theme = shadcnTheme(mode)
+            assertEquals(14.0, theme.tokens.typography.body.fontSize)
+            assertEquals(Some(20.0 / 14.0), theme.tokens.typography.body.lineHeight)
+            val metrics = theme.surfaceMetrics(SurfaceVisual(SurfaceKind.Action))
+            assertEquals(32.0, metrics.suggestedSize.height)
+            assertEquals(Insets(10.0, 4.0, 10.0, 4.0), metrics.padding)
+            assertEquals(CornerRadii.all(10.0), metrics.corners)
+            val normal = SurfaceVisual(SurfaceKind.Action)
+            val focused = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focusVisible = true))
+            val bounds = Rect(20.0, 20.0, 80.0, 32.0)
+            val geometry = theme.surfaceGeometry(bounds, focused)
+            assertEquals(3.0, geometry.ring!!.border.width)
+            assertEquals(0.5, geometry.ring!!.border.color.alpha)
+            assertEquals(geometry.content, theme.surfaceGeometry(bounds, normal).content)
+            val disabled =
+                SurfaceVisual(
+                    SurfaceKind.Action,
+                    InteractionVisual(
+                        enabled = false,
+                        hovered = true,
+                        pressed = true,
+                        focusVisible = true
+                    )
+                )
+            val disabledGeometry = theme.surfaceGeometry(bounds, disabled)
+            assertEquals(None, disabledGeometry.ring)
+            assertEquals(1.0, disabledGeometry.style.background!!.color.alpha)
+            assertEquals(0.5, disabledGeometry.opacity)
+            theme.createPainter().use {
+                painter ->
+                val plain =
+                    pixels {
+                        canvas -> painter.drawSurface(
+                            canvas,
+                            theme.surfaceGeometry(bounds, normal),
+                            normal
+                        )
+                    }
+                val ring = pixels { canvas -> painter.drawSurface(canvas, geometry, focused) }
+                assertTrue(differences(plain, ring) > 100)
+                val on = CheckboxVisual(CheckMark.On)
+                val off = CheckboxVisual()
+                val marker = Rect(20.0, 20.0, 16.0, 16.0)
+                assertTrue(
+                    differences(
+                        pixels {
+                            canvas -> painter.drawCheckbox(
+                                canvas,
+                                theme.checkboxGeometry(marker, on),
+                                on
+                            )
+                        },
+                        pixels {
+                            canvas -> painter.drawCheckbox(
+                                canvas,
+                                theme.checkboxGeometry(marker, off),
+                                off
+                            )
+                        }
+                    ) >
+                        100
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `disabled controls composite once and input fills retain their mode specific alpha`() {
+        val bounds = Rect(20.0, 20.0, 80.0, 32.0)
+        for (mode in [ThemeMode.Light, ThemeMode.Dark]) {
+            val theme = shadcnTheme(mode)
+            val disabled = InteractionVisual(enabled = false)
+            val action = SurfaceVisual(SurfaceKind.Action, disabled)
+            val geometry = theme.surfaceGeometry(bounds, action)
+            theme.createPainter().use {
+                painter ->
+                val complete = pixels { canvas -> painter.drawSurface(canvas, geometry, action) }
+                pixelColor(
+                    complete,
+                    128,
+                    60,
+                    36,
+                    theme.tokens.palette.primary.background.withAlpha(0.5)
+                )
+                val content =
+                    pixels {
+                        canvas ->
+                        canvas.saveLayer(geometry.opacity)
+                        painter.drawSurface(canvas, geometry, action, SurfaceLayer.Background)
+                        canvas.drawRect(
+                            Rect(45.0, 28.0, 30.0, 16.0),
+                            Paint(theme.surfaceTextColor(action))
+                        )
+                        painter.drawSurface(canvas, geometry, action, SurfaceLayer.Foreground)
+                        canvas.restore()
+                    }
+                pixelColor(
+                    content,
+                    128,
+                    60,
+                    36,
+                    theme.tokens.palette.primary.foreground.withAlpha(0.5)
+                )
+                val input = SurfaceVisual(interaction = disabled)
+                val inputGeometry = theme.surfaceGeometry(bounds, input)
+                val fill = theme.tokens.palette.input
+                val alpha =
+                    fill.alpha *
+                        if (mode == ThemeMode.Dark)
+                            0.4
+                        else
+                            0.25
+                val inputPixels =
+                    pixels { canvas -> painter.drawSurface(canvas, inputGeometry, input) }
+                pixelColor(inputPixels, 128, 60, 36, fill.withAlpha(alpha))
+                val selected = CheckboxVisual(CheckMark.On, disabled)
+                val marker = theme.checkboxGeometry(bounds, selected)
+                val selectedPixels =
+                    pixels { canvas -> painter.drawCheckbox(canvas, marker, selected) }
+                assertEquals(0.5, marker.opacity)
+                assertTrue(channel(selectedPixels, 128, 60, 36, 3) in 127 .. 128)
+            }
+        }
+    }
+
+    @Test
+    fun `reduced motion suppresses theme and explicit transitions without changing the original`() {
+        val full = shadcnTheme()
+        val reduced = full.copy { tokens { motion { this.preference = MotionPreference.Reduced } } }
+        val custom = Some(AnimationSpec.Tween(Duration.milliseconds(500L)))
+        for (spec in [custom, reduced.tokens.motion.hover]) {
+            assertTrue(
+                when (reduced.tokens.motion.resolve(spec)) {
+                    case None -> true
+                    else -> false
+                }
+            )
+        }
+        when (full.tokens.motion.resolve(custom)) {
+            case Some(Tween(duration, _)) -> assertEquals(Duration.milliseconds(500L), duration)
+            else -> fail(Some("full motion lost the explicit transition"))
+        }
+        assertEquals(full.tokens.palette.primary, reduced.tokens.palette.primary)
+    }
+}

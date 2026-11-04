@@ -1,0 +1,91 @@
+package scoop.ui.component
+
+import scoop.surface.*
+import scoop.ui.*
+
+/** Stable label association; the mounted control owns its lifetime and action. */
+public class FieldTarget public constructor() {
+    private val current = state<FieldLink?>(None)
+    internal val connection: FieldLink? get() = current.value
+    public val isAttached: Boolean get() = current.value?.isAttached ?: false
+    public val isEnabled: Boolean get() = current.value?.isEnabled ?: false
+
+    internal fun checkBinding(link: FieldLink) {
+        when (current.value) {
+            case Some(previous) -> requireComponent(
+                previous === link || !previous.isAttached,
+                "field target already has a control"
+            )
+            case None -> {}
+        }
+    }
+    internal fun bind(link: FieldLink) {
+        current.value = Some(link)
+    }
+    internal fun unbind(link: FieldLink) {
+        when (current.value) {
+            case Some(previous) -> if (previous === link)
+                current.value = None
+            case None -> {}
+        }
+    }
+}
+
+internal class FieldLink(
+    private val scope: ComponentScope,
+    private val area: InputArea,
+    private val focus: FocusTarget
+): Closeable {
+    private val enabled = state(false)
+    private var target: FieldTarget? = None
+    private var action: () -> Unit = {}
+    private var closed = false
+    val isAttached: Boolean get() = !closed && scope.isMounted
+    val isEnabled: Boolean get() = isAttached && enabled.value
+
+    fun update(value: FieldTarget?, accepts: Boolean, activate: () -> Unit = {}) {
+        value?.checkBinding(this)
+        if (!sameFieldTarget(target, value)) {
+            target?.unbind(this)
+            target = value
+            value?.bind(this)
+        }
+        if (enabled.value != accepts)
+            enabled.value = accepts
+        action = activate
+    }
+    fun activate(source: ComponentScope, expected: FieldTarget) {
+        if (!isEnabled || !source.isMounted || !sameFieldTarget(target, Some(expected)))
+            return
+        if (
+            source.nativeWindow !==
+                scope.nativeWindow ||
+                !source.input.isInputAllowed ||
+                !area.scope.isInputAllowed ||
+                !area.canFocus
+        )
+            return
+        if (focus.handle.requestFocus(FocusOrigin.Pointer))
+            action()
+    }
+    public override fun close() {
+        if (closed)
+            return
+        closed = true
+        target?.unbind(this)
+        target = None
+        action = {}
+    }
+}
+
+private fun sameFieldTarget(left: FieldTarget?, right: FieldTarget?): Boolean =
+    when (left) {
+        case Some(a) -> when (right) {
+            case Some(b) -> a === b
+            case None -> false
+        }
+        case None -> when (right) {
+            case Some(_) -> false
+            case None -> true
+        }
+    }

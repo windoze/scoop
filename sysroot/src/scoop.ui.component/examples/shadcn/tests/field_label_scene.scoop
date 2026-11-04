@@ -1,0 +1,160 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.surface.FrameSubmission
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.style.*
+
+internal class FieldLabelScene(private val probe: FieldLabelProbe): Component {
+    public override fun render(): View {
+        val generation = probe.generation.value
+        probe.observedEnabled = probe.targets[2L].isEnabled
+        if (probe.gone)
+            return element(generation, { current -> FieldLabelLayout(probe, current) })
+        val alternate = probe.alternate
+        val checked =
+            binding(
+                {
+                    if (alternate)
+                        probe.second
+                    else
+                        probe.first
+                },
+                {
+                    value ->
+                    if (alternate)
+                        probe.second = value
+                    else
+                        probe.first = value
+                    probe.actions += 1
+                    probe.generation.value += 1
+                }
+            )
+        val checkboxView =
+            if (probe.mounted)
+                checkbox(checked) {
+                    this.enabled = this @FieldLabelScene.probe.enabled
+                    this.labelTarget = Some(this @FieldLabelScene.probe.currentTarget())
+                    this.focus { this.handle = Some(this @FieldLabelScene.probe.currentFocus()) }
+                }
+            else
+                empty()
+        val hidden =
+            skeleton(checkboxView) {
+                this.loading = this @FieldLabelScene.probe.hidden
+                this.animated = false
+                this.width = Some(32.0)
+                this.height = Some(32.0)
+            }
+        val children =
+            [
+                input(probe.text) {
+                    this.fonts = Some(this @FieldLabelScene.probe.fonts)
+                    this.labelTarget = Some(this @FieldLabelScene.probe.targets[0L])
+                    this.focus { this.handle = Some(this @FieldLabelScene.probe.focus[0L]) }
+                    this.readOnly = this @FieldLabelScene.probe.readOnly
+                    this.caretBlink = Duration.milliseconds(0L)
+                },
+                caption("Name", probe.targets[0L]),
+                textarea(probe.notes) {
+                    this.fonts = Some(this @FieldLabelScene.probe.fonts)
+                    this.labelTarget = Some(this @FieldLabelScene.probe.targets[1L])
+                    this.focus { this.handle = Some(this @FieldLabelScene.probe.focus[1L]) }
+                    this.rows = 2L
+                    this.caretBlink = Duration.milliseconds(0L)
+                },
+                caption("Notes", probe.targets[1L]),
+                hidden,
+                caption("Original checkbox label", probe.targets[2L]),
+                caption(
+                    "Current checkbox label",
+                    if (probe.labelRebound)
+                        probe.targets[2L]
+                    else
+                        probe.targets[3L]
+                ),
+                caption("A control in another window", probe.foreignTarget),
+                portal(
+                    probe.modal.binding(),
+                    frame(caption("Background control", probe.targets[2L])) {
+                        this.width = Some(240.0)
+                        this.height = Some(60.0)
+                        this.padding = Some(Insets.all(12.0))
+                        this.style { this.background(Some(Paint(Color.White))) }
+                    }
+                ) {
+                    this.options {
+                        this.modal = Some(ModalOptions(restoreFocus = false))
+                        this.placement = OverlayPlacement.AtPoint(Point(400.0, 330.0))
+                    }
+                }
+            ]
+        return direction(
+            element(generation, { current -> FieldLabelLayout(probe, current) }, children),
+            probe.direction
+        )
+    }
+    private fun caption(text: String, target: FieldTarget): View =
+        fieldLabel(text, target) { this.fonts = Some(this @FieldLabelScene.probe.fonts) }
+}
+
+private class FieldLabelLayout(
+    private val probe: FieldLabelProbe,
+    private val generation: Props<Int>
+): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val points =
+            [
+                Point(30.0, 50.0),
+                Point(30.0, 30.0),
+                Point(30.0, 130.0),
+                Point(30.0, 110.0),
+                Point(30.0, 210.0),
+                Point(70.0, 220.0),
+                Point(70.0, 260.0),
+                Point(30.0, 310.0),
+                Point(0.0, 0.0)
+            ]
+        for (index in 0L ..< context.childCount) {
+            context.measureChild(
+                index,
+                Constraints(
+                    maxWidth =
+                        Some(
+                            if (index == 4L)
+                                32.0
+                            else
+                                300.0
+                        )
+                )
+            )
+            context.placeChild(index, points[index])
+        }
+        return LayoutMetrics(constraints.constrain(Size(800.0, 600.0)))
+    }
+    public override fun scene(context: SceneContext) {
+        context.children()
+        val current = generation.value
+        context.onFrameComplete {
+            completion -> if (completion.submission == FrameSubmission.Accepted)
+                probe.rendered = current
+        }
+    }
+}
+
+internal class ForeignFieldReady(private val probe: FieldLabelProbe): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val child = context.measureChild(0L, constraints)
+        context.placeChild(0L, Point(0.0, 0.0))
+        return child
+    }
+    public override fun scene(context: SceneContext) {
+        context.children()
+        context.onFrameComplete {
+            completion -> if (completion.submission == FrameSubmission.Accepted)
+                probe.foreignReady = true
+        }
+    }
+}

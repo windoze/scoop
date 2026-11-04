@@ -1,0 +1,121 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.style.*
+
+internal class ProgressInkProps(
+    val position: Double?,
+    val thickness: Double,
+    val color: Color,
+    val background: Color,
+    val style: StyleOverride,
+    val transition: AnimationSpec?,
+    val motion: Boolean,
+    val period: Duration
+)
+
+internal class ProgressInk(private val props: Props<ProgressInkProps>): Element {
+    private var loop: LoadingMotion? = None
+    private var selection: Animatable<Double>? = None
+    private var painter: StylePainter? = None
+    private var previous: Double? = None
+    private var visible = false
+    public override fun onMount(scope: ComponentScope) {
+        loop = Some(LoadingMotion(scope))
+        selection = Some(scope.animation(props.value.position ?: 0.0))
+        previous = props.value.position
+        painter = Some(scope.resource { StylePainter() })
+    }
+    public override fun update() {
+        val input = props.value
+        loop!!.update(
+            !panelPresent(input.position) && input.motion && input.color.alpha > 0.0,
+            input.period
+        )
+        when (input.position) {
+            case Some(value) -> {
+                if (!panelPresent(previous) || !panelPresent(input.transition)) {
+                    if (selection!!.value != value || selection!!.state == AnimationState.Running)
+                        selection!!.snapTo(value)
+                } else
+                    if (previous != Some(value))
+                        selection!!.animateTo(value, input.transition!!)
+            }
+            case None -> if (panelPresent(previous))
+                selection!!.snapTo(0.0)
+        }
+        previous = input.position
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(
+            constraints.constrain(Size(constraints.maxWidth ?: 0.0, props.value.thickness))
+        )
+    public override fun scene(context: SceneContext) {
+        val input = props.value
+        val size = context.size
+        val bounds = Rect(0.0, 0.0, size.width, size.height)
+        val direction = context.layoutDirection
+        val indicator =
+            progressIndicator(
+                size,
+                input.position,
+                selection!!.value,
+                if (input.motion)
+                    loop!!.phase.value
+                else
+                    0.5,
+                direction
+            )
+        val visual =
+            input.style.resolve(
+                style {
+                    this.background = Some(Paint(input.background))
+                    this.corners = Corners.all(size.height / 2.0)
+                    this.clipContent = true
+                }
+            ).copy { this.clipContent = true }
+        painter!!.scene(context, visual) {
+            scene -> scene.draw {
+                paint ->
+                visible = loadingVisible(paint.canvas, bounds, input.color.alpha)
+                if (visible && indicator.width > 0.0 && indicator.height > 0.0)
+                    paint.canvas.drawRect(indicator, Paint(input.color))
+            }
+        }
+        loadingParticipation(context, loop!!.phase, visible)
+        loadingParticipation(context, selection!!, visible)
+    }
+}
+
+internal fun progressIndicator(
+    size: Size,
+    position: Double?,
+    selection: Double,
+    phase: Double,
+    direction: LayoutDirection
+): Rect {
+    val known = panelPresent(position)
+    val fraction =
+        if (known)
+            upperBound(lowerBound(selection, 0.0), 1.0)
+        else
+            0.3
+    val width = size.width * fraction
+    val start =
+        if (known)
+            0.0
+        else
+            (phase * 1.3 - 0.3) * size.width
+    return Rect(
+        if (direction == LayoutDirection.Rtl)
+            size.width - start - width
+        else
+            start,
+        0.0,
+        width,
+        size.height
+    )
+}

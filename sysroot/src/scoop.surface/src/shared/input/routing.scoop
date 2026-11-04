@@ -121,7 +121,7 @@ private fun InputRouter.routeStages(
         if (!focused && focusesOnPress(event) && containsScope(hover, delivery.scope)) {
             when (delivery.scope.area) {
                 case Some(area) -> if (area.focusable) {
-                    focus(area)
+                    focus(area, FocusOrigin.Pointer)
                     focused = true
                 }
                 case None -> {}

@@ -1,0 +1,144 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.*
+
+private enum PanelAsideShape {
+    Empty, Content, Action, Both
+}
+
+private struct PanelAsideProps(
+    val shape: PanelAsideShape,
+    val gap: Double,
+    val minimumContent: Double
+)
+
+/** Keeps the same content and action mounts when a narrow panel moves the action below. */
+internal fun panelAside(content: View?, action: View?, gap: Double, minimumContent: Double): View {
+    val children = ArrayList<View>()
+    when (content) {
+        case Some(value) -> children.add(panelSlot(value, 0L));
+        case None -> {}
+    }
+    when (action) {
+        case Some(value) -> children.add(panelSlot(value, 1L));
+        case None -> {}
+    }
+    val shape =
+        if (panelPresent(content)) {
+            if (panelPresent(action))
+                PanelAsideShape.Both
+            else
+                PanelAsideShape.Content
+        } else
+            if (panelPresent(action))
+                PanelAsideShape.Action
+            else
+                PanelAsideShape.Empty
+    return element(
+        PanelAsideProps(shape, gap, minimumContent),
+        { current -> PanelAside(current) },
+        children.toArray()
+    )
+}
+
+private class PanelAside(private val props: Props<PanelAsideProps>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        when (props.value.shape) {
+            case Empty -> return LayoutMetrics(constraints.constrain(Size(0.0, 0.0)))
+            case Both -> return paired(context, constraints)
+            else -> {
+                val child =
+                    if (props.value.shape == PanelAsideShape.Action)
+                        measureAction(context, 0L, constraints.maxWidth)
+                    else
+                        context.measureChild(0L, Constraints(maxWidth = constraints.maxWidth))
+                val size =
+                    constraints.constrain(
+                        Size(constraints.maxWidth ?: child.size.width, child.size.height)
+                    )
+                val end = props.value.shape == PanelAsideShape.Action
+                val right = (context.layoutDirection == LayoutDirection.Ltr) == end
+                context.placeChild(
+                    0L,
+                    Point(
+                        if (right)
+                            size.width - child.size.width
+                        else
+                            0.0,
+                        0.0
+                    )
+                )
+                return offsetMetrics(child, size, 0.0)
+            }
+        }
+    }
+    private fun paired(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val input = props.value
+        val action = measureAction(context, 1L, constraints.maxWidth)
+        val stacked =
+            when (constraints.maxWidth) {
+                case Some(width) -> width - action.size.width - input.gap < input.minimumContent
+                case None -> false
+            }
+        val maximum =
+            if (stacked)
+                constraints.maxWidth
+            else
+                insetMaximum(constraints.maxWidth, action.size.width + input.gap)
+        val content = context.measureChild(0L, Constraints(maxWidth = maximum))
+        val natural =
+            if (stacked)
+                Size(
+                    lowerBound(content.size.width, action.size.width),
+                    content.size.height + input.gap + action.size.height
+                )
+            else
+                Size(
+                    content.size.width + input.gap + action.size.width,
+                    lowerBound(content.size.height, action.size.height)
+                )
+        validSize(natural)
+        val size =
+            constraints.constrain(Size(constraints.maxWidth ?: natural.width, natural.height))
+        val rtl = context.layoutDirection == LayoutDirection.Rtl
+        context.placeChild(
+            0L,
+            Point(
+                if (rtl)
+                    size.width - content.size.width
+                else
+                    0.0,
+                0.0
+            )
+        )
+        context.placeChild(
+            1L,
+            Point(
+                if (rtl)
+                    0.0
+                else
+                    size.width - action.size.width,
+                if (stacked)
+                    content.size.height + input.gap
+                else
+                    0.0
+            )
+        )
+        return offsetMetrics(content, size, 0.0)
+    }
+    public override fun scene(context: SceneContext) {
+        context.children()
+    }
+}
+
+private fun measureAction(context: MeasureContext, index: Long, maximum: Double?): LayoutMetrics {
+    val natural = context.measureChild(index, Constraints())
+    return when (maximum) {
+        case Some(width) -> if (natural.size.width > width)
+            context.measureChild(index, Constraints(maxWidth = Some(width)))
+        else
+            natural
+        case None -> natural
+    }
+}

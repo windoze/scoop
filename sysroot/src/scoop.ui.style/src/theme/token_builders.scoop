@@ -85,12 +85,13 @@ internal fun configureThemeMotion(
 
 /** Mutable configuration initialized from a complete immutable value. */
 public class ThemeMotionBuilder internal constructor(initial: ThemeMotion) {
+    public var preference: MotionPreference = initial.preference
     public var hover: AnimationSpec? = initial.hover
     public var press: AnimationSpec? = initial.press
     public var selection: AnimationSpec? = initial.selection
 
     internal fun snapshot(): ThemeMotion =
-        ThemeMotion(hover = hover, press = press, selection = selection)
+        ThemeMotion(preference = preference, hover = hover, press = press, selection = selection)
 }
 
 /** Constructs a complete description and applies configuration once. */
@@ -99,6 +100,7 @@ public fun themeTokens(
     typography: ThemeTypography,
     spacing: ThemeSpacing,
     corners: ThemeCorners,
+    validation: OutlineStyle,
     configure: ThemeTokensBuilder.() -> Unit = {}
 ): ThemeTokens =
     configureThemeTokens(
@@ -106,7 +108,8 @@ public fun themeTokens(
             palette = palette,
             typography = typography,
             spacing = spacing,
-            corners = corners
+            corners = corners,
+            validation = validation
         ),
         configure
     )
@@ -128,7 +131,9 @@ public class ThemeTokensBuilder internal constructor(initial: ThemeTokens) {
     public var spacing: ThemeSpacing = initial.spacing
     public var motion: ThemeMotion = initial.motion
     public var corners: ThemeCorners = initial.corners
+    public var validation: OutlineStyle = initial.validation
     public var effects: ThemeEffects = initial.effects
+    public var disabledOpacity: Double = initial.disabledOpacity
 
     public fun palette(configure: ThemePaletteBuilder.() -> Unit): Unit {
         palette = palette.copy(configure)
@@ -154,6 +159,8 @@ public class ThemeTokensBuilder internal constructor(initial: ThemeTokens) {
             spacing = spacing,
             motion = motion,
             corners = corners,
-            effects = effects
+            validation = validation,
+            effects = effects,
+            disabledOpacity = disabledOpacity
         )
 }

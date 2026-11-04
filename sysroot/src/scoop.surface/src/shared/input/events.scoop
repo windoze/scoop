@@ -34,7 +34,15 @@ public struct InputPress(
 /** Text transactions and focus/hover transitions are delivered directly to their owner. */
 public enum InputEvent {
     Pointer(InputPointerEvent), Keyboard(KeyEvent), ModifiersChanged(Modifiers),
-    TextInput(TextInputEvent), FocusChanged(Boolean)
+    TextInput(TextInputEvent), FocusChanged(Boolean), FocusVisibilityChanged(Boolean)
+}
+
+public enum FocusOrigin {
+    Pointer, Keyboard, Programmatic
+}
+
+public enum FocusVisibility {
+    Automatic, Always, Never
 }
 
 public enum RoutedPhase {

@@ -35,6 +35,7 @@ internal class InputRouter(
     internal val buttons = ArrayList<MouseButton>()
     internal var logicalFocus: InputArea? = None
     internal var activeFocus: InputArea? = None
+    internal var activeFocusVisible = false
     internal var focusRevision = 0uL
     internal val boundaries = ArrayList<InputBoundary>()
     internal var pendingBoundaryChange = false
@@ -254,6 +255,7 @@ internal class InputRouter(
         val previous = activeFocus
         logicalFocus = None
         activeFocus = None
+        activeFocusVisible = false
         when (previous) {
             case Some(area) -> failure =
                 cleanupFailure(failure) {

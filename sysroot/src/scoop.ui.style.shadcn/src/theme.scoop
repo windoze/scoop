@@ -1,0 +1,178 @@
+package scoop.ui.style.shadcn
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.surface.AnimationSpec
+import scoop.time.Duration
+import scoop.ui.style.*
+
+/** Base Nova / Neutral, using the shared geometry and painter. */
+public fun shadcnTheme(
+    mode: ThemeMode = ThemeMode.Light,
+    configure: ShapeThemeBuilder.() -> Unit = {}
+): ShapeTheme {
+    val dark = mode == ThemeMode.Dark
+    val palette =
+        if (dark)
+            darkPalette()
+        else
+            lightPalette()
+    val body =
+        textStyle {
+            this.families = ["Inter", "Helvetica Neue", "Arial", "sans-serif"]
+            this.fontSize = 14.0
+            this.lineHeight = Some(20.0 / 14.0)
+            this.color = palette.background.foreground
+        }
+    val fonts =
+        themeTypography(
+            body,
+            body.copy {
+                this.fontSize = 12.0
+                this.lineHeight = Some(16.0 / 12.0)
+                this.color = palette.muted.foreground
+            },
+            body.copy { this.weight = 500 }
+        )
+    val tokens =
+        themeTokens(
+            palette,
+            fonts,
+            ThemeSpacing(4.0, 8.0, 16.0),
+            ThemeCorners(6.0, 8.0, 10.0),
+            OutlineStyle(
+                palette.destructive.background.withAlpha(
+                    if (dark)
+                        0.4
+                    else
+                        0.2
+                ),
+                3.0,
+                3.0,
+                Some(
+                    palette.destructive.background.withAlpha(
+                        if (dark)
+                            0.5
+                        else
+                            1.0
+                    )
+                )
+            )
+        ) {
+            this.mode = mode
+            this.disabledOpacity = 0.5
+            motion {
+                this.hover = Some(AnimationSpec.Tween(Duration.milliseconds(150L)))
+                this.press = Some(AnimationSpec.Tween(Duration.milliseconds(75L)))
+                this.selection = Some(AnimationSpec.Tween(Duration.milliseconds(150L)))
+            }
+            effects {
+                this.raised = [BoxShadow(Point(0.0, 1.0), 1.0, 1.0, palette.shadow)]
+                this.floating = [BoxShadow(Point(0.0, 4.0), 6.0, 6.0, palette.shadow)]
+            }
+        }
+    val focus = OutlineStyle(palette.ring.withAlpha(0.5), 3.0, 3.0, Some(palette.ring))
+    val foreground = states(palette.background.foreground)
+    val inputFill =
+        if (dark)
+            palette.input.withAlpha(palette.input.alpha * 0.3)
+        else
+            Color.Transparent
+    val plain =
+        surfacePart(
+            SurfaceMetrics(
+                Size(0.0, 32.0),
+                Size(0.0, 0.0),
+                Insets(10.0, 4.0, 10.0, 4.0),
+                Insets.all(1.0),
+                CornerRadii.all(10.0),
+                focus.outset
+            ),
+            StateColors(
+                inputFill,
+                inputFill,
+                inputFill,
+                palette.input.withAlpha(
+                    palette.input.alpha *
+                        if (dark)
+                            0.8
+                        else
+                            0.5
+                )
+            ),
+            states(palette.input),
+            foreground,
+            focus
+        )
+    val action =
+        surfacePart(
+            SurfaceMetrics(
+                Size(0.0, 32.0),
+                Size(0.0, 0.0),
+                Insets(10.0, 4.0, 10.0, 4.0),
+                Insets.all(1.0),
+                CornerRadii.all(10.0),
+                focus.outset
+            ),
+            StateColors(
+                palette.primary.background,
+                palette.primary.background.withAlpha(0.8),
+                palette.primary.background.withAlpha(0.8),
+                palette.primary.background
+            ),
+            StateColors.solid(Color.Transparent),
+            states(palette.primary.foreground),
+            focus
+        )
+    val elevated =
+        surfacePart(
+            SurfaceMetrics(
+                Size(0.0, 0.0),
+                Size(0.0, 0.0),
+                Insets.all(16.0),
+                Insets.all(1.0),
+                CornerRadii.all(10.0),
+                focus.outset
+            ),
+            states(palette.popover.background),
+            states(palette.border),
+            states(palette.popover.foreground),
+            focus
+        ) { this.shadows = tokens.effects.floating }
+    val marker =
+        markerAppearance(
+            states(inputFill),
+            states(palette.primary.background),
+            states(palette.input),
+            states(palette.primary.background),
+            states(palette.primary.foreground),
+            focus
+        )
+    return shapeTheme(
+        tokens,
+        surfaceParts(plain, action, elevated),
+        checkboxPart(
+            CheckboxMetrics(
+                Size(16.0, 16.0),
+                Size(16.0, 16.0),
+                Insets.all(1.0),
+                CornerRadii.all(4.0),
+                3.0,
+                2.0,
+                focus.outset
+            ),
+            marker
+        ),
+        radioPart(RadioMetrics(Size(16.0, 16.0), Size(16.0, 16.0), 1.0, 4.0, focus.outset), marker),
+        scrollbarPart(
+            ScrollbarMetrics(10.0, 24.0, 0.0, 2.0, 5.0, None),
+            StateColors.solid(Color.Transparent),
+            states(palette.border),
+            StateColors.solid(Color.Transparent),
+            foreground
+        ),
+        configure
+    )
+}
+
+private fun states(color: Color): StateColors = StateColors.solid(color)

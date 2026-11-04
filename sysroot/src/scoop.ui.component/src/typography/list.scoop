@@ -1,0 +1,136 @@
+package scoop.ui.component
+
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.component.frame as makeFrame
+import scoop.ui.component.row as makeRow
+
+private class TypographyListEntry(val content: PanelContent, val key: ViewKey)
+
+public class TypographyListBuilder internal constructor() {
+    private val entries = ArrayList<TypographyListEntry>()
+    public var fonts: FontCollection? = None
+    public var theme: ThemeSource? = None
+    public var key: ViewKey = ViewKey.Position
+    public fun item(value: String, key: ViewKey = ViewKey.Position): Unit {
+        entries.add(
+            TypographyListEntry(PanelContent.Label(LabelProps(LabelText.Plain(value, None))), key)
+        )
+    }
+    public fun item(value: StyledText, key: ViewKey = ViewKey.Position): Unit {
+        entries.add(
+            TypographyListEntry(PanelContent.Label(LabelProps(LabelText.Styled(value))), key)
+        )
+    }
+    public fun item(value: View, key: ViewKey = ViewKey.Position): Unit {
+        entries.add(TypographyListEntry(PanelContent.Custom(value), key))
+    }
+    internal fun build(): View =
+        component(
+            TypographyListProps(entries.toArray(), fonts, theme),
+            { current -> TypographyList(current) },
+            key
+        )
+}
+
+public fun typographyList(configure: TypographyListBuilder.() -> Unit): View =
+    makeTypographyList(configure)
+
+internal fun makeTypographyList(configure: TypographyListBuilder.() -> Unit): View {
+    val builder = TypographyListBuilder()
+    builder.configure()
+    return builder.build()
+}
+
+private class TypographyListProps(
+    val entries: Array<TypographyListEntry>,
+    val fonts: FontCollection?,
+    val theme: ThemeSource?
+)
+
+private class TypographyList(private val props: Props<TypographyListProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val density = theme.tokens.typography.body.fontSize / 14.0
+        val base = typographyStyle(TypographyRole.P, theme)
+        return column {
+            this.spacing = 8.0 * density
+            this.alignment = CrossAlignment.Stretch
+            for (index in 0L ..< input.entries.size) {
+                val entry = input.entries[index]
+                this.add(
+                    makeRow {
+                        this.key =
+                            if (entry.key == ViewKey.Position)
+                                ViewKey.Number(index)
+                            else
+                                entry.key
+                        this.logicalPadding = Some(LogicalInsets(start = 8.0 * density))
+                        this.spacing = 8.0 * density
+                        this.alignment = CrossAlignment.Baseline
+                        this.add(
+                            makeFrame(
+                                makeStyledLabel(
+                                    styledText {
+                                        this.style = base
+                                        this.text("•")
+                                    }
+                                ) { this.fonts = input.fonts }
+                            ) { this.width = Some(8.0 * density) }
+                        )
+                        this.item(
+                            typographyCaption(entry.content, base, input.fonts, input.theme)
+                        ) {
+                            this.grow = 1.0
+                            this.basis = FlexBasis.Content
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+/** Styled captions keep explicit styles; custom views retain their own behavior. */
+internal fun typographyCaption(
+    content: PanelContent,
+    base: TextStyle,
+    fonts: FontCollection?,
+    theme: ThemeSource?
+): View =
+    when (content) {
+        case Custom(view) -> view
+        case Label(input) -> {
+            val text =
+                when (input.text) {
+                    case Plain(value, local) -> TypographyContent.Styled(
+                        styledText {
+                            this.style =
+                                local?.resolve(input.baseStyle ?: base) ?: (input.baseStyle ?: base)
+                            this.text(value)
+                        }
+                    )
+                    case Styled(value) -> TypographyContent.Styled(value)
+                }
+            makeTypography(text, TypographyRole.P) {
+                this.fonts =
+                    if (panelPresent(input.fonts))
+                        input.fonts
+                    else
+                        fonts
+                this.theme =
+                    if (panelPresent(input.theme))
+                        input.theme
+                    else
+                        theme
+                this.settings = input.settings
+                this.inlines = input.inlines
+            }
+        }
+    }

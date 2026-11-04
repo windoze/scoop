@@ -1,0 +1,87 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.text.FontCollection
+import scoop.graphics.text.spanStyle
+import scoop.surface.*
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.component.column as makeColumn
+import scoop.ui.component.row as makeRow
+import scoop.ui.component.kbd as makeKbd
+import scoop.ui.style.*
+import scoop.window.*
+
+internal class KbdExamples(
+    private val model: GalleryModel,
+    private val fonts: FontCollection
+): Component {
+    public override fun onMount(scope: ComponentScope) {
+        model.shortcutScope =
+            Some(
+                scope.resource {
+                    ShortcutScope(
+                        scope.input,
+                        [shortcutBinding(model.shortcut, { model.shortcutActions.value += 1 })]
+                    )
+                }
+            )
+    }
+    public override fun render(): View {
+        val model = this.model
+        val fonts = this.fonts
+        return makeColumn {
+            this.typography("Kbd", TypographyRole.H1) { this.fonts = Some(fonts) }
+            this.typography(
+                "Platform key labels share the chord used by the action.",
+                TypographyRole.Lead
+            ) { this.fonts = Some(fonts) }
+            this.row {
+                this.kbd(model.shortcut) { this.fonts = Some(fonts) }
+                this.kbdGroup(model.shortcut) { this.fonts = Some(fonts) }
+                this.kbdGroup(
+                    ShortcutChord(
+                        ShortcutKey.Logical(LogicalKey.Character("p")),
+                        ShortcutModifiers(primary = true, shift = true)
+                    )
+                ) { this.fonts = Some(fonts) }
+                this.spacing = 20.0
+                this.alignment = CrossAlignment.Center
+            }
+            this.kbdGroup {
+                this.kbd("↑") { this.fonts = Some(fonts) }
+                this.kbd("↓") { this.fonts = Some(fonts) }
+                this.kbd("←") { this.fonts = Some(fonts) }
+                this.kbd("→") { this.fonts = Some(fonts) }
+                this.label("Navigate") { this.fonts = Some(fonts) }
+                this.spacing = 8.0
+            }
+            this.button(
+                {
+                    appearance: ActionContentStyle -> makeRow {
+                        this.label("Increment") {
+                            this.fonts = Some(fonts);
+                            this.style =
+                                Some(spanStyle { this.color = Some(appearance.text.color) })
+                        }
+                        this.add(makeKbd(model.shortcut) { this.fonts = Some(fonts) })
+                        this.spacing = appearance.spacing
+                        this.alignment = CrossAlignment.Center
+                    }
+                },
+                { model.shortcutActions.value += 1 }
+            ) {
+                this.variant = ButtonVariant.Outline
+                this.focus { this.handle = Some(model.shortcutFocus) }
+            }
+            this.typography(f"Action count: ${model.shortcutActions.value}", TypographyRole.Large) {
+                this.fonts = Some(fonts)
+            }
+            this.typography(
+                "Focus the button and press the displayed shortcut. Changing the theme or text direction keeps the same binding.",
+                TypographyRole.Muted
+            ) { this.fonts = Some(fonts) }
+            this.spacing = 24.0
+            this.padding = Insets(6.0, 6.0, 12.0, 12.0)
+        }
+    }
+}

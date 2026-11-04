@@ -1,0 +1,173 @@
+package scoop.examples.ui.shadcn
+
+import scoop.charset.unicodeCasefold
+import scoop.graphics.Image
+import scoop.surface.ShortcutScope
+import scoop.text.contains
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.style.shadcn.shadcnTheme
+import scoop.ui.text.TextEditorState
+import scoop.window.*
+
+internal enum Demo {
+    Button, Input, Checkbox, Badge, Spinner, Card, Separator, AspectRatio, Alert, Empty, Avatar, Skeleton, Progress, Typography, Kbd, Label
+}
+
+internal enum ControlDemo {
+    Button, Input, Checkbox
+}
+
+internal fun demoTitle(value: Demo): String =
+    when (value) {
+        case Button -> "Button"
+        case Input -> "Input"
+        case Checkbox -> "Checkbox"
+        case Badge -> "Badge"
+        case Spinner -> "Spinner"
+        case Card -> "Card"
+        case Separator -> "Separator"
+        case AspectRatio -> "Aspect Ratio"
+        case Alert -> "Alert"
+        case Empty -> "Empty"
+        case Avatar -> "Avatar"
+        case Skeleton -> "Skeleton"
+        case Progress -> "Progress"
+        case Typography -> "Typography"
+        case Kbd -> "Kbd"
+        case Label -> "Label"
+    }
+
+internal class GalleryModel {
+    val source = ThemeSource(shadcnTheme())
+    val fields = FieldExamplesModel()
+    val mode = state(ThemeMode.Light)
+    val direction = state(LayoutDirection.Ltr)
+    val selected = state(Demo.Button)
+    val query = TextEditorState()
+    val name = TextEditorState("Scoop")
+    val invalidName = TextEditorState("not-an-email")
+    val disabledName = TextEditorState("Read only while disabled")
+    val clicks = state(0)
+    val checked = state(false)
+    val invalidChecked = state(false)
+    val busy = state(false)
+    val spinnerScroll = ScrollState()
+    val reduced = state(false)
+    val badgeEnabled = state(true)
+    val badgeAction = state(true)
+    val badgeStep = state(1)
+    val badgeClicks = state(0)
+    val badgeFocus = FocusHandle()
+    val buttonFocus = FocusHandle()
+    val inputFocus = FocusHandle()
+    val checkboxFocus = FocusHandle()
+    val panelExpanded = state(true)
+    val panelNarrow = state(false)
+    val panelCompact = state(false)
+    val panelStep = state(1)
+    val panelClicks = state(0)
+    val cardFocus = FocusHandle()
+    val alertFocus = FocusHandle()
+    val emptyFocus = FocusHandle()
+    val emptyQuery = TextEditorState()
+    val avatarMode = state(2)
+    var avatarImages: Array<Image> = []
+    val skeletonLoading = state(true)
+    val skeletonAnimated = state(true)
+    val skeletonChildRunning = state(false)
+    val skeletonFocus = FocusHandle()
+    val loadingExtent = state(520.0)
+    val loadingTransparent = state(false)
+    val skeletonScroll = ScrollState()
+    val progressScroll = ScrollState()
+    val progressValue = state<Double?>(None)
+    var skeletonCreates = 0
+    var skeletonCount = 0
+    val typographyNarrow = state(false)
+    val typographySelectable = state(true)
+    val typographyFocus = FocusHandle()
+    val typographyActionFocus = FocusHandle()
+    var typographySelection = Utf8Selection(0L, 0L)
+    val typographyActions = state(0)
+    val shortcut =
+        ShortcutChord(
+            ShortcutKey.Logical(LogicalKey.Character("i")),
+            ShortcutModifiers(primary = true)
+        )
+    val shortcutActions = state(0)
+    val shortcutFocus = FocusHandle()
+    var shortcutScope: ShortcutScope? = None
+
+    fun toggleTheme() {
+        val next =
+            if (mode.value == ThemeMode.Light)
+                ThemeMode.Dark
+            else
+                ThemeMode.Light
+        mode.value = next
+        refreshTheme()
+    }
+    fun refreshTheme() {
+        val preference =
+            if (reduced.value)
+                MotionPreference.Reduced
+            else
+                MotionPreference.Full
+        source.current.value =
+            shadcnTheme(mode.value) { tokens { motion { this.preference = preference } } }
+    }
+    fun toggleMotion() {
+        reduced.value = !reduced.value
+        refreshTheme()
+    }
+    fun toggleDirection() {
+        direction.value =
+            if (direction.value == LayoutDirection.Ltr)
+                LayoutDirection.Rtl
+            else
+                LayoutDirection.Ltr
+    }
+    fun entries(): Array<Demo> {
+        val search = unicodeCasefold(query.text)
+        val result = ArrayList<Demo>()
+        for (
+            entry in [
+                Demo.Button,
+                Demo.Input,
+                Demo.Checkbox,
+                Demo.Badge,
+                Demo.Spinner,
+                Demo.Card,
+                Demo.Separator,
+                Demo.AspectRatio,
+                Demo.Alert,
+                Demo.Empty,
+                Demo.Avatar,
+                Demo.Skeleton,
+                Demo.Progress,
+                Demo.Typography,
+                Demo.Kbd,
+                Demo.Label
+            ]
+        )
+            if (unicodeCasefold(demoTitle(entry)).contains(search))
+                result.add(entry)
+        return result.toArray()
+    }
+    fun current(entries: Array<Demo>): Demo? {
+        for (entry in entries)
+            if (entry == selected.value)
+                return Some(entry)
+        return if (entries.size == 0L)
+            None
+        else
+            Some(entries[0L])
+    }
+    fun focus(value: ControlDemo): FocusHandle =
+        when (value) {
+            case Button -> buttonFocus
+            case Input -> inputFocus
+            case Checkbox -> checkboxFocus
+        }
+}

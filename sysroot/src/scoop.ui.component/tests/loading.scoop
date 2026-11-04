@@ -1,0 +1,143 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.surface.Easing
+import scoop.test.*
+import scoop.time.Duration
+import scoop.ui.*
+
+@Test
+private class LoadingContentTest {
+    @Test
+    fun `progress normalizes finite ranges without changing caller values`() {
+        assertEquals(Some(0.0), ProgressProps(Some(-20.0), 10.0, 30.0).position)
+        assertEquals(Some(0.5), ProgressProps(Some(20.0), 10.0, 30.0).position)
+        assertEquals(Some(1.0), ProgressProps(Some(40.0), 10.0, 30.0).position)
+        assertEquals(None, ProgressProps(None).position)
+        assertEquals("67%", progressCaption(Some(2.0 / 3.0)))
+        assertEquals("…", progressCaption(None))
+        for (value in [Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY]) {
+            assertFailsWith<IllegalArgumentException> { ProgressProps(Some(value)) }
+            assertFailsWith<IllegalArgumentException> { ProgressProps(None, maximum = value) }
+        }
+        assertFailsWith<IllegalArgumentException> { ProgressProps(None, 1.0, 1.0) }
+        assertFailsWith<IllegalArgumentException> {
+            ProgressProps(None, -Double.MAX_VALUE, Double.MAX_VALUE)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ProgressProps(None, Double.MIN_VALUE, -Double.MIN_VALUE)
+        }
+        assertFailsWith<IllegalArgumentException> { ProgressProps(None, thickness = Some(-1.0)) }
+        assertFailsWith<IllegalArgumentException> { ProgressProps(None, period = Duration.ZERO) }
+        val size = Size(100.0, 4.0)
+        assertEquals(
+            Rect(0.0, 0.0, 25.0, 4.0),
+            progressIndicator(size, Some(0.25), 0.25, 0.0, LayoutDirection.Ltr)
+        )
+        assertEquals(
+            Rect(75.0, 0.0, 25.0, 4.0),
+            progressIndicator(size, Some(0.25), 0.25, 0.0, LayoutDirection.Rtl)
+        )
+        val middle = progressIndicator(size, None, 0.0, 0.5, LayoutDirection.Ltr)
+        assertTrue(middle.x > 34.99 && middle.x < 35.01)
+        assertEquals(30.0, middle.width)
+        assertEquals(-30.0, progressIndicator(size, None, 0.0, 0.0, LayoutDirection.Ltr).x)
+        assertEquals(100.0, progressIndicator(size, None, 0.0, 0.0, LayoutDirection.Rtl).x)
+    }
+
+    @Test
+    fun `skeleton reserves the same constrained body geometry and pulses symmetrically`() {
+        val limits = Constraints(maxWidth = Some(180.0), maxHeight = Some(50.0))
+        val loading = SkeletonProps(empty(), width = Some(240.0), height = Some(32.0))
+        val loaded =
+            SkeletonProps(empty(), loading = false, width = Some(240.0), height = Some(32.0))
+        assertEquals(Constraints.tight(Size(180.0, 32.0)), skeletonConstraints(loading, limits))
+        assertEquals(skeletonConstraints(loading, limits), skeletonConstraints(loaded, limits))
+        assertEquals(
+            Constraints(180.0, Some(180.0), 0.0, Some(50.0)),
+            skeletonConstraints(SkeletonProps(empty()), limits)
+        )
+        assertEquals(Constraints(), skeletonConstraints(SkeletonProps(empty()), Constraints()))
+        assertEquals(
+            Rect(20.0, 0.0, 40.0, 40.0),
+            skeletonBounds(Size(80.0, 40.0), SkeletonShape.Circle)
+        )
+        val easing = Easing.cubicBezier(0.4, 0.0, 0.6, 1.0)
+        assertEquals(1.0, skeletonOpacity(0.0, easing))
+        assertEquals(0.5, skeletonOpacity(0.5, easing))
+        assertEquals(1.0, skeletonOpacity(1.0, easing))
+        assertEquals(skeletonOpacity(0.25, easing), skeletonOpacity(0.75, easing))
+        assertFailsWith<IllegalArgumentException> {
+            SkeletonProps(empty(), width = Some(Double.NaN))
+        }
+        assertFailsWith<IllegalArgumentException> { SkeletonProps(empty(), height = Some(-1.0)) }
+        assertFailsWith<IllegalArgumentException> { SkeletonProps(empty(), period = Duration.ZERO) }
+    }
+
+    @Test
+    fun `avatar groups overlap adjacent widths without reversing their order`() {
+        val sizes = [Size(24.0, 24.0), Size(32.0, 32.0), Size(40.0, 40.0)]
+        val normal = avatarGroupPositions(sizes, 8.0)
+        assertEquals(0.0, normal[0L])
+        assertEquals(16.0, normal[1L])
+        assertEquals(40.0, normal[2L])
+        val collapsed = avatarGroupPositions(sizes, 100.0)
+        for (position in collapsed)
+            assertEquals(0.0, position)
+        val mixed = avatarGroupPositions([Size(40.0, 40.0), Size(8.0, 8.0), Size(32.0, 32.0)], 20.0)
+        assertEquals(32.0, mixed[1L])
+        assertEquals(32.0, mixed[2L])
+        assertEquals(24.0, avatarSide(AvatarSize.Sm))
+        assertEquals(40.0, avatarSide(AvatarSize.Lg))
+        assertEquals(8.0, avatarBadgeSide(AvatarSize.Sm))
+        assertFailsWith<IllegalArgumentException> { avatarGroup { this.count(-1L) } }
+        assertFailsWith<IllegalArgumentException> { avatarGroup { this.overlap = Double.NaN } }
+    }
+
+    @Test
+    fun `loading visibility uses actual clips and ignores transparent or empty geometry`() {
+        RasterSurface(100, 100).use {
+            raster -> raster.draw {
+                canvas ->
+                canvas.clipRect(Rect(10.0, 10.0, 40.0, 40.0))
+                assertTrue(loadingVisible(canvas, Rect(5.0, 5.0, 10.0, 10.0), 1.0))
+                assertFalse(loadingVisible(canvas, Rect(70.0, 70.0, 10.0, 10.0), 1.0))
+                assertFalse(loadingVisible(canvas, Rect(20.0, 20.0, 0.0, 10.0), 1.0))
+                assertFalse(loadingVisible(canvas, Rect(20.0, 20.0, 10.0, 10.0), 0.0))
+            }
+        }
+    }
+
+    @Test
+    fun `loading child builders append once and defer nested callbacks`() {
+        val columns = ArrayList<LinearBuilder>()
+        val calls = ArrayList<Int>()
+        val actions = ArrayList<Int>()
+        val content = button("Loaded", { actions.add(1) })
+        column {
+            columns.add(this)
+            this.avatar("SC") { calls.add(1) }
+            this.avatar(content) { calls.add(2) }
+            this.avatarGroup {
+                calls.add(3);
+                this.avatar("AA");
+                this.count(4L)
+            }
+            this.skeleton { calls.add(4) }
+            this.skeleton(content) { calls.add(5) }
+            this.progress(25.0) {
+                calls.add(6);
+                this.label("Upload")
+            }
+            this.progress(None) {
+                calls.add(7);
+                this.valueLabel("Pending")
+            }
+        }
+        assertEquals(7L, columns[0L].snapshot().children.size)
+        assertEquals(7L, calls.size)
+        assertEquals(0L, actions.size)
+        for (index in 0L ..< calls.size)
+            assertEquals((index + 1L).toInt(), calls[index])
+    }
+}

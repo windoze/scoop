@@ -8,17 +8,21 @@ internal fun InputRouter.reserveFocusRequest(): ULong {
     return focusRevision
 }
 
-internal fun InputRouter.focus(area: InputArea): Boolean {
+internal fun InputRouter.focus(area: InputArea, origin: FocusOrigin): Boolean {
     checkOpen()
     requireInput(area.owner === this, "input area belongs to another window")
     reserveFocusRequest()
     if (!area.canFocus)
         return false
     area.lastFocusRequest = Some(focusRevision)
+    val visible = area.isFocusVisible
+    area.lastFocusOrigin = origin
     if (!sameArea(logicalFocus, Some(area))) {
         logicalFocus = Some(area)
         changed()
-    }
+    } else
+        if (visible != area.isFocusVisible)
+            changed()
     return true
 }
 
@@ -41,7 +45,8 @@ internal fun InputRouter.reconcileFocus() {
             logicalFocus
         else
             None
-    if (!sameArea(next, activeFocus)) {
+    val ownerChanged = !sameArea(next, activeFocus)
+    if (ownerChanged) {
         val previous = activeFocus
         activeFocus = next
         when (previous) {
@@ -53,6 +58,16 @@ internal fun InputRouter.reconcileFocus() {
             case None -> {}
         }
     }
+    val visible = next?.isFocusVisible ?: false
+    if (visible != activeFocusVisible) {
+        activeFocusVisible = visible
+        if (!ownerChanged) {
+            when (next) {
+                case Some(area) -> notify(area.scope, InputEvent.FocusVisibilityChanged(visible))
+                case None -> {}
+            }
+        }
+    }
     if (!closed)
         reconcileIme()
 }
@@ -62,7 +77,24 @@ internal fun InputRouter.routeFocused(event: InputEvent) {
         return
     val chain = focusedPath()
     when (event) {
-        case Keyboard(key) -> route(deliveries(chain), event, key.time)
+        case Keyboard(key) -> {
+            when (activeFocus) {
+                case Some(area) -> if (
+                    !key.synthetic &&
+                        key.state ==
+                        ElementState.Pressed &&
+                        area.lastFocusOrigin !=
+                        FocusOrigin.Keyboard
+                ) {
+                    val visible = area.isFocusVisible
+                    area.lastFocusOrigin = FocusOrigin.Keyboard
+                    if (visible != area.isFocusVisible)
+                        changed()
+                }
+                case None -> {}
+            }
+            route(deliveries(chain), event, key.time)
+        }
         else -> throw IllegalArgumentException(Some("only keyboard input uses focused routing"))
     }
 }

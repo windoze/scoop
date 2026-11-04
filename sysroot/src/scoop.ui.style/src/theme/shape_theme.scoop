@@ -28,7 +28,12 @@ public class ShapeTheme internal constructor(
                         Some(
                             themeBorder(
                                 part.metrics.borderInsets,
-                                part.border.resolve(visual.interaction)
+                                outlineBorder(
+                                    part.border.resolve(visual.interaction),
+                                    visual.interaction,
+                                    options.focus ?: part.focus,
+                                    options.validation ?: tokens.validation
+                                )
                             )
                         ),
                     corners = Corners.Physical(part.metrics.corners),
@@ -55,7 +60,7 @@ public class ShapeTheme internal constructor(
                 options.padding ?: part.metrics.padding,
                 physicalEdges(style).insets,
                 style.corners.resolve(direction),
-                focus.outset
+                outlineOutset(focus, options.validation ?: tokens.validation)
             )
         themeSize(result.suggestedSize);
         themeSize(result.minimumSize);
@@ -80,12 +85,14 @@ public class ShapeTheme internal constructor(
             outline,
             inner,
             insetTheme(bounds, metrics.contentInsets),
-            focusTheme(
+            outlineTheme(
                 outline,
                 visual.interaction,
-                options.focus ?: surfaces.get(visual.kind).focus
+                options.focus ?: surfaces.get(visual.kind).focus,
+                options.validation ?: tokens.validation
             ),
-            surfaceStyle(visual, options, direction)
+            surfaceStyle(visual, options, direction),
+            controlOpacity(visual.interaction.enabled)
         )
     }
     public override fun checkboxMetrics(
@@ -112,7 +119,7 @@ public class ShapeTheme internal constructor(
                 corners,
                 options.markInset ?: base.markInset,
                 base.markWidth,
-                focus.outset
+                outlineOutset(focus, options.validation ?: tokens.validation)
             )
         for (value in [size, min, result.markInset, result.markWidth, focus.outset, focus.width])
             themeLength(value)
@@ -149,7 +156,9 @@ public class ShapeTheme internal constructor(
                         visual.interaction,
                         amount,
                         metrics.borderInsets,
-                        outline.radii
+                        outline.radii,
+                        options.focus ?: appearance.focus,
+                        options.validation ?: tokens.validation
                     )
                 ),
                 direction
@@ -161,10 +170,16 @@ public class ShapeTheme internal constructor(
             mark,
             tick,
             roundTheme(mixed, width / 2.0),
-            focusTheme(outline, visual.interaction, options.focus ?: appearance.focus),
+            outlineTheme(
+                outline,
+                visual.interaction,
+                options.focus ?: appearance.focus,
+                options.validation ?: tokens.validation
+            ),
             style,
             options.markColor ?: appearance.mark.resolve(visual.interaction),
-            amount
+            amount,
+            controlOpacity(visual.interaction.enabled)
         )
     }
     public override fun radioMetrics(options: RadioOptions): RadioMetrics {
@@ -184,7 +199,7 @@ public class ShapeTheme internal constructor(
                 Size(min, min),
                 width,
                 options.dotInset ?: base.dotInset,
-                focus.outset
+                outlineOutset(focus, options.validation ?: tokens.validation)
             )
         for (value in [size, min, width, result.dotInset, focus.outset, focus.width])
             themeLength(value)
@@ -212,17 +227,20 @@ public class ShapeTheme internal constructor(
                 visual.interaction,
                 amount,
                 Insets.all(metrics.ringWidth),
-                CornerRadii.all(outer.radius)
+                CornerRadii.all(outer.radius),
+                options.focus ?: appearance.focus,
+                options.validation ?: tokens.validation
             )
         return RadioGeometry(
             bounds,
             outer,
             interior,
             dot,
-            focusTheme(
+            outlineTheme(
                 roundTheme(square, outer.radius),
                 visual.interaction,
-                options.focus ?: appearance.focus
+                options.focus ?: appearance.focus,
+                options.validation ?: tokens.validation
             ),
             style.copy {
                 this.background = options.background.resolve(this.background)
@@ -236,7 +254,8 @@ public class ShapeTheme internal constructor(
                     }
             },
             options.dotColor ?: appearance.mark.resolve(visual.interaction),
-            amount
+            amount,
+            controlOpacity(visual.interaction.enabled)
         )
     }
     public override fun scrollbarMetrics(options: ScrollbarOptions): ScrollbarMetrics {
@@ -270,7 +289,14 @@ public class ShapeTheme internal constructor(
         options: ScrollbarOptions
     ): ScrollbarGeometry =
         makeScrollbarGeometry(bounds, visual, scrollbarMetrics(options), scrollbar.arrowWidth)
-    public override fun createPainter(): ThemePainter = ShapeThemePainter(scrollbar)
+    private fun controlOpacity(enabled: Boolean): Double =
+        if (enabled)
+            1.0
+        else
+            themeUnit(tokens.disabledOpacity)
+
+    public override fun createPainter(): ThemePainter =
+        ShapeThemePainter(scrollbar, controlOpacity(false))
 }
 
 private fun markerStyle(
@@ -278,7 +304,9 @@ private fun markerStyle(
     visual: InteractionVisual,
     selection: Double,
     insets: Insets,
-    radii: CornerRadii
+    radii: CornerRadii,
+    focus: OutlineStyle,
+    validation: OutlineStyle
 ): Style =
     Style(
         background =
@@ -295,10 +323,15 @@ private fun markerStyle(
             Some(
                 themeBorder(
                     insets,
-                    mixThemeColor(
-                        appearance.border.resolve(visual),
-                        appearance.selectedBorder.resolve(visual),
-                        selection
+                    outlineBorder(
+                        mixThemeColor(
+                            appearance.border.resolve(visual),
+                            appearance.selectedBorder.resolve(visual),
+                            selection
+                        ),
+                        visual,
+                        focus,
+                        validation
                     )
                 )
             ),

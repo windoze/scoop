@@ -1,6 +1,8 @@
 package scoop.ui
 
 import scoop.platform.concurrent.currentThreadId
+import scoop.surface.FocusOrigin
+import scoop.surface.FocusVisibility
 
 /** Stable owner-thread reference to a mounted focus target. */
 public class FocusHandle public constructor() {
@@ -22,16 +24,21 @@ public class FocusHandle public constructor() {
         val current = target ?: return false
         return current.active && current.area.isFocusActive
     }
+    public val isFocusVisible: Boolean get() {
+        checkUiThread(thread)
+        val current = target ?: return false
+        return current.active && current.area.isFocusVisible
+    }
     public val isPending: Boolean get() {
         checkUiThread(thread)
         val current = target ?: return false
         return current.active && current.node.root.focus.isPending(current)
     }
-    public fun requestFocus(): Boolean {
+    public fun requestFocus(origin: FocusOrigin = FocusOrigin.Programmatic): Boolean {
         checkUiThread(thread)
         checkFocusMutation()
         val current = target ?: return false
-        return current.node.root.focus.request(current)
+        return current.node.root.focus.request(current, origin)
     }
     public fun clearFocus() {
         checkUiThread(thread)
@@ -72,7 +79,8 @@ public class FocusHandle public constructor() {
 public struct FocusOptions(
     val handle: FocusHandle? = None,
     val tabStop: Boolean = true,
-    val order: Int = 0
+    val order: Int = 0,
+    val visibility: FocusVisibility = FocusVisibility.Automatic
 )
 
 public struct FocusScopeOptions(

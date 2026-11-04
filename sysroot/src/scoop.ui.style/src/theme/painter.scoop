@@ -3,7 +3,10 @@ package scoop.ui.style
 import scoop.graphics.*
 import scoop.platform.concurrent.currentThreadId
 
-internal class ShapeThemePainter(private val scrollbar: ScrollbarPart): ThemePainter {
+internal class ShapeThemePainter(
+    private val scrollbar: ScrollbarPart,
+    private val disabledOpacity: Double
+): ThemePainter {
     private val owner = currentThreadId()
     private var closed = false
     private var painting = false
@@ -36,6 +39,8 @@ internal class ShapeThemePainter(private val scrollbar: ScrollbarPart): ThemePai
     ) {
         draw(canvas) {
             local ->
+            if (layer == SurfaceLayer.All && geometry.opacity < 1.0)
+                local.saveLayer(geometry.opacity)
             val style = geometry.style
             if (layer != SurfaceLayer.Foreground)
                 background.paint(
@@ -53,9 +58,10 @@ internal class ShapeThemePainter(private val scrollbar: ScrollbarPart): ThemePai
                     geometry.outline.bounds,
                     Style(border = style.border, corners = Corners.Physical(geometry.outline.radii))
                 ) { _ -> }
-                if (visual.interaction.enabled && visual.interaction.focused)
-                    drawFocus(local, geometry.focus, focusPainter)
+                drawFocus(local, geometry.ring, focusPainter)
             }
+            if (layer == SurfaceLayer.All && geometry.opacity < 1.0)
+                local.restore()
         }
     }
     public override fun drawCheckbox(
@@ -65,6 +71,8 @@ internal class ShapeThemePainter(private val scrollbar: ScrollbarPart): ThemePai
     ) {
         draw(canvas) {
             local ->
+            if (geometry.opacity < 1.0)
+                local.saveLayer(geometry.opacity)
             marker.paint(local, geometry.outline.bounds, geometry.style) {
                 content -> if (geometry.selection > 0.0) {
                     val color =
@@ -75,13 +83,16 @@ internal class ShapeThemePainter(private val scrollbar: ScrollbarPart): ThemePai
                     }
                 }
             }
-            if (visual.interaction.enabled && visual.interaction.focused)
-                drawFocus(local, geometry.focus, focusPainter)
+            drawFocus(local, geometry.ring, focusPainter)
+            if (geometry.opacity < 1.0)
+                local.restore()
         }
     }
     public override fun drawRadio(canvas: Canvas, geometry: RadioGeometry, visual: RadioVisual) {
         draw(canvas) {
             local ->
+            if (geometry.opacity < 1.0)
+                local.saveLayer(geometry.opacity)
             marker.paint(local, geometry.outer.bounds, geometry.style) {
                 content -> if (geometry.dot.radius > 0.0)
                     content.drawCircle(
@@ -94,8 +105,9 @@ internal class ShapeThemePainter(private val scrollbar: ScrollbarPart): ThemePai
                         )
                     )
             }
-            if (visual.interaction.enabled && visual.interaction.focused)
-                drawFocus(local, geometry.focus, focusPainter)
+            drawFocus(local, geometry.ring, focusPainter)
+            if (geometry.opacity < 1.0)
+                local.restore()
         }
     }
     public override fun drawScrollbar(
@@ -105,7 +117,12 @@ internal class ShapeThemePainter(private val scrollbar: ScrollbarPart): ThemePai
     ) {
         draw(canvas) {
             local ->
-            val opacity = themeUnit(visual.opacity)
+            val opacity =
+                themeUnit(visual.opacity) *
+                    if (visual.enabled)
+                        1.0
+                    else
+                        disabledOpacity
             if (opacity < 1.0)
                 local.saveLayer(opacity)
             drawRound(
@@ -180,7 +197,7 @@ private fun drawStroke(canvas: Canvas, stroke: StrokeSegment, color: Color) {
     canvas.drawLine(stroke.bend, stroke.end, paint)
 }
 
-private fun drawFocus(canvas: Canvas, focus: FocusOutline?, painter: StylePainter) {
+private fun drawFocus(canvas: Canvas, focus: OutlineRing?, painter: StylePainter) {
     when (focus) {
         case Some(value) -> painter.paint(
             canvas,

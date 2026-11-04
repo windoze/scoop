@@ -1,0 +1,102 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.*
+
+/** Typed text or a custom view used by content components. */
+public enum PanelContent {
+    Label(LabelProps), Custom(View)
+}
+
+public open class PanelBuilder internal constructor() {
+    public var title: PanelContent? = None
+    public var description: PanelContent? = None
+    public var fonts: FontCollection? = None
+    public var theme: ThemeSource? = None
+    public var style: StyleOverride = styleOverride()
+    public var key: ViewKey = ViewKey.Position
+    public fun title(text: String): Unit {
+        title = Some(PanelContent.Label(LabelProps(LabelText.Plain(text, None))))
+    }
+    public fun title(text: StyledText): Unit {
+        title = Some(PanelContent.Label(LabelProps(LabelText.Styled(text))))
+    }
+    public fun title(content: View): Unit {
+        title = Some(PanelContent.Custom(content))
+    }
+    public fun description(text: String): Unit {
+        description = Some(PanelContent.Label(LabelProps(LabelText.Plain(text, None))))
+    }
+    public fun description(text: StyledText): Unit {
+        description = Some(PanelContent.Label(LabelProps(LabelText.Styled(text))))
+    }
+    public fun description(content: View): Unit {
+        description = Some(PanelContent.Custom(content))
+    }
+    public fun style(configure: StyleOverrideBuilder.() -> Unit): Unit {
+        style = style.copy(configure)
+    }
+}
+
+internal fun panelCaption(
+    content: PanelContent,
+    base: TextStyle,
+    fonts: FontCollection?,
+    centered: Boolean = false
+): View =
+    when (content) {
+        case Custom(view) -> view
+        case Label(input) -> component(
+            LabelProps(
+                input.text,
+                if (!panelPresent(input.fonts))
+                    fonts
+                else
+                    input.fonts,
+                if (!panelPresent(input.settings) && centered)
+                    Some(paragraphStyle { this.alignment = TextAlignment.Center })
+                else
+                    input.settings,
+                input.inlines,
+                input.theme,
+                if (!panelPresent(input.baseStyle) && !panelPresent(input.theme))
+                    Some(base)
+                else
+                    input.baseStyle,
+                input.underline
+            ),
+            { current -> Label(current) }
+        )
+    }
+
+internal fun panelFrame(
+    content: View,
+    padding: Insets = Insets(),
+    visual: StyleOverride = styleOverride(),
+    width: Double? = None,
+    key: ViewKey = ViewKey.Position
+): View =
+    frame(content) {
+        this.padding = Some(padding)
+        this.style = visual
+        this.width = width
+        this.key = key
+        this.alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start)
+    }
+
+internal fun topBorder(color: Color): Border =
+    Border.Physical(BorderEdges(top = BorderEdge(1.0, color)))
+
+internal fun bottomBorder(color: Color): Border =
+    Border.Physical(BorderEdges(bottom = BorderEdge(1.0, color)))
+
+internal fun <T> panelPresent(value: T?): Boolean =
+    when (value) {
+        case Some(_) -> true;
+        case None -> false
+    }
+
+internal fun panelSlot(content: View, key: Long): View =
+    panelFrame(content, key = ViewKey.Number(key))

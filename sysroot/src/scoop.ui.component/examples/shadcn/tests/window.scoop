@@ -1,0 +1,467 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.graphics.native.withSkiaCanvas
+import scoop.graphics.text.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.tests.graphics.readNativePixel
+import scoop.tests.surface.*
+import scoop.tests.textfonts.testSansBytes
+import scoop.tests.window.saveNativeClipboard
+import scoop.tests.window.restoreNativeClipboard
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.component.alert
+import scoop.ui.component.frame
+import scoop.ui.component.emptyState
+import scoop.ui.component.progress
+import scoop.ui.component.avatarGroup
+import scoop.ui.component.AvatarSize
+import scoop.ui.style.*
+import scoop.window.*
+
+@Test
+private class GalleryWindowTest {
+    @Test
+    fun `real gallery retains input and actions while theme direction and animation changes preserve lifecycle`() {
+        runGallery(false)
+    }
+    @Test
+    fun `content panels retain focused bodies across optional sections narrow layouts and theme changes`() {
+        runGallery(true)
+    }
+    @Test
+    fun `loading controls retain content borrow images and stop invisible animation`() {
+        runGallery(false, true)
+    }
+    @Test
+    fun `typography copies inline code retains selection and shares actual keyboard shortcuts`() {
+        @Unsafe
+        {
+            val clipboard = saveNativeClipboard()!!
+            try {
+                runGallery(false, false, true)
+            }
+            finally {
+                assertEquals(0, restoreNativeClipboard(clipboard))
+            }
+        }
+    }
+    private fun runGallery(panels: Boolean, loading: Boolean = false, text: Boolean = false) {
+        val probe = GalleryProbe(panels, loading, text)
+        val host = UiHost { owner, active, event -> probe.event(owner, active, event) }
+        try {
+            context(probe.model.source) {
+                host.use { owner -> Application().run(owner) }
+            }
+            assertTrue(probe.finished)
+            assertEquals(1, probe.creates)
+            assertFalse(probe.fonts.isClosed)
+            assertFalse(probe.frames!!.snapshot().attached)
+            assertFalse(probe.model.buttonFocus.isAttached)
+            assertFalse(probe.model.inputFocus.isAttached)
+            assertFalse(probe.model.checkboxFocus.isAttached)
+            assertFalse(probe.model.badgeFocus.isAttached)
+            assertFalse(probe.model.cardFocus.isAttached)
+            assertFalse(probe.model.alertFocus.isAttached)
+            assertFalse(probe.model.emptyFocus.isAttached)
+            assertFalse(probe.model.skeletonFocus.isAttached)
+            assertFalse(probe.model.typographyFocus.isAttached)
+            assertFalse(probe.model.typographyActionFocus.isAttached)
+            assertFalse(probe.model.shortcutFocus.isAttached)
+        } catch (error: Throwable) {
+            println(f"gallery phase=${probe.phase}, paints=${probe.paints}")
+            galleryFailure(error)
+            throw error
+        } finally {
+            host.close()
+            probe.frames?.close()
+            probe.fonts.close()
+        }
+    }
+}
+
+internal fun galleryFailure(error: Throwable) {
+    if (error is ResourceUseException) {
+        galleryFailure(error.primaryFailure)
+        galleryFailure(error.cleanupFailure)
+    } else
+        if (error is AssertionFailure) {
+            println(
+                f"${error.location.file}:${error.location.line}: ${error.message ?: "assertion"}"
+            )
+            when (error.expected) {
+                case Text(value) -> println(f"expected: ${value}");
+                else -> {}
+            }
+            when (error.actual) {
+                case Text(value) -> println(f"actual: ${value}");
+                else -> {}
+            }
+        } else
+            if (error is Exception)
+                println(error.message ?: "gallery failure")
+}
+
+internal class GalleryProbe(
+    val panelMode: Boolean = false,
+    val loadingMode: Boolean = false,
+    val textMode: Boolean = false
+) {
+    val model = GalleryModel()
+    val fonts = FontCollection(false)
+    var native: Window? = None
+    var frames: FrameProbe? = None
+    var creates = 0
+    var paints = 0
+    var pixel = -1L
+    var phase =
+        if (textMode)
+            122
+        else
+            if (loadingMode)
+                65
+            else
+                if (panelMode)
+                    43
+                else
+                    0
+    private val endPhase =
+        if (textMode)
+            144
+        else
+            if (loadingMode)
+                122
+            else
+                if (panelMode)
+                    65
+                else
+                    43
+    var finished = false
+    var invalidRing: OutlineRing? = None
+    var invalidBorder: Color? = None
+    var invalidFocus = false
+    var disabledSeen = false
+    var disabledRing: OutlineRing? = None
+    private val actions = GalleryActions(this)
+    private val panels = GalleryPanels(this)
+    private val loading = GalleryLoading(this)
+    private val text = GalleryTypography(this)
+    private var afterPaint = 0
+    private var waiting = false
+    init {
+        for (family in model.source.current.value.tokens.typography.body.families)
+            fonts.register(testSansBytes, family)
+        observeTheme()
+        if (panelMode)
+            model.selected.value = Demo.Card
+        if (loadingMode) {
+            model.selected.value = Demo.Avatar
+            model.skeletonLoading.value = false
+        }
+        if (textMode) {
+            model.selected.value = Demo.Typography
+            fonts.register(testSansBytes, "monospace")
+        }
+    }
+    private fun observeTheme() {
+        model.source.current.value = GalleryTheme(model.source.current.value, this)
+    }
+    fun event(host: UiHost, active: ActiveApplication, event: ApplicationEvent) {
+        when (event) {
+            case Resumed -> {
+                val window =
+                    active.createWindow(
+                        windowAttributes {
+                            this.title = "Scoop shadcn gallery test"
+                            this.size = LogicalSize(1120.0, 780.0)
+                        }
+                    )
+                native = Some(window)
+                window.setWindowLevel(WindowLevel.AlwaysOnTop)
+                frames = Some(observeFrames(window))
+                host.attach(window, { ObservedGallery(this) })
+                window.requestFocus()
+                waitFor(active, 25000L)
+            }
+            case AboutToWait -> if (phase < endPhase && native!!.isFocused)
+                advance(active)
+            case NewEvents(StartCause.Deadline) -> deadline(active)
+            case Window(_, WindowEvent.Destroyed) -> {
+                finished = phase == endPhase
+                active.requestExit()
+            }
+            else -> {}
+        }
+    }
+    private fun advance(active: ActiveApplication) {
+        if (phase >= endPhase || waiting || paints <= afterPaint || pixel < 0L)
+            return
+        afterPaint = paints
+        if (textMode) {
+            text.advance(active)
+            return
+        }
+        if (loadingMode) {
+            loading.advance(active)
+            return
+        }
+        if (panelMode) {
+            panels.advance(active)
+            return
+        }
+        if (phase >= 14) {
+            actions.advance(active)
+            return
+        }
+        when (phase) {
+            case 0 -> {
+                assertValidation()
+                assertTrue(disabledSeen)
+                assertEquals(None, disabledRing)
+                assertTrue(model.buttonFocus.requestFocus())
+                phase += 1
+            }
+            case 1 -> {
+                assertTrue(model.buttonFocus.isFocusVisible)
+                key(active, 49)
+            }
+            case 2 -> {
+                assertEquals(1, model.clicks.value)
+                model.toggleTheme()
+                observeTheme()
+                model.toggleDirection()
+                phase += 1
+            }
+            case 3 -> {
+                assertEquals(ThemeMode.Dark, model.mode.value)
+                assertEquals(LayoutDirection.Rtl, model.direction.value)
+                assertTrue(model.buttonFocus.isFocusVisible)
+                assertValidation()
+                assertEquals(1, model.clicks.value)
+                model.name.replaceAll("")
+                model.selected.value = Demo.Input
+                phase += 1
+            }
+            case 4 -> {
+                assertFalse(model.buttonFocus.isAttached)
+                assertTrue(model.inputFocus.requestFocus())
+                phase += 1
+            }
+            case 5 -> {
+                assertTrue(model.inputFocus.isFocusVisible)
+                assertEquals(0, galleryText(native!!, "ni", true))
+                phase += 1
+            }
+            case 6 -> {
+                assertTrue(model.name.isComposing)
+                model.toggleTheme()
+                observeTheme()
+                phase += 1
+            }
+            case 7 -> {
+                assertTrue(model.inputFocus.hasFocus)
+                assertTrue(model.name.isComposing)
+                assertEquals(0, galleryText(native!!, "你好", false))
+                phase += 1
+            }
+            case 8 -> {
+                assertEquals("你好", model.name.text)
+                assertFalse(model.name.isComposing)
+                assertValidation()
+                model.selected.value = Demo.Checkbox
+                phase += 1
+            }
+            case 9 -> {
+                assertFalse(model.inputFocus.isAttached)
+                assertTrue(model.checkboxFocus.requestFocus())
+                phase += 1
+            }
+            case 10 -> key(active, 49)
+            case 11 -> {
+                assertTrue(model.checked.value)
+                model.invalidChecked.value = true
+                phase += 1
+            }
+            case 12 -> {
+                assertEquals(
+                    Some(model.source.current.value.tokens.palette.primary.background),
+                    invalidBorder
+                )
+                assertEquals(
+                    model.source.current.value.tokens.validation.color,
+                    invalidRing!!.border.color
+                )
+                model.selected.value = Demo.Button
+                phase += 1
+            }
+            case 13 -> {
+                assertEquals("你好", model.name.text)
+                assertTrue(model.checked.value)
+                assertEquals(1, model.clicks.value)
+                model.selected.value = Demo.Badge
+                phase = 14
+            }
+            else -> fail(Some("unexpected gallery phase"))
+        }
+    }
+    private fun assertValidation() {
+        val tokens = model.source.current.value.tokens
+        assertFalse(invalidFocus)
+        assertEquals(tokens.validation.color, invalidRing!!.border.color)
+        assertEquals(tokens.validation.borderColor, invalidBorder)
+        val color = tokens.palette.background.background
+        val expected = [color.red, color.green, color.blue]
+        val actual = [pixel % 256L, pixel / 256L % 256L, pixel / 65536L]
+        for (index in 0L ..< 3L) {
+            val delta = expected[index] * 255.0 - actual[index].toDouble()
+            assertTrue(delta >= -1.0 && delta <= 1.0)
+        }
+    }
+    internal fun key(active: ActiveApplication, code: Int) {
+        waiting = true
+        assertTrue(sendSurfaceKey(native!!, code, true))
+        assertTrue(sendSurfaceKey(native!!, code, false))
+        assertTrue(
+            active.proxy().post {
+                _ ->
+                phase += 1;
+                waiting = false
+            }
+        )
+    }
+    private fun deadline(active: ActiveApplication) {
+        if (textMode)
+            text.deadline(active)
+        else
+            if (loadingMode)
+                loading.deadline(active)
+            else
+                if (panelMode)
+                    panels.deadline(active)
+                else
+                    if (phase >= 14)
+                        actions.deadline(active)
+                    else
+                        fail(Some(f"gallery timed out at phase ${phase}"))
+    }
+    internal fun waitFor(active: ActiveApplication, milliseconds: Long) {
+        active.setControlFlow(
+            ControlFlow.WaitUntil(
+                MonotonicTimeSource.markNow() + Duration.milliseconds(milliseconds)
+            )
+        )
+    }
+}
+
+private class ObservedGallery(private val probe: GalleryProbe): Component {
+    public override fun render(): View {
+        val children = ArrayList<View>()
+        children.add(
+            component(
+                {
+                    probe.creates += 1
+                    Gallery(probe.model, probe.fonts)
+                }
+            )
+        )
+        if (probe.panelMode)
+            children.add(
+                alert(
+                    frame(empty()) {
+                        this.width = Some(80.0);
+                        this.height = Some(24.0)
+                    }
+                ) {
+                    this.icon(
+                        frame(empty()) {
+                            this.width = Some(16.0);
+                            this.height = Some(16.0)
+                        }
+                    )
+                    this.action(
+                        frame(empty()) {
+                            this.width = Some(40.0);
+                            this.height = Some(16.0)
+                        }
+                    )
+                }
+            )
+        if (probe.panelMode)
+            children.add(
+                emptyState(
+                    frame(empty()) {
+                        this.width = Some(80.0);
+                        this.height = Some(24.0)
+                    }
+                )
+            )
+        if (probe.loadingMode) {
+            children.add(
+                progress(25.0) {
+                    this.label("Progress")
+                    this.showValue = true
+                    this.fonts = Some(this @ObservedGallery.probe.fonts)
+                }
+            )
+            children.add(
+                avatarGroup {
+                    this.avatar("AA") {
+                        this.size = AvatarSize.Sm;
+                        this.fonts = Some(this @ObservedGallery.probe.fonts)
+                    }
+                    this.avatar("BB") { this.fonts = Some(this @ObservedGallery.probe.fonts) }
+                    this.avatar("CC") {
+                        this.size = AvatarSize.Lg;
+                        this.fonts = Some(this @ObservedGallery.probe.fonts)
+                    }
+                }
+            )
+        }
+        if (probe.textMode)
+            for (child in typographyMeasurements(probe.fonts))
+                children.add(child)
+        return element({ GalleryCanvas(probe) }, children.toArray())
+    }
+}
+
+private class GalleryCanvas(private val probe: GalleryProbe): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val result = context.measureChild(0L, constraints)
+        context.placeChild(0L, Point(0.0, 0.0))
+        if (probe.panelMode) {
+            val natural = context.measureChild(1L, Constraints())
+            assertEquals(Size(172.0, 40.0), natural.size)
+            val bounded = context.measureChild(2L, Constraints(maxWidth = Some(600.0)))
+            assertEquals(Size(600.0, 72.0), bounded.size)
+            val intrinsic = context.measureChild(2L, Constraints())
+            assertEquals(Size(432.0, 72.0), intrinsic.size)
+            // These children check measurement and are not part of the painted gallery.
+        }
+        if (probe.loadingMode) {
+            val progress = context.measureChild(1L, Constraints(maxWidth = Some(320.0)))
+            assertEquals(Size(320.0, 36.0), progress.size)
+            val group = context.measureChild(2L, Constraints())
+            assertEquals(Size(84.0, 44.0), group.size)
+        }
+        if (probe.textMode)
+            measureTypography(context)
+        return result
+    }
+    public override fun scene(context: SceneContext) {
+        context.children()
+        probe.paints += 1
+        context.draw {
+            paint -> @Unsafe
+            {
+                paint.canvas.withSkiaCanvas {
+                    native -> @Unsafe
+                    {
+                        probe.pixel = readNativePixel(native, 1.0, 1.0)
+                    }
+                }
+            }
+        }
+    }
+}

@@ -21,6 +21,7 @@ path = "src"
 "scoop:scoop.window" = "0.1.0"
 
 [test-dependencies]
+"scoop:scoop.ui.style.shadcn" = "0.1.0"
 "scoop:scoop.test" = "0.1.0"
 "scoop:scoop.ui.style.macos" = "0.1.0"
 "scoop:scoop.ui.style.material" = "0.1.0"

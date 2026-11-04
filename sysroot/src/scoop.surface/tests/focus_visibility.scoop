@@ -1,0 +1,79 @@
+package scoop.surface
+
+import scoop.graphics.*
+import scoop.test.*
+import scoop.window.*
+
+@Test
+private class FocusVisibilityTest {
+    @Test
+    fun `pointer focus and real keyboard share one indication without another focus session`() {
+        InputRig().use {
+            rig ->
+            val area = rig.area("button", true)
+            rig.frame { frame, canvas -> frame.place(canvas, area, Rect(0.0, 0.0, 40.0, 30.0)) }
+            rig.move(10.0, 10.0)
+            rig.button(10.0, 10.0, ElementState.Pressed)
+            rig.button(10.0, 10.0, ElementState.Released)
+            assertTrue(area.isFocusActive)
+            assertFalse(area.isFocusVisible)
+            assertEquals(FocusOrigin.Pointer, area.focusOrigin)
+            val revision = area.focusRevision
+            rig.router.event(WindowEvent.Keyboard(inputKey(true)))
+            assertFalse(area.isFocusVisible)
+            rig.log.events.clear()
+            rig.router.event(WindowEvent.Keyboard(inputKey()))
+            assertTrue(area.isFocusVisible)
+            assertEquals(FocusOrigin.Keyboard, area.focusOrigin)
+            assertEquals(revision, area.focusRevision)
+            var notifications = 0
+            for (record in rig.log.events) {
+                when (record.event) {
+                    case FocusVisibilityChanged(true) -> {
+                        notifications += 1
+                        assertEquals(RoutedPhase.Notification, record.phase)
+                    }
+                    case FocusChanged(_) -> fail(Some("indication restarted the focus session"))
+                    else -> {}
+                }
+            }
+            assertEquals(1, notifications)
+            assertTrue(area.requestFocus(FocusOrigin.Pointer))
+            assertFalse(area.isFocusVisible)
+            assertTrue(area.requestFocus())
+            assertTrue(area.isFocusVisible)
+        }
+    }
+
+    @Test
+    fun `visibility policies do not change focus selection or IME ownership`() {
+        InputRig().use {
+            rig ->
+            val area = rig.area("editor", text = true)
+            rig.frame { frame, canvas -> frame.place(canvas, area, Rect(0.0, 0.0, 40.0, 30.0)) }
+            assertTrue(area.requestFocus(FocusOrigin.Pointer))
+            assertTrue(area.isFocusVisible)
+            rig.router.event(WindowEvent.TextInput(TextInputEvent.Enabled(None)))
+            val revision = area.focusRevision
+            val imeRequests = rig.log.ime.size
+            area.focusVisibility = FocusVisibility.Never
+            assertFalse(area.isFocusVisible)
+            assertTrue(area.hasFocus)
+            area.focusVisibility = FocusVisibility.Always
+            assertTrue(area.isFocusVisible)
+            assertEquals(revision, area.focusRevision)
+            assertEquals(imeRequests, rig.log.ime.size)
+            rig.router.event(WindowEvent.Focused(false))
+            assertFalse(area.isFocusVisible)
+            rig.router.event(WindowEvent.Focused(true))
+            assertTrue(area.isFocusVisible)
+            assertEquals(FocusOrigin.Pointer, area.focusOrigin)
+            area.scope.enabled = false
+            assertFalse(area.isFocusVisible)
+            assertFalse(area.requestFocus(FocusOrigin.Keyboard))
+            assertEquals(FocusOrigin.Pointer, area.focusOrigin)
+            area.close()
+            assertFalse(area.isFocusVisible)
+        }
+    }
+}

@@ -1,0 +1,101 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.text.FontCollection
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.component.column as makeColumn
+import scoop.ui.component.skeleton as makeSkeleton
+import scoop.ui.style.Insets
+import scoop.ui.text.TextEditorState
+
+internal class FieldExamplesModel {
+    val name = TextEditorState("Scoop")
+    val notes = TextEditorState("A native form with associated labels.")
+    val checked = state(false)
+    val enabled = state(true)
+    val loading = state(false)
+    val targets = [FieldTarget(), FieldTarget(), FieldTarget()]
+}
+
+internal fun fieldLabelExamples(model: FieldExamplesModel, fonts: FontCollection): View {
+    val controls =
+        makeColumn {
+            this.column {
+                this.fieldLabel("Name", model.targets[0L]) { this.fonts = Some(fonts) }
+                this.input(model.name) {
+                    this.fonts = Some(fonts)
+                    this.enabled = model.enabled.value
+                    this.labelTarget = Some(model.targets[0L])
+                }
+                this.spacing = 8.0
+                this.alignment = CrossAlignment.Stretch
+            }
+            this.column {
+                this.fieldLabel("Notes", model.targets[1L]) { this.fonts = Some(fonts) }
+                this.textarea(model.notes) {
+                    this.fonts = Some(fonts)
+                    this.rows = 3L
+                    this.enabled = model.enabled.value
+                    this.labelTarget = Some(model.targets[1L])
+                }
+                this.spacing = 8.0
+                this.alignment = CrossAlignment.Stretch
+            }
+            this.row {
+                this.checkbox(model.checked.binding()) {
+                    this.enabled = model.enabled.value
+                    this.labelTarget = Some(model.targets[2L])
+                }
+                this.fieldLabel("Send me product updates", model.targets[2L]) {
+                    this.fonts = Some(fonts)
+                }
+                this.spacing = 8.0
+                this.alignment = CrossAlignment.Center
+            }
+            this.spacing = 24.0
+            this.alignment = CrossAlignment.Stretch
+        }
+    return makeColumn {
+        this.typography("Label", TypographyRole.H1) { this.fonts = Some(fonts) }
+        this.typography(
+            "Click a label to focus its input or change its checkbox.",
+            TypographyRole.Lead
+        ) { this.fonts = Some(fonts) }
+        this.row {
+            this.button(
+                if (model.enabled.value)
+                    "Disable form"
+                else
+                    "Enable form",
+                { model.enabled.value = !model.enabled.value }
+            ) {
+                this.fonts = Some(fonts)
+                this.variant = ButtonVariant.Outline
+            }
+            this.button(
+                if (model.loading.value)
+                    "Show form"
+                else
+                    "Show loading state",
+                { model.loading.value = !model.loading.value }
+            ) {
+                this.fonts = Some(fonts)
+                this.variant = ButtonVariant.Outline
+            }
+            this.spacing = 8.0
+        }
+        this.frame(makeSkeleton(controls) { this.loading = model.loading.value }) {
+            this.width = Some(480.0)
+        }
+        this.typography(
+            if (model.checked.value)
+                "Subscribed to product updates."
+            else
+                "Product updates are off.",
+            TypographyRole.Muted
+        ) { this.fonts = Some(fonts) }
+        this.spacing = 24.0
+        this.padding = Insets(6.0, 6.0, 12.0, 12.0)
+        this.alignment = CrossAlignment.Start
+    }
+}

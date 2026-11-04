@@ -15,33 +15,67 @@ public fun macosTheme(
     val palette =
         if (dark)
             ThemePalette(
-                canvas = Color(0.12, 0.12, 0.13),
-                surface = Color(0.23, 0.23, 0.25),
-                elevated = Color(0.28, 0.28, 0.30),
-                text = Color(0.94, 0.94, 0.96),
-                secondaryText = Color(0.70, 0.70, 0.73),
-                disabledText = Color(0.48, 0.48, 0.51),
+                background = ColorPair(Color(0.12, 0.12, 0.13), Color(0.94, 0.94, 0.96)),
+                card = ColorPair(Color(0.23, 0.23, 0.25), Color(0.94, 0.94, 0.96)),
+                popover = ColorPair(Color(0.28, 0.28, 0.30), Color(0.94, 0.94, 0.96)),
+                primary = ColorPair(Color(0.04, 0.52, 1.0), Color.White),
+                secondary = ColorPair(Color(0.23, 0.23, 0.25), Color(0.94, 0.94, 0.96)),
+                muted = ColorPair(Color(0.12, 0.12, 0.13), Color(0.70, 0.70, 0.73)),
+                accent = ColorPair(Color(0.28, 0.28, 0.30), Color(0.94, 0.94, 0.96)),
+                destructive = ColorPair(Color(1.0, 0.42, 0.38), Color.White),
                 border = Color(0.40, 0.40, 0.43),
-                accent = Color(0.04, 0.52, 1.0),
-                onAccent = Color.White,
-                focus = Color(0.20, 0.60, 1.0),
-                shadow = Color.Black.withAlpha(0.42),
-                error = Color(1.0, 0.42, 0.38)
+                input = Color(0.40, 0.40, 0.43),
+                ring = Color(0.20, 0.60, 1.0),
+                chart =
+                    ChartPalette(
+                        Color(0.04, 0.52, 1.0),
+                        Color(1.0, 0.42, 0.38),
+                        Color(0.70, 0.70, 0.73),
+                        Color(0.20, 0.60, 1.0),
+                        Color(0.94, 0.94, 0.96)
+                    ),
+                sidebar =
+                    SidebarPalette(
+                        ColorPair(Color(0.12, 0.12, 0.13), Color(0.94, 0.94, 0.96)),
+                        ColorPair(Color(0.04, 0.52, 1.0), Color.White),
+                        ColorPair(Color(0.28, 0.28, 0.30), Color(0.94, 0.94, 0.96)),
+                        Color(0.40, 0.40, 0.43),
+                        Color(0.20, 0.60, 1.0)
+                    ),
+                disabledText = Color(0.48, 0.48, 0.51),
+                shadow = Color.Black.withAlpha(0.42)
             )
         else
             ThemePalette(
-                canvas = Color(0.94, 0.94, 0.96),
-                surface = Color.White,
-                elevated = Color.White,
-                text = Color(0.12, 0.12, 0.14),
-                secondaryText = Color(0.40, 0.40, 0.43),
-                disabledText = Color(0.62, 0.62, 0.65),
+                background = ColorPair(Color(0.94, 0.94, 0.96), Color(0.12, 0.12, 0.14)),
+                card = ColorPair(Color.White, Color(0.12, 0.12, 0.14)),
+                popover = ColorPair(Color.White, Color(0.12, 0.12, 0.14)),
+                primary = ColorPair(Color(0.0, 0.48, 1.0), Color.White),
+                secondary = ColorPair(Color.White, Color(0.12, 0.12, 0.14)),
+                muted = ColorPair(Color(0.94, 0.94, 0.96), Color(0.40, 0.40, 0.43)),
+                accent = ColorPair(Color.White, Color(0.12, 0.12, 0.14)),
+                destructive = ColorPair(Color(0.82, 0.14, 0.12), Color.White),
                 border = Color(0.70, 0.70, 0.73),
-                accent = Color(0.0, 0.48, 1.0),
-                onAccent = Color.White,
-                focus = Color(0.0, 0.48, 1.0),
-                shadow = Color.Black.withAlpha(0.18),
-                error = Color(0.82, 0.14, 0.12)
+                input = Color(0.70, 0.70, 0.73),
+                ring = Color(0.0, 0.48, 1.0),
+                chart =
+                    ChartPalette(
+                        Color(0.0, 0.48, 1.0),
+                        Color(0.82, 0.14, 0.12),
+                        Color(0.40, 0.40, 0.43),
+                        Color(0.0, 0.48, 1.0),
+                        Color(0.12, 0.12, 0.14)
+                    ),
+                sidebar =
+                    SidebarPalette(
+                        ColorPair(Color(0.94, 0.94, 0.96), Color(0.12, 0.12, 0.14)),
+                        ColorPair(Color(0.0, 0.48, 1.0), Color.White),
+                        ColorPair(Color.White, Color(0.12, 0.12, 0.14)),
+                        Color(0.70, 0.70, 0.73),
+                        Color(0.0, 0.48, 1.0)
+                    ),
+                disabledText = Color(0.62, 0.62, 0.65),
+                shadow = Color.Black.withAlpha(0.18)
             )
     val families = [".AppleSystemUIFont", "Helvetica Neue", "sans-serif"]
     val fonts =
@@ -50,19 +84,19 @@ public fun macosTheme(
                 textStyle {
                     this.families = families
                     this.fontSize = 13.0
-                    this.color = palette.text
+                    this.color = palette.background.foreground
                 },
             caption =
                 textStyle {
                     this.families = families
                     this.fontSize = 11.0
-                    this.color = palette.secondaryText
+                    this.color = palette.muted.foreground
                 },
             action =
                 textStyle {
                     this.families = families
                     this.fontSize = 13.0
-                    this.color = palette.text
+                    this.color = palette.background.foreground
                     this.weight = 500
                 }
         )
@@ -70,14 +104,22 @@ public fun macosTheme(
         themeEffects {
             this.raised = [BoxShadow(Point(0.0, 1.0), 0.8, 0.8, palette.shadow)]
             this.floating = [BoxShadow(Point(0.0, 4.0), 8.0, 8.0, palette.shadow)]
-            this.emphasis = [ContentEffect.Glow(3.0, 3.0, palette.accent.withAlpha(0.45))]
+            this.emphasis =
+                [ContentEffect.Glow(3.0, 3.0, palette.primary.background.withAlpha(0.45))]
         }
     val tokens =
         themeTokens(
             palette = palette,
             typography = fonts,
             spacing = ThemeSpacing(4.0, 8.0, 12.0),
-            corners = ThemeCorners(3.0, 6.0, 10.0)
+            corners = ThemeCorners(3.0, 6.0, 10.0),
+            validation =
+                OutlineStyle(
+                    palette.destructive.background.withAlpha(0.72),
+                    2.0,
+                    2.0,
+                    Some(palette.destructive.background)
+                )
         ) {
             this.mode = mode
             motion {
@@ -89,29 +131,40 @@ public fun macosTheme(
         }
     val normal =
         StateColors(
-            palette.surface,
-            mixThemeColor(palette.surface, palette.accent, 0.08),
-            mixThemeColor(palette.surface, palette.text, 0.12),
-            mixThemeColor(palette.surface, palette.canvas, 0.55)
+            palette.card.background,
+            mixThemeColor(palette.card.background, palette.primary.background, 0.08),
+            mixThemeColor(palette.card.background, palette.background.foreground, 0.12),
+            mixThemeColor(palette.card.background, palette.background.background, 0.55)
         )
     val accent =
         StateColors(
-            palette.accent,
-            mixThemeColor(palette.accent, Color.White, 0.12),
-            mixThemeColor(palette.accent, Color.Black, 0.18),
-            mixThemeColor(palette.canvas, palette.accent, 0.28)
+            palette.primary.background,
+            mixThemeColor(palette.primary.background, Color.White, 0.12),
+            mixThemeColor(palette.primary.background, Color.Black, 0.18),
+            mixThemeColor(palette.background.background, palette.primary.background, 0.28)
         )
     val edges =
         StateColors(
             palette.border,
             palette.border,
-            palette.secondaryText,
-            mixThemeColor(palette.border, palette.canvas, 0.60)
+            palette.muted.foreground,
+            mixThemeColor(palette.border, palette.background.background, 0.60)
         )
-    val text = StateColors(palette.text, palette.text, palette.text, palette.disabledText)
+    val text =
+        StateColors(
+            palette.background.foreground,
+            palette.background.foreground,
+            palette.background.foreground,
+            palette.disabledText
+        )
     val onAccent =
-        StateColors(palette.onAccent, palette.onAccent, palette.onAccent, palette.disabledText)
-    val focus = FocusStyle(palette.focus.withAlpha(0.72), 3.0, 4.0)
+        StateColors(
+            palette.primary.foreground,
+            palette.primary.foreground,
+            palette.primary.foreground,
+            palette.disabledText
+        )
+    val focus = OutlineStyle(palette.ring.withAlpha(0.72), 3.0, 4.0)
     val plain =
         surfacePart(
             metrics =
@@ -155,7 +208,7 @@ public fun macosTheme(
                     CornerRadii.all(10.0),
                     focus.outset
                 ),
-            fill = StateColors.solid(palette.elevated),
+            fill = StateColors.solid(palette.popover.background),
             border = edges,
             foreground = text,
             focus = focus
@@ -167,20 +220,20 @@ public fun macosTheme(
             border = edges,
             selectedBorder = accent,
             mark = onAccent,
-            focus = FocusStyle(palette.focus.withAlpha(0.72), 2.5, 3.5)
+            focus = OutlineStyle(palette.ring.withAlpha(0.72), 2.5, 3.5)
         )
     val track =
         StateColors(
             Color.Transparent,
-            palette.secondaryText.withAlpha(0.12),
-            palette.secondaryText.withAlpha(0.18),
+            palette.muted.foreground.withAlpha(0.12),
+            palette.muted.foreground.withAlpha(0.18),
             Color.Transparent
         )
     val thumb =
         StateColors(
-            palette.secondaryText.withAlpha(0.58),
-            palette.secondaryText.withAlpha(0.85),
-            palette.text,
+            palette.muted.foreground.withAlpha(0.58),
+            palette.muted.foreground.withAlpha(0.85),
+            palette.background.foreground,
             palette.disabledText.withAlpha(0.3)
         )
     return shapeTheme(

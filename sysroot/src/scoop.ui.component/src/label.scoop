@@ -1,5 +1,6 @@
 package scoop.ui.component
 
+import scoop.graphics.*
 import scoop.graphics.text.*
 import scoop.ui.*
 import scoop.ui.text.*
@@ -15,7 +16,8 @@ public class LabelProps public constructor(
     public val settings: ParagraphStyle? = None,
     public val inlines: Array<InlineView> = [],
     public val theme: ThemeSource? = None,
-    public val baseStyle: TextStyle? = None
+    public val baseStyle: TextStyle? = None,
+    public val underline: Color? = None
 )
 
 /** A normal component; text measurement and ownership belong to the public ParagraphHost. */
@@ -137,5 +139,24 @@ private class LabelInk(private val props: Props<LabelInkProps>): Element {
     }
     public override fun scene(context: SceneContext) {
         paragraph!!.scene(context)
+        when (props.value.input.underline) {
+            case Some(color) -> {
+                val boxes =
+                    paragraph!!.layout.selection(TextRange(0L, props.value.content.text.byteLength))
+                context.draw {
+                    paint -> for (box in boxes)
+                        paint.canvas.drawRect(
+                            Rect(
+                                box.rect.x,
+                                box.rect.y + box.rect.height - 1.0,
+                                box.rect.width,
+                                1.0
+                            ),
+                            Paint(color)
+                        )
+                }
+            }
+            case None -> {}
+        }
     }
 }

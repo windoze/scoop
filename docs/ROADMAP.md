@@ -868,13 +868,13 @@ iOS、Android、HarmonyOS 及 framework/JNI/Node-API 适配后置为独立设计
 - 已按平台合同、重新测量与 Flex／Wrap／Grid、方向、激活／拖动、候选项／悬浮、弹层退出、编辑策略／显示投影、装饰／图像、阅读位置及组合验收完成十一项交付，详见[实施记录](ui/component-foundations/PROGRESS.md)。所属 spec、实现、调用方和必要测试同步迁移，不保留旧 API 兼容路径。
 - 已完成 macOS aarch64 分批验证及 x86_64 Rosetta 补验，两架构各六个代表窗口组合通过，包含真实系统中文输入法。Windows／Linux 由其他分支补齐共同合同后接入；Rosetta 不等于真实 Intel 硬件验证。accessibility、原生控件交互、控件皮肤和业务模型不属于本轮基础交付。
 
-### shadcn 全套自绘控件（设计，未实施）
+### shadcn 全套自绘控件（实施中）
 
 - [设计](ui/shadcn/DESIGN.md)以 2026-11-04 的官方 Components 目录为基线，66 项中排除 Code Block／Native Select，完整覆盖其余 [64 项](ui/shadcn/CATALOG.md)，包括当前目录的消息、附件、问卷与 Trace。
 - 扩展现有 `scoop.ui.component`，新增独立 `scoop.ui.style.shadcn`；以 Base Nova／Neutral 的 Light／Dark 为默认复刻外观。公共 token、原有主题和控件同步演进，沿用同一 State／Props、输入、文本模型及接收者 DSL，不建立第二套同名控件库。
 - [API 与组合合同](ui/shadcn/API.md)明确类型化变体、内容插槽、标签关联、触发器和弹层焦点模式；焦点可见性、Select 内容锚点、OTP 槽几何及消息尾部留白随实际消费者补齐。
 - [复杂模型](ui/shadcn/MODELS.md)规定选择／菜单、日期、表格本地／外部结果、六类图表、Toast、回合阅读及问卷校验。业务 IO、路由、解析与持久化仍由应用或所属库负责。
-- 按主题纵向样例、八组控件和最终组合验收推进；各批先更新所属 spec，再实施与定向验证。先验 macOS aarch64，最后补 x86_64 Rosetta；其他平台后端和 OS accessibility 单独推进，不把文档中的拟议 API 记为已交付。
+- 按主题纵向样例、八组控件和最终组合验收推进；各批先更新所属 spec，再实施与定向验证，实际进度见[实施记录](ui/shadcn/PROGRESS.md)。先验 macOS aarch64，最后补 x86_64 Rosetta；其他平台后端和 OS accessibility 单独推进，不把文档中的拟议 API 记为已交付。
 
 ### UI 与图形后续增强（调研结论，未实施）
 

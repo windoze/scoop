@@ -1,0 +1,178 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.math.abs
+import scoop.test.*
+import scoop.time.Duration
+import scoop.ui.LayoutDirection
+import scoop.ui.style.*
+import scoop.ui.style.shadcn.shadcnTheme
+import scoop.ui.style.macos.macosTheme
+import scoop.ui.style.material.materialTheme
+import scoop.ui.style.fluent.fluentTheme
+
+@Test
+private class ActionVariantTest {
+    @Test
+    fun `all variants share theme outlines and keep explicit borders above validation`() {
+        val shape = ActionShape.Button(ButtonSize.Default)
+        val bounds = Rect(0.0, 0.0, 100.0, 32.0)
+        for (
+            theme in [
+                shadcnTheme(),
+                shadcnTheme(ThemeMode.Dark),
+                macosTheme(),
+                materialTheme(),
+                fluentTheme()
+            ]
+        ) {
+            for (
+                variant in [
+                    ButtonVariant.Default,
+                    ButtonVariant.Outline,
+                    ButtonVariant.Secondary,
+                    ButtonVariant.Ghost,
+                    ButtonVariant.Destructive,
+                    ButtonVariant.Link
+                ]
+            ) {
+                val visual = InteractionVisual(focusVisible = true, invalid = true)
+                val options = actionOptions(theme, shape, variant, buttonStyle(), visual)
+                val geometry =
+                    theme.surfaceGeometry(
+                        bounds,
+                        SurfaceVisual(SurfaceKind.Action, visual),
+                        options
+                    )
+                assertEquals(theme.tokens.validation.color, geometry.ring!!.border.color)
+                assertEquals(
+                    theme.tokens.validation.borderColor!!,
+                    geometry.style.border!!.resolve(LayoutDirection.Ltr).left.color
+                )
+                val custom =
+                    buttonStyle {
+                        surface { style { this.border(Some(Border.all(2.0, Color.White))) } }
+                        states { focused { this.border(Some(Border.all(3.0, Color.Black))) } }
+                    }
+                val overridden =
+                    theme.surfaceGeometry(
+                        bounds,
+                        SurfaceVisual(SurfaceKind.Action, visual),
+                        actionOptions(theme, shape, variant, custom, visual)
+                    )
+                assertEquals(Some(Border.all(3.0, Color.Black)), overridden.style.border)
+                assertEquals(geometry.ring, overridden.ring)
+            }
+        }
+    }
+
+    @Test
+    fun `nova dimensions and content scaling preserve explicit local options`() {
+        val theme = shadcnTheme()
+        val sizes =
+            [
+                ButtonSize.Xs,
+                ButtonSize.Sm,
+                ButtonSize.Default,
+                ButtonSize.Lg,
+                ButtonSize.IconXs,
+                ButtonSize.IconSm,
+                ButtonSize.Icon,
+                ButtonSize.IconLg
+            ]
+        val heights = [24.0, 28.0, 32.0, 36.0, 24.0, 28.0, 32.0, 36.0]
+        for (index in 0L ..< sizes.size) {
+            val shape = ActionShape.Button(sizes[index])
+            val options =
+                actionOptions(
+                    theme,
+                    shape,
+                    ButtonVariant.Outline,
+                    buttonStyle(),
+                    InteractionVisual()
+                )
+            val metrics = theme.surfaceMetrics(SurfaceVisual(SurfaceKind.Action), options)
+            assertEquals(heights[index], metrics.suggestedSize.height)
+            if (index >= 4L)
+                assertEquals(heights[index], metrics.suggestedSize.width)
+            val local =
+                buttonStyle {
+                    surface {
+                        this.suggestedSize = Some(Size(80.0, 44.0))
+                        this.padding = Some(Insets.all(7.0))
+                    }
+                }
+            val custom =
+                actionOptions(theme, shape, ButtonVariant.Outline, local, InteractionVisual())
+            assertEquals(local.surface.suggestedSize, custom.suggestedSize)
+            assertEquals(local.surface.padding, custom.padding)
+        }
+        val appearance =
+            actionContentStyle(
+                theme.tokens.typography.action.copy { this.fontSize = 28.0 },
+                ActionShape.Button(ButtonSize.Default),
+                ButtonVariant.Link,
+                InteractionVisual(hovered = true)
+            )
+        assertEquals(32.0, appearance.iconSize)
+        assertEquals(12.0, appearance.spacing)
+        assertTrue(appearance.underline)
+        assertEquals(16.0, actionIconSize(ActionShape.Button(ButtonSize.IconSm)))
+    }
+
+    @Test
+    fun `secondary hover uses perceptual mixing and badge destructive tint stays distinct`() {
+        val palette = shadcnTheme().tokens.palette
+        val mixed = secondaryHover(palette.secondary.background, palette.background.foreground)
+        assertTrue(abs(mixed.red - 0.906891292) < 0.00001)
+        assertTrue(abs(mixed.red - mixed.green) < 0.00001)
+        assertEquals(1.0, mixed.alpha)
+        assertEquals(Color.Transparent, secondaryHover(Color.Transparent, Color.Transparent))
+        val theme = shadcnTheme(ThemeMode.Dark)
+        val hover = InteractionVisual(hovered = true)
+        val outlined =
+            actionOptions(
+                theme,
+                ActionShape.Badge,
+                ButtonVariant.Outline,
+                buttonStyle(),
+                InteractionVisual()
+            )
+        val outline =
+            theme.surfaceGeometry(
+                Rect(0.0, 0.0, 80.0, 20.0),
+                SurfaceVisual(SurfaceKind.Action),
+                outlined
+            )
+        assertEquals(
+            theme.tokens.palette.border,
+            outline.style.border!!.resolve(LayoutDirection.Ltr).top.color
+        )
+        for (shape in [ActionShape.Button(ButtonSize.Default), ActionShape.Badge]) {
+            val options =
+                actionOptions(theme, shape, ButtonVariant.Destructive, buttonStyle(), hover)
+            val geometry =
+                theme.surfaceGeometry(
+                    Rect(0.0, 0.0, 80.0, 32.0),
+                    SurfaceVisual(SurfaceKind.Action, hover),
+                    options
+                )
+            assertEquals(
+                if (shape == ActionShape.Badge)
+                    0.2
+                else
+                    0.3,
+                geometry.style.background!!.color.alpha
+            )
+        }
+    }
+
+    @Test
+    fun `spinner accepts empty sizes but rejects invalid lengths and nonpositive periods`() {
+        assertEquals(Some(0.0), SpinnerProps(size = Some(0.0)).size)
+        assertFailsWith<IllegalArgumentException> { SpinnerProps(size = Some(-1.0)) }
+        assertFailsWith<IllegalArgumentException> { SpinnerProps(size = Some(Double.NaN)) }
+        assertFailsWith<IllegalArgumentException> { SpinnerProps(period = Duration.ZERO) }
+        assertFailsWith<IllegalArgumentException> { SpinnerProps(period = Duration.seconds(-1L)) }
+    }
+}

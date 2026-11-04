@@ -19,6 +19,7 @@ private fun focusRegion(destination: FocusDestination): Rect? =
 
 private class PendingFocus(
     val destination: FocusDestination,
+    val origin: FocusOrigin,
     val revision: ULong,
     var selected: FocusTarget?,
     val reveal: RevealAttempt
@@ -182,7 +183,7 @@ internal class FocusController(private val root: UiRoot): Closeable {
         if (value.search?.ownsBoundary(scope.node) ?: false)
             clearPending()
     }
-    fun request(target: FocusTarget): Boolean {
+    fun request(target: FocusTarget, origin: FocusOrigin = FocusOrigin.Programmatic): Boolean {
         clearPending()
         if (!root.isOpen)
             return false
@@ -190,7 +191,7 @@ internal class FocusController(private val root: UiRoot): Closeable {
             root.surface.reserveFocusRequest()
             return false
         }
-        return begin(FocusDestination.Target(target), Some(target))
+        return begin(FocusDestination.Target(target), Some(target), origin)
     }
     fun reveal(target: FocusTarget, rect: Rect): Boolean {
         clearPending()
@@ -227,19 +228,26 @@ internal class FocusController(private val root: UiRoot): Closeable {
         clearPending()
         if (!root.isOpen || !owner.available)
             return
-        beginSearch(FocusSearch.navigation(owner, entry, step, loop))
+        beginSearch(FocusSearch.navigation(owner, entry, step, loop), FocusOrigin.Keyboard)
     }
-    private fun beginSearch(search: FocusSearch): Boolean =
+    private fun beginSearch(
+        search: FocusSearch,
+        origin: FocusOrigin = FocusOrigin.Programmatic
+    ): Boolean =
         when (search.next(false)) {
-            case Target(target) -> begin(FocusDestination.Search(search), Some(target))
+            case Target(target) -> begin(FocusDestination.Search(search), Some(target), origin)
             case Item(visit) -> {
                 val reveal = RevealAttempt()
                 reveal.positionItem(visit.owner.viewport)
-                adopt(FocusDestination.Search(search), None, reveal)
+                adopt(FocusDestination.Search(search), None, reveal, origin)
             }
             case End -> false
         }
-    private fun begin(destination: FocusDestination, selected: FocusTarget?): Boolean {
+    private fun begin(
+        destination: FocusDestination,
+        selected: FocusTarget?,
+        origin: FocusOrigin = FocusOrigin.Programmatic
+    ): Boolean {
         val reveal = RevealAttempt()
         val region = focusRegion(destination)
         when (selected) {
@@ -250,19 +258,28 @@ internal class FocusController(private val root: UiRoot): Closeable {
                     root.surface.reserveFocusRequest()
                     return true
                 }
-                return target.area.requestFocus()
+                return target.area.requestFocus(origin)
             }
             case None -> {}
         }
-        return adopt(destination, selected, reveal)
+        return adopt(destination, selected, reveal, origin)
     }
     private fun adopt(
         destination: FocusDestination,
         selected: FocusTarget?,
-        reveal: RevealAttempt
+        reveal: RevealAttempt,
+        origin: FocusOrigin
     ): Boolean {
         pending =
-            Some(PendingFocus(destination, root.surface.reserveFocusRequest(), selected, reveal))
+            Some(
+                PendingFocus(
+                    destination,
+                    origin,
+                    root.surface.reserveFocusRequest(),
+                    selected,
+                    reveal
+                )
+            )
         root.requestFrame()
         return true
     }
@@ -283,7 +300,7 @@ internal class FocusController(private val root: UiRoot): Closeable {
                         target.available &&
                         (target.area.canFocus || canReveal(target))
                 )
-                    return request(target)
+                    return request(target, target.area.focusOrigin)
                 case None -> {}
             }
         }
@@ -336,7 +353,7 @@ internal class FocusController(private val root: UiRoot): Closeable {
                                     target.available &&
                                     target.area.canFocus
                             )
-                                target.area.requestFocus()
+                                target.area.requestFocus(value.origin)
                             return
                         }
                         case Moved -> {
@@ -413,7 +430,7 @@ internal class FocusController(private val root: UiRoot): Closeable {
         if (modifiers.control || modifiers.alt || modifiers.superKey || modifiers.function)
             return
         clearPending()
-        if (beginSearch(FocusSearch.tab(node, modifiers.shift, loop)))
+        if (beginSearch(FocusSearch.tab(node, modifiers.shift, loop), FocusOrigin.Keyboard))
             context.consume()
     }
     private fun clearPending() {

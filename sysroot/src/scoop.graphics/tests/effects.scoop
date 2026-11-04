@@ -213,6 +213,42 @@ private class ImageFilterTest {
     }
 
     @Test
+    fun `darken and lighten blend each channel and keep untouched pixels`() {
+        RasterSurface(8, 8).use {
+            surface -> for (mode in [BlendMode.Darken, BlendMode.Lighten]) {
+                surface.draw {
+                    canvas ->
+                    canvas.clear(Color(0.2, 0.6, 0.8))
+                    canvas.saveLayer(blendMode = mode)
+                    canvas.drawRect(Rect(2.0, 2.0, 4.0, 4.0), Paint(Color(0.8, 0.4, 0.5)))
+                    canvas.restore()
+                }
+                val pixels = surface.readPixels()
+                val expected =
+                    if (mode == BlendMode.Darken)
+                        [51, 102, 128]
+                    else
+                        [204, 153, 204]
+                for (index in 0 ..< 3) {
+                    val actual = channel(pixels, 8, 4, 4, index)
+                    assertTrue(
+                        actual >=
+                            expected[index.toLong()] -
+                            1 &&
+                            actual <=
+                            expected[index.toLong()] +
+                            1
+                    )
+                }
+                assertEquals(255, channel(pixels, 8, 4, 4, 3))
+                assertEquals(51, channel(pixels, 8, 0, 0, 0))
+                assertEquals(153, channel(pixels, 8, 0, 0, 1))
+                assertEquals(204, channel(pixels, 8, 0, 0, 2))
+            }
+        }
+    }
+
+    @Test
     fun `closed filters are rejected but active layers retain their references through exceptions`() {
         val filter = ImageFilter.dropShadowOnly(Point(12.0, 0.0), 0.0, 0.0, Color.White)
         Thread.start {

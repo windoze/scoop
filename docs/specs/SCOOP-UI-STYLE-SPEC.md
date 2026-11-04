@@ -37,6 +37,8 @@ StyleOverrideBuilder 另有与六个属性同名的设置方法，例如 `backgr
 
 `StyleOverride.then(next)` 有序组合覆盖：next 中的 Inherit 保留前一覆盖，Set 替换对应属性，包括显式 None 与完整效果数组。组合结果仍是覆盖描述，之后才对当前主题 resolve，不冻结旧主题。控件的普通／hover／pressed／focus／disabled 局部外观复用这个操作，再把结果交给主题计算几何。
 
+主题 InteractionVisual 的焦点输入为 `focusVisible`；InteractionStyles.focused 也以此判定是否应用。逻辑焦点继续由 UI／Surface 持有，样式层不记输入设备，失焦、指针聚焦及显式指示策略使用同一公共结果。
+
 | 输入 | 合同 |
 | --- | --- |
 | background | 可选 graphics Paint 填充，复用颜色／渐变描述；其 PaintingStyle 必须为 Fill |

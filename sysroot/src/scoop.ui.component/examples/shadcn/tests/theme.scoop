@@ -1,0 +1,67 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.ui.LayoutDirection
+import scoop.ui.style.*
+
+internal class GalleryTheme(private val base: Theme, private val probe: GalleryProbe): Theme {
+    public override val tokens: ThemeTokens get() = base.tokens
+    public override fun surfaceMetrics(
+        visual: SurfaceVisual,
+        options: SurfaceOptions,
+        direction: LayoutDirection
+    ): SurfaceMetrics = base.surfaceMetrics(visual, options, direction)
+    public override fun surfaceGeometry(
+        bounds: Rect,
+        visual: SurfaceVisual,
+        options: SurfaceOptions,
+        direction: LayoutDirection
+    ): SurfaceGeometry {
+        val geometry = base.surfaceGeometry(bounds, visual, options, direction)
+        record(visual.interaction, geometry.ring, geometry.style)
+        return geometry
+    }
+    public override fun surfaceTextColor(visual: SurfaceVisual): Color =
+        base.surfaceTextColor(visual)
+    public override fun checkboxMetrics(
+        options: CheckboxOptions,
+        direction: LayoutDirection
+    ): CheckboxMetrics = base.checkboxMetrics(options, direction)
+    public override fun checkboxGeometry(
+        bounds: Rect,
+        visual: CheckboxVisual,
+        options: CheckboxOptions,
+        direction: LayoutDirection
+    ): CheckboxGeometry {
+        val geometry = base.checkboxGeometry(bounds, visual, options, direction)
+        record(visual.interaction, geometry.ring, geometry.style)
+        return geometry
+    }
+    public override fun radioMetrics(options: RadioOptions): RadioMetrics =
+        base.radioMetrics(options)
+    public override fun radioGeometry(
+        bounds: Rect,
+        visual: RadioVisual,
+        options: RadioOptions
+    ): RadioGeometry = base.radioGeometry(bounds, visual, options)
+    public override fun scrollbarMetrics(options: ScrollbarOptions): ScrollbarMetrics =
+        base.scrollbarMetrics(options)
+    public override fun scrollbarGeometry(
+        bounds: Rect,
+        visual: ScrollbarVisual,
+        options: ScrollbarOptions
+    ): ScrollbarGeometry = base.scrollbarGeometry(bounds, visual, options)
+    public override fun createPainter(): ThemePainter = base.createPainter()
+
+    private fun record(visual: InteractionVisual, ring: OutlineRing?, style: Style) {
+        if (visual.invalid) {
+            probe.invalidRing = ring
+            probe.invalidBorder = Some(style.border!!.resolve(LayoutDirection.Ltr).left.color)
+            probe.invalidFocus = visual.focusVisible
+        }
+        if (!visual.enabled) {
+            probe.disabledSeen = true
+            probe.disabledRing = ring
+        }
+    }
+}

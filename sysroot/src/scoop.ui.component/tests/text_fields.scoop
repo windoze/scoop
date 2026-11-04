@@ -15,8 +15,10 @@ import scoop.ui.text.TextEditorState
 private class TextFieldStyleTest {
     @Test
     fun `validation follows all palettes while explicit field overrides remain authoritative`() {
-        val focused = InteractionVisual(focused = true)
+        val focused = InteractionVisual(focusVisible = true)
         val visual = SurfaceVisual(SurfaceKind.Plain, focused)
+        val error = InteractionVisual(invalid = true)
+        val errorVisual = SurfaceVisual(SurfaceKind.Plain, error)
         val bounds = Rect(0.0, 0.0, 240.0, 80.0)
         val themes =
             [
@@ -29,12 +31,14 @@ private class TextFieldStyleTest {
             ]
         val style = textFieldStyle()
         for (theme in themes) {
-            val ordinary =
-                theme.surfaceGeometry(bounds, visual, style.options(theme, focused, false))
-            val invalid = theme.surfaceGeometry(bounds, visual, style.options(theme, focused, true))
+            val ordinary = theme.surfaceGeometry(bounds, visual, style.options(focused))
+            val invalid = theme.surfaceGeometry(bounds, errorVisual, style.options(error))
             val invalidEdges = invalid.style.border!!.resolve(LayoutDirection.Ltr)
-            assertEquals(theme.tokens.palette.error, invalidEdges.left.color)
-            assertEquals(theme.tokens.palette.error.withAlpha(0.72), invalid.focus!!.border.color)
+            assertEquals(theme.tokens.palette.destructive.background, invalidEdges.left.color)
+            assertEquals(
+                theme.tokens.palette.destructive.background.withAlpha(0.72),
+                invalid.ring!!.border.color
+            )
             assertTrue(
                 ordinary.style.border!!.resolve(LayoutDirection.Ltr).left.color !=
                     invalidEdges.left.color
@@ -44,22 +48,21 @@ private class TextFieldStyleTest {
                     surface {
                         this.padding = Some(Insets.all(4.0))
                         style { this.border(Some(Border.all(3.0, Color.White))) }
-                        this.focus = Some(FocusStyle(Color.Black, 1.0, 3.0))
+                        this.validation = Some(OutlineStyle(Color.Black, 1.0, 3.0))
                     }
                     states { disabled { this.border(None) } }
                 }
-            val overridden =
-                theme.surfaceGeometry(bounds, visual, explicit.options(theme, focused, true))
+            val overridden = theme.surfaceGeometry(bounds, errorVisual, explicit.options(error))
             assertEquals(Some(Border.all(3.0, Color.White)), overridden.style.border)
-            assertEquals(Color.Black, overridden.focus!!.border.color)
+            assertEquals(Color.Black, overridden.ring!!.border.color)
             assertEquals(Rect(7.0, 7.0, 226.0, 66.0), overridden.content)
-            val disabled = InteractionVisual(enabled = false)
+            val disabled = InteractionVisual(enabled = false, invalid = true)
             assertEquals(
                 None,
                 theme.surfaceGeometry(
                     bounds,
                     SurfaceVisual(SurfaceKind.Plain, disabled),
-                    explicit.options(theme, disabled, true)
+                    explicit.options(disabled)
                 ).style.border
             )
         }

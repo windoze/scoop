@@ -1,0 +1,107 @@
+package scoop.ui.component
+
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.ui.text.*
+
+public open class TypographyBuilder internal constructor() {
+    public var fonts: FontCollection? = None
+    public var theme: ThemeSource? = None
+    public var textStyle: SpanStyle? = None
+    public var style: StyleOverride = styleOverride()
+    public var settings: ParagraphStyle? = None
+    public var selectable: Boolean = true
+    public var selection: SelectableTextOptions = SelectableTextOptions()
+    public var focus: FocusOptions = FocusOptions()
+    public var actions: Array<TextRangeAction> = []
+    public var decorations: Array<TextRangeDecoration> = []
+    public var onSelectionChanged: (TextPosition, TextPosition) -> Unit = { _, _ -> Unit }
+    public var inlines: Array<InlineView> = []
+    public var key: ViewKey = ViewKey.Position
+    public fun textStyle(configure: SpanStyleBuilder.() -> Unit): Unit {
+        textStyle = Some((textStyle ?: spanStyle()).copy(configure))
+    }
+    public fun style(configure: StyleOverrideBuilder.() -> Unit): Unit {
+        style = style.copy(configure)
+    }
+    public fun settings(configure: ParagraphStyleBuilder.() -> Unit): Unit {
+        settings = Some((settings ?: paragraphStyle()).copy(configure))
+    }
+    public fun focus(configure: FocusOptionsBuilder.() -> Unit): Unit {
+        focus = focus.copy(configure)
+    }
+    internal fun snapshot(
+        content: TypographyContent,
+        role: TypographyRole,
+        objects: Array<InlineView> = inlines
+    ): TypographyProps =
+        TypographyProps(
+            content,
+            role,
+            fonts,
+            theme,
+            textStyle,
+            style,
+            settings,
+            selectable,
+            selection,
+            focus,
+            actions,
+            decorations,
+            onSelectionChanged,
+            objects
+        )
+}
+
+private class TypographyCode(val key: InlineKey, val text: String)
+
+public class TypographyTextBuilder internal constructor(): TypographyBuilder() {
+    private val fragments = ArrayList<TextSpan>()
+    private val objects = ArrayList<InlineView>()
+    private val codes = ArrayList<TypographyCode>()
+    public fun add(fragment: TextSpan): Unit {
+        fragments.add(fragment)
+    }
+    public fun text(value: String): Unit {
+        add(textSpan { this.text(value) })
+    }
+    public fun span(configure: TextSpanBuilder.() -> Unit): Unit {
+        add(textSpan(configure))
+    }
+    public fun code(value: String, key: InlineKey? = None): Unit {
+        val identity = key ?: InlineKey.Number(fragments.size)
+        add(textSpan { this.inlineObject(identity, value) })
+        codes.add(TypographyCode(identity, value))
+    }
+    public fun inline(
+        key: InlineKey,
+        view: View,
+        alternateText: String,
+        configure: InlineViewBuilder.() -> Unit = {}
+    ): Unit {
+        add(textSpan { this.inlineObject(key, alternateText) })
+        objects.add(inlineView(key, view, configure))
+    }
+    internal fun snapshotText(role: TypographyRole): TypographyProps {
+        val all = ArrayList<InlineView>()
+        for (item in inlines)
+            all.add(item)
+        for (item in objects)
+            all.add(item)
+        val fonts = this.fonts
+        val theme = this.theme
+        for (item in codes)
+            all.add(
+                inlineView(
+                    item.key,
+                    typography(item.text, TypographyRole.InlineCode) {
+                        this.fonts = fonts
+                        this.theme = theme
+                        this.selectable = false
+                    }
+                )
+            )
+        return snapshot(TypographyContent.Fragments(fragments.toArray()), role, all.toArray())
+    }
+}

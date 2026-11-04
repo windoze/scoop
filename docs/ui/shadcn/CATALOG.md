@@ -1,6 +1,6 @@
 # shadcn 64 项控件覆盖表
 
-日期：2026-11-04。状态：设计，未实施。范围与架构见 [DESIGN.md](DESIGN.md)，公共使用合同见 [API.md](API.md)，复杂模型见 [MODELS.md](MODELS.md)。
+日期：2026-11-04。状态：分批实施，实际完成项与验证范围见 [实施记录](PROGRESS.md)。范围与架构见 [DESIGN.md](DESIGN.md)，公共使用合同见 [API.md](API.md)，复杂模型见 [MODELS.md](MODELS.md)。
 
 逐行对应当日官方 Components 目录，以下 64 项均为交付要求。Code Block、Native Select 是仅有的目录排除项。官方示例中的独立业务服务和第三方引擎不自动扩大为库依赖；对应 UI 和调用方接入必须实际可用。表中的组成部件是需要可组合的结构，不要求为无行为的每一层 Web `div` 另造一个持久 Component。
 

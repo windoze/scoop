@@ -20,28 +20,8 @@ public class TextFieldStyle internal constructor(
     public fun copy(configure: TextFieldStyleBuilder.() -> Unit = {}): TextFieldStyle =
         configureTextFieldStyle(this, configure)
 
-    internal fun options(
-        theme: Theme,
-        visual: InteractionVisual,
-        invalid: Boolean
-    ): SurfaceOptions {
-        val validation =
-            if (invalid)
-                styleOverride { this.border(Some(Border.all(1.0, theme.tokens.palette.error))) }
-            else
-                styleOverride()
-        val focus =
-            when (surface.focus) {
-                case Some(value) -> Some(value)
-                case None -> if (invalid)
-                    Some(FocusStyle(theme.tokens.palette.error.withAlpha(0.72), 2.0, 2.0))
-                else
-                    None
-            }
-        val localStyle = states.apply(validation.then(surface.style), visual)
-        return surface.copy {
-            this.style = localStyle
-            this.focus = focus
-        }
+    internal fun options(visual: InteractionVisual): SurfaceOptions {
+        val localStyle = states.apply(surface.style, visual)
+        return surface.copy { this.style = localStyle }
     }
 }

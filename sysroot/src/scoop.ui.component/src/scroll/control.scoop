@@ -139,7 +139,7 @@ internal class ScrollControl(
             context.draw {
                 paint -> paint.canvas.drawRect(
                     Rect(1.0, 1.0, size.width - 2.0, size.height - 2.0),
-                    Paint(value.theme.tokens.palette.focus, PaintingStyle.Stroke, 2.0)
+                    Paint(value.theme.tokens.palette.ring, PaintingStyle.Stroke, 2.0)
                 )
             }
         }

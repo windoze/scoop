@@ -16,6 +16,7 @@ public class FocusTarget internal constructor(
 
     init {
         reference.bind(this)
+        area.focusVisibility = initial.visibility
     }
 
     internal val active: Boolean get() =
@@ -53,6 +54,7 @@ public class FocusTarget internal constructor(
             next.bind(this)
         }
         current = value
+        area.focusVisibility = value.visibility
     }
     /** Reveals a local subregion through the submitted scroll path without moving focus. */
     public fun reveal(rect: Rect): Boolean {

@@ -282,7 +282,9 @@ internal class ControlProbe {
                     phase = 1
                 }
             }
-            case 1 -> if (buttonVisual.enabled && checkVisual.interaction.focused) {
+            case 1 -> if (buttonVisual.enabled && checkFocus.hasFocus) {
+                assertFalse(checkVisual.interaction.focusVisible)
+                assertFalse(checkFocus.isFocusVisible)
                 assertEquals(28.0, buttonMetrics!!.size.height)
                 assertEquals(CornerRadii.all(9.0), buttonGeometry!!.outline.radii)
                 assertTrue(buttonMetrics!!.alphabeticBaseline!! > 0.0)
@@ -366,7 +368,7 @@ internal class ControlProbe {
                     phase = 3
                 }
             }
-            case 3 -> if (paintedGeneration == 1 && buttonVisual.focused) {
+            case 3 -> if (paintedGeneration == 1 && buttonVisual.focusVisible) {
                 key(36)
                 afterInput(active) {
                     _ ->
@@ -382,7 +384,7 @@ internal class ControlProbe {
                 assertEquals(1, buttonCreates)
                 assertEquals(1, checkCreates)
                 assertEquals(1, scene!!.mounts)
-                assertTrue(buttonVisual.focused)
+                assertTrue(buttonVisual.focusVisible)
                 assertEquals(CheckMark.On, ownedVisual.mark)
                 assertEquals(CornerRadii.all(9.0), buttonGeometry!!.outline.radii)
                 assertEquals(buttonMetrics!!.size.width, buttonBounds.width)
@@ -421,7 +423,7 @@ internal class ControlProbe {
             }
             case 5 -> if (paintedGeneration == 2) {
                 assertEquals(71, scene!!.count)
-                assertTrue(buttonVisual.focused)
+                assertTrue(buttonVisual.focusVisible)
                 assertEquals(previousButton, buttonMetrics)
                 effects.value = 2
                 generation.value = 3
@@ -429,7 +431,7 @@ internal class ControlProbe {
             }
             case 6 -> if (paintedGeneration == 3) {
                 assertEquals(previousButton, buttonMetrics)
-                assertTrue(buttonVisual.focused)
+                assertTrue(buttonVisual.focusVisible)
                 effects.value = 0
                 useSecond.value = true
                 generation.value = 4

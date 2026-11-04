@@ -1,0 +1,322 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.component.column as makeColumn
+import scoop.ui.component.row as makeRow
+import scoop.ui.component.frame as makeFrame
+import scoop.ui.component.separator as makeSeparator
+import scoop.ui.component.card as makeCard
+import scoop.ui.component.alert as makeAlert
+import scoop.ui.component.emptyState as makeEmpty
+import scoop.ui.component.label as makeLabel
+import scoop.ui.component.button as makeButton
+import scoop.ui.component.badge as makeBadge
+import scoop.ui.style.*
+
+internal fun panelHeading(text: String, fonts: FontCollection, size: Double = 32.0): View =
+    label(text) {
+        this.fonts = Some(fonts)
+        style {
+            this.fontSize = Some(size);
+            this.weight = Some(600)
+        }
+    }
+
+private fun panelControls(
+    model: GalleryModel,
+    fonts: FontCollection,
+    variantTitle: String? = None
+): View =
+    makeRow {
+        this.button("Toggle sections", { model.panelExpanded.value = !model.panelExpanded.value }) {
+            this.fonts = Some(fonts);
+            this.variant = ButtonVariant.Outline
+        }
+        this.button("Toggle width", { model.panelNarrow.value = !model.panelNarrow.value }) {
+            this.fonts = Some(fonts);
+            this.variant = ButtonVariant.Outline
+        }
+        when (variantTitle) {
+            case Some(title) -> this.button(
+                title,
+                { model.panelCompact.value = !model.panelCompact.value }
+            ) {
+                this.fonts = Some(fonts)
+                this.variant = ButtonVariant.Outline
+            }
+            case None -> {}
+        }
+        this.spacing = 8.0
+    }
+
+private fun panelAction(model: GalleryModel, fonts: FontCollection, focus: FocusHandle): View {
+    val step = model.panelStep.value
+    return button(
+        f"Create project (${model.panelClicks.value})",
+        { model.panelClicks.value += step }
+    ) {
+        this.fonts = Some(fonts)
+        this.focus = FocusOptions(Some(focus))
+    }
+}
+
+private fun panelActions(model: GalleryModel, fonts: FontCollection): View =
+    makeRow {
+        this.button("Resize", { model.panelNarrow.value = !model.panelNarrow.value }) {
+            this.fonts = Some(fonts);
+            this.variant = ButtonVariant.Outline
+        }
+        this.button("Hide details", { model.panelExpanded.value = false }) {
+            this.fonts = Some(fonts);
+            this.variant = ButtonVariant.Ghost
+        }
+        this.spacing = 8.0
+    }
+
+internal fun cardExamples(model: GalleryModel, fonts: FontCollection): View =
+    makeColumn {
+        this.add(panelHeading("Card", fonts))
+        this.label(
+            "Compose a header, content, action, and footer. Narrow cards move the action below the heading."
+        ) { this.fonts = Some(fonts) }
+        this.add(panelControls(model, fonts, Some("Toggle size")))
+        this.frame(
+            makeCard(
+                makeColumn {
+                    this.label("Keep everything for your next project in one place.") {
+                        this.fonts = Some(fonts)
+                    }
+                    this.add(panelAction(model, fonts, model.cardFocus))
+                    this.spacing = 12.0
+                }
+            ) {
+                this.fonts = Some(fonts)
+                this.size =
+                    if (model.panelCompact.value)
+                        CardSize.Sm
+                    else
+                        CardSize.Default
+                if (model.panelExpanded.value) {
+                    this.title("Your workspace")
+                    this.description(
+                        "Plan, build, and share with your team. Longer descriptions wrap inside the available space."
+                    )
+                    this.header(
+                        makeFrame(
+                            makeBadge("TEAM") {
+                                this.fonts = Some(fonts);
+                                this.variant = ButtonVariant.Secondary
+                            }
+                        ) { this.width = Some(56.0) }
+                    )
+                    this.action(panelActions(model, fonts))
+                    this.footer(
+                        makeLabel("Your changes are saved to this workspace.") {
+                            this.fonts = Some(fonts)
+                        }
+                    )
+                }
+                this.headerSeparator = model.panelCompact.value
+            }
+        ) {
+            this.width =
+                Some(
+                    if (model.panelNarrow.value)
+                        280.0
+                    else
+                        680.0
+                )
+            this.alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start)
+        }
+        this.card(
+            makeLabel("A compact card can also contain content on its own.") {
+                this.fonts = Some(fonts)
+            }
+        ) { this.size = CardSize.Sm }
+        this.spacing = 24.0
+        this.padding = Insets.all(6.0)
+        this.alignment = CrossAlignment.Start
+    }
+
+internal fun alertExamples(model: GalleryModel, fonts: FontCollection): View =
+    makeColumn {
+        this.add(panelHeading("Alert", fonts))
+        this.label("Inline notices with optional icons, descriptions, and actions.") {
+            this.fonts = Some(fonts)
+        }
+        this.add(panelControls(model, fonts))
+        this.frame(
+            makeAlert(panelAction(model, fonts, model.alertFocus)) {
+                this.fonts = Some(fonts)
+                this.title("A new workspace is ready")
+                if (model.panelExpanded.value) {
+                    this.description(
+                        "Invite your teammates to start collaborating. You can change these settings at any time."
+                    )
+                    this.icon(panelHeading("i", fonts, 16.0))
+                    this.action(panelActions(model, fonts))
+                }
+            }
+        ) {
+            this.width =
+                Some(
+                    if (model.panelNarrow.value)
+                        280.0
+                    else
+                        680.0
+                )
+        }
+        this.alert(empty()) {
+            this.fonts = Some(fonts)
+            this.variant = AlertVariant.Destructive
+            this.title("Unable to save changes")
+            this.description(
+                "The project name is already in use. Choose a different name and try again."
+            )
+            this.icon(
+                makeLabel("!") {
+                    this.fonts = Some(fonts);
+                    style {
+                        this.color =
+                            Some(model.source.current.value.tokens.palette.destructive.background)
+                    }
+                }
+            )
+        }
+        this.spacing = 24.0
+        this.padding = Insets.all(6.0)
+        this.alignment = CrossAlignment.Start
+    }
+
+internal fun emptyExamples(model: GalleryModel, fonts: FontCollection): View =
+    makeColumn {
+        this.add(panelHeading("Empty", fonts))
+        this.label("A starting point for new content, search results, or a quiet workspace.") {
+            this.fonts = Some(fonts)
+        }
+        this.add(panelControls(model, fonts, Some("Toggle media")))
+        this.frame(
+            makeEmpty(
+                makeColumn {
+                    this.input(model.emptyQuery) {
+                        this.fonts = Some(fonts);
+                        this.placeholder = "Project name"
+                    }
+                    this.add(panelAction(model, fonts, model.emptyFocus))
+                    this.spacing = 12.0
+                    this.alignment = CrossAlignment.Stretch
+                }
+            ) {
+                this.fonts = Some(fonts)
+                this.outlined = true
+                if (model.panelExpanded.value) {
+                    this.media(
+                        element(
+                            model.source.current.value.tokens.palette.background.foreground,
+                            { current -> PanelPlus(current) }
+                        )
+                    )
+                    this.mediaVariant =
+                        if (model.panelCompact.value)
+                            EmptyMediaVariant.Default
+                        else
+                            EmptyMediaVariant.Icon
+                    this.header(
+                        makeFrame(
+                            makeBadge("WORKSPACE") {
+                                this.fonts = Some(fonts);
+                                this.variant = ButtonVariant.Outline
+                            }
+                        ) { this.width = Some(96.0) }
+                    )
+                    this.title("No projects yet")
+                    this.description(
+                        "Create your first project to start working with your team. You can invite more people later."
+                    )
+                }
+            }
+        ) {
+            this.width =
+                Some(
+                    if (model.panelNarrow.value)
+                        280.0
+                    else
+                        680.0
+                )
+        }
+        this.emptyState(
+            makeButton("Clear filters", { model.emptyQuery.replaceAll("") }) {
+                this.fonts = Some(fonts);
+                this.variant = ButtonVariant.Outline
+            }
+        ) {
+            this.fonts = Some(fonts)
+            this.title("No results found")
+            this.description("Try a different search or clear your filters.")
+            style {
+                this.background(
+                    Some(Paint(model.source.current.value.tokens.palette.muted.background))
+                )
+            }
+        }
+        this.spacing = 24.0
+        this.padding = Insets.all(6.0)
+        this.alignment = CrossAlignment.Start
+    }
+
+internal fun separatorExamples(fonts: FontCollection): View =
+    makeColumn {
+        this.add(panelHeading("Separator", fonts))
+        this.label("A decorative line between related sections.") { this.fonts = Some(fonts) }
+        this.label("Scoop workspace") { this.fonts = Some(fonts) }
+        this.item(makeSeparator { this.length = Some(520.0) }) {
+            this.align = Some(CrossAlignment.Start)
+        }
+        this.row {
+            this.label("Overview") { this.fonts = Some(fonts) }
+            this.separator {
+                this.axis = FlexAxis.Vertical;
+                this.length = Some(24.0)
+            }
+            this.label("Projects") { this.fonts = Some(fonts) }
+            this.separator {
+                this.axis = FlexAxis.Vertical;
+                this.length = Some(24.0);
+                this.thickness = 2.0
+            }
+            this.label("Settings") { this.fonts = Some(fonts) }
+            this.spacing = 16.0
+            this.alignment = CrossAlignment.Center
+        }
+        this.separator()
+        this.label(
+            "The divider above fills the available width. A zero-length divider below leaves no line."
+        ) { this.fonts = Some(fonts) }
+        this.separator { this.length = Some(0.0) }
+        this.spacing = 24.0
+        this.padding = Insets.all(6.0)
+        this.alignment = CrossAlignment.Stretch
+    }
+
+private class PanelPlus(private val props: Props<Color>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(16.0, 16.0)))
+    public override fun scene(context: SceneContext) {
+        val size = context.size
+        val paint = Paint(props.value)
+        context.draw {
+            target ->
+            target.canvas.drawRect(
+                Rect(size.width / 2.0 - 1.0, size.height / 2.0 - 6.0, 2.0, 12.0),
+                paint
+            )
+            target.canvas.drawRect(
+                Rect(size.width / 2.0 - 6.0, size.height / 2.0 - 1.0, 12.0, 2.0),
+                paint
+            )
+        }
+    }
+}

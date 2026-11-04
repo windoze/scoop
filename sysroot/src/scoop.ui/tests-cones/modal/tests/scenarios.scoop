@@ -26,6 +26,7 @@ internal fun ModalProbe.advance(active: ActiveApplication) {
         }
         case 1 -> {
             expectFocus(3L)
+            assertTrue(focus[3L].isFocusVisible)
             assertEquals(1, cancels[0L])
             assertFalse(areas[0L]!!.scope.isInputAllowed)
             waiting = true
@@ -91,6 +92,7 @@ internal fun ModalProbe.advance(active: ActiveApplication) {
         )
         case 11 -> {
             expectFocus(0L)
+            assertFalse(focus[0L].isFocusVisible)
             assertTrue(areas[0L]!!.scope.isInputAllowed)
             assertEquals(Some(OverlayCloseReason.OutsidePress), layers[0L].lastCloseReason)
             opened(3L)

@@ -19,31 +19,49 @@ private class TextAppearance(
     val base: TextStyle,
     val color: Color,
     val local: SpanStyle?,
+    val scale: Double,
+    val lineHeight: Double?,
     val resolved: TextStyle
 )
 
 /** Focus and unrelated Props changes should not invalidate an unchanged label paragraph. */
 internal class ActionTextStyle {
     private var cached: TextAppearance? = None
-    fun resolve(base: TextStyle, color: Color, local: SpanStyle?): TextStyle {
+    fun resolve(
+        base: TextStyle,
+        color: Color,
+        local: SpanStyle?,
+        scale: Double = 1.0,
+        lineHeight: Double? = None
+    ): TextStyle {
         when (cached) {
             case Some(previous) -> if (
                 previous.base ===
                     base &&
                     previous.color ==
                     color &&
-                    sameSpanStyle(previous.local, local)
+                    sameSpanStyle(previous.local, local) &&
+                    previous.scale ==
+                    scale &&
+                    previous.lineHeight ==
+                    lineHeight
             )
                 return previous.resolved
             case None -> {}
         }
-        val colored = spanStyle { this.color = Some(color) }.resolve(base)
+        val colored =
+            base.copy {
+                this.color = color
+                this.fontSize = base.fontSize * scale
+                if (lineHeight != None)
+                    this.lineHeight = lineHeight
+            }
         val resolved =
             when (local) {
                 case Some(value) -> value.resolve(colored);
                 case None -> colored
             }
-        cached = Some(TextAppearance(base, color, local, resolved))
+        cached = Some(TextAppearance(base, color, local, scale, lineHeight, resolved))
         return resolved
     }
 }

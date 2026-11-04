@@ -55,6 +55,12 @@ int32_t scoop_graphics_canvas_save(SGCanvas *value, double opacity, bool layer,
   case 3:
     mode = SkBlendMode::kPlus;
     break;
+  case 4:
+    mode = SkBlendMode::kDarken;
+    break;
+  case 5:
+    mode = SkBlendMode::kLighten;
+    break;
   default:
     return -1;
   }

@@ -170,7 +170,7 @@ public class KeyNavigation internal constructor(
             }
         context.consume()
         when (next) {
-            case Some(position) -> member(position)?.handle?.requestFocus()
+            case Some(position) -> member(position)?.handle?.requestFocus(FocusOrigin.Keyboard)
             case None -> {}
         }
     }

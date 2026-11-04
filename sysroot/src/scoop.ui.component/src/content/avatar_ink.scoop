@@ -1,0 +1,136 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.math.min
+import scoop.ui.*
+import scoop.ui.style.*
+
+internal class AvatarInkProps(
+    val side: Double,
+    val ready: Boolean,
+    val background: Color,
+    val border: Color,
+    val mode: ThemeMode,
+    val style: StyleOverride
+)
+
+internal class AvatarInk(private val props: Props<AvatarInkProps>): Element {
+    private var painter: StylePainter? = None
+    public override fun onMount(scope: ComponentScope) {
+        painter = Some(scope.resource { StylePainter() })
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val input = props.value
+        val size = constraints.constrain(Size(input.side, input.side))
+        val child =
+            context.measureChild(
+                0L,
+                if (input.ready)
+                    Constraints.tight(size)
+                else
+                    Constraints(maxWidth = Some(size.width), maxHeight = Some(size.height))
+            )
+        context.placeChild(
+            0L,
+            Point((size.width - child.size.width) / 2.0, (size.height - child.size.height) / 2.0)
+        )
+        return LayoutMetrics(size)
+    }
+    public override fun scene(context: SceneContext) {
+        val input = props.value
+        val size = context.size
+        val direction = context.layoutDirection
+        val visual =
+            input.style.resolve(
+                style {
+                    this.background =
+                        if (input.ready)
+                            None
+                        else
+                            Some(Paint(input.background))
+                    this.corners = Corners.all(min(size.width, size.height) / 2.0)
+                    this.clipContent = true
+                }
+            )
+        painter!!.scene(context, visual) { scene -> scene.children() }
+        val blendBorder =
+            when (input.style.border) {
+                case Inherit -> true;
+                case Set(_) -> false
+            }
+        if (blendBorder && size.width > 1.0 && size.height > 1.0) {
+            val outline =
+                RoundedOutline(
+                    Rect(0.0, 0.0, size.width, size.height),
+                    visual.corners.resolve(direction)
+                ).inset(0.5, 0.5, 0.5, 0.5)
+            context.draw {
+                paint -> paint.canvas.withState {
+                    canvas ->
+                    canvas.saveLayer(
+                        blendMode =
+                            if (input.mode == ThemeMode.Dark)
+                                BlendMode.Lighten
+                            else
+                                BlendMode.Darken
+                    )
+                    canvas.drawRoundRect(
+                        outline.bounds,
+                        outline.radii,
+                        Paint(input.border, PaintingStyle.Stroke, 1.0)
+                    )
+                    canvas.restore()
+                }
+            }
+        }
+    }
+}
+
+internal class AvatarLayout(private val props: Props<Boolean>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val face = context.measureChild(0L, constraints)
+        context.placeChild(0L, Point(0.0, 0.0))
+        if (props.value) {
+            val badge = context.measureChild(1L, Constraints())
+            context.placeChild(
+                1L,
+                Point(
+                    if (context.layoutDirection == LayoutDirection.Rtl)
+                        0.0
+                    else
+                        face.size.width - badge.size.width,
+                    face.size.height - badge.size.height
+                )
+            )
+        }
+        return face
+    }
+    public override fun scene(context: SceneContext) {
+        context.children()
+    }
+}
+
+internal fun avatarRing(content: View, color: Color, key: ViewKey = ViewKey.Position): View =
+    element(color, { current -> AvatarRing(current) }, [content], key)
+
+private class AvatarRing(private val props: Props<Color>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val child = context.measureChild(0L, constraints)
+        context.placeChild(0L, Point(0.0, 0.0))
+        return child
+    }
+    public override fun scene(context: SceneContext) {
+        val size = context.size
+        val radius = min(size.width, size.height) / 2.0 + 1.0
+        if (size.width > 0.0 && size.height > 0.0)
+            context.draw {
+                paint -> paint.canvas.drawRoundRect(
+                    Rect(-1.0, -1.0, size.width + 2.0, size.height + 2.0),
+                    radius,
+                    radius,
+                    Paint(props.value, PaintingStyle.Stroke, 2.0)
+                )
+            }
+        context.children()
+    }
+}

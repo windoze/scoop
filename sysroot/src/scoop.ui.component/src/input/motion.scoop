@@ -49,9 +49,10 @@ internal class InteractionMotion(scope: ComponentScope, initial: InteractionVisu
             visual.enabled,
             visual.hovered,
             visual.pressed,
-            visual.focused,
+            visual.focusVisible,
             Some(hover.value),
-            Some(press.value)
+            Some(press.value),
+            visual.invalid
         )
 }
 

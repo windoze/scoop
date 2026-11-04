@@ -21,7 +21,8 @@ public class SurfaceOptionsBuilder internal constructor(initial: SurfaceOptions)
     public var minimumSize: Size? = initial.minimumSize
     public var padding: Insets? = initial.padding
     public var style: StyleOverride = initial.style
-    public var focus: FocusStyle? = initial.focus
+    public var focus: OutlineStyle? = initial.focus
+    public var validation: OutlineStyle? = initial.validation
 
     public fun style(configure: StyleOverrideBuilder.() -> Unit): Unit {
         style = style.copy(configure)
@@ -33,7 +34,8 @@ public class SurfaceOptionsBuilder internal constructor(initial: SurfaceOptions)
             minimumSize = minimumSize,
             padding = padding,
             style = style,
-            focus = focus
+            focus = focus,
+            validation = validation
         )
 }
 
@@ -57,7 +59,8 @@ public class CheckboxOptionsBuilder internal constructor(initial: CheckboxOption
     public var markInset: Double? = initial.markInset
     public var style: StyleOverride = initial.style
     public var markColor: Color? = initial.markColor
-    public var focus: FocusStyle? = initial.focus
+    public var focus: OutlineStyle? = initial.focus
+    public var validation: OutlineStyle? = initial.validation
 
     public fun style(configure: StyleOverrideBuilder.() -> Unit): Unit {
         style = style.copy(configure)
@@ -70,7 +73,8 @@ public class CheckboxOptionsBuilder internal constructor(initial: CheckboxOption
             markInset = markInset,
             style = style,
             markColor = markColor,
-            focus = focus
+            focus = focus,
+            validation = validation
         )
 }
 
@@ -95,7 +99,8 @@ public class RadioOptionsBuilder internal constructor(initial: RadioOptions) {
     public var background: StyleValue<Paint?> = initial.background
     public var border: StyleValue<BorderEdge?> = initial.border
     public var dotColor: Color? = initial.dotColor
-    public var focus: FocusStyle? = initial.focus
+    public var focus: OutlineStyle? = initial.focus
+    public var validation: OutlineStyle? = initial.validation
 
     public fun background(value: Paint?): Unit {
         this.background = StyleValue.Set(value)
@@ -113,7 +118,8 @@ public class RadioOptionsBuilder internal constructor(initial: RadioOptions) {
             background = background,
             border = border,
             dotColor = dotColor,
-            focus = focus
+            focus = focus,
+            validation = validation
         )
 }
 

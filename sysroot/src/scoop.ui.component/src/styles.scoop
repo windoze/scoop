@@ -21,7 +21,7 @@ public class InteractionStyles internal constructor(
                 result = result.then(hovered)
             if (visual.pressed)
                 result = result.then(pressed)
-            if (visual.focused)
+            if (visual.focusVisible)
                 result = result.then(focused)
         } else
             result = result.then(disabled)
@@ -38,11 +38,6 @@ public class ButtonStyle internal constructor(
 ) {
     public fun copy(configure: ButtonStyleBuilder.() -> Unit = {}): ButtonStyle =
         configureButtonStyle(this, configure)
-
-    internal fun options(visual: InteractionVisual): SurfaceOptions {
-        val localStyle = states.apply(surface.style, visual)
-        return surface.copy { this.style = localStyle }
-    }
 }
 
 public class CheckboxStyle internal constructor(
@@ -55,8 +50,28 @@ public class CheckboxStyle internal constructor(
     public fun copy(configure: CheckboxStyleBuilder.() -> Unit = {}): CheckboxStyle =
         configureCheckboxStyle(this, configure)
 
-    internal fun options(visual: InteractionVisual): CheckboxOptions {
+    internal fun options(
+        theme: Theme,
+        visual: InteractionVisual,
+        selected: Boolean
+    ): CheckboxOptions {
         val localStyle = states.apply(marker.style, visual)
-        return marker.copy { this.style = localStyle }
+        val validation =
+            if (marker.validation == None && visual.invalid && selected) {
+                val base = theme.tokens.validation
+                Some(
+                    OutlineStyle(
+                        base.color,
+                        base.width,
+                        base.outset,
+                        Some(theme.tokens.palette.primary.background)
+                    )
+                )
+            } else
+                marker.validation
+        return marker.copy {
+            this.style = localStyle
+            this.validation = validation
+        }
     }
 }

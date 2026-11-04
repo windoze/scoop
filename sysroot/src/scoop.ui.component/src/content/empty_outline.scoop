@@ -1,0 +1,101 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.*
+import scoop.ui.style.*
+
+internal class EmptyFrameProps(val style: Style, val outlined: Boolean, val color: Color)
+
+internal class EmptyFrame(private val props: Props<EmptyFrameProps>): Element {
+    private var painter: StylePainter? = None
+    private var border: EmptyBorderCache? = None
+    public override fun onMount(scope: ComponentScope) {
+        painter = Some(scope.resource { StylePainter() })
+        border = Some(scope.resource { EmptyBorderCache() })
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val metrics =
+            context.measureChild(
+                0L,
+                Constraints(
+                    constraints.maxWidth ?: constraints.minWidth,
+                    constraints.maxWidth,
+                    constraints.minHeight,
+                    constraints.maxHeight
+                )
+            )
+        context.placeChild(0L, Point(0.0, 0.0))
+        return metrics
+    }
+    public override fun scene(context: SceneContext) {
+        val input = props.value
+        val size = context.size
+        painter!!.scene(context, input.style) { content -> content.children() }
+        if (input.outlined && size.width > 1.0 && size.height > 1.0) {
+            val radii = input.style.corners.resolve(context.layoutDirection)
+            val outline =
+                RoundedOutline(Rect(0.0, 0.0, size.width, size.height), radii).inset(
+                    0.5,
+                    0.5,
+                    0.5,
+                    0.5
+                )
+            val path = border!!.get(outline)
+            context.draw {
+                paint -> paint.canvas.drawPath(path, Paint(input.color, PaintingStyle.Stroke, 1.0))
+            }
+        }
+    }
+}
+
+/** Geometry is rebuilt only when the final rounded border changes. */
+internal class EmptyBorderCache: Closeable {
+    private var outline: RoundedOutline? = None
+    private var value: Path? = None
+    fun get(next: RoundedOutline): Path {
+        if (outline == Some(next))
+            return value!!
+        val replacement = emptyBorderPath(next)
+        val previous = value
+        value = Some(replacement)
+        outline = Some(next)
+        previous?.close()
+        return replacement
+    }
+    public override fun close() {
+        val previous = value
+        value = None
+        outline = None
+        previous?.close()
+    }
+}
+
+private fun emptyBorderPath(outline: RoundedOutline): Path =
+    path { this.addRoundRect(outline.bounds, outline.radii) }.use {
+        source -> source.measure().use {
+            measure -> path {
+                val length = measure.length
+                var start = 0.0
+                while (start < length) {
+                    val end = upperBound(start + 3.0, length)
+                    this.moveTo(measure.sample(start)!!.position)
+                    var distance = start
+                    while (distance < end) {
+                        val next = upperBound(distance + 1.0, end)
+                        requireComponent(
+                            next > distance,
+                            "empty border geometry is not representable"
+                        )
+                        this.lineTo(measure.sample(next)!!.position)
+                        distance = next
+                    }
+                    val nextStart = start + 6.0
+                    requireComponent(
+                        nextStart > start,
+                        "empty border geometry is not representable"
+                    )
+                    start = nextStart
+                }
+            }
+        }
+    }

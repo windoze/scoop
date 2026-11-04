@@ -1,0 +1,161 @@
+package scoop.ui.style.shadcn
+
+import scoop.graphics.Color
+import scoop.ui.style.*
+
+// Neutral tokens from https://ui.shadcn.com/docs/theming (2026-11-04).
+// OKLCH -> OKLab -> linear sRGB -> sRGB, clipped to the Color gamut.
+// Destructive foreground and disabled/shadow are local paired drawing values.
+
+internal fun lightPalette(): ThemePalette {
+    val background = Color(1.000000000, 1.000000000, 1.000000000) // background: oklch(1 0 0)
+    val foreground = Color(0.039388235, 0.039388235, 0.039388235) // foreground: oklch(0.145 0 0)
+    val card = Color(1.000000000, 1.000000000, 1.000000000) // card: oklch(1 0 0)
+    val cardForeground =
+        Color(0.039388235, 0.039388235, 0.039388235) // card-foreground: oklch(0.145 0 0)
+    val popover = Color(1.000000000, 1.000000000, 1.000000000) // popover: oklch(1 0 0)
+    val popoverForeground =
+        Color(0.039388235, 0.039388235, 0.039388235) // popover-foreground: oklch(0.145 0 0)
+    val primary = Color(0.090527405, 0.090527405, 0.090527405) // primary: oklch(0.205 0 0)
+    val primaryForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // primary-foreground: oklch(0.985 0 0)
+    val secondary = Color(0.960586987, 0.960586987, 0.960586987) // secondary: oklch(0.97 0 0)
+    val secondaryForeground =
+        Color(0.090527405, 0.090527405, 0.090527405) // secondary-foreground: oklch(0.205 0 0)
+    val muted = Color(0.960586987, 0.960586987, 0.960586987) // muted: oklch(0.97 0 0)
+    val mutedForeground =
+        Color(0.451519243, 0.451519243, 0.451519243) // muted-foreground: oklch(0.556 0 0)
+    val accent = Color(0.960586987, 0.960586987, 0.960586987) // accent: oklch(0.97 0 0)
+    val accentForeground =
+        Color(0.090527405, 0.090527405, 0.090527405) // accent-foreground: oklch(0.205 0 0)
+    val destructive =
+        Color(0.906457563, 0.000000000, 0.042214553) // destructive: oklch(0.577 0.245 27.325)
+    val destructiveForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // destructive-foreground: oklch(0.985 0 0)
+    val border = Color(0.898160664, 0.898160664, 0.898160664) // border: oklch(0.922 0 0)
+    val input = Color(0.898160664, 0.898160664, 0.898160664) // input: oklch(0.922 0 0)
+    val ring = Color(0.630163204, 0.630163204, 0.630163204) // ring: oklch(0.708 0 0)
+    val chart1 = Color(0.960705487, 0.288190739, 0.000000000) // chart-1: oklch(0.646 0.222 41.116)
+    val chart2 = Color(0.000000000, 0.589268239, 0.537288460) // chart-2: oklch(0.6 0.118 184.704)
+    val chart3 = Color(0.063728275, 0.306708583, 0.393741649) // chart-3: oklch(0.398 0.07 227.392)
+    val chart4 = Color(1.000000000, 0.727255714, 0.000000000) // chart-4: oklch(0.828 0.189 84.429)
+    val chart5 = Color(0.994271450, 0.602092724, 0.000000000) // chart-5: oklch(0.769 0.188 70.08)
+    val sidebar = Color(0.980255980, 0.980255980, 0.980255980) // sidebar: oklch(0.985 0 0)
+    val sidebarForeground =
+        Color(0.039388235, 0.039388235, 0.039388235) // sidebar-foreground: oklch(0.145 0 0)
+    val sidebarPrimary =
+        Color(0.090527405, 0.090527405, 0.090527405) // sidebar-primary: oklch(0.205 0 0)
+    val sidebarPrimaryForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // sidebar-primary-foreground: oklch(0.985 0 0)
+    val sidebarAccent =
+        Color(0.960586987, 0.960586987, 0.960586987) // sidebar-accent: oklch(0.97 0 0)
+    val sidebarAccentForeground =
+        Color(0.090527405, 0.090527405, 0.090527405) // sidebar-accent-foreground: oklch(0.205 0 0)
+    val sidebarBorder =
+        Color(0.898160664, 0.898160664, 0.898160664) // sidebar-border: oklch(0.922 0 0)
+    val sidebarRing = Color(0.630163204, 0.630163204, 0.630163204) // sidebar-ring: oklch(0.708 0 0)
+    return ThemePalette(
+        background = ColorPair(background, foreground),
+        card = ColorPair(card, cardForeground),
+        popover = ColorPair(popover, popoverForeground),
+        primary = ColorPair(primary, primaryForeground),
+        secondary = ColorPair(secondary, secondaryForeground),
+        muted = ColorPair(muted, mutedForeground),
+        accent = ColorPair(accent, accentForeground),
+        destructive = ColorPair(destructive, destructiveForeground),
+        border = border,
+        input = input,
+        ring = ring,
+        chart = ChartPalette(chart1, chart2, chart3, chart4, chart5),
+        sidebar =
+            SidebarPalette(
+                ColorPair(sidebar, sidebarForeground),
+                ColorPair(sidebarPrimary, sidebarPrimaryForeground),
+                ColorPair(sidebarAccent, sidebarAccentForeground),
+                sidebarBorder,
+                sidebarRing
+            ),
+        disabledText = foreground.withAlpha(0.5),
+        shadow = Color.Black.withAlpha(0.10)
+    )
+}
+
+internal fun darkPalette(): ThemePalette {
+    val background = Color(0.039388235, 0.039388235, 0.039388235) // background: oklch(0.145 0 0)
+    val foreground = Color(0.980255980, 0.980255980, 0.980255980) // foreground: oklch(0.985 0 0)
+    val card = Color(0.090527405, 0.090527405, 0.090527405) // card: oklch(0.205 0 0)
+    val cardForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // card-foreground: oklch(0.985 0 0)
+    val popover = Color(0.090527405, 0.090527405, 0.090527405) // popover: oklch(0.205 0 0)
+    val popoverForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // popover-foreground: oklch(0.985 0 0)
+    val primary = Color(0.898160664, 0.898160664, 0.898160664) // primary: oklch(0.922 0 0)
+    val primaryForeground =
+        Color(0.090527405, 0.090527405, 0.090527405) // primary-foreground: oklch(0.205 0 0)
+    val secondary = Color(0.149382078, 0.149382078, 0.149382078) // secondary: oklch(0.269 0 0)
+    val secondaryForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // secondary-foreground: oklch(0.985 0 0)
+    val muted = Color(0.149382078, 0.149382078, 0.149382078) // muted: oklch(0.269 0 0)
+    val mutedForeground =
+        Color(0.630163204, 0.630163204, 0.630163204) // muted-foreground: oklch(0.708 0 0)
+    val accent = Color(0.149382078, 0.149382078, 0.149382078) // accent: oklch(0.269 0 0)
+    val accentForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // accent-foreground: oklch(0.985 0 0)
+    val destructive =
+        Color(1.000000000, 0.391152717, 0.403856795) // destructive: oklch(0.704 0.191 22.216)
+    val destructiveForeground =
+        Color(0.090527405, 0.090527405, 0.090527405) // destructive-foreground: oklch(0.205 0 0)
+    val border =
+        Color(1.000000000, 1.000000000, 1.000000000, 0.100000000) // border: oklch(1 0 0 / 0.1)
+    val input =
+        Color(1.000000000, 1.000000000, 1.000000000, 0.150000000) // input: oklch(1 0 0 / 0.15)
+    val ring = Color(0.451519243, 0.451519243, 0.451519243) // ring: oklch(0.556 0 0)
+    val chart1 = Color(0.077907783, 0.279135173, 0.901774418) // chart-1: oklch(0.488 0.243 264.376)
+    val chart2 = Color(0.000000000, 0.738789145, 0.489280849) // chart-2: oklch(0.696 0.17 162.48)
+    val chart3 = Color(0.994271450, 0.602092724, 0.000000000) // chart-3: oklch(0.769 0.188 70.08)
+    val chart4 = Color(0.677909634, 0.275941959, 1.000000000) // chart-4: oklch(0.627 0.265 303.9)
+    val chart5 = Color(1.000000000, 0.124615208, 0.339003260) // chart-5: oklch(0.645 0.246 16.439)
+    val sidebar = Color(0.090527405, 0.090527405, 0.090527405) // sidebar: oklch(0.205 0 0)
+    val sidebarForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // sidebar-foreground: oklch(0.985 0 0)
+    val sidebarPrimary =
+        Color(0.077907783, 0.279135173, 0.901774418) // sidebar-primary: oklch(0.488 0.243 264.376)
+    val sidebarPrimaryForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // sidebar-primary-foreground: oklch(0.985 0 0)
+    val sidebarAccent =
+        Color(0.149382078, 0.149382078, 0.149382078) // sidebar-accent: oklch(0.269 0 0)
+    val sidebarAccentForeground =
+        Color(0.980255980, 0.980255980, 0.980255980) // sidebar-accent-foreground: oklch(0.985 0 0)
+    val sidebarBorder =
+        Color(
+            1.000000000,
+            1.000000000,
+            1.000000000,
+            0.100000000
+        ) // sidebar-border: oklch(1 0 0 / 0.1)
+    val sidebarRing = Color(0.451519243, 0.451519243, 0.451519243) // sidebar-ring: oklch(0.556 0 0)
+    return ThemePalette(
+        background = ColorPair(background, foreground),
+        card = ColorPair(card, cardForeground),
+        popover = ColorPair(popover, popoverForeground),
+        primary = ColorPair(primary, primaryForeground),
+        secondary = ColorPair(secondary, secondaryForeground),
+        muted = ColorPair(muted, mutedForeground),
+        accent = ColorPair(accent, accentForeground),
+        destructive = ColorPair(destructive, destructiveForeground),
+        border = border,
+        input = input,
+        ring = ring,
+        chart = ChartPalette(chart1, chart2, chart3, chart4, chart5),
+        sidebar =
+            SidebarPalette(
+                ColorPair(sidebar, sidebarForeground),
+                ColorPair(sidebarPrimary, sidebarPrimaryForeground),
+                ColorPair(sidebarAccent, sidebarAccentForeground),
+                sidebarBorder,
+                sidebarRing
+            ),
+        disabledText = foreground.withAlpha(0.5),
+        shadow = Color.Black.withAlpha(0.30)
+    )
+}

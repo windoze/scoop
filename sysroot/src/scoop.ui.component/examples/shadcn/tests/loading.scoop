@@ -1,0 +1,262 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.Point
+import scoop.test.*
+import scoop.tests.surface.FrameSnapshot
+import scoop.window.*
+
+/** Runs the actual loading pages, including an animated child hidden by a skeleton. */
+internal class GalleryLoading(private val probe: GalleryProbe) {
+    private var timed = false
+    private var paints = 0
+    private var quiet: FrameSnapshot? = None
+    fun advance(active: ActiveApplication) {
+        if (timed)
+            return
+        val model = probe.model
+        when (probe.phase) {
+            case 65 -> {
+                assertEquals(2L, model.avatarImages.size)
+                assertImagesOpen()
+                model.avatarMode.value = 1
+                probe.phase = 66
+            }
+            case 66 -> {
+                assertImagesOpen();
+                model.avatarMode.value = 2;
+                probe.phase = 67
+            }
+            case 67 -> {
+                assertImagesOpen();
+                model.avatarMode.value = 3;
+                model.toggleTheme();
+                model.toggleDirection();
+                probe.phase = 68
+            }
+            case 68 -> {
+                assertImagesOpen();
+                model.avatarMode.value = 4;
+                probe.phase = 69
+            }
+            case 69 -> {
+                assertImagesOpen();
+                model.selected.value = Demo.Skeleton;
+                probe.phase = 70
+            }
+            case 70 -> {
+                for (image in model.avatarImages)
+                    assertTrue(image.isClosed)
+                assertTrue(model.skeletonFocus.requestFocus())
+                probe.phase = 71
+            }
+            case 71 -> probe.key(active, 49)
+            case 72 -> {
+                assertEquals(1, model.skeletonCreates)
+                assertEquals(1, model.skeletonCount)
+                model.skeletonLoading.value = true
+                probe.phase = 73
+            }
+            case 73 -> {
+                assertFalse(model.skeletonFocus.hasFocus)
+                model.skeletonFocus.requestFocus()
+                wait(active, 74, 180L)
+            }
+            case 75 -> wait(active, 76, 300L)
+            case 77 -> {
+                assertEquals(1, model.skeletonCreates)
+                assertEquals(1, model.skeletonCount)
+                assertTrue(model.skeletonFocus.requestFocus())
+                probe.phase = 78
+            }
+            case 78 -> probe.key(active, 49)
+            case 79 -> {
+                assertEquals(2, model.skeletonCount);
+                model.skeletonChildRunning.value = true;
+                probe.phase = 80
+            }
+            case 80 -> wait(active, 81, 180L)
+            case 82 -> wait(active, 83, 300L)
+            case 84 -> wait(active, 85, 180L)
+            case 86 -> wait(active, 87, 180L)
+            case 88 -> wait(active, 89, 300L)
+            case 90 -> wait(active, 91, 300L)
+            case 92 -> wait(active, 93, 300L)
+            case 94 -> wait(active, 95, 180L)
+            case 96 -> wait(active, 97, 2300L)
+            case 98 -> wait(active, 99, 350L)
+            case 100 -> wait(active, 101, 65L)
+            case 102 -> wait(active, 103, 350L)
+            case 104 -> wait(active, 105, 200L)
+            case 106 -> wait(active, 107, 200L)
+            case 108 -> wait(active, 109, 300L)
+            case 110 -> wait(active, 111, 180L)
+            case 112 -> wait(active, 113, 300L)
+            case 114 -> wait(active, 115, 180L)
+            case 118 -> {
+                model.progressValue.value = Some(100.0);
+                probe.phase = 119
+            }
+            case 119 -> wait(active, 120, 350L)
+            else -> fail(Some(f"unexpected loading phase ${probe.phase}"))
+        }
+    }
+    fun deadline(active: ActiveApplication) {
+        assertTrue(timed)
+        timed = false
+        val model = probe.model
+        when (probe.phase) {
+            case 74 -> {
+                assertFalse(model.skeletonFocus.hasFocus)
+                assertFalse(model.skeletonFocus.isPending)
+                assertAnimating();
+                model.skeletonAnimated.value = false;
+                probe.phase = 75
+            }
+            case 76 -> {
+                assertQuiet();
+                model.skeletonLoading.value = false;
+                probe.phase = 77
+            }
+            case 81 -> {
+                assertAnimating();
+                model.skeletonLoading.value = true;
+                probe.phase = 82
+            }
+            case 83 -> {
+                assertQuiet();
+                model.skeletonLoading.value = false;
+                probe.phase = 84
+            }
+            case 85 -> {
+                assertAnimating()
+                model.skeletonLoading.value = true
+                model.skeletonAnimated.value = true
+                model.skeletonChildRunning.value = false
+                probe.phase = 86
+            }
+            case 87 -> {
+                assertAnimating();
+                model.toggleMotion();
+                probe.phase = 88
+            }
+            case 89 -> {
+                assertQuiet();
+                model.toggleMotion();
+                model.loadingExtent.value = 0.0;
+                probe.phase = 90
+            }
+            case 91 -> {
+                assertQuiet();
+                model.loadingExtent.value = 520.0;
+                model.skeletonScroll.scrollTo(Point(0.0, 500.0));
+                probe.phase = 92
+            }
+            case 93 -> {
+                assertQuiet();
+                model.skeletonScroll.scrollTo(Point(0.0, 0.0));
+                probe.phase = 94
+            }
+            case 95 -> {
+                assertAnimating();
+                model.selected.value = Demo.Progress;
+                probe.phase = 96
+            }
+            case 97 -> {
+                assertAnimating();
+                model.progressValue.value = Some(75.0);
+                probe.phase = 98
+            }
+            case 99 -> {
+                assertQuiet();
+                model.progressValue.value = Some(25.0);
+                probe.phase = 100
+            }
+            case 101 -> {
+                assertAnimating();
+                model.progressValue.value = Some(85.0);
+                probe.phase = 102
+            }
+            case 103 -> {
+                assertQuiet();
+                model.toggleMotion();
+                model.toggleTheme();
+                model.toggleDirection();
+                model.progressValue.value = Some(5.0);
+                probe.phase = 104
+            }
+            case 105 -> {
+                assertQuiet();
+                model.progressValue.value = None;
+                probe.phase = 106
+            }
+            case 107 -> {
+                assertQuiet();
+                model.toggleMotion();
+                model.loadingTransparent.value = true;
+                probe.phase = 108
+            }
+            case 109 -> {
+                assertQuiet();
+                model.loadingTransparent.value = false;
+                probe.phase = 110
+            }
+            case 111 -> {
+                assertAnimating();
+                model.progressScroll.scrollTo(Point(0.0, 500.0));
+                probe.phase = 112
+            }
+            case 113 -> {
+                assertQuiet();
+                model.progressScroll.scrollTo(Point(0.0, 0.0));
+                probe.phase = 114
+            }
+            case 115 -> {
+                assertAnimating();
+                probe.native!!.setVisible(false);
+                wait(active, 116, 250L)
+            }
+            case 116 -> {
+                assertTrue(probe.frames!!.snapshot().paused);
+                wait(active, 117, 180L)
+            }
+            case 117 -> {
+                assertEquals(paints, probe.paints)
+                assertTrue(probe.frames!!.snapshot().paused)
+                probe.native!!.setVisible(true)
+                probe.native!!.requestFocus()
+                probe.phase = 118
+            }
+            case 120 -> {
+                assertQuiet();
+                quiet = Some(probe.frames!!.snapshot());
+                wait(active, 121, 180L)
+            }
+            case 121 -> {
+                assertEquals(quiet!!, probe.frames!!.snapshot())
+                assertEquals(paints, probe.paints)
+                probe.phase = 122
+                probe.native!!.requestDestroy()
+            }
+            else -> fail(Some(f"gallery loading timed out at phase ${probe.phase}"))
+        }
+    }
+    private fun assertImagesOpen() {
+        for (image in probe.model.avatarImages)
+            assertFalse(image.isClosed)
+    }
+    private fun wait(active: ActiveApplication, phase: Int, milliseconds: Long) {
+        paints = probe.paints
+        timed = true
+        probe.phase = phase
+        probe.waitFor(active, milliseconds)
+    }
+    private fun assertAnimating() {
+        assertTrue(probe.paints > paints + 1)
+        assertTrue(probe.frames!!.snapshot().required)
+        assertFalse(probe.frames!!.snapshot().paused)
+    }
+    private fun assertQuiet() {
+        assertFalse(probe.frames!!.snapshot().required)
+        assertTrue(probe.frames!!.snapshot().paused)
+    }
+}

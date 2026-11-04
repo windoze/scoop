@@ -31,7 +31,7 @@ internal fun editorDragging(host: TextEditHost): Boolean =
 
 internal fun editorPress(host: TextEditHost, pointer: InputPointer, local: Point?, clicks: Int) {
     val point = local ?: return
-    host.area.requestFocus()
+    host.area.requestFocus(FocusOrigin.Pointer)
     val input = editorInputText(host)
     val layout = input.layout
     val displayed = layout.hitTest(point)

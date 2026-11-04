@@ -52,7 +52,7 @@ public class TextEditHost public constructor(
             focusable = true,
             textInput = initialOptions.enabled && !initialOptions.readOnly
         ) { context, event -> editorHandle(this, context, event) }
-    public val focus = scope.focusTarget(area)
+    public val focus = scope.focusTarget(area, FocusOptions(visibility = FocusVisibility.Always))
     internal val blink = scope.resource { window.createDeadline { editorBlink(this) } }
     internal val dragTimer = scope.resource { window.createDeadline { editorDragTick(this) } }
 
@@ -143,7 +143,11 @@ public class TextEditHost public constructor(
         )
         if (area.isFocusActive && options.enabled)
             state.checkHost(this)
-        this.focus.options = focus
+        this.focus.options =
+            if (focus.visibility == FocusVisibility.Automatic)
+                focus.copy { this.visibility = FocusVisibility.Always }
+            else
+                focus
         val blinkChanged = this.options.caretBlink != options.caretBlink
         val rebound = current !== state
         val restart =

@@ -6,7 +6,8 @@ import scoop.window.*
 public struct InteractionState(
     val hovered: Boolean = false,
     val pressed: Boolean = false,
-    val focused: Boolean = false
+    val focused: Boolean = false,
+    val focusVisible: Boolean = false
 )
 
 public struct PressOptions(val enabled: Boolean = true, val acceptsEnter: Boolean = true)
@@ -144,7 +145,8 @@ public class Press internal constructor(
             InteractionState(
                 hovered,
                 enabled && ((pointer && hovered) || key != None),
-                enabled && area.isFocusActive
+                enabled && area.isFocusActive,
+                enabled && area.isFocusVisible
             )
         if (visual.value != next)
             visual.value = next

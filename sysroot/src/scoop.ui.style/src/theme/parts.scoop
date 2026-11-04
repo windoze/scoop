@@ -24,7 +24,8 @@ public class SurfaceOptions internal constructor(
     public val minimumSize: Size? = None,
     public val padding: Insets? = None,
     public val style: StyleOverride = styleOverride(),
-    public val focus: FocusStyle? = None
+    public val focus: OutlineStyle? = None,
+    public val validation: OutlineStyle? = None
 ) {
     public fun copy(configure: SurfaceOptionsBuilder.() -> Unit = {}): SurfaceOptions =
         configureSurfaceOptions(this, configure)
@@ -35,8 +36,9 @@ public class SurfaceGeometry public constructor(
     public val outline: RoundedOutline,
     public val borderInner: RoundedOutline,
     public val content: Rect,
-    public val focus: FocusOutline?,
-    public val style: Style
+    public val ring: OutlineRing?,
+    public val style: Style,
+    public val opacity: Double = 1.0
 ) {
     public val contentStyle: Style get() =
         Style(
@@ -62,7 +64,8 @@ public class CheckboxOptions internal constructor(
     public val markInset: Double? = None,
     public val style: StyleOverride = styleOverride(),
     public val markColor: Color? = None,
-    public val focus: FocusStyle? = None
+    public val focus: OutlineStyle? = None,
+    public val validation: OutlineStyle? = None
 ) {
     public fun copy(configure: CheckboxOptionsBuilder.() -> Unit = {}): CheckboxOptions =
         configureCheckboxOptions(this, configure)
@@ -75,10 +78,11 @@ public class CheckboxGeometry public constructor(
     public val markBounds: Rect,
     public val tick: StrokeSegment,
     public val mixed: RoundedOutline,
-    public val focus: FocusOutline?,
+    public val ring: OutlineRing?,
     public val style: Style,
     public val markColor: Color,
-    public val selection: Double
+    public val selection: Double,
+    public val opacity: Double = 1.0
 )
 
 public struct RadioMetrics(
@@ -96,7 +100,8 @@ public class RadioOptions internal constructor(
     public val background: StyleValue<Paint?> = StyleValue.Inherit,
     public val border: StyleValue<BorderEdge?> = StyleValue.Inherit,
     public val dotColor: Color? = None,
-    public val focus: FocusStyle? = None
+    public val focus: OutlineStyle? = None,
+    public val validation: OutlineStyle? = None
 ) {
     public fun copy(configure: RadioOptionsBuilder.() -> Unit = {}): RadioOptions =
         configureRadioOptions(this, configure)
@@ -107,10 +112,11 @@ public class RadioGeometry public constructor(
     public val outer: Circle,
     public val interior: Circle,
     public val dot: Circle,
-    public val focus: FocusOutline?,
+    public val ring: OutlineRing?,
     public val style: Style,
     public val dotColor: Color,
-    public val selection: Double
+    public val selection: Double,
+    public val opacity: Double = 1.0
 )
 
 public struct ScrollbarMetrics(
@@ -155,7 +161,7 @@ public class SurfacePart internal constructor(
     public val fill: StateColors,
     public val border: StateColors,
     public val foreground: StateColors,
-    public val focus: FocusStyle,
+    public val focus: OutlineStyle,
     public val shadows: Array<BoxShadow> = []
 ) {
     public fun copy(configure: SurfacePartBuilder.() -> Unit = {}): SurfacePart =
@@ -184,7 +190,7 @@ public class MarkerAppearance internal constructor(
     public val border: StateColors,
     public val selectedBorder: StateColors,
     public val mark: StateColors,
-    public val focus: FocusStyle,
+    public val focus: OutlineStyle,
     public val shadows: Array<BoxShadow> = []
 ) {
     public fun copy(configure: MarkerAppearanceBuilder.() -> Unit = {}): MarkerAppearance =

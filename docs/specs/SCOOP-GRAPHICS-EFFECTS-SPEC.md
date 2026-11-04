@@ -21,7 +21,7 @@ sigma 是标准差，sigmaX／sigmaY 为有限非负的局部逻辑单位；offs
 
 ## 2. 图层与混合
 
-`Canvas.saveLayer(opacity = 1.0, filter = None, blendMode = BlendMode.SrcOver)` 在当前保存栈上建立透明图层；restore 时先处理完整图层内容，再应用整体 opacity 和指定混合模式合成回父目标。首批 BlendMode 提供 SrcOver、Src、DstIn 和 Plus：分别为通常覆盖、替换目标、以源 alpha 遮罩目标、预乘通道饱和相加。Plus 不代表 HDR。
+`Canvas.saveLayer(opacity = 1.0, filter = None, blendMode = BlendMode.SrcOver)` 在当前保存栈上建立透明图层；restore 时先处理完整图层内容，再应用整体 opacity 和指定混合模式合成回父目标。BlendMode 提供 SrcOver、Src、DstIn、Plus、Darken 和 Lighten：分别为通常覆盖、替换目标、以源 alpha 遮罩目标、预乘通道饱和相加，以及按通道取较暗／较亮色的标准 alpha 混合。Plus 不代表 HDR。Darken／Lighten 用于头像明暗边框，复用同一 Skia 图层合成，不在控件中读取目标像素。
 
 filter 在调用时借用，图层保留实际需要的原生引用直到恢复／使用结束，因此调用者随后可以关闭该包装。组透明度不能替换成各条绘图分别乘 alpha。默认行为仍是普通 SrcOver 组透明度，既有 save／restore 和 Canvas.withState 的异常恢复合同不变。
 

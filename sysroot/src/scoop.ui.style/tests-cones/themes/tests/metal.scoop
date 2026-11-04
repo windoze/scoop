@@ -169,7 +169,7 @@ private fun coverage(pixels: Array<Byte>, region: Rect): Coverage {
 }
 
 private fun paintParts(canvas: Canvas, theme: Theme, painter: ThemePainter) {
-    val surface = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focused = true))
+    val surface = SurfaceVisual(SurfaceKind.Action, InteractionVisual(focusVisible = true))
     painter.drawSurface(
         canvas,
         theme.surfaceGeometry(Rect(10.0, 10.0, 60.0, 26.0), surface),

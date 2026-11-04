@@ -127,7 +127,7 @@ private class ShowcaseProbe {
     private fun ready(): Boolean {
         if (paints <= afterPaint || pixel < 0L)
             return false
-        val color = model.source.current.value.tokens.palette.canvas
+        val color = model.source.current.value.tokens.palette.background.background
         val channels = [pixel % 256L, pixel / 256L % 256L, pixel / 65536L]
         val values = [color.red, color.green, color.blue]
         for (i in 0L until 3L) {

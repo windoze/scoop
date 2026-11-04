@@ -86,7 +86,11 @@ internal class DownloadObservedRoot(
                     this.style =
                         styleOverride {
                             this.background(
-                                Some(Paint(owner.probe.source.current.value.tokens.palette.canvas))
+                                Some(
+                                    Paint(
+                                        owner.probe.source.current.value.tokens.palette.background.background
+                                    )
+                                )
                             )
                         }
                 }

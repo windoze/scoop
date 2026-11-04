@@ -64,7 +64,7 @@ private fun shadow(offset: Point, x: Double, y: Double, color: Color, only: Bool
 
 /** Premultiplied layer composition; Plus is saturating SDR addition. */
 public enum BlendMode {
-    SrcOver, Src, DstIn, Plus
+    SrcOver, Src, DstIn, Plus, Darken, Lighten
 }
 
 internal fun BlendMode.nativeCode(): Int =
@@ -73,6 +73,8 @@ internal fun BlendMode.nativeCode(): Int =
         case Src -> 1
         case DstIn -> 2
         case Plus -> 3
+        case Darken -> 4
+        case Lighten -> 5
     }
 
 @Extern(name = "scoop_graphics_filter_blur")

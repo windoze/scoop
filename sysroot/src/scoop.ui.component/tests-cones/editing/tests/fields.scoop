@@ -27,7 +27,8 @@ private fun advanceInput(probe: FieldProbe) {
         }
         case 1 -> {
             assertTrue(probe.focus[0L].hasFocus)
-            assertTrue(probe.primaryDrawing!!.visual.interaction.focused)
+            assertTrue(probe.focus[0L].isFocusVisible)
+            assertTrue(probe.primaryDrawing!!.visual.interaction.focusVisible)
             fieldCaret(probe, probe.main, probe.primaryDrawing!!)
             probe.next { probe.primary.replaceAll("from server") }
         }
@@ -87,6 +88,8 @@ private fun advanceInput(probe: FieldProbe) {
         }
         case 11 -> {
             assertTrue(probe.focus[0L].hasFocus)
+            assertTrue(probe.focus[0L].isFocusVisible)
+            assertTrue(probe.primaryDrawing!!.visual.interaction.focusVisible)
             assertEquals(1, editorText(window, "blocked"))
             probe.next {
                 editorKey(window, 0, "a", 8)
@@ -110,6 +113,7 @@ private fun advanceInput(probe: FieldProbe) {
         }
         case 14 -> {
             assertFalse(probe.focus[0L].hasFocus)
+            assertFalse(probe.focus[0L].isFocusVisible)
             assertFalse(probe.focus[0L].requestFocus())
             probe.next {
                 probe.enabled = true
@@ -151,9 +155,9 @@ private fun advanceInput(probe: FieldProbe) {
         }
         case 22 -> {
             val geometry = probe.primaryDrawing!!.geometry
-            val error = probe.source.current.value.tokens.palette.error
+            val error = probe.source.current.value.tokens.palette.destructive.background
             assertEquals(error, geometry.style.border!!.resolve(LayoutDirection.Ltr).left.color)
-            assertEquals(error.withAlpha(0.72), geometry.focus!!.border.color)
+            assertEquals(error.withAlpha(0.72), geometry.ring!!.border.color)
             assertTrue(probe.primaryMetrics!!.size.height > geometry.bounds.height)
             probe.next {
                 probe.ownedFonts = true;

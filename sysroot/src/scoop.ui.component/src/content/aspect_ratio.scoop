@@ -1,0 +1,113 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.*
+
+public class AspectRatioProps public constructor(
+    public val content: View,
+    public val ratio: Double,
+    public val clip: Boolean = true
+) {
+    init {
+        requireComponent(
+            ratio.isFinite() && ratio > 0.0,
+            "aspect ratio must be positive and finite"
+        )
+    }
+}
+
+internal fun aspectSize(
+    ratio: Double,
+    constraints: Constraints,
+    natural: Size = Size(0.0, 0.0)
+): Size {
+    var width = 0.0
+    var height = 0.0
+    when (constraints.maxWidth) {
+        case Some(value) -> {
+            width = value;
+            height = value / ratio
+        }
+        case None -> when (constraints.maxHeight) {
+            case Some(value) -> {
+                height = value;
+                width = value * ratio
+            }
+            case None -> {
+                width = lowerBound(natural.width, natural.height * ratio);
+                height = width / ratio
+            }
+        }
+    }
+    when (constraints.maxHeight) {
+        case Some(limit) -> if (height > limit) {
+            height = limit;
+            width = height * ratio
+        };
+        case None -> {}
+    }
+    when (constraints.maxWidth) {
+        case Some(limit) -> if (width > limit) {
+            width = limit;
+            height = width / ratio
+        };
+        case None -> {}
+    }
+    val minimum = lowerBound(width, lowerBound(constraints.minWidth, constraints.minHeight * ratio))
+    val candidateHeight = minimum / ratio
+    if (
+        minimum.isFinite() &&
+            candidateHeight.isFinite() &&
+            (constraints.maxWidth == None || minimum <= constraints.maxWidth!!) &&
+            (constraints.maxHeight == None || candidateHeight <= constraints.maxHeight!!)
+    ) {
+        width = minimum
+        height = candidateHeight
+    }
+    val result = constraints.constrain(Size(width, height))
+    validSize(result)
+    return result
+}
+
+public class AspectRatio public constructor(private val props: Props<AspectRatioProps>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val natural =
+            if (constraints.maxWidth == None && constraints.maxHeight == None)
+                context.measureChild(0L, Constraints()).size
+            else
+                Size(0.0, 0.0)
+        val size = aspectSize(props.value.ratio, constraints, natural)
+        val child = context.measureChild(0L, Constraints.tight(size))
+        context.placeChild(0L, Point(0.0, 0.0))
+        return offsetMetrics(child, size, 0.0)
+    }
+    public override fun scene(context: SceneContext) {
+        containerScene(context, props.value.clip)
+    }
+}
+
+public class AspectRatioBuilder internal constructor() {
+    public var clip: Boolean = true
+    public var key: ViewKey = ViewKey.Position
+}
+
+public fun aspectRatio(
+    content: View,
+    ratio: Double,
+    configure: AspectRatioBuilder.() -> Unit = {}
+): View = makeAspectRatio(content, ratio, configure)
+
+internal fun makeAspectRatio(
+    content: View,
+    ratio: Double,
+    configure: AspectRatioBuilder.() -> Unit
+): View {
+    val builder = AspectRatioBuilder()
+    builder.configure()
+    return element(
+        AspectRatioProps(content, ratio, builder.clip),
+        { current -> AspectRatio(current) },
+        [content],
+        builder.key
+    )
+}

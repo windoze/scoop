@@ -10,7 +10,9 @@ public class CheckboxProps public constructor(
     public val enabled: Boolean = true,
     public val style: CheckboxStyle = checkboxStyle(),
     public val theme: ThemeSource? = None,
-    public val focus: FocusOptions = FocusOptions()
+    public val focus: FocusOptions = FocusOptions(),
+    public val invalid: Boolean = false,
+    public val labelTarget: FieldTarget? = None
 )
 
 public class Checkbox public constructor(private val props: Props<CheckboxProps>): Component {
@@ -30,20 +32,21 @@ public class Checkbox public constructor(private val props: Props<CheckboxProps>
     public override fun render(): View {
         val input = props.value
         val theme = themes.read(input.theme)
+        val checked = input.checked.value
         val interaction =
             when (control.value) {
                 case Some(value) -> value.press.interaction
                 case None -> InteractionState()
             }
-        val visual = interaction.asVisual(input.enabled)
+        val visual = interaction.asVisual(input.enabled, input.invalid)
         return element(
             CheckboxInkProps(
                 input,
                 theme,
-                input.checked.value,
+                checked,
                 control,
                 visual,
-                input.style.options(visual),
+                input.style.options(theme, visual, checked),
                 input.style.padding ?: Insets.all(theme.tokens.spacing.small),
                 {
                     val binding = props.value.checked
@@ -81,7 +84,9 @@ internal fun makeOwnedCheckbox(
             builder.enabled,
             builder.style,
             builder.theme,
-            builder.focus
+            builder.focus,
+            builder.invalid,
+            builder.labelTarget
         ),
         { props -> OwnedCheckbox(props) },
         builder.key
@@ -93,7 +98,9 @@ private class OwnedCheckboxProps(
     val enabled: Boolean,
     val style: CheckboxStyle,
     val theme: ThemeSource?,
-    val focus: FocusOptions
+    val focus: FocusOptions,
+    val invalid: Boolean,
+    val labelTarget: FieldTarget?
 )
 
 private class OwnedCheckbox(private val props: Props<OwnedCheckboxProps>): Component {
@@ -104,6 +111,8 @@ private class OwnedCheckbox(private val props: Props<OwnedCheckboxProps>): Compo
             this.style = this @OwnedCheckbox.props.value.style
             this.theme = this @OwnedCheckbox.props.value.theme
             this.focus = this @OwnedCheckbox.props.value.focus
+            this.invalid = this @OwnedCheckbox.props.value.invalid
+            this.labelTarget = this @OwnedCheckbox.props.value.labelTarget
         }
 }
 
@@ -125,7 +134,10 @@ private class CheckboxInk(private val props: Props<CheckboxInkProps>): Element {
     private var selection: Animatable<Double>? = None
     private var painters: ThemePainterCache? = None
     private var drawing: CheckboxDrawing? = None
+    private var field: FieldLink? = None
     public override fun onMount(scope: ComponentScope) {
+        val control = props.value.control.value!!
+        field = Some(scope.resource { FieldLink(scope, control.area, control.focus) })
         painters = Some(scope.resource { ThemePainterCache() })
         motion = Some(InteractionMotion(scope, props.value.visual))
         selection =
@@ -144,11 +156,12 @@ private class CheckboxInk(private val props: Props<CheckboxInkProps>): Element {
         control.press.update(PressOptions(value.input.enabled, false), value.activate)
         control.area.scope.enabled = value.input.enabled
         control.focus.options = value.input.focus
+        field!!.update(value.input.labelTarget, value.input.enabled, value.activate)
         val specs = value.theme.tokens.motion
         motion!!.update(
             value.visual,
-            value.input.style.transition.resolve(specs.hover),
-            value.input.style.transition.resolve(specs.press)
+            specs.resolve(value.input.style.transition.resolve(specs.hover)),
+            specs.resolve(value.input.style.transition.resolve(specs.press))
         )
         changeProgress(
             selection!!,
@@ -157,7 +170,7 @@ private class CheckboxInk(private val props: Props<CheckboxInkProps>): Element {
             else
                 0.0,
             if (value.input.enabled)
-                value.input.style.selectionTransition.resolve(specs.selection)
+                specs.resolve(value.input.style.selectionTransition.resolve(specs.selection))
             else
                 None
         )

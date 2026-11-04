@@ -1,0 +1,86 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.*
+import scoop.graphics.text.FontCollection
+import scoop.ui.*
+import scoop.ui.style.Insets
+import scoop.ui.component.*
+import scoop.ui.component.column as makeColumn
+import scoop.ui.component.imageView as makeImage
+
+/** The example owns its image; ImageView instances borrow it until unmount. */
+internal class AspectExamples(private val fonts: FontCollection): Component {
+    private val artwork = state<Image?>(None)
+    public override fun onMount(scope: ComponentScope) {
+        artwork.value = Some(scope.resource { panelArtwork() })
+    }
+    public override fun render(): View {
+        // Initial render precedes onMount; its state write schedules the resource-backed view.
+        val picture = artwork.value ?: return empty()
+        return makeColumn {
+            this.add(panelHeading("Aspect Ratio", this @AspectExamples.fonts))
+            this.label("The same image in 16:9 and square frames, using Cover and Contain.") {
+                this.fonts = Some(this @AspectExamples.fonts)
+            }
+            for (ratio in [16.0 / 9.0, 1.0])
+                this.row {
+                    for (fit in [ContentFit.Cover, ContentFit.Contain])
+                        this.item(
+                            makeColumn {
+                                this.label(
+                                    if (fit == ContentFit.Cover)
+                                        "Cover"
+                                    else
+                                        "Contain"
+                                ) { this.fonts = Some(this @AspectExamples.fonts) }
+                                this.aspectRatio(
+                                    makeImage(picture, Size(96.0, 64.0)) { this.fit = fit },
+                                    ratio
+                                )
+                                this.spacing = 8.0
+                                this.alignment = CrossAlignment.Stretch
+                            }
+                        ) {
+                            this.grow = 1.0;
+                            this.basis = FlexBasis.Fixed(0.0)
+                        }
+                    this.spacing = 24.0
+                    this.alignment = CrossAlignment.Start
+                }
+            this.spacing = 24.0
+            this.padding = Insets.all(6.0)
+            this.alignment = CrossAlignment.Stretch
+        }
+    }
+}
+
+private fun panelArtwork(): Image =
+    RasterSurface(768, 512).use {
+        raster ->
+        raster.draw {
+            canvas ->
+            canvas.scale(8.0, 8.0)
+            canvas.clear(Color(229.0 / 255.0, 238.0 / 255.0, 247.0 / 255.0))
+            canvas.drawRect(
+                Rect(0.0, 42.0, 96.0, 22.0),
+                Paint(Color(45.0 / 255.0, 106.0 / 255.0, 90.0 / 255.0))
+            )
+            canvas.drawCircle(
+                Point(72.0, 18.0),
+                9.0,
+                Paint(Color(244.0 / 255.0, 187.0 / 255.0, 99.0 / 255.0))
+            )
+            path {
+                this.moveTo(Point(2.0, 48.0));
+                this.lineTo(Point(32.0, 10.0))
+                this.lineTo(Point(62.0, 48.0));
+                this.closeContour()
+            }.use {
+                mountain -> canvas.drawPath(
+                    mountain,
+                    Paint(Color(108.0 / 255.0, 141.0 / 255.0, 154.0 / 255.0))
+                )
+            }
+        }
+        raster.snapshot()
+    }

@@ -146,7 +146,9 @@ private class FieldPanel(private val probe: FieldProbe, private val props: Props
         probe.horizontal = None
         probe.vertical = None
         context.draw {
-            paint -> paint.canvas.clear(probe.source.current.value.tokens.palette.canvas)
+            paint -> paint.canvas.clear(
+                probe.source.current.value.tokens.palette.background.background
+            )
         }
         context.children()
         context.onFrameComplete {

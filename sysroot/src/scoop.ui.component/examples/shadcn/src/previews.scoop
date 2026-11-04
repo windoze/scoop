@@ -1,0 +1,76 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.text.FontCollection
+import scoop.ui.*
+import scoop.ui.component.*
+import scoop.ui.style.*
+
+internal enum PreviewState {
+    Normal, Invalid, Disabled
+}
+
+internal fun previewTitle(value: PreviewState): String =
+    when (value) {
+        case Normal -> "Normal"
+        case Invalid -> "Invalid"
+        case Disabled -> "Disabled"
+    }
+
+internal fun previewControl(
+    model: GalleryModel,
+    fonts: FontCollection,
+    value: ControlDemo,
+    state: PreviewState
+): View {
+    val enabled = state != PreviewState.Disabled
+    val invalid = state == PreviewState.Invalid
+    val focus =
+        if (state == PreviewState.Normal)
+            FocusOptions(Some(model.focus(value)))
+        else
+            FocusOptions()
+    return when (value) {
+        case Button -> row {
+            this.button("Continue", { model.clicks.value += 1 }) {
+                this.enabled = enabled
+                this.invalid = invalid
+                this.fonts = Some(fonts)
+                this.focus = focus
+            }
+            this.justify = MainAlignment.Center
+        }
+        case Input -> input(
+            when (state) {
+                case Normal -> model.name
+                case Invalid -> model.invalidName
+                case Disabled -> model.disabledName
+            }
+        ) {
+            this.enabled = enabled
+            this.invalid = invalid
+            this.fonts = Some(fonts)
+            this.focus = focus
+            this.placeholder = "Your name"
+            this.description =
+                if (invalid)
+                    "Enter a valid email address."
+                else
+                    ""
+        }
+        case Checkbox -> row {
+            this.checkbox(
+                if (invalid)
+                    model.invalidChecked.binding()
+                else
+                    model.checked.binding()
+            ) {
+                this.enabled = enabled
+                this.invalid = invalid
+                this.focus = focus
+            }
+            this.label("Accept terms") { this.fonts = Some(fonts) }
+            this.spacing = 4.0
+            this.alignment = CrossAlignment.Center
+        }
+    }
+}

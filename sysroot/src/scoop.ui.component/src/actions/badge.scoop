@@ -1,0 +1,115 @@
+package scoop.ui.component
+
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.*
+
+public class BadgeProps public constructor(
+    public val content: ButtonContent,
+    public val onClick: (() -> Unit)? = None,
+    public val variant: ButtonVariant = ButtonVariant.Default,
+    public val enabled: Boolean = true,
+    public val invalid: Boolean = false,
+    public val style: ButtonStyle = buttonStyle(),
+    public val theme: ThemeSource? = None,
+    public val focus: FocusOptions = FocusOptions()
+)
+
+public class Badge public constructor(private val props: Props<BadgeProps>): Component {
+    public override fun render(): View {
+        val input = props.value
+        return when (input.onClick) {
+            case Some(action) -> component(
+                BadgeActionInput(input, action),
+                { current -> BadgeAction(current) }
+            )
+            case None -> component(input, { current -> BadgeDisplay(current) })
+        }
+    }
+}
+
+public fun badge(text: String, configure: BadgeBuilder.() -> Unit = {}): View =
+    makeTextBadge(text, configure)
+
+public fun badge(text: StyledText, configure: StyledBadgeBuilder.() -> Unit = {}): View =
+    makeStyledBadge(text, configure)
+
+public fun badge(content: View, configure: ContentBadgeBuilder.() -> Unit = {}): View =
+    makeContentBadge(content, configure)
+
+public fun badge(
+    content: (ActionContentStyle) -> View,
+    configure: ContentBadgeBuilder.() -> Unit = {}
+): View = makeResolvedBadge(content, configure)
+
+private class BadgeActionInput(val value: BadgeProps, val action: () -> Unit)
+
+private class BadgeAction(private val props: Props<BadgeActionInput>): Component {
+    private val control = state<PressControl?>(None)
+    private val themes = ThemeAccess()
+    private val text = ActionTextStyle()
+    public override fun onMount(scope: ComponentScope) {
+        val input = props.value.value
+        themes.mount(input.theme)
+        val area = scope.createArea(focusable = true)
+        val focus = scope.focusTarget(area, input.focus)
+        val press = scope.press(area, PressOptions(input.enabled)) { props.value.action() }
+        scope.routeChildren(area)
+        control.value = Some(PressControl(area, focus, press))
+    }
+    public override fun render(): View {
+        val input = props.value
+        val interaction =
+            when (control.value) {
+                case Some(value) -> value.press.interaction
+                case None -> InteractionState()
+            }
+        return badgeContent(
+            input.value,
+            themes,
+            text,
+            interaction,
+            ActionBehavior.Press(control, input.action, input.value.focus)
+        )
+    }
+}
+
+private class BadgeDisplay(private val props: Props<BadgeProps>): Component {
+    private val themes = ThemeAccess()
+    private val text = ActionTextStyle()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View =
+        badgeContent(props.value, themes, text, InteractionState(), ActionBehavior.Passive)
+}
+
+private fun badgeContent(
+    input: BadgeProps,
+    themes: ThemeAccess,
+    text: ActionTextStyle,
+    interaction: InteractionState,
+    behavior: ActionBehavior
+): View {
+    val theme = themes.read(input.theme)
+    val shape = ActionShape.Badge
+    val visual = SurfaceVisual(input.style.kind, interaction.asVisual(input.enabled, input.invalid))
+    val base =
+        text.resolve(
+            theme.tokens.typography.action,
+            actionTextColor(theme, shape, input.variant, visual),
+            input.style.text,
+            actionFontScale(shape),
+            actionLineHeight(shape)
+        )
+    return element(
+        ActionInkProps(theme, shape, input.variant, input.style, visual, behavior),
+        { current -> ActionInk(current) },
+        [
+            actionContent(
+                input.content,
+                actionContentStyle(base, shape, input.variant, visual.interaction)
+            )
+        ]
+    )
+}

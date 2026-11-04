@@ -1,0 +1,61 @@
+package scoop.examples.ui.shadcn
+
+import scoop.tests.window.nativeEditorText
+import scoop.tests.window.nativeEditorKey
+import scoop.window.Window
+import scoop.window.native.*
+
+internal fun galleryText(window: Window, text: String, marked: Boolean): Int {
+    @Unsafe
+    {
+        return window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                return@use when (lease.handle) {
+                    case AppKit(_, view) -> text.withUtf8Bytes {
+                        bytes,
+                        length -> @Unsafe
+                        {
+                            return@withUtf8Bytes nativeEditorText(
+                                view,
+                                if (marked)
+                                    1
+                                else
+                                    0,
+                                bytes,
+                                length,
+                                if (marked)
+                                    2L
+                                else
+                                    0L,
+                                0L,
+                                -1L,
+                                0L
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal fun galleryKey(window: Window, code: Int, text: String, flags: Int = 0): Int {
+    @Unsafe
+    {
+        return window.acquireNativeWindow().use {
+            lease -> @Unsafe
+            {
+                return@use when (lease.handle) {
+                    case AppKit(_, view) -> text.withUtf8Bytes {
+                        bytes,
+                        length -> @Unsafe
+                        {
+                            return@withUtf8Bytes nativeEditorKey(view, code, bytes, length, flags)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

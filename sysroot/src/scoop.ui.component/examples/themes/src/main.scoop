@@ -40,7 +40,13 @@ internal class Showcase(
                 ContentEffect.DropShadow(Point(4.0, 4.0), 3.0, 3.0, Color.Black.withAlpha(0.45))
             )
         if (model.glow.value)
-            effects.add(ContentEffect.Glow(3.0, 3.0, theme.tokens.palette.accent.withAlpha(0.75)))
+            effects.add(
+                ContentEffect.Glow(
+                    3.0,
+                    3.0,
+                    theme.tokens.palette.primary.background.withAlpha(0.75)
+                )
+            )
         if (model.blur.value)
             effects.add(ContentEffect.Blur(2.0, 2.0))
         val preview =
@@ -67,7 +73,9 @@ internal class Showcase(
                         this.height = Some(10.0)
                         this.style =
                             styleOverride {
-                                this.background(Some(Paint(theme.tokens.palette.accent)))
+                                this.background(
+                                    Some(Paint(theme.tokens.palette.primary.background))
+                                )
                                 this.corners(Corners.all(5.0))
                             }
                     }
@@ -188,7 +196,7 @@ internal class Showcase(
             this.alignment = Alignment(AxisAlignment.Start, AxisAlignment.Start)
             this.style =
                 styleOverride {
-                    this.background(Some(Paint(theme.tokens.palette.canvas)))
+                    this.background(Some(Paint(theme.tokens.palette.background.background)))
                     this.clipContent(true)
                 }
         }

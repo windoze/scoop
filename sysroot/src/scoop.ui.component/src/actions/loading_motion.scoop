@@ -1,0 +1,59 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+
+/** One scope-owned phase shared by the three looping loading indicators. */
+internal class LoadingMotion(scope: ComponentScope) {
+    val phase: Animatable<Double> = scope.animation(0.0)
+    private var period: Duration? = None
+    fun update(active: Boolean, duration: Duration) {
+        if (active) {
+            if (period != Some(duration)) {
+                phase.snapTo(0.0)
+                phase.animateTo(1.0, AnimationSpec.Tween(duration), Some(Repeat()))
+                period = Some(duration)
+            }
+        } else
+            if (period != None) {
+                phase.snapTo(0.0)
+                period = None
+            }
+    }
+}
+
+internal fun loadingVisible(canvas: Canvas, bounds: Rect, alpha: Double): Boolean =
+    bounds.width >
+        0.0 &&
+        bounds.height >
+        0.0 &&
+        alpha >
+        0.0 &&
+        when (canvas.localClipBounds) {
+            case Some(clip) -> bounds.x <
+                clip.x +
+                clip.width &&
+                bounds.x +
+                bounds.width >
+                clip.x &&
+                bounds.y <
+                clip.y +
+                clip.height &&
+                bounds.y +
+                bounds.height >
+                clip.y
+            case None -> false
+        }
+
+internal fun loadingParticipation(
+    context: SceneContext,
+    animation: Animatable<Double>,
+    visible: Boolean
+) {
+    context.onFrameComplete {
+        frame -> if (frame.submission == FrameSubmission.Accepted)
+            animation.isFrameEnabled = visible
+    }
+}

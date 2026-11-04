@@ -1,0 +1,238 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.style.*
+
+internal fun actionTextColor(
+    theme: Theme,
+    shape: ActionShape,
+    variant: ButtonVariant,
+    visual: SurfaceVisual
+): Color {
+    val colors = theme.tokens.palette
+    if (variant == ButtonVariant.Default)
+        return theme.surfaceTextColor(visual)
+    if (!visual.interaction.enabled && theme.tokens.disabledOpacity >= 1.0)
+        return colors.disabledText
+    return when (variant) {
+        case Default -> theme.surfaceTextColor(visual)
+        case Secondary -> colors.secondary.foreground
+        case Destructive -> colors.destructive.background
+        case Link -> colors.primary.background
+        else -> if (
+            shape == ActionShape.Badge && visual.interaction.enabled && visual.interaction.hovered
+        )
+            colors.muted.foreground
+        else
+            colors.background.foreground
+    }
+}
+
+internal fun actionOptions(
+    theme: Theme,
+    shape: ActionShape,
+    variant: ButtonVariant,
+    style: ButtonStyle,
+    visual: InteractionVisual
+): SurfaceOptions {
+    val base = theme.surfaceMetrics(SurfaceVisual(style.kind))
+    val colors = theme.tokens.palette
+    val dark = theme.tokens.mode == ThemeMode.Dark
+    val badge = shape == ActionShape.Badge
+    val density = theme.tokens.typography.action.fontSize / 14.0
+    val preset = actionSizeOptions(theme, shape, base, density)
+    var normal = Color.Transparent
+    var hover = Color.Transparent
+    var border = Color.Transparent
+    when (variant) {
+        case Default -> {}
+        case Outline -> {
+            normal =
+                if (badge)
+                    Color.Transparent
+                else
+                    if (dark)
+                        colors.input.withAlpha(colors.input.alpha * 0.3)
+                    else
+                        colors.background.background
+            hover =
+                if (dark && !badge)
+                    colors.input.withAlpha(colors.input.alpha * 0.5)
+                else
+                    colors.muted.background
+            border =
+                if (dark && !badge)
+                    colors.input
+                else
+                    colors.border
+        }
+        case Secondary -> {
+            normal = colors.secondary.background
+            hover =
+                if (badge)
+                    normal.withAlpha(normal.alpha * 0.8)
+                else
+                    secondaryHover(normal, colors.background.foreground)
+        }
+        case Ghost -> hover =
+            colors.muted.background.withAlpha(
+                colors.muted.background.alpha *
+                    if (dark)
+                        0.5
+                    else
+                        1.0
+            )
+        case Destructive -> {
+            normal =
+                colors.destructive.background.withAlpha(
+                    if (dark)
+                        0.2
+                    else
+                        0.1
+                )
+            hover =
+                colors.destructive.background.withAlpha(
+                    if (dark && !badge)
+                        0.3
+                    else
+                        0.2
+                )
+        }
+        case Link -> {}
+    }
+    val destructive =
+        if (variant == ButtonVariant.Destructive)
+            Some(
+                OutlineStyle(
+                    colors.destructive.background.withAlpha(
+                        if (dark)
+                            0.4
+                        else
+                            0.2
+                    ),
+                    theme.tokens.validation.width,
+                    theme.tokens.validation.outset,
+                    Some(colors.destructive.background.withAlpha(0.4))
+                )
+            )
+        else
+            None
+    val focus: OutlineStyle? =
+        if (style.surface.focus == None)
+            destructive
+        else
+            style.surface.focus
+    if (visual.invalid)
+        border = (style.surface.validation ?: theme.tokens.validation).borderColor ?: border
+    else
+        if (visual.enabled && visual.focusVisible)
+            border =
+                when (focus) {
+                    case Some(value) -> value.borderColor ?: border
+                    case None -> colors.ring
+                }
+    val disabled =
+        if (theme.tokens.disabledOpacity >= 1.0)
+            mixThemeColor(normal, colors.muted.background, 0.5)
+        else
+            normal
+    val fill = StateColors(normal, hover, hover, disabled).resolve(visual)
+    val resolvedBorder = border
+    val variantStyle =
+        styleOverride {
+            if (variant != ButtonVariant.Default) {
+                this.background(Some(Paint(fill)))
+                this.border(
+                    Some(
+                        Border.Physical(
+                            BorderEdges(
+                                BorderEdge(base.borderInsets.left, resolvedBorder),
+                                BorderEdge(base.borderInsets.top, resolvedBorder),
+                                BorderEdge(base.borderInsets.right, resolvedBorder),
+                                BorderEdge(base.borderInsets.bottom, resolvedBorder)
+                            )
+                        )
+                    )
+                )
+            }
+        }
+    val resolved =
+        style.states.apply(preset.style.then(variantStyle).then(style.surface.style), visual)
+    return style.surface.copy {
+        if (this.suggestedSize == None)
+            this.suggestedSize = preset.suggestedSize
+        if (this.padding == None)
+            this.padding = preset.padding
+        this.style = resolved
+        this.focus = focus
+    }
+}
+
+private fun actionSizeOptions(
+    theme: Theme,
+    shape: ActionShape,
+    base: SurfaceMetrics,
+    density: Double
+): SurfaceOptions =
+    surfaceOptions {
+        when (shape) {
+            case Badge -> {
+                this.suggestedSize = Some(Size(0.0, 20.0 * density))
+                this.padding = Some(Insets(8.0 * density, density, 8.0 * density, density))
+                style { this.corners(Corners.all(1000.0)) }
+            }
+            case Button(size) -> {
+                val ratio =
+                    when (size) {
+                        case Xs -> 0.75
+                        case IconXs -> 0.75
+                        case Sm -> 0.875
+                        case IconSm -> 0.875
+                        case Lg -> 1.125
+                        case IconLg -> 1.125
+                        else -> 1.0
+                    }
+                val height = base.suggestedSize.height * ratio
+                val paddingRatio =
+                    if (size == ButtonSize.Sm)
+                        0.75
+                    else
+                        ratio
+                this.suggestedSize =
+                    Some(
+                        Size(
+                            if (isIconAction(shape))
+                                height
+                            else
+                                base.suggestedSize.width,
+                            height
+                        )
+                    )
+                if (isIconAction(shape))
+                    this.padding = Some(Insets.all(base.padding.top * paddingRatio))
+                else
+                    if (size == ButtonSize.Xs)
+                        this.padding =
+                            Some(
+                                Insets(
+                                    base.padding.left * 0.8,
+                                    base.padding.top * paddingRatio,
+                                    base.padding.right * 0.8,
+                                    base.padding.bottom * paddingRatio
+                                )
+                            )
+                    else
+                        this.padding =
+                            Some(
+                                Insets(
+                                    base.padding.left,
+                                    base.padding.top * paddingRatio,
+                                    base.padding.right,
+                                    base.padding.bottom * paddingRatio
+                                )
+                            )
+                if (ratio < 1.0)
+                    style { this.corners(Corners.all(theme.tokens.corners.medium)) }
+            }
+        }
+    }

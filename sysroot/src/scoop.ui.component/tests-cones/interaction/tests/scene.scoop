@@ -93,7 +93,7 @@ internal class ControlScene(private val probe: ControlProbe): Component {
             }
         val buttonStyle = buttonStyle { surface { style { this.corners(Corners.all(9.0)) } } }
         return element(
-            PanelProps(generation, count, theme.tokens.palette.canvas),
+            PanelProps(generation, count, theme.tokens.palette.background.background),
             { props -> ControlPanel(props, probe) },
             [
                 styled(

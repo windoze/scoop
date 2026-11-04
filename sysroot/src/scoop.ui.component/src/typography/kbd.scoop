@@ -1,0 +1,220 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.style.*
+import scoop.window.*
+import scoop.ui.component.row as makeRow
+import scoop.ui.component.label as makeLabel
+
+public enum KbdContent {
+    Text(String), Custom(View), Chord(ShortcutChord), Label(ShortcutLabel)
+}
+
+public class KbdProps public constructor(
+    public val content: KbdContent,
+    public val fonts: FontCollection? = None,
+    public val theme: ThemeSource? = None,
+    public val textStyle: SpanStyle? = None,
+    public val style: StyleOverride = styleOverride(),
+    public val grouped: Boolean = false
+)
+
+public class Kbd public constructor(private val props: Props<KbdProps>): Component {
+    private val themes = ThemeAccess()
+    private val window = state<Window?>(None)
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+        window.value = Some(scope.nativeWindow)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val density = theme.tokens.typography.body.fontSize / 14.0
+        val base =
+            theme.tokens.typography.body.copy {
+                this.fontSize = 12.0 * density
+                this.lineHeight = Some(16.0 / 12.0)
+                this.weight = 500
+                this.color = theme.tokens.palette.muted.foreground
+            }
+        val style = input.textStyle?.resolve(base) ?: base
+        val visual =
+            styleOverride {
+                this.background(Some(Paint(theme.tokens.palette.muted.background)))
+                this.corners(Corners.all(theme.tokens.corners.small))
+            }.then(input.style)
+        val label =
+            when (input.content) {
+                case Chord(value) -> when (window.value) {
+                    case Some(native) -> Some(native.shortcutLabel(value))
+                    case None -> return empty()
+                }
+                case Label(value) -> Some(value)
+                else -> None
+            }
+        if (input.grouped)
+            when (label) {
+                case Some(value) -> return direction(
+                    makeRow {
+                        this.spacing = 4.0 * density
+                        this.alignment = CrossAlignment.Center
+                        for (index in 0L ..< value.parts.size) {
+                            if (index > 0L && value.separator.byteLength > 0L)
+                                this.add(kbdCaption(value.separator, style, input.fonts))
+                            this.add(
+                                kbdCap(
+                                    kbdCaption(value.parts[index], style, input.fonts),
+                                    density,
+                                    visual,
+                                    ViewKey.Number(index)
+                                )
+                            )
+                        }
+                    },
+                    LayoutDirection.Ltr
+                )
+                case None -> {}
+            }
+        val child =
+            when (input.content) {
+                case Text(value) -> kbdCaption(value, style, input.fonts)
+                case Custom(view) -> view
+                else -> direction(
+                    kbdCaption(shortcutCaption(label!!), style, input.fonts),
+                    LayoutDirection.Ltr
+                )
+            }
+        return kbdCap(child, density, visual)
+    }
+}
+
+internal fun shortcutCaption(label: ShortcutLabel): String {
+    val text = StringBuilder()
+    for (index in 0L ..< label.parts.size) {
+        if (index > 0L)
+            text.append(label.separator)
+        text.append(label.parts[index])
+    }
+    return text.toString()
+}
+
+private fun kbdCaption(value: String, style: TextStyle, fonts: FontCollection?): View =
+    makeLabel(
+        styledText {
+            this.style = style;
+            this.text(value)
+        }
+    ) { this.fonts = fonts }
+
+private fun kbdCap(
+    content: View,
+    density: Double,
+    style: StyleOverride,
+    key: ViewKey = ViewKey.Position
+): View =
+    frame(element(density, { current -> KbdSize(current) }, [content])) {
+        this.padding = Some(Insets())
+        this.style = style
+        this.key = key
+    }
+
+private class KbdSize(private val density: Props<Double>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val scale = density.value
+        val natural = context.measureChild(0L, Constraints())
+        val size =
+            constraints.constrain(
+                Size(lowerBound(natural.size.width + 8.0 * scale, 20.0 * scale), 20.0 * scale)
+            )
+        val child =
+            context.measureChild(
+                0L,
+                Constraints(
+                    maxWidth =
+                        Some(
+                            upperBound(
+                                natural.size.width,
+                                lowerBound(size.width - 8.0 * scale, 0.0)
+                            )
+                        ),
+                    maxHeight = Some(size.height)
+                )
+            )
+        val top = (size.height - child.size.height) / 2.0
+        context.placeChild(0L, Point((size.width - child.size.width) / 2.0, top))
+        return offsetMetrics(child, size, top)
+    }
+    public override fun scene(context: SceneContext) {
+        containerScene(context, true)
+    }
+}
+
+public class KbdBuilder internal constructor() {
+    public var fonts: FontCollection? = None
+    public var theme: ThemeSource? = None
+    public var textStyle: SpanStyle? = None
+    public var style: StyleOverride = styleOverride()
+    public var key: ViewKey = ViewKey.Position
+    public fun textStyle(configure: SpanStyleBuilder.() -> Unit): Unit {
+        textStyle = Some((textStyle ?: spanStyle()).copy(configure))
+    }
+    public fun style(configure: StyleOverrideBuilder.() -> Unit): Unit {
+        style = style.copy(configure)
+    }
+    internal fun snapshot(content: KbdContent, grouped: Boolean): KbdProps =
+        KbdProps(content, fonts, theme, textStyle, style, grouped)
+}
+
+public fun kbd(text: String, configure: KbdBuilder.() -> Unit = {}): View =
+    makeKbd(KbdContent.Text(text), false, configure)
+
+public fun kbd(view: View, configure: KbdBuilder.() -> Unit = {}): View =
+    makeKbd(KbdContent.Custom(view), false, configure)
+
+public fun kbd(chord: ShortcutChord, configure: KbdBuilder.() -> Unit = {}): View =
+    makeKbd(KbdContent.Chord(chord), false, configure)
+
+public fun kbd(label: ShortcutLabel, configure: KbdBuilder.() -> Unit = {}): View =
+    makeKbd(KbdContent.Label(label), false, configure)
+
+public fun kbdGroup(chord: ShortcutChord, configure: KbdBuilder.() -> Unit = {}): View =
+    makeKbd(KbdContent.Chord(chord), true, configure)
+
+public fun kbdGroup(label: ShortcutLabel, configure: KbdBuilder.() -> Unit = {}): View =
+    makeKbd(KbdContent.Label(label), true, configure)
+
+internal fun makeKbd(
+    content: KbdContent,
+    grouped: Boolean,
+    configure: KbdBuilder.() -> Unit
+): View {
+    val builder = KbdBuilder()
+    builder.configure()
+    return component(builder.snapshot(content, grouped), { current -> Kbd(current) }, builder.key)
+}
+
+public class KbdGroupBuilder internal constructor(): ChildrenBuilder() {
+    public var spacing: Double = 4.0
+    internal fun build(): View {
+        nonnegative(spacing, "invalid keyboard group spacing")
+        val children = childrenSnapshot()
+        val gap = spacing
+        val identity = key
+        return makeRow {
+            this.addAll(children)
+            this.spacing = gap
+            this.key = identity
+            this.alignment = CrossAlignment.Center
+        }
+    }
+}
+
+public fun kbdGroup(configure: KbdGroupBuilder.() -> Unit): View = makeKbdGroup(configure)
+
+internal fun makeKbdGroup(configure: KbdGroupBuilder.() -> Unit): View {
+    val builder = KbdGroupBuilder()
+    builder.configure()
+    return builder.build()
+}

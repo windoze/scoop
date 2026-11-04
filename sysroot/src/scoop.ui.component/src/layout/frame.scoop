@@ -144,6 +144,8 @@ private class FrameInk(private val props: Props<FrameInput>): Element {
             case Plain(value) -> style!!.scene(context, value) { content -> content.children() }
             case Themed(theme, geometry, visual) -> {
                 val painter = painters!!.get(theme)
+                if (geometry.opacity < 1.0)
+                    context.saveLayer(geometry.opacity)
                 context.draw {
                     paint -> painter.drawSurface(
                         paint.canvas,
@@ -163,6 +165,8 @@ private class FrameInk(private val props: Props<FrameInput>): Element {
                         SurfaceLayer.Foreground
                     )
                 }
+                if (geometry.opacity < 1.0)
+                    context.restore()
             }
         }
     }

@@ -1,0 +1,73 @@
+package scoop.ui.component
+
+import scoop.graphics.text.TextStyle
+import scoop.ui.style.InteractionVisual
+
+public enum ButtonVariant {
+    Default, Outline, Secondary, Ghost, Destructive, Link
+}
+
+public enum ButtonSize {
+    Xs, Sm, Default, Lg, IconXs, IconSm, Icon, IconLg
+}
+
+/** Resolved once per render; content remains an ordinary caller-owned View. */
+public struct ActionContentStyle(
+    val text: TextStyle,
+    val iconSize: Double,
+    val spacing: Double,
+    val interaction: InteractionVisual,
+    val underline: Boolean
+)
+
+internal enum ActionShape {
+    Button(ButtonSize), Badge
+}
+
+internal fun actionFontScale(shape: ActionShape): Double =
+    when (shape) {
+        case Badge -> 12.0 / 14.0
+        case Button(size) -> when (size) {
+            case Xs -> 12.0 / 14.0
+            case IconXs -> 12.0 / 14.0
+            case Sm -> 12.8 / 14.0
+            case IconSm -> 12.8 / 14.0
+            else -> 1.0
+        }
+    }
+
+internal fun actionIconSize(shape: ActionShape): Double =
+    when (shape) {
+        case Badge -> 12.0
+        case Button(size) -> when (size) {
+            case Xs -> 12.0
+            case IconXs -> 12.0
+            case Sm -> 14.0
+            case IconSm -> 16.0
+            else -> 16.0
+        }
+    }
+
+internal fun actionSpacing(shape: ActionShape): Double =
+    when (shape) {
+        case Badge -> 4.0
+        case Button(size) -> when (size) {
+            case Xs -> 4.0
+            case Sm -> 4.0
+            case IconXs -> 4.0
+            case IconSm -> 4.0
+            else -> 6.0
+        }
+    }
+
+internal fun isIconAction(shape: ActionShape): Boolean =
+    when (shape) {
+        case Badge -> false
+        case Button(size) -> when (size) {
+            case IconXs -> true
+            case IconSm -> true
+            case Icon -> true
+            case IconLg -> true
+            else -> false
+        }
+    }

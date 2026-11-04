@@ -101,14 +101,46 @@ internal fun squareTheme(bounds: Rect): Rect {
     )
 }
 
-internal fun focusTheme(
+private fun stateOutline(
+    visual: InteractionVisual,
+    focus: OutlineStyle,
+    validation: OutlineStyle
+): OutlineStyle? =
+    if (visual.invalid)
+        Some(validation)
+    else
+        if (visual.enabled && visual.focusVisible)
+            Some(focus)
+        else
+            None
+
+internal fun outlineBorder(
+    base: Color,
+    visual: InteractionVisual,
+    focus: OutlineStyle,
+    validation: OutlineStyle
+): Color {
+    val style = stateOutline(visual, focus, validation) ?: return base
+    val color = style.borderColor ?: return base
+    return color
+}
+
+internal fun outlineOutset(focus: OutlineStyle, validation: OutlineStyle): Double {
+    for (value in [focus.width, focus.outset, validation.width, validation.outset])
+        themeLength(value)
+    return themeMax(focus.outset, validation.outset)
+}
+
+internal fun outlineTheme(
     outline: RoundedOutline,
     visual: InteractionVisual,
-    style: FocusStyle
-): FocusOutline? {
+    focus: OutlineStyle,
+    validation: OutlineStyle
+): OutlineRing? {
+    val style = stateOutline(visual, focus, validation) ?: return None
     themeLength(style.outset);
     themeLength(style.width)
-    if (!visual.enabled || !visual.focused || style.width == 0.0)
+    if (style.width == 0.0)
         return None
-    return Some(FocusOutline(outline.expanded(style.outset), BorderEdge(style.width, style.color)))
+    return Some(OutlineRing(outline.expanded(style.outset), BorderEdge(style.width, style.color)))
 }

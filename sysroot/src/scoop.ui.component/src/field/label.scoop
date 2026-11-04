@@ -1,0 +1,172 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.surface.InputArea
+import scoop.ui.*
+import scoop.ui.style.*
+
+public class FieldLabelProps public constructor(
+    public val text: LabelText,
+    public val target: FieldTarget,
+    public val fonts: FontCollection? = None,
+    public val theme: ThemeSource? = None,
+    public val textStyle: SpanStyle? = None,
+    public val settings: ParagraphStyle? = None,
+    public val style: StyleOverride = styleOverride()
+)
+
+public class FieldLabel public constructor(private val props: Props<FieldLabelProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val base =
+            theme.tokens.typography.body.copy {
+                this.lineHeight = Some(1.0)
+                this.weight = 500
+                this.color = theme.tokens.palette.background.foreground
+            }
+        val content =
+            when (input.text) {
+                case Plain(value, local) -> LabelText.Styled(
+                    typographyContent(
+                        TypographyContent.Plain(value),
+                        local?.resolve(base) ?: base,
+                        input.textStyle
+                    )
+                )
+                case Styled(value) -> LabelText.Styled(
+                    typographyContent(TypographyContent.Styled(value), base, input.textStyle)
+                )
+            }
+        val child =
+            component(
+                LabelProps(content, input.fonts, input.settings, baseStyle = Some(base)),
+                { current -> Label(current) }
+            )
+        val decorated =
+            frame(child) {
+                this.padding = Some(Insets())
+                this.style = input.style
+            }
+        return element(
+            FieldLabelInkProps(input.target, input.target.connection, input.target.isEnabled),
+            { current -> FieldLabelInk(current) },
+            [decorated]
+        )
+    }
+}
+
+private class FieldLabelInkProps(
+    val target: FieldTarget,
+    val connection: FieldLink?,
+    val enabled: Boolean
+)
+
+private class FieldLabelInk(private val props: Props<FieldLabelInkProps>): Element {
+    private var scope: ComponentScope? = None
+    private var area: InputArea? = None
+    private var press: Press? = None
+    private var previous: FieldLabelInkProps? = None
+    private var bounds = Rect(0.0, 0.0, 0.0, 0.0)
+    public override fun onMount(scope: ComponentScope) {
+        this.scope = Some(scope)
+        val input = scope.createArea()
+        area = Some(input)
+        press = Some(scope.press(input, PressOptions(false, false)) {})
+        scope.routeChildren(input)
+    }
+    public override fun update() {
+        val value = props.value
+        when (previous) {
+            case Some(old) -> if (
+                old.target !== value.target || !sameFieldLink(old.connection, value.connection)
+            )
+                press!!.update(PressOptions(false, false)) {}
+            case None -> {}
+        }
+        previous = Some(value)
+        area!!.scope.enabled = value.enabled
+        press!!.update(PressOptions(value.enabled, false)) {
+            val current = props.value
+            current.connection?.activate(scope!!, current.target)
+        }
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics {
+        val child = context.measureChild(0L, constraints)
+        context.placeChild(0L, Point(0.0, 0.0))
+        bounds = Rect(0.0, 0.0, child.size.width, child.size.height)
+        return child
+    }
+    public override fun scene(context: SceneContext) {
+        val enabled = props.value.enabled
+        context.place(area!!, bounds)
+        if (!enabled)
+            context.saveLayer(0.5)
+        context.children()
+        if (!enabled)
+            context.restore()
+    }
+}
+
+private fun sameFieldLink(left: FieldLink?, right: FieldLink?): Boolean =
+    when (left) {
+        case Some(a) -> when (right) {
+            case Some(b) -> a === b
+            case None -> false
+        }
+        case None -> when (right) {
+            case Some(_) -> false
+            case None -> true
+        }
+    }
+
+public class FieldLabelBuilder internal constructor() {
+    public var fonts: FontCollection? = None
+    public var theme: ThemeSource? = None
+    public var textStyle: SpanStyle? = None
+    public var settings: ParagraphStyle? = None
+    public var style: StyleOverride = styleOverride()
+    public var key: ViewKey = ViewKey.Position
+    public fun textStyle(configure: SpanStyleBuilder.() -> Unit): Unit {
+        textStyle = Some((textStyle ?: spanStyle()).copy(configure))
+    }
+    public fun settings(configure: ParagraphStyleBuilder.() -> Unit): Unit {
+        settings = Some((settings ?: paragraphStyle()).copy(configure))
+    }
+    public fun style(configure: StyleOverrideBuilder.() -> Unit): Unit {
+        style = style.copy(configure)
+    }
+    internal fun snapshot(text: LabelText, target: FieldTarget): FieldLabelProps =
+        FieldLabelProps(text, target, fonts, theme, textStyle, settings, style)
+}
+
+public fun fieldLabel(
+    text: String,
+    target: FieldTarget,
+    configure: FieldLabelBuilder.() -> Unit = {}
+): View = makeFieldLabel(LabelText.Plain(text, None), target, configure)
+
+public fun fieldLabel(
+    text: StyledText,
+    target: FieldTarget,
+    configure: FieldLabelBuilder.() -> Unit = {}
+): View = makeFieldLabel(LabelText.Styled(text), target, configure)
+
+internal fun makeFieldLabel(
+    text: LabelText,
+    target: FieldTarget,
+    configure: FieldLabelBuilder.() -> Unit
+): View {
+    val builder = FieldLabelBuilder()
+    builder.configure()
+    return component(
+        builder.snapshot(text, target),
+        { current -> FieldLabel(current) },
+        builder.key
+    )
+}

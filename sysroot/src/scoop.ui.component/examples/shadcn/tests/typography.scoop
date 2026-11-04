@@ -1,0 +1,156 @@
+package scoop.examples.ui.shadcn
+
+import scoop.test.*
+import scoop.tests.surface.FrameSnapshot
+import scoop.window.*
+
+internal class GalleryTypography(private val probe: GalleryProbe) {
+    private var timed = false
+    private var paints = 0
+    private var quiet: FrameSnapshot? = None
+    fun advance(active: ActiveApplication) {
+        if (timed)
+            return
+        val model = probe.model
+        val window = probe.native!!
+        when (probe.phase) {
+            case 122 -> {
+                val label = window.shortcutLabel(model.shortcut)
+                assertEquals(2L, label.parts.size)
+                assertEquals("⌘", label.parts[0L])
+                assertEquals("i", label.parts[1L])
+                assertTrue(model.typographyFocus.requestFocus())
+                probe.phase = 123
+            }
+            case 123 -> {
+                assertTrue(model.typographyFocus.hasFocus)
+                key(0, "a")
+                probe.phase = 124
+            }
+            case 124 -> {
+                assertSelection()
+                key(8, "c")
+                wait(active, 125)
+            }
+            case 126 -> {
+                assertTrue(model.typographyFocus.hasFocus)
+                assertSelection()
+                key(8, "c")
+                wait(active, 127)
+            }
+            case 128 -> {
+                assertTrue(model.typographyActionFocus.hasFocus)
+                probe.key(active, 49)
+            }
+            case 129 -> {
+                assertEquals(1, model.typographyActions.value)
+                model.typographySelectable.value = false
+                probe.phase = 130
+            }
+            case 130 -> {
+                assertFalse(model.typographyFocus.isAttached)
+                assertFalse(model.typographyActionFocus.isAttached)
+                model.typographySelectable.value = true
+                probe.phase = 131
+            }
+            case 131 -> {
+                assertTrue(model.typographyFocus.requestFocus())
+                probe.phase = 132
+            }
+            case 132 -> {
+                key(0, "a");
+                probe.phase = 133
+            }
+            case 133 -> {
+                assertSelection()
+                model.selected.value = Demo.Kbd
+                probe.phase = 134
+            }
+            case 134 -> {
+                assertFalse(model.typographyFocus.isAttached)
+                assertFalse(model.shortcutScope!!.isClosed)
+                assertTrue(model.shortcutFocus.requestFocus())
+                probe.phase = 135
+            }
+            case 135 -> {
+                key(34, "i");
+                probe.phase = 136
+            }
+            case 136 -> {
+                assertEquals(1, model.shortcutActions.value)
+                model.toggleTheme()
+                model.toggleDirection()
+                probe.phase = 137
+            }
+            case 137 -> {
+                assertTrue(model.shortcutFocus.hasFocus)
+                key(34, "i")
+                probe.phase = 138
+            }
+            case 138 -> {
+                assertEquals(2, model.shortcutActions.value)
+                probe.key(active, 49)
+            }
+            case 139 -> {
+                assertEquals(3, model.shortcutActions.value)
+                model.selected.value = Demo.Typography
+                probe.phase = 140
+            }
+            case 140 -> {
+                assertTrue(model.shortcutScope!!.isClosed)
+                assertFalse(model.shortcutFocus.isAttached)
+                assertTrue(model.typographyFocus.requestFocus())
+                probe.phase = 141
+            }
+            case 141 -> {
+                key(34, "i");
+                wait(active, 142)
+            }
+            else -> fail(Some(f"unexpected typography phase ${probe.phase}"))
+        }
+    }
+    fun deadline(active: ActiveApplication) {
+        timed = false
+        val model = probe.model
+        when (probe.phase) {
+            case 125 -> {
+                assertEquals(Some(typographyPlain), probe.native!!.clipboard.readText())
+                model.toggleTheme()
+                model.toggleDirection()
+                model.typographyNarrow.value = true
+                probe.phase = 126
+            }
+            case 127 -> {
+                assertEquals(Some(typographyPlain), probe.native!!.clipboard.readText())
+                assertTrue(model.typographyActionFocus.requestFocus())
+                probe.phase = 128
+            }
+            case 142 -> {
+                assertEquals(3, model.shortcutActions.value)
+                quiet = Some(probe.frames!!.snapshot())
+                paints = probe.paints
+                wait(active, 143)
+            }
+            case 143 -> {
+                assertEquals(quiet!!, probe.frames!!.snapshot())
+                assertEquals(paints, probe.paints)
+                probe.phase = 144
+                probe.native!!.requestDestroy()
+            }
+            else -> fail(Some(f"typography timed out at phase ${probe.phase}"))
+        }
+    }
+    private fun assertSelection() {
+        val selected = probe.model.typographySelection.range
+        assertEquals(0L, selected.start)
+        assertEquals(typographyText.byteLength, selected.end)
+    }
+    private fun key(code: Int, text: String) {
+        assertEquals(0, galleryKey(probe.native!!, code, text, 8))
+    }
+    private fun wait(active: ActiveApplication, phase: Int) {
+        timed = true
+        probe.phase = phase
+        probe.waitFor(active, 250L)
+    }
+}

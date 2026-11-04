@@ -125,6 +125,10 @@ internal class FocusProbe {
             active.proxy().post {
                 _ ->
                 assertFocus(index)
+                assertTrue(
+                    handles[index].isFocusVisible || (index == 0L && replacement.isFocusVisible)
+                )
+                assertEquals(FocusOrigin.Keyboard, areas[index]!!.focusOrigin)
                 phase += 1
                 waiting = false
             }
@@ -138,6 +142,18 @@ internal class FocusProbe {
         when (phase) {
             case 0 -> {
                 assertFocus(0L)
+                assertTrue(handles[0L].isFocusVisible)
+                assertTrue(handles[0L].requestFocus(FocusOrigin.Pointer))
+                assertFalse(handles[0L].isFocusVisible)
+                targets[0L]!!.options =
+                    targets[0L]!!.options.copy { this.visibility = FocusVisibility.Always }
+                assertTrue(handles[0L].isFocusVisible)
+                targets[0L]!!.options =
+                    targets[0L]!!.options.copy { this.visibility = FocusVisibility.Never }
+                assertTrue(handles[0L].requestFocus())
+                assertFalse(handles[0L].isFocusVisible)
+                targets[0L]!!.options =
+                    targets[0L]!!.options.copy { this.visibility = FocusVisibility.Automatic }
                 assertFailsWith<IllegalArgumentException> {
                     targets[1L]!!.options = FocusOptions(Some(handles[0L]))
                 }
@@ -208,13 +224,19 @@ internal class FocusProbe {
                 assertTrue(handles[6L].isPending)
                 assertTrue(areas[0L]!!.requestFocus())
                 assertFalse(handles[6L].isPending)
+                assertFocus(0L)
+                assertTrue(handles[6L].requestFocus(FocusOrigin.Pointer))
+                assertTrue(handles[6L].isPending)
                 showHidden = true
                 changed()
             }
             case 18 -> {
-                assertFocus(0L)
+                assertFocus(6L)
+                assertFalse(handles[6L].isFocusVisible)
+                assertEquals(FocusOrigin.Pointer, areas[6L]!!.focusOrigin)
                 assertTrue(handles[6L].requestFocus())
                 assertFocus(6L)
+                assertTrue(handles[6L].isFocusVisible)
                 assertTrue(handles[5L].requestFocus())
                 next(active, 6L)
             }

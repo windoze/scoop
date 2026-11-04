@@ -1,0 +1,25 @@
+package scoop.ui.component
+
+import scoop.graphics.Color
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.style.ThemeSource
+
+public class SpinnerBuilder internal constructor() {
+    public var size: Double? = None
+    public var color: Color? = None
+    public var running: Boolean = true
+    public var period: Duration = Duration.seconds(1L)
+    public var theme: ThemeSource? = None
+    public var key: ViewKey = ViewKey.Position
+}
+
+internal fun makeSpinner(configure: SpinnerBuilder.() -> Unit): View {
+    val builder = SpinnerBuilder()
+    builder.configure()
+    return component(
+        SpinnerProps(builder.size, builder.color, builder.running, builder.period, builder.theme),
+        { current -> Spinner(current) },
+        builder.key
+    )
+}

@@ -1,0 +1,145 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.graphics.text.*
+import scoop.ui.*
+import scoop.ui.component.column as panelColumn
+import scoop.ui.component.row as panelRow
+import scoop.ui.style.*
+
+public enum AlertVariant {
+    Default, Destructive
+}
+
+public class AlertProps public constructor(
+    public val content: View,
+    public val title: PanelContent? = None,
+    public val description: PanelContent? = None,
+    public val icon: View? = None,
+    public val action: View? = None,
+    public val variant: AlertVariant = AlertVariant.Default,
+    public val fonts: FontCollection? = None,
+    public val theme: ThemeSource? = None,
+    public val style: StyleOverride = styleOverride()
+)
+
+public class Alert public constructor(private val props: Props<AlertProps>): Component {
+    private val themes = ThemeAccess()
+    private val titles = ActionTextStyle()
+    private val descriptions = ActionTextStyle()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val colors = theme.tokens.palette
+        val density = theme.tokens.typography.body.fontSize / 14.0
+        val destructive = input.variant == AlertVariant.Destructive
+        val titleStyle =
+            titles.resolve(
+                theme.tokens.typography.action,
+                if (destructive)
+                    colors.destructive.background
+                else
+                    colors.card.foreground,
+                None
+            )
+        val descriptionStyle =
+            descriptions.resolve(
+                theme.tokens.typography.body,
+                if (destructive)
+                    colors.destructive.background.withAlpha(
+                        colors.destructive.background.alpha * 0.9
+                    )
+                else
+                    colors.muted.foreground,
+                None
+            )
+        val text =
+            panelColumn {
+                when (input.title) {
+                    case Some(value) -> this.add(
+                        panelSlot(panelCaption(value, titleStyle, input.fonts), 0L)
+                    );
+                    case None -> {}
+                }
+                when (input.description) {
+                    case Some(value) -> this.add(
+                        panelSlot(panelCaption(value, descriptionStyle, input.fonts), 1L)
+                    );
+                    case None -> {}
+                }
+                this.add(panelSlot(input.content, 2L))
+                this.spacing = 2.0 * density
+                this.alignment = CrossAlignment.Stretch
+            }
+        val body =
+            panelAside(
+                Some(text),
+                input.action,
+                8.0 * density,
+                theme.tokens.typography.body.fontSize * 8.0
+            )
+        val content =
+            panelRow {
+                when (input.icon) {
+                    case Some(icon) -> this.item(
+                        panelFrame(
+                            icon,
+                            Insets(0.0, 2.0 * density, 0.0, 0.0),
+                            key = ViewKey.Number(0L)
+                        )
+                    ) { this.shrink = 0.0 }
+                    case None -> {}
+                }
+                this.item(panelSlot(body, 1L)) { this.grow = 1.0 }
+                this.spacing = 8.0 * density
+                this.alignment = CrossAlignment.Start
+            }
+        return panelFrame(
+            content,
+            Insets(10.0 * density, 8.0 * density, 10.0 * density, 8.0 * density),
+            styleOverride {
+                this.background(Some(Paint(colors.card.background)))
+                this.border(Some(Border.all(1.0, colors.border)))
+                this.corners(Corners.all(theme.tokens.corners.medium))
+            }.then(input.style)
+        )
+    }
+}
+
+public class AlertBuilder internal constructor(): PanelBuilder() {
+    public var icon: View? = None
+    public var action: View? = None
+    public var variant: AlertVariant = AlertVariant.Default
+    public fun icon(content: View): Unit {
+        icon = Some(content)
+    }
+    public fun action(content: View): Unit {
+        action = Some(content)
+    }
+}
+
+public fun alert(content: View, configure: AlertBuilder.() -> Unit = {}): View =
+    makeAlert(content, configure)
+
+internal fun makeAlert(content: View, configure: AlertBuilder.() -> Unit): View {
+    val builder = AlertBuilder()
+    builder.configure()
+    return component(
+        AlertProps(
+            content,
+            builder.title,
+            builder.description,
+            builder.icon,
+            builder.action,
+            builder.variant,
+            builder.fonts,
+            builder.theme,
+            builder.style
+        ),
+        { current -> Alert(current) },
+        builder.key
+    )
+}

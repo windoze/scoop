@@ -29,5 +29,7 @@ internal class ThemeAccess {
     }
 }
 
-internal fun InteractionState.asVisual(enabled: Boolean): InteractionVisual =
-    InteractionVisual(enabled, hovered, pressed, focused)
+internal fun InteractionState.asVisual(
+    enabled: Boolean,
+    invalid: Boolean = false
+): InteractionVisual = InteractionVisual(enabled, hovered, pressed, focusVisible, invalid = invalid)

@@ -1,0 +1,82 @@
+package scoop.ui.component
+
+import scoop.graphics.Color
+import scoop.math.*
+
+private struct ActionLch(val lightness: Double, val chroma: Double, val hue: Double)
+
+// Oklab matrices and sRGB transfer functions: https://bottosson.github.io/posts/oklab/
+// The only caller is the Secondary preset's CSS color-mix(in oklch, ... 5%).
+internal fun secondaryHover(background: Color, foreground: Color): Color {
+    val from = actionLch(background)
+    val to = actionLch(foreground)
+    val alpha = background.alpha * 0.95 + foreground.alpha * 0.05
+    if (alpha == 0.0)
+        return Color.Transparent
+    val t = foreground.alpha * 0.05 / alpha
+    val lightness = from.lightness + (to.lightness - from.lightness) * t
+    val chroma = from.chroma + (to.chroma - from.chroma) * t
+    val first =
+        if (from.chroma < 0.000004)
+            to.hue
+        else
+            from.hue
+    val last =
+        if (to.chroma < 0.000004)
+            first
+        else
+            to.hue
+    var difference = last - first
+    if (difference > PI)
+        difference -= PI * 2.0
+    if (difference < -PI)
+        difference += PI * 2.0
+    val hue = first + difference * 0.05
+    val a = chroma * cos(hue)
+    val b = chroma * sin(hue)
+    val l = cube(lightness + 0.3963377774 * a + 0.2158037573 * b)
+    val m = cube(lightness - 0.1055613458 * a - 0.0638541728 * b)
+    val s = cube(lightness - 0.0894841775 * a - 1.2914855480 * b)
+    return Color(
+        actionSrgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+        actionSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+        actionSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s),
+        alpha
+    )
+}
+
+private fun cube(value: Double): Double = value * value * value
+
+private fun actionLinear(value: Double): Double =
+    if (value <= 0.04045)
+        value / 12.92
+    else
+        pow((value + 0.055) / 1.055, 2.4)
+
+private fun actionSrgb(value: Double): Double =
+    min(
+        1.0,
+        max(
+            0.0,
+            if (value <= 0.0031308)
+                value * 12.92
+            else
+                1.055 * pow(value, 1.0 / 2.4) - 0.055
+        )
+    )
+
+private fun actionLch(color: Color): ActionLch {
+    val r = actionLinear(color.red)
+    val g = actionLinear(color.green)
+    val b = actionLinear(color.blue)
+    val l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+    val m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+    val s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+    val a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+    val axis = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+    return ActionLch(
+        0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+        sqrt(a * a + axis * axis),
+        atan2(axis, a)
+    )
+}

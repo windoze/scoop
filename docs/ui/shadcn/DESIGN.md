@@ -1,6 +1,6 @@
 # shadcn 全套自绘控件设计
 
-日期：2026-11-04。状态：设计，尚未实施。承接已经完成 macOS 验收的 [UI 框架](../DESIGN.md)、[基础交互](../foundations/DESIGN.md)、[接收者 DSL](../DSL-MIGRATION.md)和[控件基础补齐](../component-foundations/DESIGN.md)。本文中的新增类型、签名和批次均是拟议合同，不表示仓库已经提供这些 API。
+日期：2026-11-04。状态：实施中，实际交付与验证范围见 [实施记录](PROGRESS.md)。承接已经完成 macOS 验收的 [UI 框架](../DESIGN.md)、[基础交互](../foundations/DESIGN.md)、[接收者 DSL](../DSL-MIGRATION.md)和[控件基础补齐](../component-foundations/DESIGN.md)。尚未在实施记录中闭合的类型、签名和批次仍是拟议合同，不表示仓库已经提供这些 API。
 
 ## 1. 交付目标与复刻基线
 
@@ -49,7 +49,7 @@
 
 | 差距 | 具体原因与落点 | 使用批次 |
 | --- | --- | --- |
-| 焦点可见性 | 当前 InteractionState 只有 focused；增加统一的键盘／程序焦点显示判定，区分指针聚焦，不让每个控件自行记最近按键 | P0／P1，UI 焦点与样式视觉输入 |
+| 焦点可见性（P0b 已交付） | 同一 Surface 聚焦入口记录来源，FocusOptions 提供指示策略；InteractionState 保留实际 focused，样式消费 focusVisible，延迟显露与模态恢复保留来源 | P0／P1，UI 焦点与样式视觉输入 |
 | 弹层焦点合同独立于屏障 | 现有 Portal 的初始／恢复焦点依附 ModalOptions；非模态 Popover 的恢复和 Drawer 的 FocusContained 模式需要同一焦点会话可独立使用 | P4，UI Portal／FocusScope |
 | Select 内容锚点定位 | 现有 Anchored 只围绕外框定位；选中项对齐 trigger 需要内容测量产生的定位点及统一碰撞处理 | P5，UI 定位协议与 Select 布局 |
 | OTP 固定槽几何 | 现有文本投影能映射正文，不能单凭插入空格保证任意字体下的等宽槽、间隙命中和 IME caret；补共享编辑宿主的实际几何适配 | P2，UI 文本宿主与 OTP Element |
@@ -99,7 +99,7 @@ P2 的 OTP、P4 的弹层焦点、P5 的 Select／Combobox、P7 的图表以及 
 
 ## 6. Spec 落点
 
-本次提交是设计文档，不改写现行 API 为“已实现”。开始相应批次时，先更新下列合同，再同步源码和实际调用方：
+设计中的待实施 API 不记为“已实现”。开始相应批次时，先更新下列合同，再同步源码和实际调用方；实际完成范围记录在 PROGRESS.md：
 
 | 规范 | 需要演进的内容 |
 | --- | --- |

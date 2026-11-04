@@ -1,0 +1,112 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.ui.*
+import scoop.ui.style.*
+
+public class SeparatorProps public constructor(
+    public val axis: FlexAxis = FlexAxis.Horizontal,
+    public val length: Double? = None,
+    public val thickness: Double = 1.0,
+    public val color: Color? = None,
+    public val theme: ThemeSource? = None
+) {
+    init {
+        nonnegative(thickness, "invalid separator thickness")
+        when (length) {
+            case Some(value) -> nonnegative(value, "invalid separator length");
+            case None -> {}
+        }
+    }
+}
+
+public class Separator public constructor(private val props: Props<SeparatorProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        return element(
+            SeparatorInkProps(input, input.color ?: theme.tokens.palette.border),
+            { current -> SeparatorInk(current) }
+        )
+    }
+}
+
+private class SeparatorInkProps(val input: SeparatorProps, val color: Color)
+
+internal fun separatorSize(input: SeparatorProps, constraints: Constraints): Size {
+    val horizontal = input.axis == FlexAxis.Horizontal
+    val length =
+        input.length ?:
+            (
+                if (horizontal)
+                    constraints.maxWidth ?: constraints.minWidth
+                else
+                    constraints.maxHeight ?: constraints.minHeight
+            )
+    return constraints.constrain(
+        if (horizontal)
+            Size(length, input.thickness)
+        else
+            Size(input.thickness, length)
+    )
+}
+
+private class SeparatorInk(private val props: Props<SeparatorInkProps>): Element {
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(separatorSize(props.value.input, constraints))
+    public override fun scene(context: SceneContext) {
+        val input = props.value
+        val bounds = separatorLine(input.input, context.size)
+        if (bounds.width > 0.0 && bounds.height > 0.0)
+            context.draw { paint -> paint.canvas.drawRect(bounds, Paint(input.color)) }
+    }
+}
+
+public class SeparatorBuilder internal constructor() {
+    public var axis: FlexAxis = FlexAxis.Horizontal
+    public var length: Double? = None
+    public var thickness: Double = 1.0
+    public var color: Color? = None
+    public var theme: ThemeSource? = None
+    public var key: ViewKey = ViewKey.Position
+}
+
+public fun separator(configure: SeparatorBuilder.() -> Unit = {}): View = makeSeparator(configure)
+
+internal fun makeSeparator(configure: SeparatorBuilder.() -> Unit): View {
+    val builder = SeparatorBuilder()
+    builder.configure()
+    return component(
+        SeparatorProps(
+            builder.axis,
+            builder.length,
+            builder.thickness,
+            builder.color,
+            builder.theme
+        ),
+        { current -> Separator(current) },
+        builder.key
+    )
+}
+
+internal fun separatorLine(input: SeparatorProps, size: Size): Rect {
+    if (input.length == Some(0.0))
+        return Rect(0.0, 0.0, 0.0, 0.0)
+    val horizontal = input.axis == FlexAxis.Horizontal
+    val thickness =
+        upperBound(
+            input.thickness,
+            if (horizontal)
+                size.height
+            else
+                size.width
+        )
+    return if (horizontal)
+        Rect(0.0, (size.height - thickness) / 2.0, size.width, thickness)
+    else
+        Rect((size.width - thickness) / 2.0, 0.0, thickness, size.height)
+}

@@ -1,0 +1,113 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.math.PI
+import scoop.math.min
+import scoop.surface.*
+import scoop.time.Duration
+import scoop.ui.*
+import scoop.ui.style.*
+
+public class SpinnerProps public constructor(
+    public val size: Double? = None,
+    public val color: Color? = None,
+    public val running: Boolean = true,
+    public val period: Duration = Duration.seconds(1L),
+    public val theme: ThemeSource? = None
+) {
+    init {
+        when (size) {
+            case Some(value) -> nonnegative(value, "invalid spinner size")
+            case None -> {}
+        }
+        requireComponent(period > Duration.ZERO, "spinner period must be positive")
+    }
+}
+
+public class Spinner public constructor(private val props: Props<SpinnerProps>): Component {
+    private val themes = ThemeAccess()
+    public override fun onMount(scope: ComponentScope) {
+        themes.mount(props.value.theme)
+    }
+    public override fun render(): View {
+        val input = props.value
+        val theme = themes.read(input.theme)
+        val size = input.size ?: theme.tokens.typography.action.fontSize * 16.0 / 14.0
+        val motion = theme.tokens.motion.resolve(Some(AnimationSpec.Tween(input.period)))
+        return element(
+            SpinnerInkProps(
+                size,
+                input.color ?: theme.tokens.typography.action.color,
+                input.running && size > 0.0,
+                input.period,
+                motion
+            ),
+            { current -> SpinnerInk(current) }
+        )
+    }
+}
+
+public fun spinner(configure: SpinnerBuilder.() -> Unit = {}): View = makeSpinner(configure)
+
+private class SpinnerInkProps(
+    val size: Double,
+    val color: Color,
+    val running: Boolean,
+    val period: Duration,
+    val motion: AnimationSpec?
+)
+
+private class SpinnerInk(private val props: Props<SpinnerInkProps>): Element {
+    private var motion: LoadingMotion? = None
+    private var outline: Path? = None
+    private var visible = false
+    public override fun onMount(scope: ComponentScope) {
+        motion = Some(LoadingMotion(scope))
+        // Lucide loader-circle (ISC); see LICENSE-LUCIDE and the original 24-unit SVG.
+        outline =
+            Some(
+                scope.resource {
+                    path { this.arcTo(Rect(3.0, 3.0, 18.0, 18.0), 0.0, PI * 1.6, true) }
+                }
+            )
+    }
+    public override fun update() {
+        val value = props.value
+        motion!!.update(
+            value.running && value.color.alpha > 0.0 && panelPresent(value.motion),
+            value.period
+        )
+    }
+    public override fun measure(context: MeasureContext, constraints: Constraints): LayoutMetrics =
+        LayoutMetrics(constraints.constrain(Size(props.value.size, props.value.size)))
+    public override fun scene(context: SceneContext) {
+        val size = context.size
+        val side = min(size.width, size.height)
+        val angle = motion!!.phase.value * PI * 2.0
+        val value = props.value
+        val bounds = Rect((size.width - side) / 2.0, (size.height - side) / 2.0, side, side)
+        context.draw {
+            paint ->
+            visible = loadingVisible(paint.canvas, bounds, value.color.alpha)
+            if (visible)
+                paint.canvas.withState {
+                    canvas ->
+                    canvas.translate(size.width / 2.0, size.height / 2.0)
+                    canvas.rotate(angle)
+                    canvas.scale(side / 24.0, side / 24.0)
+                    canvas.translate(-12.0, -12.0)
+                    canvas.drawPath(
+                        outline!!,
+                        Paint(
+                            value.color,
+                            PaintingStyle.Stroke,
+                            2.0,
+                            StrokeCap.Round,
+                            StrokeJoin.Round
+                        )
+                    )
+                }
+        }
+        loadingParticipation(context, motion!!.phase, visible)
+    }
+}

@@ -1,0 +1,25 @@
+package scoop.examples.ui.shadcn
+
+import scoop.test.*
+
+@Test
+private class GallerySearchTest {
+    @Test
+    fun `search selects a visible preview without overwriting the explicit page or its input`() {
+        val model = GalleryModel()
+        model.name.replaceAll("你好 Scoop")
+        model.selected.value = Demo.Checkbox
+        model.checked.value = true
+        model.query.replaceAll("iNp")
+        val filtered = model.entries()
+        assertEquals(1L, filtered.size)
+        assertEquals(Some(Demo.Input), model.current(filtered))
+        assertEquals(Demo.Checkbox, model.selected.value)
+        model.query.replaceAll("not a component")
+        assertEquals(None, model.current(model.entries()))
+        model.query.replaceAll("")
+        assertEquals(Some(Demo.Checkbox), model.current(model.entries()))
+        assertEquals("你好 Scoop", model.name.text)
+        assertTrue(model.checked.value)
+    }
+}

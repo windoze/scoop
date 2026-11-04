@@ -8,7 +8,7 @@ public fun surfacePart(
     fill: StateColors,
     border: StateColors,
     foreground: StateColors,
-    focus: FocusStyle,
+    focus: OutlineStyle,
     configure: SurfacePartBuilder.() -> Unit = {}
 ): SurfacePart =
     configureSurfacePart(
@@ -37,7 +37,7 @@ public class SurfacePartBuilder internal constructor(initial: SurfacePart) {
     public var fill: StateColors = initial.fill
     public var border: StateColors = initial.border
     public var foreground: StateColors = initial.foreground
-    public var focus: FocusStyle = initial.focus
+    public var focus: OutlineStyle = initial.focus
     public var shadows: Array<BoxShadow> = initial.shadows
 
     internal fun snapshot(): SurfacePart =

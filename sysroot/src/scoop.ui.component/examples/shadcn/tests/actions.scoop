@@ -1,0 +1,152 @@
+package scoop.examples.ui.shadcn
+
+import scoop.test.*
+import scoop.graphics.Point
+import scoop.tests.surface.FrameSnapshot
+import scoop.window.*
+
+/** Continues the same native gallery session after the editor and focus checks. */
+internal class GalleryActions(private val probe: GalleryProbe) {
+    private var timed = false
+    private var paints = 0
+    private var quiet: FrameSnapshot? = None
+    fun advance(active: ActiveApplication) {
+        if (timed)
+            return
+        val model = probe.model
+        when (probe.phase) {
+            case 14 -> {
+                assertTrue(model.badgeFocus.requestFocus())
+                probe.phase = 15
+            }
+            case 15 -> probe.key(active, 49)
+            case 16 -> {
+                assertEquals(1, model.badgeClicks.value)
+                model.badgeEnabled.value = false
+                probe.phase = 17
+            }
+            case 17 -> {
+                assertFalse(model.badgeFocus.hasFocus)
+                assertFalse(model.badgeFocus.requestFocus())
+                model.badgeEnabled.value = true
+                model.badgeStep.value = 10
+                probe.phase = 18
+            }
+            case 18 -> {
+                assertTrue(model.badgeFocus.requestFocus())
+                probe.phase = 19
+            }
+            case 19 -> probe.key(active, 49)
+            case 20 -> {
+                assertEquals(11, model.badgeClicks.value)
+                model.badgeAction.value = false
+                probe.phase = 21
+            }
+            case 21 -> {
+                assertFalse(model.badgeFocus.isAttached)
+                model.selected.value = Demo.Spinner
+                probe.phase = 22
+            }
+            case 22 -> {
+                model.busy.value = true
+                probe.phase = 23
+            }
+            case 23 -> wait(active, 24, 180L)
+            case 25 -> wait(active, 26, 350L)
+            case 27 -> wait(active, 28, 180L)
+            case 29 -> wait(active, 30, 300L)
+            case 31 -> wait(active, 32, 180L)
+            case 33 -> wait(active, 34, 400L)
+            case 35 -> wait(active, 36, 180L)
+            case 39 -> {
+                model.busy.value = false
+                probe.phase = 40
+            }
+            case 40 -> wait(active, 41, 400L)
+            else -> fail(Some(f"unexpected action phase ${probe.phase}"))
+        }
+    }
+    fun deadline(active: ActiveApplication) {
+        assertTrue(timed)
+        val model = probe.model
+        timed = false
+        when (probe.phase) {
+            case 24 -> {
+                assertAnimating()
+                model.reduced.value = true
+                model.refreshTheme()
+                probe.phase = 25
+            }
+            case 26 -> {
+                assertQuiet()
+                model.reduced.value = false
+                model.refreshTheme()
+                probe.phase = 27
+            }
+            case 28 -> {
+                assertAnimating()
+                model.spinnerScroll.scrollTo(Point(0.0, 500.0))
+                probe.phase = 29
+            }
+            case 30 -> {
+                assertQuiet()
+                assertTrue(model.spinnerScroll.offset.y > 300.0)
+                model.spinnerScroll.scrollTo(Point(0.0, 0.0))
+                probe.phase = 31
+            }
+            case 32 -> {
+                assertAnimating()
+                model.selected.value = Demo.Input
+                probe.phase = 33
+            }
+            case 34 -> {
+                assertQuiet()
+                model.selected.value = Demo.Spinner
+                probe.phase = 35
+            }
+            case 36 -> {
+                assertAnimating()
+                probe.native!!.setVisible(false)
+                wait(active, 37, 250L)
+            }
+            case 37 -> {
+                assertTrue(probe.frames!!.snapshot().paused)
+                wait(active, 38, 180L)
+            }
+            case 38 -> {
+                assertEquals(paints, probe.paints)
+                assertTrue(probe.frames!!.snapshot().paused)
+                probe.native!!.setVisible(true)
+                probe.native!!.requestFocus()
+                probe.phase = 39
+            }
+            case 41 -> {
+                assertQuiet()
+                quiet = Some(probe.frames!!.snapshot())
+                wait(active, 42, 180L)
+            }
+            case 42 -> {
+                assertEquals(quiet!!, probe.frames!!.snapshot())
+                assertEquals(paints, probe.paints)
+                probe.phase = 43
+                probe.native!!.requestDestroy()
+            }
+            else -> fail(Some(f"gallery actions timed out at phase ${probe.phase}"))
+        }
+    }
+    private fun wait(active: ActiveApplication, phase: Int, milliseconds: Long) {
+        paints = probe.paints
+        timed = true
+        probe.phase = phase
+        probe.waitFor(active, milliseconds)
+    }
+    private fun assertAnimating() {
+        assertTrue(probe.paints > paints + 1)
+        assertTrue(probe.frames!!.snapshot().required)
+        assertFalse(probe.frames!!.snapshot().paused)
+    }
+    private fun assertQuiet() {
+        assertFalse(probe.frames!!.snapshot().required)
+        assertTrue(probe.frames!!.snapshot().paused)
+    }
+}

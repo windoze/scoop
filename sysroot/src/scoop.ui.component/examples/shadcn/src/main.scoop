@@ -1,0 +1,33 @@
+package scoop.examples.ui.shadcn
+
+import scoop.graphics.text.FontCollection
+import scoop.ui.*
+import scoop.window.*
+
+fun main() {
+    FontCollection().use {
+        fonts ->
+        val model = GalleryModel()
+        context(model.source) {
+            UiHost {
+                host,
+                active,
+                event -> when (event) {
+                    case Resumed -> {
+                        val window =
+                            active.createWindow(
+                                windowAttributes {
+                                    this.title = "Scoop — shadcn"
+                                    this.size = LogicalSize(1120.0, 780.0)
+                                }
+                            )
+                        host.attach(window, { Gallery(model, fonts) })
+                        window.requestFocus()
+                    }
+                    case Window(_, WindowEvent.CloseRequested) -> active.requestExit()
+                    else -> {}
+                }
+            }.use { host -> Application().run(host) }
+        }
+    }
+}

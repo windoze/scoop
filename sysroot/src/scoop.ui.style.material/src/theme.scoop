@@ -15,33 +15,67 @@ public fun materialTheme(
     val palette =
         if (dark)
             ThemePalette(
-                canvas = Color(0.08, 0.07, 0.09),
-                surface = Color(0.14, 0.13, 0.16),
-                elevated = Color(0.20, 0.18, 0.23),
-                text = Color(0.91, 0.88, 0.94),
-                secondaryText = Color(0.79, 0.76, 0.82),
-                disabledText = Color(0.49, 0.47, 0.52),
+                background = ColorPair(Color(0.08, 0.07, 0.09), Color(0.91, 0.88, 0.94)),
+                card = ColorPair(Color(0.14, 0.13, 0.16), Color(0.91, 0.88, 0.94)),
+                popover = ColorPair(Color(0.20, 0.18, 0.23), Color(0.91, 0.88, 0.94)),
+                primary = ColorPair(Color(0.82, 0.74, 0.99), Color(0.22, 0.15, 0.35)),
+                secondary = ColorPair(Color(0.14, 0.13, 0.16), Color(0.91, 0.88, 0.94)),
+                muted = ColorPair(Color(0.08, 0.07, 0.09), Color(0.79, 0.76, 0.82)),
+                accent = ColorPair(Color(0.20, 0.18, 0.23), Color(0.91, 0.88, 0.94)),
+                destructive = ColorPair(Color(0.976, 0.71, 0.678), Color(0.22, 0.15, 0.35)),
                 border = Color(0.57, 0.54, 0.60),
-                accent = Color(0.82, 0.74, 0.99),
-                onAccent = Color(0.22, 0.15, 0.35),
-                focus = Color(0.82, 0.74, 0.99),
-                shadow = Color.Black.withAlpha(0.5),
-                error = Color(0.976, 0.71, 0.678)
+                input = Color(0.57, 0.54, 0.60),
+                ring = Color(0.82, 0.74, 0.99),
+                chart =
+                    ChartPalette(
+                        Color(0.82, 0.74, 0.99),
+                        Color(0.976, 0.71, 0.678),
+                        Color(0.79, 0.76, 0.82),
+                        Color(0.82, 0.74, 0.99),
+                        Color(0.91, 0.88, 0.94)
+                    ),
+                sidebar =
+                    SidebarPalette(
+                        ColorPair(Color(0.08, 0.07, 0.09), Color(0.91, 0.88, 0.94)),
+                        ColorPair(Color(0.82, 0.74, 0.99), Color(0.22, 0.15, 0.35)),
+                        ColorPair(Color(0.20, 0.18, 0.23), Color(0.91, 0.88, 0.94)),
+                        Color(0.57, 0.54, 0.60),
+                        Color(0.82, 0.74, 0.99)
+                    ),
+                disabledText = Color(0.49, 0.47, 0.52),
+                shadow = Color.Black.withAlpha(0.5)
             )
         else
             ThemePalette(
-                canvas = Color(0.985, 0.976, 1.0),
-                surface = Color(0.96, 0.94, 0.98),
-                elevated = Color(0.93, 0.91, 0.96),
-                text = Color(0.12, 0.11, 0.14),
-                secondaryText = Color(0.29, 0.27, 0.31),
-                disabledText = Color(0.61, 0.59, 0.63),
+                background = ColorPair(Color(0.985, 0.976, 1.0), Color(0.12, 0.11, 0.14)),
+                card = ColorPair(Color(0.96, 0.94, 0.98), Color(0.12, 0.11, 0.14)),
+                popover = ColorPair(Color(0.93, 0.91, 0.96), Color(0.12, 0.11, 0.14)),
+                primary = ColorPair(Color(0.40, 0.31, 0.68), Color.White),
+                secondary = ColorPair(Color(0.96, 0.94, 0.98), Color(0.12, 0.11, 0.14)),
+                muted = ColorPair(Color(0.985, 0.976, 1.0), Color(0.29, 0.27, 0.31)),
+                accent = ColorPair(Color(0.93, 0.91, 0.96), Color(0.12, 0.11, 0.14)),
+                destructive = ColorPair(Color(0.70, 0.15, 0.12), Color.White),
                 border = Color(0.48, 0.46, 0.50),
-                accent = Color(0.40, 0.31, 0.68),
-                onAccent = Color.White,
-                focus = Color(0.40, 0.31, 0.68),
-                shadow = Color.Black.withAlpha(0.24),
-                error = Color(0.70, 0.15, 0.12)
+                input = Color(0.48, 0.46, 0.50),
+                ring = Color(0.40, 0.31, 0.68),
+                chart =
+                    ChartPalette(
+                        Color(0.40, 0.31, 0.68),
+                        Color(0.70, 0.15, 0.12),
+                        Color(0.29, 0.27, 0.31),
+                        Color(0.40, 0.31, 0.68),
+                        Color(0.12, 0.11, 0.14)
+                    ),
+                sidebar =
+                    SidebarPalette(
+                        ColorPair(Color(0.985, 0.976, 1.0), Color(0.12, 0.11, 0.14)),
+                        ColorPair(Color(0.40, 0.31, 0.68), Color.White),
+                        ColorPair(Color(0.93, 0.91, 0.96), Color(0.12, 0.11, 0.14)),
+                        Color(0.48, 0.46, 0.50),
+                        Color(0.40, 0.31, 0.68)
+                    ),
+                disabledText = Color(0.61, 0.59, 0.63),
+                shadow = Color.Black.withAlpha(0.24)
             )
     val families = ["Roboto", "Arial", "sans-serif"]
     val fonts =
@@ -50,19 +84,19 @@ public fun materialTheme(
                 textStyle {
                     this.families = families
                     this.fontSize = 14.0
-                    this.color = palette.text
+                    this.color = palette.background.foreground
                 },
             caption =
                 textStyle {
                     this.families = families
                     this.fontSize = 12.0
-                    this.color = palette.secondaryText
+                    this.color = palette.muted.foreground
                 },
             action =
                 textStyle {
                     this.families = families
                     this.fontSize = 14.0
-                    this.color = palette.text
+                    this.color = palette.background.foreground
                     this.weight = 500
                     this.letterSpacing = 0.1
                 }
@@ -71,14 +105,22 @@ public fun materialTheme(
         themeEffects {
             this.raised = [BoxShadow(Point(0.0, 2.0), 2.0, 2.0, palette.shadow)]
             this.floating = [BoxShadow(Point(0.0, 5.0), 7.0, 7.0, palette.shadow)]
-            this.emphasis = [ContentEffect.Glow(5.0, 5.0, palette.accent.withAlpha(0.38))]
+            this.emphasis =
+                [ContentEffect.Glow(5.0, 5.0, palette.primary.background.withAlpha(0.38))]
         }
     val tokens =
         themeTokens(
             palette = palette,
             typography = fonts,
             spacing = ThemeSpacing(4.0, 12.0, 24.0),
-            corners = ThemeCorners(4.0, 12.0, 20.0)
+            corners = ThemeCorners(4.0, 12.0, 20.0),
+            validation =
+                OutlineStyle(
+                    palette.destructive.background.withAlpha(0.72),
+                    2.0,
+                    2.0,
+                    Some(palette.destructive.background)
+                )
         ) {
             this.mode = mode
             motion {
@@ -90,23 +132,40 @@ public fun materialTheme(
         }
     val normal =
         StateColors(
-            palette.surface,
-            mixThemeColor(palette.surface, palette.accent, 0.08),
-            mixThemeColor(palette.surface, palette.accent, 0.16),
-            mixThemeColor(palette.surface, palette.canvas, 0.50)
+            palette.card.background,
+            mixThemeColor(palette.card.background, palette.primary.background, 0.08),
+            mixThemeColor(palette.card.background, palette.primary.background, 0.16),
+            mixThemeColor(palette.card.background, palette.background.background, 0.50)
         )
     val accent =
         StateColors(
-            palette.accent,
-            mixThemeColor(palette.accent, palette.onAccent, 0.08),
-            mixThemeColor(palette.accent, palette.onAccent, 0.18),
-            mixThemeColor(palette.canvas, palette.text, 0.12)
+            palette.primary.background,
+            mixThemeColor(palette.primary.background, palette.primary.foreground, 0.08),
+            mixThemeColor(palette.primary.background, palette.primary.foreground, 0.18),
+            mixThemeColor(palette.background.background, palette.background.foreground, 0.12)
         )
-    val edges = StateColors(palette.border, palette.accent, palette.accent, palette.disabledText)
-    val text = StateColors(palette.text, palette.text, palette.text, palette.disabledText)
+    val edges =
+        StateColors(
+            palette.border,
+            palette.primary.background,
+            palette.primary.background,
+            palette.disabledText
+        )
+    val text =
+        StateColors(
+            palette.background.foreground,
+            palette.background.foreground,
+            palette.background.foreground,
+            palette.disabledText
+        )
     val onAccent =
-        StateColors(palette.onAccent, palette.onAccent, palette.onAccent, palette.disabledText)
-    val focus = FocusStyle(palette.focus, 2.0, 4.0)
+        StateColors(
+            palette.primary.foreground,
+            palette.primary.foreground,
+            palette.primary.foreground,
+            palette.disabledText
+        )
+    val focus = OutlineStyle(palette.ring, 2.0, 4.0)
     val plain =
         surfacePart(
             metrics =
@@ -150,7 +209,7 @@ public fun materialTheme(
                     CornerRadii.all(12.0),
                     focus.outset
                 ),
-            fill = StateColors.solid(palette.elevated),
+            fill = StateColors.solid(palette.popover.background),
             border = edges,
             foreground = text,
             focus = focus
@@ -162,7 +221,7 @@ public fun materialTheme(
             border = edges,
             selectedBorder = accent,
             mark = onAccent,
-            focus = FocusStyle(palette.focus.withAlpha(0.5), 3.0, 6.0)
+            focus = OutlineStyle(palette.ring.withAlpha(0.5), 3.0, 6.0)
         )
     val radioAppearance =
         markerAppearance(
@@ -175,16 +234,16 @@ public fun materialTheme(
         )
     val track =
         StateColors(
-            palette.accent.withAlpha(0.05),
-            palette.accent.withAlpha(0.10),
-            palette.accent.withAlpha(0.16),
+            palette.primary.background.withAlpha(0.05),
+            palette.primary.background.withAlpha(0.10),
+            palette.primary.background.withAlpha(0.16),
             Color.Transparent
         )
     val thumb =
         StateColors(
-            palette.accent.withAlpha(0.6),
-            palette.accent,
-            mixThemeColor(palette.accent, palette.text, 0.18),
+            palette.primary.background.withAlpha(0.6),
+            palette.primary.background,
+            mixThemeColor(palette.primary.background, palette.background.foreground, 0.18),
             palette.disabledText.withAlpha(0.35)
         )
     return shapeTheme(

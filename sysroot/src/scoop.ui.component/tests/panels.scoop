@@ -1,0 +1,110 @@
+package scoop.ui.component
+
+import scoop.graphics.*
+import scoop.test.*
+import scoop.ui.*
+
+@Test
+private class ContentPanelTest {
+    @Test
+    fun `aspect ratio uses finite limits natural content and compatible minima`() {
+        assertEquals(
+            Size(320.0, 180.0),
+            aspectSize(16.0 / 9.0, Constraints(maxWidth = Some(320.0)))
+        )
+        assertEquals(
+            Size(160.0, 90.0),
+            aspectSize(16.0 / 9.0, Constraints(maxWidth = Some(320.0), maxHeight = Some(90.0)))
+        )
+        assertEquals(Size(160.0, 90.0), aspectSize(16.0 / 9.0, Constraints(maxHeight = Some(90.0))))
+        assertEquals(Size(200.0, 100.0), aspectSize(2.0, Constraints(), Size(40.0, 100.0)))
+        assertEquals(
+            Size(240.0, 120.0),
+            aspectSize(2.0, Constraints(minHeight = 120.0), Size(40.0, 50.0))
+        )
+        assertEquals(
+            Size(100.0, 80.0),
+            aspectSize(2.0, Constraints(maxWidth = Some(100.0), minHeight = 80.0))
+        )
+        assertEquals(Size(3.0, 4.0), aspectSize(0.25, Constraints.tight(Size(3.0, 4.0))))
+        assertEquals(Size(0.0, 0.0), aspectSize(1.5, Constraints.tight(Size(0.0, 0.0))))
+        for (ratio in [0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY])
+            assertFailsWith<IllegalArgumentException> { AspectRatioProps(empty(), ratio) }
+    }
+
+    @Test
+    fun `separators keep a thin centered line and treat explicit zero as empty`() {
+        val horizontal = SeparatorProps()
+        assertEquals(
+            Size(120.0, 1.0),
+            separatorSize(horizontal, Constraints(maxWidth = Some(120.0)))
+        )
+        assertEquals(Size(0.0, 1.0), separatorSize(horizontal, Constraints()))
+        assertEquals(Rect(0.0, 9.5, 120.0, 1.0), separatorLine(horizontal, Size(120.0, 20.0)))
+        val vertical = SeparatorProps(FlexAxis.Vertical, Some(30.0), 2.0)
+        assertEquals(Size(2.0, 20.0), separatorSize(vertical, Constraints(maxHeight = Some(20.0))))
+        assertEquals(Rect(9.0, 0.0, 2.0, 30.0), separatorLine(vertical, Size(20.0, 30.0)))
+        assertEquals(
+            Rect(0.0, 0.0, 0.0, 0.0),
+            separatorLine(SeparatorProps(length = Some(0.0)), Size(100.0, 1.0))
+        )
+        assertEquals(0.0, separatorLine(SeparatorProps(thickness = 0.0), Size(100.0, 1.0)).height)
+        assertFailsWith<IllegalArgumentException> { SeparatorProps(length = Some(-1.0)) }
+        assertFailsWith<IllegalArgumentException> { SeparatorProps(thickness = Double.NaN) }
+    }
+
+    @Test
+    fun `empty outline caches actual dashed geometry and releases replaced paths`() {
+        val shape = RoundedOutline(Rect(0.5, 0.5, 99.0, 59.0), CornerRadii.all(9.5))
+        val cache = EmptyBorderCache()
+        val first = cache.get(shape)
+        assertSame(first, cache.get(shape))
+        assertFalse(first.isClosed)
+        val length = first.measure().use { value -> value.length }
+        val perimeter =
+            path { this.addRoundRect(shape.bounds, shape.radii) }.use {
+                outline -> outline.measure().use { value -> value.length }
+            }
+        assertTrue(length > perimeter * 0.45)
+        assertTrue(length < perimeter * 0.55)
+        assertTrue(first.bounds.x >= shape.bounds.x - 0.001)
+        assertTrue(first.bounds.y >= shape.bounds.y - 0.001)
+        val next = cache.get(RoundedOutline(Rect(0.5, 0.5, 49.0, 19.0), CornerRadii.all(4.0)))
+        assertFalse(next === first)
+        assertTrue(first.isClosed)
+        cache.close()
+        assertTrue(next.isClosed)
+        cache.close()
+    }
+
+    @Test
+    fun `panel child members append once without running nested actions`() {
+        val columns = ArrayList<LinearBuilder>()
+        val calls = ArrayList<Int>()
+        val actions = ArrayList<Int>()
+        val content = button("Action", { actions.add(1) })
+        column {
+            columns.add(this)
+            this.card(content) {
+                calls.add(1);
+                this.title("Title");
+                this.description("Description")
+            }
+            this.alert(content) {
+                calls.add(2);
+                this.variant = AlertVariant.Destructive
+            }
+            this.emptyState(content) {
+                calls.add(3);
+                this.outlined = true
+            }
+            this.separator { calls.add(4) }
+            this.aspectRatio(content, 2.0) { calls.add(5) }
+        }
+        assertEquals(5L, columns[0L].snapshot().children.size)
+        assertEquals(5L, calls.size)
+        assertEquals(0L, actions.size)
+        for (index in 0L ..< calls.size)
+            assertEquals((index + 1L).toInt(), calls[index])
+    }
+}
