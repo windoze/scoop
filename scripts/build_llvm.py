@@ -13,6 +13,7 @@ from build_support import (
     RELEASE_CONFIG,
     ROOT,
     apple_architecture,
+    configure_cmake,
     cpu_flag,
     metadata,
     reusable,
@@ -271,7 +272,7 @@ def main():
     configuration = configure(source, build, prefix, cc, cxx, host, release)
     if windows:
         configuration.append(f"-DCMAKE_MAKE_PROGRAM={ninja}")
-    subprocess.run(configuration, check=True, env=environment)
+    configure_cmake(configuration, env=environment)
     subprocess.run(
         [
             "cmake",

@@ -1,8 +1,11 @@
 """Check incremental LLDB rebuilds when an applied source patch changes."""
 
 import os
+import platform
 import sys
+import sysconfig
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -37,6 +40,28 @@ class LldbBuildTests(unittest.TestCase):
             self.assertEqual(changed.read_text(), "original source")
             self.assertGreater(changed.stat().st_mtime_ns, 2_000_000_000)
             self.assertEqual(stable.stat().st_mtime_ns, 1_000_000_000)
+
+    @unittest.skipUnless(platform.system() == "Linux", "Linux loader paths")
+    def test_installed_rpath_locates_the_selected_python_library(self):
+        host = build_lldb.current_host(platform.system(), platform.machine())["rust_target"]
+        release = tomllib.loads(build_lldb.RELEASE_CONFIG.read_text())
+        llvm = Path("/opt/scoop-llvm")
+        options = build_lldb.configure(
+            Path("/source"),
+            Path("/build"),
+            Path("/prefix"),
+            llvm,
+            sys.executable,
+            host,
+            release,
+            "cc",
+            "c++",
+        )
+        rpath = next(value for value in options if value.startswith("-DCMAKE_INSTALL_RPATH="))
+        self.assertEqual(
+            rpath.split("=", 1)[1].split(";"),
+            ["$ORIGIN/../lib", str(llvm / "lib"), sysconfig.get_config_var("LIBDIR")],
+        )
 
 
 if __name__ == "__main__":

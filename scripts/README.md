@@ -104,6 +104,8 @@ PCRE2 的三个 Windows target 在 Windows 构建，使用原生 Ninja；Microso
 
 维护脚本共用 `compiler/target-data/targets.toml` 的目标与宿主事实。CMake 的 Apple 架构名及 C/C++ CPU 参数从所选架构产生，Darwin 不隐含 arm64；OpenSSL Configure 和 Rust 标准库仍选择各自实际需要的 recipe／Rust target。宿主工具默认目标与发行包携带的目标资源分别配置，fixture 的执行能力也不从发行组合推导。
 
+需要重新配置已有 CMake 构建目录时，若其缓存的 `CMAKE_<LANG>_COMPILER` 与本次选择不同，准备脚本先删除 `CMakeCache.txt` 和 `CMakeFiles`（等同 `cmake --fresh`）；否则 CMake 会自行清空缓存并丢弃脚本传入的其余 `-D` 选项。编译器未变化时仍使用普通增量构建。
+
 ## 单一入口构建发行组件包
 
 开发与发行 sysroot 均准备 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats` 四组目标 runtime，每组包含 `index.cbor`。默认构建使用 `runtime`，不编入 GC stress 或启动统计支持；`scoop --enable-gc-stress build/run/test/link` 选择 stress 配置，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。`--enable-startup-stats` 独立选择启动统计配置，编入后每次启动直接向 stderr 输出记录；未传时预处理完全排除计时和报告代码。两个开关可以组合，独立 `scoop-link` 同样支持。普通 fixtures 不传这些开关，相关专测显式选择。旧 schema 6 runtime 索引需要重新准备，`.slib` 和 runtime ABI 不变。
@@ -209,6 +211,7 @@ Darwin 开发安装在 CMake 调整加载路径后重新签名 debugserver，并
 源码兼容修补保留 Scoop 的 DW_AT_name 与精确 linkage identity，将同源文件的独立编译单元全局量放回当前栈帧，并补齐 Linux/amd64 静态程序的原生 TLS 定位；修补文件也进入 llvm-sources 包。
 可用 `--debugger-prefix` 复用匹配的已构建调试器，`--debugger-python` 指定构建时所用 Python；
 只有 LLVM SDK 时仍正常构建 LLDB，要求 SDK 包含 Clang headers／CMake targets／clang-cpp、构建用 `llvm-tblgen` 以及 TableGen／Support／Demangle／Debuginfod 静态库；`build_llvm.py` 会安装这些资源。
+Linux 构建的 LLDB 安装 RUNPATH 同时包含所选 Python 的 `LIBDIR`，使 Homebrew 等非系统目录中的 libpython 可被加载和收集；打包时仍复制 libpython 并改写为相对路径。
 
 `package_debugger.py` 收集匹配的 Python 标准库、原生模块和解释器，排除用户 site-packages、
 测试、Tk／IDLE 与 pip；包中不依赖用户 Python。Python 许可证随包保留，安装中缺失时可用

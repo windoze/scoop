@@ -15,6 +15,7 @@ from build_support import (
     RELEASE_CONFIG,
     ROOT,
     apple_architecture,
+    configure_cmake,
     cpu_flag,
     metadata,
     reusable,
@@ -123,9 +124,17 @@ def configure(source, build, prefix, llvm, python, host, release, cc, cxx):
             }
         )
     else:
-        options["CMAKE_INSTALL_RPATH"] = (
-            ("@loader_path/../lib" if darwin else "$ORIGIN/../lib") + ";" + str(llvm / "lib")
-        )
+        rpath = [("@loader_path/../lib" if darwin else "$ORIGIN/../lib"), str(llvm / "lib")]
+        if not darwin:
+            # liblldb links the selected Python's libpython, which a non-system
+            # installation keeps outside the default loader directories.
+            rpath.append(
+                subprocess.check_output(
+                    [python, "-c", "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"],
+                    text=True,
+                ).strip()
+            )
+        options["CMAKE_INSTALL_RPATH"] = ";".join(rpath)
     if darwin:
         options["CMAKE_OSX_DEPLOYMENT_TARGET"] = target["minimum_os"]
         options["CMAKE_OSX_ARCHITECTURES"] = apple_architecture(host_definition(host)["arch"])
@@ -221,7 +230,7 @@ def main():
     release = tomllib.loads(RELEASE_CONFIG.read_text())
     configuration = configure(copied, build, prefix, llvm, python, host, release, cc, cxx)
     configuration.append(f"-DCMAKE_MAKE_PROGRAM={Path(ninja).as_posix()}")
-    subprocess.run(configuration, check=True)
+    configure_cmake(configuration)
     subprocess.run(
         [
             "cmake",

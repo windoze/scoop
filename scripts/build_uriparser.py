@@ -16,6 +16,7 @@ from build_support import (
     ROOT,
     apple_architecture,
     build_lock,
+    configure_cmake,
     cpu_flag,
     metadata,
     reusable,
@@ -119,7 +120,7 @@ def prepare(args):
     if host == "Windows":
         environment["PATH"] = str(Path(cc).parent) + os.pathsep + environment["PATH"]
     objects = build / "objects"
-    subprocess.run(
+    configure_cmake(
         [
             cmake,
             "-G",
@@ -130,7 +131,6 @@ def prepare(args):
             str(objects),
             *(f"-D{key}={value}" for key, value in options.items()),
         ],
-        check=True,
         env=environment,
     )
     subprocess.run(

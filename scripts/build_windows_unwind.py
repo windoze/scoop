@@ -12,6 +12,7 @@ from build_support import (
     RELEASE_CONFIG,
     ROOT,
     build_lock,
+    configure_cmake,
     cpu_flag,
     metadata,
     reusable,
@@ -163,7 +164,7 @@ def prepare(args, build, prefix):
                 + (f"/clang:{architecture_flag}" if microsoft else architecture_flag),
             ]
         )
-    subprocess.run(configure, env=environment, check=True)
+    configure_cmake(configure, env=environment)
     subprocess.run(
         [
             str(tools[2]),

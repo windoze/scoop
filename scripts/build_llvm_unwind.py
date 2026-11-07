@@ -12,6 +12,7 @@ from pathlib import Path
 from build_support import (
     RELEASE_CONFIG,
     ROOT,
+    configure_cmake,
     cpu_flag,
     metadata,
     reusable,
@@ -164,7 +165,7 @@ def main():
     for language in ("C", "CXX", "ASM"):
         selected = flags + (["-nostdinc++"] if musl and language == "CXX" else [])
         configure.append(f"-DCMAKE_{language}_FLAGS={shlex.join(selected)}")
-    subprocess.run(configure, check=True, env=environment)
+    configure_cmake(configure, env=environment)
     subprocess.run(
         [
             "cmake",

@@ -1,6 +1,7 @@
 """Observe external header updates through Ninja's real compiler dependencies."""
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -9,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from build_support import build_lock, metadata, reusable, save_record
+from build_support import build_lock, configure_cmake, metadata, reusable, save_record
 
 
 def ninja_path(path):
@@ -157,6 +158,41 @@ class MicrosoftDependencyTests(unittest.TestCase):
             self.assertTrue(reusable(record, inputs, [output]))
             self.assertTrue(header.is_file())
             self.assertTrue(source.is_file())
+
+
+@unittest.skipUnless(shutil.which("cmake") and shutil.which("cc"), "requires CMake and cc")
+class CMakeCompilerChangeTests(unittest.TestCase):
+    def test_changed_compiler_keeps_requested_options(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            (source / "CMakeLists.txt").write_text(
+                "cmake_minimum_required(VERSION 3.20)\n"
+                "project(probe C)\n"
+                'option(PROBE_OPTION "" OFF)\n'
+            )
+            compiler = Path(shutil.which("cc")).resolve()
+            renamed = root / "bin/cc"
+            renamed.parent.mkdir()
+            renamed.symlink_to(compiler)
+            objects = root / "objects"
+            for selected in (compiler, renamed):
+                configure_cmake(
+                    [
+                        "cmake",
+                        "-S",
+                        str(source),
+                        "-B",
+                        str(objects),
+                        f"-DCMAKE_C_COMPILER={selected}",
+                        "-DPROBE_OPTION=ON",
+                    ],
+                    stdout=subprocess.DEVNULL,
+                )
+            cache = (objects / "CMakeCache.txt").read_text().splitlines()
+            self.assertIn(f"CMAKE_C_COMPILER:STRING={renamed}", cache)
+            self.assertIn("PROBE_OPTION:BOOL=ON", cache)
 
 
 class BuildLockTests(unittest.TestCase):

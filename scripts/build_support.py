@@ -4,6 +4,7 @@ import errno
 import json
 import os
 import re
+import shutil
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -58,6 +59,36 @@ def build_lock(path):
 
             fcntl.flock(lock, fcntl.LOCK_EX)
             yield
+
+
+def configure_cmake(command, **options):
+    """Run a CMake configure command against a possibly existing build tree.
+
+    When a cached CMAKE_<LANG>_COMPILER differs from the requested one, CMake
+    deletes its cache and reconfigures without the other -D options. Start
+    from an empty cache instead, as `cmake --fresh` would.
+    """
+    objects = Path(command[command.index("-B") + 1])
+    cache = objects / "CMakeCache.txt"
+    if cache.is_file():
+        cached = dict(
+            re.findall(
+                r"^(CMAKE_\w+_COMPILER):[A-Z]+=(.*)$",
+                cache.read_text(encoding="utf-8", errors="replace"),
+                re.M,
+            )
+        )
+        for argument in map(str, command):
+            requested = re.fullmatch(r"-D(CMAKE_\w+_COMPILER)=(.*)", argument)
+            if (
+                requested
+                and requested[1] in cached
+                and Path(cached[requested[1]]) != Path(requested[2])
+            ):
+                cache.unlink()
+                shutil.rmtree(objects / "CMakeFiles", ignore_errors=True)
+                break
+    subprocess.run(command, check=True, **options)
 
 
 def metadata(path):
