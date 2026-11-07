@@ -24,7 +24,7 @@
 | D7 | UI 应用根、资源事件、Surface 发布边界 | 已实施；macOS／Linux 运行验证及 Windows 三目标构建、非 GUI 测试通过 |
 | D8 | 通用组件及独立托盘组件 | 已实施；macOS／Linux 运行验证及 Windows 三目标构建、非 GUI 测试通过 |
 | D9 | 综合 desktop demo | 已实施；macOS 两架构、Linux 两后端的完整流程及 Windows 三目标构建、无 GUI 启动验证通过 |
-| 发行 | macOS、Linux、Windows 安装包及脚本修复 | 待实施 |
+| 发行 | macOS、Linux、Windows 安装包及脚本修复 | 三平台归档及安装验证完成；Windows GUI 留待桌面手工验证 |
 
 ## 3. 验证记录
 
@@ -88,4 +88,12 @@ graphics 使用 Skia 提供 Path／CanvasGeometry 的显式二进制区域转换
 - macOS aarch64 与 x86_64：完整构建、`--help` 和 `--smoke` 通过；x86_64 在 Rosetta 下运行。按现有准备脚本更新 x86_64 Skia 和 no_std 文本归档，解决旧 native 资源缺少 PathOps、仍携带 Rust unwind 的链接失败，没有新增 Rust 依赖或修改异常机制。最终程序只含 Scoop、C++、Objective-C personality。首次 x86_64 运行有一次首帧超时，随后干净版完整复验通过；前台拖动、焦点、托盘及冷启动视觉表现仍由真实桌面验收。
 - Linux GNU：完整构建，X11 与带 seat 的嵌套 Wayland 各一次完整 `--smoke` 通过；实际 X11 点击、滚动、Owner 确认及椭圆窗口截图检查通过。交互暴露 GTK 滚轮方向与 UI 内容位移约定相反，统一 GTK 两轴及 Win32 水平轴的方向；新增真实 XTest 滚轮断言在旧后端失败、修复后 LinuxApplicationTest 1 passed。不改变滚轮单位、相位或用户自然滚动设置。
 - Windows：MSVC UCRT、LLVM-MinGW UCRT、LLVM-MinGW MSVCRT 的最终 demo、更新后的窗口库和原生输入测试程序均编译通过；三个 demo 在开发环境及普通 SSH 环境下的 `--help` 均通过。原生输入程序只编译，GUI／Explorer 场景及 `--smoke` 留给登录桌面验证；没有把无 GUI 启动记作 GUI 通过。
-- 示例运行说明包含完整体验顺序及平台依赖；格式化、变更文档的本地链接与差异检查通过。安装包将消费已更新资源，并在独立安装目录继续验证。
+- 示例运行说明包含完整体验顺序及平台依赖；格式化、变更文档的本地链接与差异检查通过。安装包使用已更新资源，发行验收见下。
+
+发行验证：版本为 `0.0.0-native-desktop.20261107`，安装包代码基线为 `4a7cec6e`，与 main 合入提交 `86034415` 的源码一致。各宿主通过正式打包入口生成组件归档，在带空格的独立安装目录解压，并使用随包工具和系统原生开发环境验证；原始日志及归档保存在仓库外。
+
+- macOS ARM64 宿主：六个归档生成成功，包含 ARM64／x86_64 两个目标。两目标的安装后 API 文档、消费程序、TLS／GC 及两个独立链接入口均通过；五个命令的版本、私有 LLVM 22.1.8 和 LLDB／随包 Python 3.12 检查通过，普通 `scoop.idna` Cone 测试 11 passed。两架构均使用安装资源重新构建完整 desktop demo 并通过 `--help`；完整 GUI smoke 结果见 D9，安装验证期间保留原程序供用户手工体验。
+- Linux GNU 宿主：六个归档生成成功，包含 GNU／musl 两个目标。两目标的安装后文档、消费程序和 TLS／GC 均通过；GNU 默认动态、musl 静态及动态模式均通过两个链接入口运行，普通 `scoop.idna` Cone 测试 11 passed。五个命令、私有 LLVM 22.1.8、LLDB／随包 Python 3.14 检查通过；安装资源构建的完整 demo 在 X11／Wayland 各一次 `--smoke` 通过。musl 使用已配置的 musl C 工具链及 Linux UAPI 头文件；结束后关闭任务创建的临时显示服务，保留手工程序和日志。
+- Windows x86_64 宿主：七个归档生成成功，包含 MSVC UCRT／LLVM-MinGW MSVCRT／LLVM-MinGW UCRT 三个目标。三目标的安装后 API 文档、消费程序与缓存复用、TLS／GC 及两个独立链接入口均通过；五个命令的版本、私有 LLVM 22.1.8、LLDB／随包 Python 3.14 检查通过，普通 `scoop.idna` Cone 测试 11 passed。三目标均使用安装资源重新构建完整 desktop demo 并通过 `--help`；SSH 不执行 GUI，桌面交互仍由用户手工验证。最终归档已复制到本机，旧安装临时文件已清理，手工程序和原始日志保留。
+
+首轮 GNU／Windows 发行资源中混入了只更新桌面依赖闭包后留下的旧基础 `.slib`，安装文档生成在 `scoop.idna` 报告格式 profile 不匹配。已按当前发行工具完整准备目标系统库及 runtime；GNU／Windows 的重新打包与安装验证均已闭合。musl 初次消费验证的 C 编译器误选为读取 glibc 头文件的通用 Clang，改用已有 musl 工具链后完成消费及静态／动态链接验证。
