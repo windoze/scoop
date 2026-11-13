@@ -187,6 +187,29 @@ fn resolve_target(
                 .symbols()
                 .get(table_index as usize)
                 .ok_or(ObjectRelocationValidationError::InvalidSymbolTarget { table_index })?;
+            // LLVM may give ODR profile data weak external linkage. It is an
+            // object-local native target, not an additional Scoop definition.
+            if let Some(section_ordinal) = symbol.section_ordinal()
+                && definitions.sections().roles()[section_ordinal.get() as usize - 1]
+                    == BuiltinObjectSectionRoleV1::ProfilingSupport
+            {
+                return Ok(VerifiedRelocationTargetV1::LocalDefinition {
+                    table_index,
+                    name: symbol.name().to_vec(),
+                    owner_atom: definitions
+                        .definitions()
+                        .iter()
+                        .flat_map(|definition| definition.atoms())
+                        .find(|atom| {
+                            atom.section_ordinal() == section_ordinal
+                                && atom.start() <= symbol.value()
+                                && symbol.value() < atom.end()
+                        })
+                        .map(|atom| atom.atom()),
+                    section_ordinal,
+                    value: symbol.value(),
+                });
+            }
             match symbol.kind() {
                 ObjectSymbolKindV1::ExternalStrongDefinition
                 | ObjectSymbolKindV1::ExternalWeakDefinition => Err(

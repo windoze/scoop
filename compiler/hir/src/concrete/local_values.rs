@@ -33,6 +33,7 @@ pub struct LocalValueIdentityInputs<'a> {
     pub source_contexts: &'a crate::HirSourceContextIdentities,
     pub callable_applications: &'a CallableApplicationIdentities,
     pub functions: &'a Arena<Function>,
+    pub imported_inline_bodies: &'a Arena<super::ImportedInlineBody>,
     pub lambdas: &'a Arena<Lambda>,
     pub anonymous_functions: &'a Arena<AnonymousFunction>,
     pub lexical_local_values: &'a [LexicalLocalValueScope],
@@ -248,6 +249,7 @@ pub enum CaptureOwnerLocation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LocalValueLocation {
+    ImportedInlineLocal { body: u32, local: u32 },
     ReleaseLocal { hook: u32, local: u32 },
     FunctionLocal { function: u32, local: u32 },
     ClassReceiver { constructor: u32 },

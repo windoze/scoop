@@ -17,6 +17,11 @@ pub struct VerifiedSingleConeProductionCodeProjectionV2 {
 }
 
 impl VerifiedSingleConeProductionCodeProjectionV2 {
+    pub fn with_instrumentation(mut self, mode: scoop_profile::Instrumentation) -> Self {
+        self.projection = self.projection.with_instrumentation(mode);
+        self
+    }
+
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.projection = self.projection.with_optimization(mode);
         self

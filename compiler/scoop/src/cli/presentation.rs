@@ -129,6 +129,19 @@ impl Reporter {
             "root": artifact(root.artifact().summary(), root.artifact_locator()), "dependencies": dependencies,
             "observations": { "nodes": nodes, "child_invocations": observations.child_invocations().iter().map(ToString::to_string).collect::<Vec<_>>() },
         });
+        if let Some(invocation) = &build.invocation {
+            record["invocation"] = json!(invocation);
+        }
+        if let Some(profile) = &build.profiling {
+            record["profiling"] = json!({
+                "maps": profile.maps.iter().map(|path| path_value(path)).collect::<Vec<_>>(),
+                "missing_maps": profile.missing_maps.iter().map(|path| path_value(path)).collect::<Vec<_>>(),
+                "uninstrumented_cones": profile.uninstrumented_cones,
+            });
+        }
+        if let Some(profile_use) = &build.profile_use {
+            record["profile_use"] = json!(profile_use);
+        }
         if matches!(outcome, BuildOutcome::Artifact(_)) {
             record["kind"] = json!("artifact");
         }

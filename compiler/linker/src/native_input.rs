@@ -108,6 +108,7 @@ pub(crate) struct NativeInputs {
     pub files: BTreeMap<NativeInputId, NativeFile>,
     pub libraries: BTreeMap<NativeLinkRequirementId, LibraryInput>,
     pub selected: BTreeMap<NativeObjectId, String>,
+    runtime_archives: Vec<NativeInputId>,
     embedded: BTreeMap<(scoop_identity::ConeIdentity, scoop_slib::SlibMemberId), NativeInputId>,
 }
 
@@ -154,6 +155,17 @@ impl NativeInputs {
         Ok(result)
     }
 
+    pub fn include_profile_runtime(
+        &mut self,
+        path: &Path,
+        profile: &ValidatedFinalLinkProfile,
+    ) -> Result<(), LinkError> {
+        let file = locate::read(path, NativeFileKind::Archive, profile, false)?;
+        self.runtime_archives.push(file.id);
+        self.files.entry(file.id).or_insert(file);
+        Ok(())
+    }
+
     pub fn input_paths(&self) -> Vec<PathBuf> {
         let embedded: std::collections::BTreeSet<_> = self.embedded.values().copied().collect();
         self.files
@@ -181,6 +193,12 @@ impl NativeInputs {
                 &self.files[id]
             })
             .collect();
+        result.extend(
+            self.runtime_archives
+                .iter()
+                .filter(|id| seen.insert(**id))
+                .map(|id| &self.files[id]),
+        );
         result.extend(
             libraries
                 .into_iter()

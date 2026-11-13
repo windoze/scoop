@@ -14,11 +14,28 @@ impl SingleConeBuildRequest {
             emit,
             optimization,
             debug_info,
+            export_ir,
+            instrumentation,
+            profile_use,
+            profile_use_required,
             purpose,
             native_inputs,
             generators,
             jobs,
         } = self;
+        if profile_use.is_some()
+            && (optimization != scoop_lir::OptimizationMode::Release
+                || instrumentation != scoop_profile::Instrumentation::Off)
+        {
+            return Err(SingleConePreflightError::Profile(
+                "--profile-use requires the release profile without instrumentation".into(),
+            ));
+        }
+        if profile_use_required && profile_use.is_none() {
+            return Err(SingleConePreflightError::Profile(
+                "--profile-use-required requires --profile-use".into(),
+            ));
+        }
         let current = load_current_input(current)?;
         if let TrustedCoreInput::Artifact(input) = &trusted_core {
             dependencies.direct.push(input.clone());
@@ -36,9 +53,13 @@ impl SingleConeBuildRequest {
         {
             let slot =
                 crate::trusted_core::resolve_trusted_core_slot_at(&sysroot, target.selection())
-                    .map_err(|source| {
-                        SingleConePreflightError::DefaultCoreSlot(Box::new(source))
-                    })?;
+                    .map_err(|source| SingleConePreflightError::DefaultCoreSlot(Box::new(source)))?
+                    .with_library_root(scoop_toolchain::system_library_root(
+                        &sysroot,
+                        target.selection().target(),
+                        instrumentation,
+                        profile_use.is_some(),
+                    ));
             let input = crate::HostArtifactLocator::new(slot.artifact())
                 .map_err(|source| SingleConePreflightError::Request(Box::new(source)))?;
             if let Some(output) = output.artifact() {
@@ -66,6 +87,10 @@ impl SingleConeBuildRequest {
             emit,
             optimization,
             debug_info,
+            export_ir,
+            instrumentation,
+            profile_use,
+            profile_use_required,
             purpose,
             native_inputs,
             generators,

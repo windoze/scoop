@@ -89,6 +89,7 @@ fn resolve_request(
         },
         target: request.target,
         sysroot: path(&request.sysroot)?,
+        system_library_root: request.system_library_root.as_ref().map(path).transpose()?,
         artifact_roots: request
             .artifact_roots
             .iter()

@@ -5,13 +5,13 @@ use scoop_lir::ValidatedLirTargetSelection;
 use std::path::Path;
 
 pub(crate) fn locate_default_core(
-    sysroot: &Path,
+    library_root: &Path,
     target: ValidatedLirTargetSelection,
     cache: &ArtifactCacheRoot,
 ) -> Result<PrebuiltArtifactProjection, DependencyLocatorError> {
     super::default_library::locate_sysroot_dependency(
         &ConeCoordinate::reserved_core(),
-        sysroot,
+        library_root,
         target,
         cache,
     )

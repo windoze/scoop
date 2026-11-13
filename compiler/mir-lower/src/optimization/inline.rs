@@ -5,7 +5,7 @@ use la_arena::Arena;
 use scoop_identity::CallableMaterialization;
 
 use super::observation::Observer;
-pub(super) use policy::heats;
+pub(super) use policy::{heats, with_profile};
 
 use super::{
     flow,
@@ -59,6 +59,7 @@ pub(super) struct Session {
     callers: Vec<CallerState>,
     required: super::intrinsics::Entries,
     ordinary: bool,
+    feedback: bool,
     allocation_elision: bool,
     imported: crate::imported_bodies::ImportedBodies,
 }
@@ -119,9 +120,14 @@ impl Session {
             callers,
             required,
             ordinary,
+            feedback: false,
             allocation_elision,
             imported,
         }
+    }
+
+    pub(super) fn enable_feedback(&mut self) {
+        self.feedback = true;
     }
 
     pub(super) fn run(
@@ -184,12 +190,22 @@ impl Session {
                 imported_summaries: &self.imported_summaries,
                 required: &self.required,
                 ordinary: self.ordinary,
+                feedback: self.feedback,
                 allocation_elision: self.allocation_elision,
                 imported: &self.imported,
                 observer,
             };
-            let (body, rewritten) =
+            let (body, rewritten, used) =
                 context.optimize(id, owner, registry, &mut self.callers[index(id)]);
+            if !used.is_empty() {
+                module
+                    .meta
+                    .profiling
+                    .used
+                    .entry(scoop_profile::FeedbackConsumer::Inline)
+                    .or_default()
+                    .extend(used);
+            }
             module.functions[id].body = body;
             changed[index(id)] = rewritten;
         }
@@ -233,6 +249,7 @@ struct Context<'a, 'report> {
     imported_summaries: &'a HashMap<mir::ExternalCallableUseId, OnceCell<summary::Summary>>,
     required: &'a super::intrinsics::Entries,
     ordinary: bool,
+    feedback: bool,
     allocation_elision: bool,
     imported: &'a crate::imported_bodies::ImportedBodies,
     observer: Option<&'a Observer<'report>>,
@@ -247,6 +264,9 @@ impl Context<'_, '_> {
             return match self.imported.functions.get(&id) {
                 Some(function) if policy::executable(function) => Ok(Target::Imported(id)),
                 Some(_) => Err(InlineOutcome::UnsupportedBody),
+                None if self.imported.unsupported.contains(&id) => {
+                    Err(InlineOutcome::UnsupportedBody)
+                }
                 None => Err(InlineOutcome::NoBody),
             };
         }
@@ -285,14 +305,15 @@ impl Context<'_, '_> {
         owner: CallableMaterialization,
         registry: &mut LocalValueRegistry,
         state: &mut CallerState,
-    ) -> (mir::Body, bool) {
+    ) -> (mir::Body, bool, Vec<scoop_profile::Location>) {
         let mut function = self.module.functions[id].clone();
         let mut debug_records = mir::DebugRecords::default();
         let mut changed = false;
+        let mut used = Vec::new();
         loop {
             changed |=
                 !exception_edges::separate_entries(&mut function, &mut state.ancestry).is_empty();
-            let choices = self.choose(id, &function, &state.ancestry, &mut state.growth);
+            let choices = self.choose(id, &function, &state.ancestry, &mut state.growth, &mut used);
             if choices.is_empty() {
                 break;
             }
@@ -315,10 +336,10 @@ impl Context<'_, '_> {
             }
         }
         if !self.ordinary && !changed {
-            return (function.body, false);
+            return (function.body, false, used);
         }
         let (body, simplified) = simplify::body(self.module, &function);
-        (body, changed || simplified)
+        (body, changed || simplified, used)
     }
 }
 

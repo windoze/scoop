@@ -7,7 +7,7 @@
 use std::fmt;
 
 mod compiler_inputs;
-pub use compiler_inputs::{CompileTimeInputs, compiler_inputs_current};
+pub use compiler_inputs::{CompileTimeInputs, build_file_input, compiler_inputs_current};
 
 pub const VERSION: &str = env!("SCOOP_BUILD_VERSION");
 include!(concat!(env!("OUT_DIR"), "/deployment.rs"));
@@ -36,6 +36,7 @@ mod native;
 mod native_driver;
 mod native_invocation;
 mod paths;
+pub use paths::system_library_root;
 mod registry;
 mod request;
 mod runtime;
@@ -57,9 +58,10 @@ pub use native::{
     selected_native_object_sources, strip_native_include_observations,
 };
 pub use paths::{
-    artifact_candidate_path, configured_cache_root, configured_sysroot_root, default_runtime_index,
-    development_runtime_root, development_workspace_root, host_executable_name,
-    installed_executable, installed_host_tool, shared_commands_root, sysroot_library_path,
+    artifact_candidate_path, configured_cache_root, configured_sysroot_root,
+    default_profiling_runtime_index, default_runtime_index, development_runtime_root,
+    development_workspace_root, host_executable_name, installed_executable, installed_host_tool,
+    profile_map_path, profiling_runtime_archive, shared_commands_root, sysroot_library_path,
     target_library_root, versioned_cache_root,
 };
 pub use registry::host_target_triple;

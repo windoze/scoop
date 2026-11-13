@@ -2,12 +2,12 @@
 
 use std::fmt;
 
-use scoop_identity::{LocalValueSelector, PersistentGenericTypeId, SignatureTypeKey};
+use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 
 use crate::{
     CallableSourceEffectsV1, CanonicalTemplateLocalTableV1, DefaultConstructorRefV1,
     DefaultFieldRefV1, ExportDefinitionSourceV1, ExportTemplateFragmentV1,
-    GenericTemplatePredicatesV1,
+    GenericTemplatePredicatesV1, SourceNominalId,
 };
 
 mod release;
@@ -142,7 +142,7 @@ impl ExportConstructorInitializationV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExportGenericNominalInitializationV1 {
-    owner: PersistentGenericTypeId,
+    owner: SourceNominalId,
     common: Vec<ExportCommonInitializationStepV1>,
     constructors: Vec<ExportConstructorInitializationV1>,
     release_policy: crate::ReleasePolicy<ExportReleaseTemplateV1>,
@@ -150,7 +150,7 @@ pub struct ExportGenericNominalInitializationV1 {
 
 impl ExportGenericNominalInitializationV1 {
     pub fn try_new(
-        owner: PersistentGenericTypeId,
+        owner: SourceNominalId,
         common: Vec<ExportCommonInitializationStepV1>,
         mut constructors: Vec<ExportConstructorInitializationV1>,
         release_policy: crate::ReleasePolicy<ExportReleaseTemplateV1>,
@@ -160,7 +160,7 @@ impl ExportGenericNominalInitializationV1 {
     }
 
     fn from_canonical(
-        owner: PersistentGenericTypeId,
+        owner: SourceNominalId,
         common: Vec<ExportCommonInitializationStepV1>,
         constructors: Vec<ExportConstructorInitializationV1>,
         release_policy: crate::ReleasePolicy<ExportReleaseTemplateV1>,
@@ -209,7 +209,7 @@ impl ExportGenericNominalInitializationV1 {
         })
     }
 
-    pub const fn owner(&self) -> PersistentGenericTypeId {
+    pub const fn owner(&self) -> SourceNominalId {
         self.owner
     }
 
@@ -244,10 +244,7 @@ impl CanonicalExportGenericInitializationsV1 {
         &self.records
     }
 
-    pub fn get(
-        &self,
-        owner: PersistentGenericTypeId,
-    ) -> Option<&ExportGenericNominalInitializationV1> {
+    pub fn get(&self, owner: SourceNominalId) -> Option<&ExportGenericNominalInitializationV1> {
         self.records
             .binary_search_by_key(&owner, ExportGenericNominalInitializationV1::owner)
             .ok()
@@ -264,12 +261,21 @@ fn require_body(body: &ExportTemplateFragmentV1) -> Result<(), GenericInitializa
 }
 
 fn validate_constructors(
-    owner: PersistentGenericTypeId,
+    owner: SourceNominalId,
     constructors: &[ExportConstructorInitializationV1],
 ) -> Result<(), GenericInitializationBuildError> {
     for constructor in constructors {
-        if !matches!(constructor.declaration.owner_type(), SignatureTypeKey::NominalApplication { origin, .. } if *origin == owner)
-        {
+        let matches = match (owner, constructor.declaration.owner_type()) {
+            (SourceNominalId::Concrete(expected), SignatureTypeKey::Nominal(actual)) => {
+                expected == *actual
+            }
+            (
+                SourceNominalId::GenericTemplate(expected),
+                SignatureTypeKey::NominalApplication { origin, .. },
+            ) => expected == *origin,
+            _ => false,
+        };
+        if !matches {
             return Err(GenericInitializationBuildError::ConstructorOwner);
         }
     }

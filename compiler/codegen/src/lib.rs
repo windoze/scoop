@@ -90,6 +90,7 @@ mod llvm_types;
 mod machine_types;
 mod module_context;
 mod object_partition;
+pub mod profiling;
 mod runtime_metadata_v1;
 mod shape_definitions;
 mod statepoint;

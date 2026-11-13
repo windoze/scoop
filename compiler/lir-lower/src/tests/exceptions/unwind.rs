@@ -229,7 +229,7 @@ fn nested_trys_unwind_to_their_own_pads() {
         inner_unwind,
         vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
             cleanup: false,
-            state: state,
+            state,
         }))],
         mir::Terminator::Goto(inner_dispatch),
         None,

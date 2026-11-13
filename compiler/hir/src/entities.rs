@@ -17,6 +17,8 @@ pub struct Module {
     /// Imported/core sources may also be present, so this cannot be inferred
     /// from the source table.
     pub cone: scoop_identity::ConeIdentity,
+    /// Optional optimization-body export; independent of language identity.
+    pub ir_template_export: IrTemplateExport,
     /// Total persistent identity relation for every nominal declaration in
     /// the five export arenas. Local arena ids remain request-scoped and are
     /// never used as emission or cross-Cone identity.

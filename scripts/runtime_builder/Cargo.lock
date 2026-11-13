@@ -737,6 +737,7 @@ dependencies = [
  "scoop-manifest",
  "scoop-parser",
  "scoop-process",
+ "scoop-profile",
  "scoop-protocol",
  "scoop-slib",
  "scoop-source",
@@ -838,6 +839,7 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-identity",
+ "scoop-profile",
  "scoop-source",
  "scoop-wire",
 ]
@@ -862,6 +864,7 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-identity",
+ "scoop-profile",
  "scoop-source",
  "scoop-wire",
 ]
@@ -887,13 +890,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-profile"
+version = "0.0.0"
+dependencies = [
+ "scoop-identity",
+ "scoop-wire",
+ "serde",
+]
+
+[[package]]
 name = "scoop-protocol"
 version = "0.0.0"
 dependencies = [
  "base64",
+ "scoop-hir",
  "scoop-identity",
  "scoop-lir",
  "scoop-manifest",
+ "scoop-profile",
  "scoop-slib",
  "scoop-wire",
  "serde",
@@ -920,6 +934,7 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-mir",
+ "scoop-profile",
  "scoop-target-data",
  "scoop-wire",
  "tempfile",

@@ -916,8 +916,9 @@ iOS、Android、HarmonyOS 及 framework/JNI/Node-API 适配后置为独立设计
 ### 程序运行性能优化主线（调研完成，持续实施中）
 
 - [优化方向与实施路线调研](program-performance/INVESTIGATION.md)以达到或超过 Go／Java／Kotlin/Native 的综合运行性能为目标，对照 M62 代码更新历史暂缓项，覆盖测量与归因、跨过程／全程序优化、部分逃逸、托管数组 SIMD、PGO／ThinLTO、协程与 ABI、GC 晋升／并发、内存表示和库算法。
-- 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。PGO 为后续独立专项，在代表负载、成熟消费者和反馈原型净收益成立后排期；测量与全程序优化／ThinLTO 均不以 PGO 为前置。
+- 测量基础设施提前独立交付：复用 benchmark、采样工具和 GC 统计，补足源码归因与优化诊断，先支持通用静态优化。[Profiling／PGO 首版](profiling/DESIGN.md)已交付（见[进度](profiling/PROGRESS.md)及[验收](profiling/VALIDATION.md)）：提供 profiling build profile、稳定位置计数、GC 时间线、off/default/full IR template 导出、独立 `scoop-pgo` 的 instrument/optimize 流程，以及可单独下载安装、模板全部 full 的目标系统库组件。六个原生目标的训练／反馈闭环通过，实测频次已进入调用点和字符串 cost 模型；首版性能对照记录了收益不明显及嵌套热度归一化导致的回归；现已先完成默认内联、再追加反馈选择，Long hash 的默认展开和性能恢复，未训练 Boolean hash 的标记／poll 分块差异继续跟进。测量与全程序优化／ThinLTO 均不以 PGO 为前置。
 - 优化按长期、分批试验和交付推进：成本低且收益比较稳定的方案可直接纳入 release 默认设置；成本过高或收益不稳定的方案通过独立开关或等级决定是否启用、启用哪一级。默认值随实测结果调整，保留默认与调优配置的对照。
+- [PGO 下一阶段](profiling/NEXT-STEPS.md)的默认内联保留与反馈追加已交付；其后修复上下文反馈及标记对既有优化的干扰，再消费已有分支计数，随后新增类型／目标分布和带检查的接口去虚拟化。值／尺寸特化、循环转换及整体代码布局按真实热点分批选择。其余项目仍为后续规划，原分派与未训练路径继续保留，不以 JIT、ThinLTO 或自动调参为前置。
 - [已采纳优化与开启条件](program-performance/ENABLED-OPTIMIZATIONS.md)简要列出各项方案的默认 profile、适用条件及实际开关，后续采纳与策略变更时同步维护。
 - [String 比较与短 hash](program-performance/STRING-READS.md)已交付：普通 core 的身份／长度判断与有界 hash，真实 typed 常量折叠及短常量比较；三目标语义、IR／moving 和性能成本对照通过，长文本与 UTF-8 解码继续共享后备。接口复制与重定位 SSA 为下一优先批次。
 - [已知小型 box 分配](program-performance/BOX-ALLOCATION.md)已交付：≤128 B 实例复用生成的 TLAB／慢路径，保持独立身份、完整 payload 和写屏障，省去 box C 检查与额外 region frame。三目标 IR、跨 Cone／packed／moving 和性能／成本对照通过；release 默认，较大 box 和 debug 保留后备，布局与 ABI 不变。

@@ -82,8 +82,10 @@ fn compact_gc_preserves_root_order_multiplicity_and_signed_offsets() {
     }
     assert_eq!(
         bytes[112..]
-            .chunks_exact(4)
-            .map(|word| u32::from_le_bytes(word.try_into().unwrap()))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|word| u32::from_le_bytes(*word))
             .collect::<Vec<_>>(),
         [
             3,

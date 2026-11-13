@@ -35,6 +35,7 @@ scoop-protocol.workspace = true
 scoop-slib.workspace = true
 scoop-toolchain.workspace = true
 scoop-wire.workspace = true
+scoop-profile.workspace = true
 tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]

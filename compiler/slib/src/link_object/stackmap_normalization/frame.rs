@@ -11,7 +11,7 @@ pub(super) fn for_target(target: TargetProfileId) -> Option<StackmapFrame> {
 
 pub(super) fn valid_stack_size(frame: StackmapFrame, size: u64) -> bool {
     match frame {
-        StackmapFrame::DarwinAarch64Fixed => size >= 16 && size % 16 == 0,
+        StackmapFrame::DarwinAarch64Fixed => size >= 16 && size.is_multiple_of(16),
         StackmapFrame::SysvAmd64Fixed | StackmapFrame::WindowsAmd64VirtualUnwind => {
             size >= 8 && size % 16 == 8 && size <= i64::MAX as u64
         }

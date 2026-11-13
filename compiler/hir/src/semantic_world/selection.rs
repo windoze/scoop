@@ -207,6 +207,15 @@ impl ImportedDependencySelectionPlan {
         self.callables
             .entry(id)
             .or_insert_with(|| SelectedImportedDependencyCallable {
+                constructor_template: match id {
+                    CallableTemplateOrigin::Constructor(_) => entry
+                        .interface
+                        .owner()
+                        .nominal_owner()
+                        .and_then(|owner| self.catalog.initializations.get(&owner))
+                        .map(|source| Arc::clone(source.initialization())),
+                    _ => None,
+                },
                 native_contract: entry.native_contract.clone(),
                 provider: entry.provider,
                 interface: entry.interface.clone(),

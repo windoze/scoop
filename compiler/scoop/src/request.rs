@@ -173,11 +173,15 @@ pub struct BuildGraphRequest {
     artifact_search_roots: Vec<ArtifactSearchRoot>,
     cache_root: ArtifactCacheRoot,
     sysroot: TrustedSysrootRoot,
+    system_library_root: Option<PathBuf>,
     target: GraphTarget,
     compiler: PairedScoopcLocator,
     diagnostics: DiagnosticsPolicy,
     optimization: scoop_lir::OptimizationMode,
     debug_info: scoop_lir::DebugInfoLevel,
+    export_ir: scoop_protocol::IrTemplateExport,
+    instrumentation: scoop_profile::Instrumentation,
+    profile_use: Option<PathBuf>,
     purpose: CompilationPurpose,
     jobs: std::num::NonZeroUsize,
     generators: scoop_toolchain::GeneratorPrograms,
@@ -188,11 +192,15 @@ pub(crate) struct BuildGraphRequestParts {
     pub(crate) artifact_search_roots: Vec<ArtifactSearchRoot>,
     pub(crate) cache_root: ArtifactCacheRoot,
     pub(crate) sysroot: TrustedSysrootRoot,
+    pub(crate) system_library_root: Option<PathBuf>,
     pub(crate) target: GraphTarget,
     pub(crate) compiler: PairedScoopcLocator,
     pub(crate) diagnostics: DiagnosticsPolicy,
     pub(crate) optimization: scoop_lir::OptimizationMode,
     pub(crate) debug_info: scoop_lir::DebugInfoLevel,
+    pub(crate) export_ir: scoop_protocol::IrTemplateExport,
+    pub(crate) instrumentation: scoop_profile::Instrumentation,
+    pub(crate) profile_use: Option<PathBuf>,
     pub(crate) purpose: CompilationPurpose,
     pub(crate) jobs: std::num::NonZeroUsize,
     pub(crate) generators: scoop_toolchain::GeneratorPrograms,
@@ -218,11 +226,15 @@ impl BuildGraphRequest {
             artifact_search_roots,
             cache_root,
             sysroot,
+            system_library_root: None,
             target,
             compiler,
             diagnostics,
             optimization: scoop_lir::OptimizationMode::Debug,
             debug_info: scoop_lir::DebugInfoLevel::None,
+            export_ir: scoop_protocol::IrTemplateExport::Default,
+            instrumentation: scoop_profile::Instrumentation::Off,
+            profile_use: None,
             purpose: CompilationPurpose::Production,
             jobs: std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN),
             generators: Default::default(),
@@ -236,6 +248,26 @@ impl BuildGraphRequest {
 
     pub fn with_debug_info(mut self, level: scoop_lir::DebugInfoLevel) -> Self {
         self.debug_info = level;
+        self
+    }
+
+    pub fn with_system_library_root(mut self, root: PathBuf) -> Self {
+        self.system_library_root = Some(root);
+        self
+    }
+
+    pub fn with_profile_use(mut self, path: Option<PathBuf>) -> Self {
+        self.profile_use = path;
+        self
+    }
+
+    pub fn with_instrumentation(mut self, mode: scoop_profile::Instrumentation) -> Self {
+        self.instrumentation = mode;
+        self
+    }
+
+    pub fn with_export_ir(mut self, mode: scoop_protocol::IrTemplateExport) -> Self {
+        self.export_ir = mode;
         self
     }
 
@@ -294,11 +326,15 @@ impl BuildGraphRequest {
             artifact_search_roots: self.artifact_search_roots,
             cache_root: self.cache_root,
             sysroot: self.sysroot,
+            system_library_root: self.system_library_root,
             target: self.target,
             compiler: self.compiler,
             diagnostics: self.diagnostics,
             optimization: self.optimization,
             debug_info: self.debug_info,
+            export_ir: self.export_ir,
+            instrumentation: self.instrumentation,
+            profile_use: self.profile_use,
             purpose: self.purpose,
             jobs: self.jobs,
             generators: self.generators,

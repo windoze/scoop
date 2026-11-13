@@ -1,6 +1,7 @@
 /* Post-verification object retirement, ordinary reuse and stress quarantine. */
 #include <stdatomic.h>
 
+#include "../profiling/gc.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 #include "live_lines.h"
@@ -54,7 +55,8 @@ static void finish_minor_lines(ScoopGcBlockMeta *block) {
         while (marked != 0) {
             size_t word = index * 64 + (size_t)__builtin_ctzll(marked);
             marked &= marked - 1;
-            size_t exact_size = scoop_heap_small_object_size((void *)(base + word * sizeof(uint64_t)));
+            size_t exact_size =
+                scoop_heap_small_object_size((void *)(base + word * sizeof(uint64_t)));
             scoop_gc_record_live_lines(block->line_live, word, exact_size);
         }
     }
@@ -68,8 +70,8 @@ static void finish_block(ScoopGcBlockMeta *block, bool minor) {
             scoop_heap_release_block(block);
             return;
         }
-        if (block->head->state != SCOOP_BLOCK_EVACUATION_TARGET &&
-            !block->retained_young && block->slot_size == 0) {
+        if (block->head->state != SCOOP_BLOCK_EVACUATION_TARGET && !block->retained_young &&
+            block->slot_size == 0) {
             /* Only retained non-slot old blocks need free runs. Their objects have
              * not moved; copy targets already published their occupied lines. */
             finish_minor_lines(block);
@@ -85,14 +87,14 @@ static void finish_block(ScoopGcBlockMeta *block, bool minor) {
     block->retained_young = false;
     size_t live_bytes = block->live_bytes;
     scoop_heap_finish_block(block, stress_move);
-    if ((!minor || promoted_slots) && active_head(block) && block->head->kind == SCOOP_BLOCK_KIND_SMALL &&
-        block->slot_size != 0) {
+    if ((!minor || promoted_slots) && active_head(block) &&
+        block->head->kind == SCOOP_BLOCK_KIND_SMALL && block->slot_size != 0) {
         scoop_heap_record_old_slots(block, live_bytes);
     }
 }
 
 void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor,
-                                             const ScoopGcSurvivors *survivors) {
+                                            const ScoopGcSurvivors *survivors) {
     if (!collection_active) {
         heap_fatal("heap collection finished without begin");
     }
@@ -150,7 +152,9 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor,
     if (!minor) {
         uint64_t vm_started = scoop_gc_monotonic_ns();
         scoop_heap_reclaim_regions(!stress_move);
-        scoop_gc_heap_state.metrics.vm_return_ns += scoop_gc_monotonic_ns() - vm_started;
+        uint64_t vm_ended = scoop_gc_monotonic_ns();
+        scoop_gc_heap_state.metrics.vm_return_ns += vm_ended - vm_started;
+        scoop_profile_gc_phase(SCOOP_PROFILE_GC_VM_RETURN, vm_started, vm_ended);
         for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
              region = region->next) {
             region->evacuation_source = false;

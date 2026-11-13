@@ -218,6 +218,8 @@ pub struct Statement {
 
 #[derive(Debug, Clone)]
 pub enum StatementKind {
+    /// An observation, not a language effect or GC safepoint.
+    ProfileCounter(ProfileMarker),
     Expr(Expr),
     Call(CallEffect),
     /// Runs on the normal edge after the complete outer initializer call.

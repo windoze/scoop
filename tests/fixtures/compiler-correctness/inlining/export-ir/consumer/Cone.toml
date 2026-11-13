@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test.pgo"
+name = "export-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"test.pgo:export-provider" = { version = "=0.1.0", artifact = "../provider.slib" }

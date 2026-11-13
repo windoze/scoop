@@ -180,10 +180,9 @@ fn definition_locations(
     for definition in definitions {
         if let Some(location) =
             convert::definition_location(snapshot, cursor.project, &definition, settings)?
+            && !locations.contains(&location)
         {
-            if !locations.contains(&location) {
-                locations.push(location);
-            }
+            locations.push(location);
         }
     }
     if locations.len() == 1 {

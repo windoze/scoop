@@ -69,8 +69,10 @@ pub use initialization_dependencies::{HirInitializationUseError, HirPropertyInit
 
 mod inline_body;
 mod production;
+mod template_export;
 pub use inline_body::portable_inline_body;
 pub use production::*;
+pub use template_export::IrTemplateExport;
 
 mod ids;
 pub use ids::*;

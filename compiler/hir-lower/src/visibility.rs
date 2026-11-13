@@ -18,7 +18,7 @@ pub(crate) enum MemberSlotAccess {
 
 impl Lowerer {
     pub(crate) fn visibility_file(&self, file: usize) -> scoop_identity::SourceIdentity {
-        self.intrinsic_sources[file].identity.clone()
+        self.source_identity(file).clone()
     }
 
     pub(crate) fn normalized_visibility(syntax: ast::VisibilitySyntax) -> hir::DeclaredVisibility {

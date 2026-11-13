@@ -163,6 +163,7 @@ pub(super) fn metadata() -> LirMeta {
     let external_type_descriptors = Arena::new();
     let well_known_string = TypeDescriptorRef::Local(string_descriptor);
     LirMeta {
+        profile_bodies: Vec::new(),
         debug_types: Default::default(),
         debug_globals: Default::default(),
         exact_types: Vec::new(),

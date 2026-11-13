@@ -29,6 +29,12 @@ fn classify(name: &[u8], flags: u32) -> Role {
     {
         return Role::ObjectMetadata;
     }
+    if [b".lprfc".as_slice(), b".lprfd", b".lprfn"]
+        .iter()
+        .any(|base| contribution(name, base))
+    {
+        return Role::ProfilingSupport;
+    }
     if name == b".llvm_stackmaps" {
         return Role::LlvmStackmaps;
     }

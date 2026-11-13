@@ -134,6 +134,7 @@ fn loops_keep_independent_growth_with_a_cumulative_caller_bound() {
                     target: mir::CallTarget::Direct(mir::Callee::User(target)),
                     outcome,
                     estimate,
+                    ..
                 } = &event.decision
                 && *target == step
             {

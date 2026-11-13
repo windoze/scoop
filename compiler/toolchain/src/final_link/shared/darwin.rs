@@ -66,7 +66,9 @@ pub(super) fn assert_lld(path: &Path) {
         if let Some(build) = command.build_version().unwrap() {
             tools.extend(
                 command.raw_data()[24..]
-                    .chunks_exact(8)
+                    .as_chunks::<8>()
+                    .0
+                    .iter()
                     .take(build.ntools.get(endian) as usize)
                     .map(|tool| u32::from_le_bytes(tool[..4].try_into().unwrap())),
             );

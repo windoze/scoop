@@ -597,6 +597,7 @@ impl Harness {
             .expect("the empty MIR test callback relation is valid");
         let source_parameter_interfaces = self.test_parameter_interfaces();
         let module = hir::Module {
+            ir_template_export: hir::IrTemplateExport::Default,
             annotations: hir::SourceAnnotations::default(),
             test_containers: Vec::new(),
             release_hooks: Arena::new(),

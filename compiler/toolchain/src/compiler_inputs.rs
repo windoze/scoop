@@ -198,6 +198,10 @@ impl CompileTimeInputs {
 
 pub fn compiler_inputs_current(inputs: &[scoop_protocol::CompilerInputV1]) -> bool {
     inputs.iter().all(|input| match input {
+        scoop_protocol::CompilerInputV1::BuildFile(input) => input
+            .path
+            .to_path_buf()
+            .is_ok_and(|path| build_file_input(&path).is_ok_and(|current| current == *input)),
         scoop_protocol::CompilerInputV1::File(input) => files::current(input),
         scoop_protocol::CompilerInputV1::Directory(input) => directories::current(input),
         scoop_protocol::CompilerInputV1::Environment(input) => match std::env::var(&input.name) {
@@ -205,6 +209,19 @@ pub fn compiler_inputs_current(inputs: &[scoop_protocol::CompilerInputV1]) -> bo
             Err(std::env::VarError::NotPresent) => input.value.is_none(),
             Err(std::env::VarError::NotUnicode(_)) => false,
         },
+    })
+}
+
+pub fn build_file_input(
+    path: &std::path::Path,
+) -> Result<scoop_protocol::BuildFileInputV1, String> {
+    let path = std::path::absolute(path).map_err(|error| error.to_string())?;
+    let metadata =
+        std::fs::metadata(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    Ok(scoop_protocol::BuildFileInputV1 {
+        path: paths::carrier(&path)?,
+        length: metadata.len(),
+        modified: paths::modified(&path, &metadata)?,
     })
 }
 

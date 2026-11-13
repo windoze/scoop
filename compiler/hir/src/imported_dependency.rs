@@ -199,6 +199,7 @@ pub struct ImportedDependencyCallableUse {
     dispatch: ImportedDependencyDispatch,
     receiver: Option<crate::TypeId>,
     effect: scoop_identity::Effect,
+    requires_provider_entry: bool,
 }
 
 /// The source-selected dispatch table and its provider-defined slot position.
@@ -226,7 +227,16 @@ impl ImportedDependencyCallableUse {
             dispatch,
             receiver,
             effect,
+            requires_provider_entry: false,
         }
+    }
+
+    pub fn require_provider_entry(&mut self) {
+        self.requires_provider_entry = true;
+    }
+
+    pub const fn requires_provider_entry(self) -> bool {
+        self.requires_provider_entry
     }
 
     pub const fn effect(self) -> scoop_identity::Effect {

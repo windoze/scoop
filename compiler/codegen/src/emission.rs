@@ -295,6 +295,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     let module_ctx = ModuleCtx {
         debug: debug.as_ref(),
         profile,
+        profiling: !module.meta.profile_bodies.is_empty(),
         reuse_interface_values: profile.optimization() == scoop_lir::OptimizationMode::Release
             && profile.tuning().reuse_interface_values,
         optimize_allocations: profile.optimization() == scoop_lir::OptimizationMode::Release,

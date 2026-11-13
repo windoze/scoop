@@ -21,10 +21,7 @@ pub(super) struct BodyQueries<'a> {
         hir::SemanticBodyAvailability<Arc<hir::SemanticConstructorBody>>,
     >,
     class_common: HashMap<hir::ClassId, Arc<[hir::ExportCommonInitializationStepV1]>>,
-    imported_common: HashMap<
-        scoop_identity::PersistentGenericTypeId,
-        Arc<[hir::ExportCommonInitializationStepV1]>,
-    >,
+    imported_common: HashMap<hir::SourceNominalId, Arc<[hir::ExportCommonInitializationStepV1]>>,
 }
 
 impl<'a> BodyQueries<'a> {

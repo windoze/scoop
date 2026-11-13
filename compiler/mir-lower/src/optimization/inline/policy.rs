@@ -63,7 +63,11 @@ pub(super) fn protocol_entries(module: &mir::Module) -> Vec<bool> {
 
 pub(super) fn executable(function: &mir::Function) -> bool {
     function.body.blocks.iter().any(|(_, block)| {
-        !block.statements.is_empty() || !matches!(block.terminator, mir::Terminator::Unreachable)
+        block
+            .statements
+            .iter()
+            .any(|statement| !matches!(statement.kind, mir::StatementKind::ProfileCounter(_)))
+            || !matches!(block.terminator, mir::Terminator::Unreachable)
     })
 }
 
@@ -92,7 +96,7 @@ pub(super) use cost::{
     Cost, adjusted_blocks_cost, assignment_cost, block_cost, blocks_cost, cold_blocks,
     expression_cost, function_cost, statement_cost, tree_cost,
 };
-pub(in crate::optimization) use heat::heats;
+pub(in crate::optimization) use heat::{compare as compare_heat, heats, with_profile};
 pub(super) use score::{Growth, Site, assess};
 
 pub(super) fn copy_cost(structs: &la_arena::Arena<mir::StructDef>, ty: &mir::Type) -> usize {

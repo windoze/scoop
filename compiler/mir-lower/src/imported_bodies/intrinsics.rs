@@ -94,8 +94,11 @@ impl Lowerer {
                 return_ty.clone(),
                 &self.enums.defs,
                 &self.classes,
-            )
-            .body;
+            );
+            if self.profiling {
+                bodies.call_sites.insert(callable, body.call_sites);
+            }
+            let body = body.body;
             bodies.functions.insert(
                 callable,
                 mir::Function {

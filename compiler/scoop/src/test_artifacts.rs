@@ -49,6 +49,7 @@ pub(crate) fn manifest_archive(
         &members,
         semantic,
         Vec::new(),
+        Default::default(),
     )
     .unwrap();
     CanonicalSlibArchive::write_bootstrap(&manifest, members).unwrap()

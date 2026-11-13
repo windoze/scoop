@@ -146,70 +146,86 @@ fn run_with_intrinsics(
         }
         return (0, true);
     }
-    let mut active = vec![true; module.functions.len()];
-    let mut outcome = (limit, false);
-    for round in 0..limit {
-        if let Some(observer) = &observer {
-            observer.round(round + 1);
-        }
-        let mut changed = if options.devirtualize {
-            devirtualize(module, selected, &active, None, &dispatch)
-        } else {
-            vec![false; active.len()]
-        };
-        if options.inline
-            && let Some(inliner) = &mut inliner
-        {
-            for (changed, inlined) in changed.iter_mut().zip(inliner.run(
-                module,
-                selected,
-                &dispatch,
-                &active,
-                &mut registry,
-                observer.as_ref(),
-            )) {
-                *changed |= inlined;
+    let mut outcome = (0, true);
+    // Finish the ordinary release choices before feedback can spend growth.
+    // The same session retains templates, ancestry and all previous charges.
+    for feedback in [false, true] {
+        if feedback {
+            if !options.inline || !module.meta.profiling.feedback {
+                break;
             }
+            inliner
+                .as_mut()
+                .expect("ordinary inlining has a session")
+                .enable_feedback();
         }
-        if options.allocation_elision {
-            for (changed, elided) in changed.iter_mut().zip(allocation::run(
-                module,
-                &active,
-                &mut registry,
-                observer.as_ref(),
-                inliner.as_ref(),
-            )) {
-                *changed |= elided;
+        let mut active = vec![true; module.functions.len()];
+        let mut converged = false;
+        for _ in 0..limit {
+            outcome.0 += 1;
+            if let Some(observer) = &observer {
+                observer.round(outcome.0);
             }
-        }
-        if has_intrinsics {
-            for (changed, normalized) in changed.iter_mut().zip(intrinsics::normalize(
-                module,
-                selected,
-                required,
-                &dispatch,
-                inliner.as_mut().unwrap(),
-                &mut registry,
-            )) {
-                *changed |= normalized;
-            }
-        }
-        if options.interface_views {
-            for (changed, reused) in changed
-                .iter_mut()
-                .zip(interface_views::run(module, &active))
+            let mut changed = if options.devirtualize {
+                devirtualize(module, selected, &active, None, &dispatch)
+            } else {
+                vec![false; active.len()]
+            };
+            if options.inline
+                && let Some(inliner) = &mut inliner
             {
-                *changed |= reused;
+                for (changed, inlined) in changed.iter_mut().zip(inliner.run(
+                    module,
+                    selected,
+                    &dispatch,
+                    &active,
+                    &mut registry,
+                    observer.as_ref(),
+                )) {
+                    *changed |= inlined;
+                }
             }
+            if options.allocation_elision {
+                for (changed, elided) in changed.iter_mut().zip(allocation::run(
+                    module,
+                    &active,
+                    &mut registry,
+                    observer.as_ref(),
+                    inliner.as_ref(),
+                )) {
+                    *changed |= elided;
+                }
+            }
+            if has_intrinsics {
+                for (changed, normalized) in changed.iter_mut().zip(intrinsics::normalize(
+                    module,
+                    selected,
+                    required,
+                    &dispatch,
+                    inliner.as_mut().unwrap(),
+                    &mut registry,
+                )) {
+                    *changed |= normalized;
+                }
+            }
+            if options.interface_views {
+                for (changed, reused) in changed
+                    .iter_mut()
+                    .zip(interface_views::run(module, &active))
+                {
+                    *changed |= reused;
+                }
+            }
+            if !changed.iter().any(|changed| *changed) {
+                converged = true;
+                break;
+            }
+            active = changed;
         }
-        if !changed.iter().any(|changed| *changed) {
-            outcome = (round + 1, true);
-            break;
-        }
-        active = changed;
+        outcome.1 &= converged;
     }
     if options.allocation_elision {
-        strings::run(module);
+        strings::run(module, observer.as_ref());
     }
     if options.poll_chunking {
         poll_chunks::run(module, &mut registry);

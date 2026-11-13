@@ -2,7 +2,7 @@ use scoop_hir as hir;
 use scoop_identity::ConeCoordinate;
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary_text, trusted_core};
-use super::m23_ordinary_dependencies::support::{alias_expansions, project_dependency_text};
+use super::m23_ordinary_dependencies::support::alias_expansions;
 use super::mir_dependencies::select_library_callables;
 use crate::{CurrentConeSources, lower_current_cone};
 
@@ -20,6 +20,7 @@ mod constructors;
 mod contextual;
 mod delegates;
 mod equality;
+mod export_ir;
 mod host_properties;
 mod inline;
 mod interface_members;
@@ -36,6 +37,7 @@ mod parents;
 mod pointer_construction;
 mod pointers;
 mod primitive_boxing;
+mod profiling;
 mod qualified_types;
 mod reference_targets;
 mod references;
@@ -88,10 +90,33 @@ pub(in crate::tests) fn with_provider_consumer<T>(
         &super::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> Result<T, Vec<crate::Diagnostic>> {
+    with_provider_consumer_export_ir(provider, source, hir::IrTemplateExport::Default, verify)
+}
+
+fn with_provider_consumer_export_ir<T>(
+    provider: &str,
+    source: &str,
+    export_ir: hir::IrTemplateExport,
+    verify: impl FnOnce(
+        hir::DependencyHirOutput,
+        &hir::ImportedSemanticWorld,
+        &hir::CanonicalHirFoundation,
+        &hir::CrossConeHirInterfaceSectionV1,
+        &super::m23_ordinary_core_only::support::TrustedCoreFixture,
+    ) -> T,
+) -> Result<T, Vec<crate::Diagnostic>> {
     let mut core = trusted_core();
     let coordinate = ConeCoordinate::new("test", "generic-provider", "1.0.0").unwrap();
+    let parsed_provider =
+        super::m23_ordinary_core_only::support::parsed_ordinary_text_at(&coordinate, provider);
     let (foundation, interface) =
-        project_dependency_text(&core, &coordinate, provider, &["Boolean"]);
+        super::m23_ordinary_dependencies::support::project_parsed_dependency_with_export_ir(
+            &core,
+            &parsed_provider,
+            &["Boolean"],
+            false,
+            export_ir,
+        );
     let imported = core.import_dependency_foundation(&coordinate, &foundation, 73);
     let aliases = alias_expansions(interface.type_aliases());
     let consumer = parsed_ordinary_text(source);
@@ -175,8 +200,14 @@ fn imported_generic_bodies_infer_and_materialize_provider_templates() {
         .expect("generic applications retain their actual foundation identities");
     let _ = scoop_wire::encode(&foundation).unwrap();
     let dependencies = select_library_callables(&output);
-    scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default(), None)
-        .expect("dependency templates lower through the ordinary MIR body path");
+    scoop_mir_lower::lower_current_cone(
+        &output,
+        dependencies,
+        Default::default(),
+        None,
+        Default::default(),
+    )
+    .expect("dependency templates lower through the ordinary MIR body path");
 }
 
 #[test]

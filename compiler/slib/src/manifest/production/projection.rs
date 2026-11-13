@@ -31,6 +31,7 @@ where
         runtime_image_fingerprint: runtime_image.fingerprint(),
         odr_members,
         optimization: scoop_lir::OptimizationMode::Debug,
+        instrumentation: scoop_profile::Instrumentation::Off,
     };
     Ok(projection)
 }

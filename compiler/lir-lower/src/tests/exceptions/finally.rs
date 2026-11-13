@@ -122,7 +122,7 @@ fn return_inside_try_runs_finally_before_returning() {
         unwind,
         vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
             cleanup: false,
-            state: state,
+            state,
         }))],
         mir::Terminator::Goto(dispatch),
         None,

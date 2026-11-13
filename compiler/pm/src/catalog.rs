@@ -42,6 +42,7 @@ pub struct CatalogOptions {
     pub lock_directory: PathBuf,
     pub target: scoop_lir::ValidatedLirTargetSelection,
     pub sysroot: PathBuf,
+    pub system_library_root: Option<PathBuf>,
     pub artifact_roots: Vec<PathBuf>,
     pub default_registry: Option<RegistryUrl>,
     pub offline: bool,

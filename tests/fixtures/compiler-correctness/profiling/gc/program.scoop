@@ -1,0 +1,42 @@
+@Extern(lib = "profiling_gc", name = "profiling_gc_step", abi = "scoop")
+fun step()
+
+class Node(val next: Node?)
+
+fun chain(): Int {
+    var head: Node? = None
+    var index = 0
+    while (index < 262144) {
+        head = Some(Node(head))
+        index += 1
+    }
+    gcCollect()
+    step()
+    step()
+    step()
+    gcCollect()
+    var count = 0
+    while (true) {
+        when (head) {
+            case Some(val node) -> {
+                count += 1
+                head = node.next
+            }
+            case None -> break
+        }
+    }
+    return count
+}
+
+fun main(arguments: Array<String>) {
+    if (arguments.size > 1L) {
+        var count = 0
+        while (count < 1100) {
+            gcCollect()
+            count += 1
+        }
+        println(count)
+    } else {
+        println(chain())
+    }
+}

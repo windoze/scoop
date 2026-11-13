@@ -209,10 +209,15 @@ impl ValidatedRuntimeBuildProfile {
         self.target.contract().canonical_triple()
     }
 
-    pub fn runtime_sources(self) -> Vec<&'static str> {
+    pub fn runtime_sources(self, enable_profiling: bool) -> Vec<&'static str> {
         let components = self.components;
         sources::COMMON
             .iter()
+            .chain(if enable_profiling {
+                sources::PROFILING
+            } else {
+                &[]
+            })
             .copied()
             .chain(components.trace.iter().copied())
             .chain(components.trace_loader.iter().copied())

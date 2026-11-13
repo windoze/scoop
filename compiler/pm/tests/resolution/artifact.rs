@@ -41,6 +41,7 @@ pub(super) fn artifact(
         &members,
         semantic,
         vec![],
+        Default::default(),
     )
     .unwrap();
     let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members).unwrap();

@@ -22,10 +22,23 @@ mod values;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
-        self.retain_field_barrier(instruction);
-        self.retain_young_allocation(instruction);
-        self.interface_values.retain(instruction);
+        if !matches!(instruction, Instruction::ProfileCounter(_)) {
+            self.retain_field_barrier(instruction);
+            self.retain_young_allocation(instruction);
+            self.interface_values.retain(instruction);
+        }
         match instruction {
+            Instruction::ProfileCounter(counter) => {
+                let (record, llvm_record) = self
+                    .profile_counters
+                    .as_ref()
+                    .expect("a counter belongs to its callable record");
+                let index = record
+                    .counters
+                    .binary_search(counter)
+                    .expect("every emitted counter has its assigned slot");
+                llvm_record.increment(self.builder, index as u32)
+            }
             Instruction::StringConcat { .. } => self.emit_string_concat(instruction),
             Instruction::StringCopy { .. } => self.emit_string_copy(instruction),
             Instruction::ByteCopy { .. } => self.emit_byte_copy(instruction),

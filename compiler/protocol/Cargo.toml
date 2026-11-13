@@ -8,10 +8,12 @@ base64.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 scoop-identity.workspace = true
+scoop-hir.workspace = true
 scoop-lir.workspace = true
 scoop-slib.workspace = true
 scoop-manifest.workspace = true
 scoop-wire.workspace = true
+scoop-profile.workspace = true
 
 [dev-dependencies]
 scoop-target-data.workspace = true

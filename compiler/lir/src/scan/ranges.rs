@@ -20,7 +20,7 @@ pub(super) fn validate(scan: &RefScan, extent: u64, alignment: u64) -> Result<()
 }
 
 fn range(offset: u64, size: u64, extent: u64) -> Result<(u64, u64), Error> {
-    if offset % REFERENCE_BYTES != 0 {
+    if !offset.is_multiple_of(REFERENCE_BYTES) {
         return Err(Error::MisalignedReference { offset });
     }
     let end = offset.checked_add(size).ok_or(Error::OffsetOverflow)?;

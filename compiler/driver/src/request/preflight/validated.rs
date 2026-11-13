@@ -96,6 +96,22 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         self.request.debug_info
     }
 
+    pub const fn instrumentation(&self) -> scoop_profile::Instrumentation {
+        self.request.instrumentation
+    }
+
+    pub fn profile_use(&self) -> Option<&std::path::Path> {
+        self.request.profile_use.as_deref()
+    }
+
+    pub const fn profile_use_required(&self) -> bool {
+        self.request.profile_use_required
+    }
+
+    pub const fn export_ir(&self) -> scoop_hir::IrTemplateExport {
+        self.request.export_ir
+    }
+
     pub const fn purpose(&self) -> CompilationPurpose {
         self.request.purpose
     }

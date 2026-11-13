@@ -23,6 +23,12 @@ impl TrustedCoreSlotLayoutV1 {
         }
     }
 
+    pub fn with_library_root(mut self, root: PathBuf) -> Self {
+        self.artifact = root.join(CORE_ARTIFACT_FILE_NAME);
+        self.artifact_root = root;
+        self
+    }
+
     pub fn source_root(&self) -> &Path {
         &self.source_root
     }

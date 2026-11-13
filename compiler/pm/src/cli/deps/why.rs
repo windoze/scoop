@@ -60,6 +60,7 @@ pub(super) fn execute(args: DepsArgs, key: DependencyCoordinateKey) -> PmResult<
             .map_err(|error| PmError::new(error.to_string()))?,
         sysroot: scoop_toolchain::configured_sysroot_root(args.sysroot)
             .map_err(|error| PmError::new(error.to_string()))?,
+        system_library_root: None,
         artifact_roots: args.cone_path,
         package_cache: args.package_cache_dir,
         lockfile: args.lockfile,

@@ -14,7 +14,7 @@ mod projection;
 
 pub(crate) use projection::{
     project_dependency, project_dependency_text, project_dependency_without_default_roles,
-    project_parsed_dependency,
+    project_parsed_dependency, project_parsed_dependency_with_export_ir,
 };
 
 pub(super) struct DependencyFunctionFixture {

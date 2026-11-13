@@ -198,7 +198,8 @@ impl<'a> Analysis<'a> {
             | mir::StatementKind::ArraySet { .. }
             | mir::StatementKind::FieldSet { .. }
             | mir::StatementKind::AtomicFieldStore { .. }
-            | mir::StatementKind::Eh(_) => {}
+            | mir::StatementKind::Eh(_)
+            | mir::StatementKind::ProfileCounter(_) => {}
         }
     }
 

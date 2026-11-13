@@ -4,8 +4,10 @@ inputs = ["provider", "consumer", "runner"]
 tools = ["scoop", "scoopc"]
 tags = ["inlining", "compiler-correctness"]
 variants = [
-  {name = "debug", vars = {profile = "debug", operation = " = external", absent = "SafeIntegerDivRem"}},
-  {name = "release", vars = {profile = "release", operation = "SafeIntegerDivRem", absent = "imported inline body"}},
+  {name = "debug", vars = {profile = "debug", export_ir = "default", operation = " = external", absent = "SafeIntegerDivRem"}},
+  {name = "release", vars = {profile = "release", export_ir = "default", operation = "SafeIntegerDivRem", absent = "imported inline body"}},
+  {name = "off", vars = {profile = "release", export_ir = "off", operation = " = external", absent = "SafeIntegerDivRem"}},
+  {name = "full", vars = {profile = "release", export_ir = "full", operation = "SafeIntegerDivRem", absent = "imported inline body"}},
 ]
 
 [[steps]]
@@ -18,7 +20,7 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", "--release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "-o", "${work}/artifacts/dev.m62/inline-provider/0.1.0/cone.slib", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", "--release", "--export-ir", "${export_ir}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "-o", "${work}/artifacts/dev.m62/inline-provider/0.1.0/cone.slib", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

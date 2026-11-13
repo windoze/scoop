@@ -34,6 +34,9 @@ pub(super) fn unchanged(
         let block = &body.blocks[block_id];
         for statement in &block.statements[start..] {
             match &statement.kind {
+                // Tail forwarding removes this continuation. Its un-emitted
+                // observations remain unavailable in the saved layout.
+                mir::StatementKind::ProfileCounter(_) => {}
                 mir::StatementKind::ValDecl { local, init }
                 | mir::StatementKind::Assign { local, value: init }
                     if result(init, site, &aliases) =>

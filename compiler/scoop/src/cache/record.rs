@@ -9,11 +9,12 @@ pub struct CompileBuildRecordV1 {
     pub warnings: Vec<StructuredDiagnosticV1>,
     pub used_generators: Vec<scoop_protocol::GeneratorToolInputV1>,
     pub compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
+    pub profile_use: Option<scoop_profile::UseSummary>,
 }
 
 impl WireEncode for CompileBuildRecordV1 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(4)?;
+        e.map(5)?;
         e.field(1)?;
         self.summary.encode(e)?;
         e.field(2)?;
@@ -31,13 +32,14 @@ impl WireEncode for CompileBuildRecordV1 {
         for input in &self.compiler_inputs {
             input.encode(e)?;
         }
-        Ok(())
+        e.field(5)?;
+        scoop_profile::UseSummary::encode_optional(self.profile_use.as_ref(), e)
     }
 }
 
 impl WireDecode for CompileBuildRecordV1 {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
-        d.expect_map(4)?;
+        d.expect_map(5)?;
         Ok(Self {
             summary: d.field(1, ArtifactManifestSummaryV1::decode)?,
             warnings: d.field(2, |d| {
@@ -49,6 +51,7 @@ impl WireDecode for CompileBuildRecordV1 {
             compiler_inputs: d.field(4, |d| {
                 d.decode_array(|d, _| scoop_protocol::CompilerInputV1::decode(d))
             })?,
+            profile_use: d.field(5, scoop_profile::UseSummary::decode_optional)?,
         })
     }
 }

@@ -101,7 +101,7 @@ pub(super) fn with_pair(
         .unwrap();
     let mir = hir
         .machine_input()
-        .lower_selected_mir(selected, Default::default(), None)
+        .lower_selected_mir(selected, Default::default(), None, Default::default())
         .unwrap();
     let selected = closure
         .project_dependency_callables_to_lir(mir.strong.selected_callables())

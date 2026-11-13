@@ -4,6 +4,8 @@
 
 Windows 主驱动使用 `sco.exe`，下文的 `scoop ...` 在 Windows 上对应 `sco ...`。例如 `sco example` 仍运行 `scoop-example.exe`；编辑器继续使用 `scoop-lsp.exe`。macOS／Linux 的命令名保持不变。
 
+[`scoop pgo`](scoop-pgo/README.md) 提供 profiling 训练与反馈构建入口：`instrument` 构建并运行带计数的程序，`optimize` 复用训练设置和数据生成无探针 binary。使用前单独安装所选目标的 profiling 系统库组件；训练数据缺省为 cwd 下的 `target/pgo`。
+
 ## Scoop 编程 skill
 
 `scoop-programming/` 包含 `SKILL.md`、`agents/openai.yaml` 和按需阅读的 `references/`，用于编写、修改、调试和测试 Scoop 程序，不用于同名 Windows 包管理器。内容覆盖示例查询与文件还原、语言差异、库 API 查找、Cone 依赖、格式化、检查、构建、测试及运行；完整示例仍由配套 `scoop example` 提供，不在 skill 中另存副本。

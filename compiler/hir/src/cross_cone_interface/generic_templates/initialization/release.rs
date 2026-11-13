@@ -40,7 +40,7 @@ impl CanonicalExportGenericInitializationsV1 {
     pub(crate) fn validate_release_policies(
         &self,
         nominals: &crate::CanonicalNominalInterfacesV1,
-    ) -> Result<(), PersistentGenericTypeId> {
+    ) -> Result<(), SourceNominalId> {
         let declared = |record: &crate::NominalInterfaceRecordV1| {
             matches!(
                 record.declaration_details().release_policy(),
@@ -50,9 +50,7 @@ impl CanonicalExportGenericInitializationsV1 {
         for initialization in self.records() {
             if initialization.release_policy().hook().is_some()
                 && !nominals
-                    .declaration(crate::SourceNominalId::GenericTemplate(
-                        initialization.owner(),
-                    ))
+                    .declaration(initialization.owner())
                     .is_some_and(declared)
             {
                 return Err(initialization.owner());
@@ -61,10 +59,10 @@ impl CanonicalExportGenericInitializationsV1 {
         for record in nominals.all_records().filter(|record| declared(record)) {
             if let crate::SourceNominalId::GenericTemplate(owner) = record.declaration()
                 && !self
-                    .get(owner)
+                    .get(SourceNominalId::GenericTemplate(owner))
                     .is_some_and(|record| record.release_policy().hook().is_some())
             {
-                return Err(owner);
+                return Err(SourceNominalId::GenericTemplate(owner));
             }
         }
         Ok(())

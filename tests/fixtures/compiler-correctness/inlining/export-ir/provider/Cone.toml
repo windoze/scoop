@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "test.pgo"
+name = "export-provider"
+version = "0.1.0"
+kind = "library"

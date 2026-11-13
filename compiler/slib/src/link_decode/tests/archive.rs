@@ -180,6 +180,7 @@ pub(crate) fn complete_artifact_parts() -> (BootstrapManifest, Vec<SlibMember>) 
         &members,
         semantic,
         Vec::new(),
+        Default::default(),
     )
     .unwrap();
     (manifest, members)

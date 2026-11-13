@@ -166,6 +166,7 @@ fn file_reader_loads_dictionary_on_object_use_and_shares_decoded_buffers() {
         &members,
         original.semantic_fingerprints(),
         original.sections().to_vec(),
+        Default::default(),
     )
     .unwrap();
     let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members.clone()).unwrap();

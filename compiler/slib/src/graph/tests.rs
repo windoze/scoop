@@ -54,6 +54,7 @@ fn manifest(
             )),
         ),
         sections,
+        Default::default(),
     )
     .unwrap()
 }

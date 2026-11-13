@@ -48,7 +48,9 @@ def validate(manifest):
                 raise ValueError(f"Missing target {target} for {host}")
     for selection in manifest["targets"].values():
         references.add(selection["base"])
-        references.update(selection[key] for key in ("gui", "native") if key in selection)
+        references.update(
+            selection[key] for key in ("gui", "native", "profiling") if key in selection
+        )
     missing = references - manifest["archives"].keys()
     if missing:
         raise ValueError(f"Missing component archives: {', '.join(sorted(missing))}")
@@ -89,7 +91,11 @@ def produce(output, version, revision, host, targets, packages, release):
     }
     for target in targets:
         selection = {"base": "lib-base-" + target, "requirements": release["targets"][target]}
-        for key, component in (("gui", "lib-gui"), ("native", "native")):
+        for key, component in (
+            ("gui", "lib-gui"),
+            ("native", "native"),
+            ("profiling", "lib-profiling"),
+        ):
             if (name := component + "-" + target) in archives:
                 selection[key] = name
         manifest["targets"][target] = selection

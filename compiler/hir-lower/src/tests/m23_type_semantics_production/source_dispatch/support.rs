@@ -6,9 +6,14 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
 ) -> T {
     with_hir_source(source, |output, _| {
         let dependencies = select_library_callables(output);
-        let mir =
-            scoop_mir_lower::lower_current_cone(output, dependencies, Default::default(), None)
-                .unwrap();
+        let mir = scoop_mir_lower::lower_current_cone(
+            output,
+            dependencies,
+            Default::default(),
+            None,
+            Default::default(),
+        )
+        .unwrap();
         run(output, mir.module())
     })
 }

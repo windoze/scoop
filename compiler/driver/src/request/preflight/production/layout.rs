@@ -22,8 +22,7 @@ pub(super) fn assemble(
     machine_dependencies: slib::ValidatedCrossConeArtifactClosure,
     dump: &mut Vec<EmittedStageDump>,
     stop_after: Option<StageDumpKind>,
-) -> Result<ControlFlow<(), slib::AssembledCrossConeLayoutArtifactV1>, CurrentConeProductionFailure>
-{
+) -> Result<ControlFlow<(), protocols::MachineProduct>, CurrentConeProductionFailure> {
     let closure = machine_dependencies.semantic();
     let dependencies = closure.layout_dependencies().collect::<Vec<_>>();
     let selected = closure
@@ -33,6 +32,29 @@ pub(super) fn assemble(
     let mut report = matches!(request.emit(), StageDumpPolicy::Stages(stages)
         if stages.contains(StageDumpKind::Optimizations))
     .then(mir::optimization_report::OptimizationReport::default);
+    let profile = request
+        .profile_use()
+        .map(|path| {
+            crate::profiling::read_profile(
+                path,
+                Some(
+                    request
+                        .target_selection()
+                        .target()
+                        .contract()
+                        .canonical_triple(),
+                ),
+            )
+        })
+        .transpose()
+        .map_err(CurrentConeProductionFailure::ProfileUse)?;
+    let profiling = match &profile {
+        Some(profile) => scoop_mir_lower::ProfilingInput::Use(&profile.feedback),
+        None if request.instrumentation() == scoop_profile::Instrumentation::Generate => {
+            scoop_mir_lower::ProfilingInput::Generate
+        }
+        None => scoop_mir_lower::ProfilingInput::Off,
+    };
     let mir = hir
         .machine_input()
         .lower_selected_mir(
@@ -42,8 +64,18 @@ pub(super) fn assemble(
                 lir::OptimizationMode::Release => scoop_mir_lower::MirOptimizationOptions::RELEASE,
             },
             report.as_mut(),
+            profiling,
         )
         .map_err(CurrentConeProductionFailure::Mir)?;
+    let profile_use = mir.strong.module().meta.profiling.use_summary();
+    if request.profile_use_required()
+        && !profile_use
+            .as_ref()
+            .is_some_and(scoop_profile::UseSummary::used)
+    {
+        return Err(CurrentConeProductionFailure::ProfileUse(crate::profiling::ProfileInputError(
+            "profile feedback was not consumed by any optimization; train the current program again".into())));
+    }
     dump.extend(capture_stage_dump(
         request.emit(),
         StageDumpKind::Mir,
@@ -289,6 +321,13 @@ pub(super) fn assemble(
     .map_err(Error::Codegen)?
     .with_optimization(request.optimization())
     .with_debug_info(request.debug_info());
+    let profile_map =
+        (request.instrumentation() == scoop_profile::Instrumentation::Generate).then(|| {
+            scoop_codegen::profiling::profile_map(
+                lir.module(),
+                request.target().lir_target().contract().canonical_triple(),
+            )
+        });
     let objects = scoop_codegen::emit_object_set_v2(&lir, registration, backend, request.jobs())
         .map_err(Error::Codegen)?;
     let generated = crate::generated_c::emit_c_bridge_object_set(
@@ -324,13 +363,21 @@ pub(super) fn assemble(
     crate::CrossConeLayoutArtifactMetadataInputV1::new(metadata, &source, &mir_section, &section)
         .with_dependencies(&machine_dependencies)
         .with_test_directory(hir.test_directory)
+        .with_instrumentation(request.instrumentation())
         .with_native_objects(native_objects)
         .with_native_libraries(
             super::native::libraries(request).map_err(CurrentConeProductionFailure::Native)?,
         )
         .with_native_cxx(super::native::cxx(request))
         .assemble(objects, generated, &owners)
-        .map(ControlFlow::Continue)
+        .map(|artifact| {
+            ControlFlow::Continue(protocols::MachineProduct {
+                artifact,
+                profile_map,
+                profile_use,
+                compiler_inputs: profile.map_or_else(Vec::new, |profile| profile.compiler_inputs),
+            })
+        })
         .map_err(Error::Artifact)
         .map_err(Into::into)
 }

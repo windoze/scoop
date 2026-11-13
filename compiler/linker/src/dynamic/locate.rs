@@ -78,14 +78,14 @@ pub(super) fn dependency(
                 if let Some(basename) = path.file_name() {
                     add(priority as u8, root.join(basename), false);
                 }
-                if let Some((prefix, rest)) = name.split_once(".framework/") {
-                    if let Some(framework) = Path::new(prefix).file_name() {
-                        add(
-                            priority as u8,
-                            root.join(format!("{}.framework/{rest}", framework.to_string_lossy())),
-                            false,
-                        );
-                    }
+                if let Some((prefix, rest)) = name.split_once(".framework/")
+                    && let Some(framework) = Path::new(prefix).file_name()
+                {
+                    add(
+                        priority as u8,
+                        root.join(format!("{}.framework/{rest}", framework.to_string_lossy())),
+                        false,
+                    );
                 }
             }
         }
@@ -130,15 +130,14 @@ pub(super) fn dependency(
                     parent.install_name
                 ))
             })?;
-        if let NativeContent::Dynamic(records) = &file.content {
-            if !name.starts_with("@loader_path/")
-                && !records.iter().any(|record| record.install_name == name)
-            {
-                return Err(error(format!(
-                    "dynamic dependency {} does not declare install name {name}",
-                    path.display()
-                )));
-            }
+        if let NativeContent::Dynamic(records) = &file.content
+            && !name.starts_with("@loader_path/")
+            && !records.iter().any(|record| record.install_name == name)
+        {
+            return Err(error(format!(
+                "dynamic dependency {} does not declare install name {name}",
+                path.display()
+            )));
         }
         found.push(path);
         if candidates

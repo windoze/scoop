@@ -1,4 +1,5 @@
 #include "process_termination.h"
+#include "profiling.h"
 #include "stack_trace.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@ void scoop_process_prepare_termination(void) {
 }
 
 static _Noreturn void terminate_process(int32_t code) {
+    scoop_profile_finish("exit", code);
     fflush(stdout);
     fflush(stderr);
     _exit(code);

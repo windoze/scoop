@@ -13,6 +13,7 @@ fn diagnostic_options_select_distinct_reusable_runtime_archives() {
             optimization: RuntimeOptimization::Optimized,
             enable_gc_stress,
             enable_startup_stats,
+            profile_runtime: None,
             unwind_prefix: unwind_prefix().as_deref(),
         })
         .unwrap()

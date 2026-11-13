@@ -39,6 +39,7 @@ fn debug_declarations_keep_current_and_imported_source_coordinates_through_mir()
                 dependencies,
                 Default::default(),
                 None,
+                Default::default(),
             )
             .unwrap();
             for expected in expected {

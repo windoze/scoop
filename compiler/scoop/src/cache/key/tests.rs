@@ -8,6 +8,21 @@ use scoop_wire::sha256;
 use super::*;
 
 #[test]
+fn feedback_selection_changes_compile_key_without_changing_semantic_identity() {
+    let plain = input(1);
+    let first = plain
+        .clone()
+        .with_profile_use(Some(PathBuf::from("training-a/profile.json")));
+    let second = plain
+        .clone()
+        .with_profile_use(Some(PathBuf::from("training-b/profile.json")));
+    assert_ne!(plain.key().unwrap(), first.key().unwrap());
+    assert_ne!(first.key().unwrap(), second.key().unwrap());
+    assert_eq!(plain.current_semantic(), first.current_semantic());
+    assert_eq!(plain.dependencies(), first.dependencies());
+}
+
+#[test]
 fn optimization_changes_only_the_current_compile_key() {
     let debug = input(1);
     let release = debug
@@ -17,6 +32,23 @@ fn optimization_changes_only_the_current_compile_key() {
     assert_eq!(debug.dependencies(), release.dependencies());
     assert_eq!(debug.current_semantic(), release.current_semantic());
     assert_eq!(debug.backend, release.backend);
+}
+
+#[test]
+fn export_ir_changes_compile_reuse_without_changing_source_identity() {
+    let default = input(1);
+    let off = default
+        .clone()
+        .with_export_ir(scoop_protocol::IrTemplateExport::Off);
+    let full = default
+        .clone()
+        .with_export_ir(scoop_protocol::IrTemplateExport::Full);
+    assert_ne!(default.key().unwrap(), off.key().unwrap());
+    assert_ne!(default.key().unwrap(), full.key().unwrap());
+    assert_ne!(off.key().unwrap(), full.key().unwrap());
+    assert_eq!(off.current_semantic(), full.current_semantic());
+    assert_eq!(off.dependencies(), full.dependencies());
+    assert_eq!(off.cone(), full.cone());
 }
 
 #[test]
@@ -288,4 +320,15 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
     assert_mutation_misses(&baseline, |input| {
         input.dependencies[0].lir = LirFingerprint::from_array([9; 32]);
     });
+}
+
+#[test]
+fn instrumentation_changes_code_reuse_without_changing_language_identity() {
+    let ordinary = input(1);
+    let instrumented = ordinary
+        .clone()
+        .with_instrumentation(scoop_profile::Instrumentation::Generate);
+    assert_ne!(ordinary.key().unwrap(), instrumented.key().unwrap());
+    assert_eq!(ordinary.current_semantic(), instrumented.current_semantic());
+    assert_eq!(ordinary.cone(), instrumented.cone());
 }

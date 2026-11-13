@@ -26,9 +26,6 @@ impl BodyQueries<'_> {
         {
             return Some(Availability::NoBody);
         }
-        let hir::SourceNominalId::GenericTemplate(owner) = owner else {
-            return Some(Availability::NotPublished);
-        };
         let Some(initialization) = dependencies.nominal_initialization(owner) else {
             return Some(Availability::NotPublished);
         };

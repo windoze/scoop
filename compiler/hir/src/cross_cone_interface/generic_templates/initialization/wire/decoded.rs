@@ -1,5 +1,6 @@
 use super::release::DecodedReleaseTemplate;
 use super::*;
+use crate::DecodedSourceNominalId;
 use crate::{
     BinderUseListValidationError, CallableSourceEffectsBuildError, DecodedCallableSourceEffectsV1,
     DecodedCanonicalTemplateLocalTableV1, DecodedDefaultConstructorRefV1, DecodedDefaultFieldRefV1,
@@ -8,7 +9,7 @@ use crate::{
     DefaultFieldRefResolutionError, DefaultStatementReferenceResolver,
     TemplateFragmentResolutionError, TemplateLocalTableValidationError,
 };
-use scoop_identity::{DecodedPersistentId, SourceOriginResolutionError};
+use scoop_identity::SourceOriginResolutionError;
 
 mod codec;
 
@@ -19,7 +20,7 @@ pub struct DecodedCanonicalExportGenericInitializationsV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DecodedNominalInitialization {
-    owner: DecodedPersistentId<PersistentGenericTypeId>,
+    owner: DecodedSourceNominalId,
     common: Vec<DecodedCommonStep>,
     constructors: Vec<DecodedConstructor>,
     release_policy: crate::ReleasePolicy<DecodedReleaseTemplate>,
@@ -89,7 +90,7 @@ impl DecodedNominalInitialization {
         R: DefaultStatementReferenceResolver<E>,
     {
         use GenericInitializationResolutionError as Error;
-        let owner = resolver.resolve(self.owner).map_err(Error::Owner)?;
+        let owner = self.owner.resolve(resolver).map_err(Error::Owner)?;
         let common = self
             .common
             .into_iter()

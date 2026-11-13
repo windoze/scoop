@@ -65,13 +65,34 @@ pub(crate) fn project_parsed_dependency(
     scoop_hir::CanonicalHirFoundation,
     scoop_hir::CrossConeHirInterfaceSectionV1,
 ) {
+    project_parsed_dependency_with_export_ir(
+        core,
+        parsed,
+        core_types,
+        include_default_role,
+        scoop_hir::IrTemplateExport::Default,
+    )
+}
+
+pub(crate) fn project_parsed_dependency_with_export_ir(
+    core: &TrustedCoreFixture,
+    parsed: &scoop_ast::CurrentConeParsedSources,
+    core_types: &[&str],
+    include_default_role: bool,
+    export_ir: scoop_hir::IrTemplateExport,
+) -> (
+    scoop_hir::CanonicalHirFoundation,
+    scoop_hir::CrossConeHirInterfaceSectionV1,
+) {
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let witnesses = core_types
         .iter()
         .flat_map(|name| core_type_witnesses(core, name, include_default_role))
         .collect::<Vec<_>>();
     let world = core.world(parsed.cone());
-    let input = CurrentConeSources::try_new(parsed, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(parsed, core_inputs, &world)
+        .unwrap()
+        .with_ir_template_export(export_ir);
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the dependency provider must lower before interface projection");
     let mut foundation =

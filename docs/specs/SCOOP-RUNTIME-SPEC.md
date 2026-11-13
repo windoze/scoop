@@ -989,6 +989,16 @@ JSON／CLI 的现有解析适配通过 platform 数值入口复用精确解析�
 
 ## 7. 程序启动与退出
 
+profiling 构建使用 `SCOOP_ENABLE_PROFILING=1` 的独立 runtime，普通 runtime 为 0，关闭时不编入采集生命周期、指标文件和计时代码。LLVM InstrProf 的 64 位原子计数由生成机器码直接更新，runtime 不在函数调用热点执行回调，不新增托管对象地址、GC roots 或对象头字段。
+
+采集 runtime 在程序初始化前为本次进程创建输出目录；`SCOOP_PROFILE_DIR` 指定输出根，缺省为 cwd 下的 `scoop-profile`。每次运行使用独立子目录，compiler-rt 生成 `.profraw`，runtime 在独立 JSONL 中写出既有启动阶段和分配/GC 总指标以及具有明确边界的单调时间；不污染程序 stdout，现有显式 stderr 诊断保持原合同。路径和写入失败报告普通 I/O 诊断，不改变业务返回码。正常返回、native-app 进程退出以及显式 `scoop_rt_exit` 尝试写出一次；fatal abort、强制终止和系统故障不保证完整数据。最终计数与指标写出不等待未知用户线程，不读取已经释放的托管状态；所有计数仅作观测，不能参与程序语义。
+
+profiling 的 GC 事件沿现有收集控制流记录，不增加 safepoint 或改变调度。STW slice 使用实际 GC epoch 标识：T0、T1、T2 分别紧随 world phase 的 STOPPING、COLLECTING、RUNNING 发布，仍在原 world lock 内；`stop_wait_ns=T1-T0`，`pause_ns=T2-T1`。这两个值不互相包含。周期在开始新的收集图时发出 begin，在完整收尾或放弃并重启时发出 end；增量片之间保留同一个 cycle，周期墙钟包含 mutator 运行间隔，不能作为暂停时间。同一 slice 可能因 promotion fallback 或显式 full 请求结束旧周期并开始新周期，phase 同时保存 cycle 和 slice，因此不要求二者一一对应。
+
+phase 保存 roots、remembered、mark、plan、copy、update、reclaim、vm-return 的单调起止时间；plan 区间包含 copy，reclaim 区间包含 vm-return，嵌套区间不能重复相加为暂停总和。既有累计 `plan_ns`、`reclaim_ns` 继续保留排除子阶段的定义。slice 的 worker CPU 和扫描任务／字节计数使用本片前后的既有标量差值，CPU 是各 worker 执行任务循环的线程 CPU 之和，包含 coordinator 参与 worker 的部分，不包含全部规划和收尾 CPU，不能当作墙钟或暂停。
+
+时间以采集 runtime 初始化为原点，事件只保存标量及阶段标识，不保存托管地址。收集过程中使用固定 8,192 条 native 事件缓冲，记录完成后发布不可变前缀；耗尽时保留已记录事件并累计 dropped，不能覆盖或伪装为完整时间线。正常退出只输出当时已发布的前缀及缓冲状态，不等待未知用户线程；未完成周期或阶段可以缺结束信息。输出不在 STW 内执行，事件收集不调用完整 GC metrics snapshot、遍历 region 或取得额外 collector 锁。普通 runtime 不编入该缓冲、记录函数和新增时钟读取；原分配／GC 总指标不因时间线截断而停止累计。
+
 工具链按目标及运行配置交付一份预编译 runtime native 归档（`.a`／`.lib`）及索引，普通程序链接默认直接消费所选 sysroot 的归档，不提取独立 `.o`；显式源码构建和对象覆盖遵守实现规范 2.7、2.8。索引消费只检查实际目标、runtime ABI 与部署兼容性，不要求生产与消费工具路径相同，也不改变本节的启动顺序。
 
 启动先保存 2.8 的原始 argc/argv，建立运行时基础状态并验证全部 image/registration，再建立 GC、主线程与可执行 managed boundary。任何 managed initializer、Context 分配、argv 的 managed 构造或 main 之前必须完成相应登记；C coordinator 不提前构造未登记的 String 或 Array。

@@ -42,6 +42,21 @@ impl<'a> LocalValueIdentityBuilder<'a> {
             function_locals.push(identities);
         }
 
+        for (body, template) in self.inputs.imported_inline_bodies.iter() {
+            self.collect_locals(
+                template.materialization,
+                template.body.locals.iter().map(|(local, value)| {
+                    (
+                        local,
+                        value,
+                        LocalValueLocation::ImportedInlineLocal {
+                            body: raw_arena_index(body),
+                            local: raw_arena_index(local),
+                        },
+                    )
+                }),
+            )?;
+        }
         let class_constructors = self.collect_class_constructors()?;
         let mut release_hooks = Vec::with_capacity(self.inputs.release_hooks.len());
         for (id, hook) in self.inputs.release_hooks.iter() {

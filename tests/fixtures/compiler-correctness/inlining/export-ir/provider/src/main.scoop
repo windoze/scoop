@@ -1,0 +1,70 @@
+package test.pgo.exports
+
+public class Request public constructor(public val value: Int)
+
+context(request: Request)
+public fun current(): Int = request.value + 1
+
+private class Unused private constructor(private val value: Int) {
+    private var stored: Int = value + 1
+    init {
+        stored += value
+    }
+    private fun read(): Int = stored
+}
+
+private fun helper(value: Int): Int = value + 1
+
+public fun ordinary(value: Int): Int = helper(value)
+
+public fun <T> generic(value: T): T = value
+
+public fun defaulted(value: Int = 7, read: () -> Int = { value }): Int = read()
+
+public fun make(value: Int): () -> Int {
+    fun keep(input: Int): Int = value + input
+    val first: () -> Int = { keep(0) }
+    return { first() + value }
+}
+
+public fun handled(value: Int): Int {
+    var result = 0
+    try {
+        result = 42 / value
+    }
+    catch (error: ArithmeticException) {
+        result = 17
+    }
+    finally {
+        result += 2
+    }
+    return result
+}
+
+public suspend fun delayed(registration: SuspendRegistration<Int>): Int {
+    val value = suspendCoroutine(registration)
+    return handled(value)
+}
+
+private fun initialValue(): Int = 8
+public var stored: Int = initialValue()
+public val imageValue: Int = 13
+
+@ThreadLocal
+private var threadValue: Int = 0
+
+public fun changeStored(value: Int): Int {
+    stored = value
+    return stored
+}
+
+public fun changeThreadValue(value: Int): Int {
+    @Unsafe {
+        threadValue = value
+        return threadValue
+    }
+}
+
+public fun writeFirst(values: MutableArray<Int>, value: Int) {
+    values[0L] = value
+}

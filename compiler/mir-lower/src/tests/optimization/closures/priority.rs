@@ -59,6 +59,7 @@ fn outcomes(
                 target: mir::CallTarget::Direct(mir::Callee::User(id)),
                 outcome,
                 estimate,
+                ..
             } if *id == helper => {
                 if *outcome == InlineOutcome::KnownClosure {
                     let estimate = estimate.as_ref().unwrap();

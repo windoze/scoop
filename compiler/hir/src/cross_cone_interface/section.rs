@@ -89,6 +89,7 @@ pub struct CrossConeHirInterfaceSectionV1 {
     generic_initializations: CanonicalExportGenericInitializationsV1,
     generic_delegates: CanonicalExportGenericDelegatesV1,
     annotations: CanonicalAnnotationsV1,
+    ir_template_export: crate::IrTemplateExport,
 }
 
 impl CrossConeHirInterfaceSectionV1 {
@@ -128,7 +129,16 @@ impl CrossConeHirInterfaceSectionV1 {
             generic_initializations,
             generic_delegates,
             annotations: CanonicalAnnotationsV1::empty(),
+            ir_template_export: crate::IrTemplateExport::Default,
         }
+    }
+
+    pub const fn ir_template_export(&self) -> crate::IrTemplateExport {
+        self.ir_template_export
+    }
+
+    pub fn set_ir_template_export(&mut self, mode: crate::IrTemplateExport) {
+        self.ir_template_export = mode;
     }
 
     pub const fn annotations(&self) -> &CanonicalAnnotationsV1 {
@@ -229,6 +239,7 @@ impl CrossConeHirInterfaceSectionV1 {
             generic_initializations,
             generic_delegates,
             annotations: &self.annotations,
+            ir_template_export: self.ir_template_export,
         })
     }
 }
@@ -248,11 +259,12 @@ pub struct IndexedCrossConeHirInterfaceSectionV1<'a> {
     generic_initializations: IndexedExportGenericInitializationsV1<'a>,
     generic_delegates: IndexedExportGenericDelegatesV1<'a>,
     annotations: &'a CanonicalAnnotationsV1,
+    ir_template_export: crate::IrTemplateExport,
 }
 
 impl WireEncode for IndexedCrossConeHirInterfaceSectionV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(14)?;
+        encoder.map(15)?;
         encoder.field(1)?;
         self.public_bindings.encode(encoder)?;
         encoder.field(2)?;
@@ -280,7 +292,9 @@ impl WireEncode for IndexedCrossConeHirInterfaceSectionV1<'_> {
         encoder.field(13)?;
         self.generic_delegates.encode(encoder)?;
         encoder.field(14)?;
-        self.annotations.encode(encoder)
+        self.annotations.encode(encoder)?;
+        encoder.field(15)?;
+        self.ir_template_export.encode(encoder)
     }
 }
 
@@ -300,6 +314,7 @@ pub struct DecodedCrossConeHirInterfaceSectionV1 {
     generic_initializations: DecodedCanonicalExportGenericInitializationsV1,
     generic_delegates: DecodedCanonicalExportGenericDelegatesV1,
     annotations: DecodedCanonicalAnnotationsV1,
+    ir_template_export: crate::IrTemplateExport,
 }
 
 impl DecodedCrossConeHirInterfaceSectionV1 {
@@ -392,13 +407,14 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
             generic_initializations,
             generic_delegates,
             annotations,
+            ir_template_export: self.ir_template_export,
         })
     }
 }
 
 impl WireEncode for DecodedCrossConeHirInterfaceSectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(14)?;
+        encoder.map(15)?;
         encoder.field(1)?;
         self.public_bindings.encode(encoder)?;
         encoder.field(2)?;
@@ -426,13 +442,15 @@ impl WireEncode for DecodedCrossConeHirInterfaceSectionV1 {
         encoder.field(13)?;
         self.generic_delegates.encode(encoder)?;
         encoder.field(14)?;
-        self.annotations.encode(encoder)
+        self.annotations.encode(encoder)?;
+        encoder.field(15)?;
+        self.ir_template_export.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedCrossConeHirInterfaceSectionV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(14)?;
+        decoder.expect_map(15)?;
         Ok(Self {
             public_bindings: decoder.field(1, DecodedCanonicalPublicExportBindingsV1::decode)?,
             nominal_interfaces: decoder.field(2, DecodedCanonicalNominalInterfacesV1::decode)?,
@@ -455,6 +473,7 @@ impl WireDecode for DecodedCrossConeHirInterfaceSectionV1 {
             generic_delegates: decoder
                 .field(13, DecodedCanonicalExportGenericDelegatesV1::decode)?,
             annotations: decoder.field(14, DecodedCanonicalAnnotationsV1::decode)?,
+            ir_template_export: decoder.field(15, crate::IrTemplateExport::decode)?,
         })
     }
 }

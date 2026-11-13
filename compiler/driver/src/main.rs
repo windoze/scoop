@@ -8,6 +8,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 mod check;
 mod child_protocol;
+mod profile_summary;
 
 // Only Rust allocations use this allocator; LLVM owns its native allocations.
 #[cfg(windows)]
@@ -27,6 +28,8 @@ enum Command {
     Build(Box<BuildArgs>),
     /// Check one Cone without producing machine artifacts.
     Check(check::CheckArgs),
+    /// Read logical execution counts from a Scoop profile index.
+    ProfileSummary(profile_summary::SummaryArgs),
     /// Report the exact machine protocol understood by this compiler.
     #[command(name = "__machine-capability", hide = true)]
     MachineCapability,
@@ -55,12 +58,21 @@ struct BuildArgs {
     /// Target triple; defaults to the supported host.
     #[arg(long)]
     target: Option<String>,
-    /// Compiler optimization profile.
+    /// Build profile: debug, release, or profiling (release optimization with runtime counters).
     #[arg(long, value_enum, default_value_t = Profile::Debug)]
     profile: Profile,
     /// Native source debug information: none, line-tables or full.
     #[arg(long)]
     debug_info: Option<scoop_lir::DebugInfoLevel>,
+    /// Optional cross-Cone IR templates: off, default or full.
+    #[arg(long, default_value = "default")]
+    export_ir: scoop_hir::IrTemplateExport,
+    /// Use a Scoop profile index to guide release optimization.
+    #[arg(long)]
+    profile_use: Option<PathBuf>,
+    /// Require at least one optimization to consume matching feedback.
+    #[arg(long, requires = "profile_use")]
+    profile_use_required: bool,
     /// Maximum concurrent compiler workers; defaults to the available parallelism.
     #[arg(short = 'j', long)]
     jobs: Option<std::num::NonZeroUsize>,
@@ -87,13 +99,14 @@ struct BuildArgs {
 enum Profile {
     Debug,
     Release,
+    Profiling,
 }
 
 impl Profile {
     fn optimization(self) -> scoop_lir::OptimizationMode {
         match self {
             Self::Debug => scoop_lir::OptimizationMode::Debug,
-            Self::Release => scoop_lir::OptimizationMode::Release,
+            Self::Release | Self::Profiling => scoop_lir::OptimizationMode::Release,
         }
     }
 }
@@ -131,6 +144,9 @@ fn main() -> ExitCode {
                 generators,
                 profile,
                 debug_info,
+                export_ir,
+                profile_use,
+                profile_use_required,
                 jobs,
             } = *args;
             build(
@@ -141,9 +157,17 @@ fn main() -> ExitCode {
                 emit,
                 scoopc::DirectBuildOptions {
                     optimization: profile.optimization(),
+                    export_ir,
+                    profile_use,
+                    profile_use_required,
+                    instrumentation: match profile {
+                        Profile::Profiling => scoop_profile::Instrumentation::Generate,
+                        Profile::Debug | Profile::Release => scoop_profile::Instrumentation::Off,
+                    },
                     debug_info: debug_info.unwrap_or(match profile {
                         Profile::Debug => scoop_lir::DebugInfoLevel::Full,
                         Profile::Release => scoop_lir::DebugInfoLevel::None,
+                        Profile::Profiling => scoop_lir::DebugInfoLevel::LineTables,
                     }),
                     target,
                     sysroot: sysroot.clone(),
@@ -161,6 +185,7 @@ fn main() -> ExitCode {
             )
         }
         Command::Check(args) => check::run(args),
+        Command::ProfileSummary(args) => profile_summary::run(args),
         Command::MachineCapability => write_machine_capability(),
         Command::ChildProtocol { version, jobs } => child_protocol::run(version, jobs),
     };

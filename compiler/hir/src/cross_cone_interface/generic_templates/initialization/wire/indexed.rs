@@ -7,7 +7,7 @@ pub struct IndexedExportGenericInitializationsV1<'a> {
 }
 
 struct IndexedNominalInitialization<'a> {
-    owner: PersistentGenericTypeId,
+    owner: SourceNominalId,
     common: Vec<IndexedCommonStep<'a>>,
     constructors: Vec<IndexedConstructor<'a>>,
     release_policy: crate::ReleasePolicy<IndexedReleaseTemplate<'a>>,

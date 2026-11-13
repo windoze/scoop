@@ -32,7 +32,7 @@ impl ImportedNominalInitialization {
 impl super::ImportedDependencySelectionPlan {
     pub fn nominal_initialization(
         &self,
-        owner: scoop_identity::PersistentGenericTypeId,
+        owner: crate::SourceNominalId,
     ) -> Option<ImportedNominalInitialization> {
         self.catalog.initializations.get(&owner).cloned()
     }

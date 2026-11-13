@@ -42,10 +42,10 @@ impl Lowerer {
                 source,
                 source_identity,
             );
-            if let mir::Type::Interface(interface) = target {
-                if !self.classes[boxed].interfaces.contains(interface) {
-                    self.classes[boxed].interfaces.push(*interface);
-                }
+            if let mir::Type::Interface(interface) = target
+                && !self.classes[boxed].interfaces.contains(interface)
+            {
+                self.classes[boxed].interfaces.push(*interface);
             }
             return smir::Expr::new(target.clone(), smir::ExprKind::Box(Box::new(value)));
         }

@@ -167,16 +167,15 @@ fn compile(
         target_root,
     ));
     includes.extend(environment.includes.iter().cloned());
-    if let Some(prefix) = &environment.native_sysroot {
-        if invocation.native_environment() != scoop_target_data::NativeEnvironment::MicrosoftUcrt
-            && environment.bundled_mingw.is_none()
-        {
-            includes.push(
-                prefix
-                    .join(environment.machine.llvm_mingw_target_directory())
-                    .join("include"),
-            );
-        }
+    if let Some(prefix) = &environment.native_sysroot
+        && invocation.native_environment() != scoop_target_data::NativeEnvironment::MicrosoftUcrt
+        && environment.bundled_mingw.is_none()
+    {
+        includes.push(
+            prefix
+                .join(environment.machine.llvm_mingw_target_directory())
+                .join("include"),
+        );
     }
     for include in &includes {
         command.arg("-I").arg(dunce::simplified(include));

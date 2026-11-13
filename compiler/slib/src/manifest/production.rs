@@ -185,9 +185,15 @@ pub struct SingleConeProductionCodeProjectionV1 {
     runtime_image_fingerprint: RuntimeImageFingerprint,
     odr_members: CanonicalOdrMemberDirectoryV1,
     optimization: scoop_lir::OptimizationMode,
+    instrumentation: scoop_profile::Instrumentation,
 }
 
 impl SingleConeProductionCodeProjectionV1 {
+    pub fn with_instrumentation(mut self, mode: scoop_profile::Instrumentation) -> Self {
+        self.instrumentation = mode;
+        self
+    }
+
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
         self
@@ -224,7 +230,7 @@ impl SingleConeProductionCodeProjectionV1 {
 
 impl WireEncode for SingleConeProductionCodeProjectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.distribution.encode(encoder)?;
         encoder.field(2)?;
@@ -238,7 +244,9 @@ impl WireEncode for SingleConeProductionCodeProjectionV1 {
         encoder.field(11)?;
         self.odr_members.encode(encoder)?;
         encoder.field(12)?;
-        self.optimization.encode(encoder)
+        self.optimization.encode(encoder)?;
+        encoder.field(13)?;
+        self.instrumentation.encode(encoder)
     }
 }
 

@@ -23,6 +23,22 @@ impl SharedSourceRoots {
         GenericTemplateProductionError,
     > {
         let mut collection = SourceCollection::new(export).map_err(declarations)?;
+        if export.ir_template_export == crate::IrTemplateExport::Full {
+            for owner in collection.index.nodes.keys() {
+                collection
+                    .nominals
+                    .require(*owner, true)
+                    .map_err(declarations)?;
+            }
+            for (function, declaration) in export.functions.iter() {
+                if matches!(declaration.kind, crate::FunctionKind::User(_)) {
+                    collection
+                        .sources
+                        .function(export, function, &mut collection.nominals)
+                        .map_err(declarations)?;
+                }
+            }
+        }
         for owner in additional_nominals {
             collection
                 .nominals

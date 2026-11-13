@@ -68,13 +68,15 @@ pub fn decode_macho_section_relocations_v1(
     section_count: u32,
     symbol_count: u32,
 ) -> Result<Vec<ObservedMachORelocationV1>, MachORelocationInventoryValidationError> {
-    if table_bytes.len() % 8 != 0 {
+    if !table_bytes.len().is_multiple_of(8) {
         return Err(MachORelocationInventoryValidationError::RelocationTableOutOfBounds);
     }
     let mut inventory = Vec::new();
     let raw = table_bytes
-        .chunks_exact(8)
-        .map(RawRelocationV1::parse)
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .map(|bytes| RawRelocationV1::parse(bytes))
         .collect::<Vec<_>>();
     let mut index = 0;
     while index < raw.len() {

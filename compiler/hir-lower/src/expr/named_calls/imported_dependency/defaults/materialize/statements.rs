@@ -69,10 +69,24 @@ impl Lowerer {
                 pattern: self.materialize_imported_default_pattern(pattern, context)?,
                 init: self.materialize_imported_default_expression(init, context)?,
             },
-            Kind::Assign { target, value } => hir::StatementKind::Assign {
-                target: self.materialize_imported_default_assign_target(target, context)?,
-                value: self.materialize_imported_default_expression(value, context)?,
-            },
+            Kind::Assign { target, value } => {
+                if let hir::DefaultAssignTargetV1::Global { property } = target.as_ref() {
+                    let definition = self
+                        .imported_default_definition_origin(source.definition_origin(), context)?;
+                    let value = self.materialize_imported_default_expression(value, context)?;
+                    hir::StatementKind::Expr(self.materialize_imported_global_write(
+                        *property,
+                        value,
+                        definition.span,
+                        hir::ExpressionOrigin::Definition(definition),
+                    )?)
+                } else {
+                    hir::StatementKind::Assign {
+                        target: self.materialize_imported_default_assign_target(target, context)?,
+                        value: self.materialize_imported_default_expression(value, context)?,
+                    }
+                }
+            }
             Kind::If {
                 condition,
                 then_body,
@@ -143,7 +157,7 @@ impl Lowerer {
             ),
             Kind::InitializationEnsure(_) => {
                 return Err(ImportedDefaultMaterializationError::Plan(
-                    "preflight admitted an unsupported dependency default statement".to_owned(),
+                    "dependency initialization gate requires its provider entry".to_owned(),
                 ));
             }
         };
@@ -223,11 +237,12 @@ impl Lowerer {
                 ),
                 field: self.materialize_imported_field_ref(field, context.bindings)?,
             }),
-            hir::DefaultAssignTargetV1::Global { .. }
-            | hir::DefaultAssignTargetV1::Index { .. } => {
-                Err(ImportedDefaultMaterializationError::Plan(
-                    "preflight admitted an unsupported dependency default assignment".to_owned(),
-                ))
+            hir::DefaultAssignTargetV1::Index { array, index } => Ok(hir::AssignTarget::Index {
+                array: Box::new(self.materialize_imported_default_expression(array, context)?),
+                index: Box::new(self.materialize_imported_default_expression(index, context)?),
+            }),
+            hir::DefaultAssignTargetV1::Global { .. } => {
+                unreachable!("global assignments use the provider setter")
             }
         }
     }

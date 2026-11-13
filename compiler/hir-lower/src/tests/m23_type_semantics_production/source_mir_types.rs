@@ -25,8 +25,14 @@ fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
 
 fn lower_mir_input(output: &hir::DependencyHirOutput) -> scoop_mir::ConeMirInput {
     let selected = select_library_callables(output);
-    let lowered =
-        scoop_mir_lower::lower_current_cone(output, selected, Default::default(), None).unwrap();
+    let lowered = scoop_mir_lower::lower_current_cone(
+        output,
+        selected,
+        Default::default(),
+        None,
+        Default::default(),
+    )
+    .unwrap();
     let production = scoop_mir_lower::lower_production_section(
         lowered.module().cone,
         &hir::CoreBootstrapInterfaceSectionV1::from_export(&output.output().export).unwrap(),

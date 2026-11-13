@@ -1,0 +1,65 @@
+schema = 1
+name = "export-ir-semantics"
+inputs = ["provider", "consumer", "inspect.py"]
+tools = ["scoop", "scoopc", "python"]
+tags = ["inlining", "artifacts", "compiler-correctness"]
+variants = [
+  {name = "off", vars = {export_ir = "off"}},
+  {name = "default", vars = {export_ir = "default"}},
+  {name = "full", vars = {export_ir = "full"}},
+]
+
+[vars]
+options = ["--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", {each = "${options}"}, "--export-ir", "${export_ir}", "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "reuse"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", {each = "${options}"}, "--export-ir", "${export_ir}", "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${reuse.result.observations.child_invocations}", equals = []},
+  {actual = "${reuse.result.root.artifact_fingerprint}", equals = "${provider.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", {each = "${options}"}, "--emit", "optimizations", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/inspect.py", "${work}/dump/${consumer.result.root.identity}/optimizations.json", "${export_ir}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = "export IR semantics\n"
+stderr = ""

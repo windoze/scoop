@@ -1,0 +1,16 @@
+[package]
+name = "scoop-pgo"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop.workspace = true
+scoop-profile.workspace = true
+scoop-protocol.workspace = true
+scoop-process.workspace = true
+scoop-toolchain.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+fs4.workspace = true

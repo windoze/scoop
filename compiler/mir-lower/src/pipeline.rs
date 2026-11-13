@@ -309,6 +309,13 @@ impl Lowerer {
             );
         }
 
+        let profiling = self.profiling.then(|| {
+            crate::profiling::Planning::prepare(
+                &mut self.functions,
+                &mut self.coroutines.pre_coroutine_call_sites,
+                &mut imported_bodies,
+            )
+        });
         if self.coroutine_elision {
             optimization::inline_suspend_calls(&mut self);
         }
@@ -412,6 +419,9 @@ impl Lowerer {
         };
         output.meta.generated_callables = generated_callables(&output);
         output.meta.callable_signatures = callable_signatures(&output);
+        if let Some(profiling) = profiling {
+            output.meta.profiling = profiling.finish(&mut output);
+        }
         (output, imported_bodies)
     }
 

@@ -172,6 +172,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             scoop_mir::SelectedExternalMirSet::empty(scoop_identity::ConeIdentity::CORE),
             Default::default(),
             None,
+            Default::default(),
         )
         .unwrap();
     assert_eq!(

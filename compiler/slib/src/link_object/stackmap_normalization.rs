@@ -275,7 +275,7 @@ fn validate_root_pairs(
     stack_size: u64,
     architecture: StackmapFrame,
 ) -> Result<(), StackmapNormalizationError> {
-    for (root_index, pair) in locations.chunks_exact(2).enumerate() {
+    for (root_index, pair) in locations.as_chunks::<2>().0.iter().enumerate() {
         if pair[0] != pair[1] {
             return Err(StackmapNormalizationError::DistinctRootPair(root_index));
         }

@@ -17,6 +17,7 @@ pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
     native_libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
     native_cxx: bool,
     test_directory: Option<slib::TestDirectory>,
+    instrumentation: scoop_profile::Instrumentation,
     dependencies: Option<&'ir slib::ValidatedCrossConeArtifactClosure>,
 }
 
@@ -36,8 +37,14 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             native_libraries: Vec::new(),
             native_cxx: false,
             test_directory: None,
+            instrumentation: scoop_profile::Instrumentation::Off,
             dependencies: None,
         }
+    }
+
+    pub fn with_instrumentation(mut self, mode: scoop_profile::Instrumentation) -> Self {
+        self.instrumentation = mode;
+        self
     }
 
     pub fn with_test_directory(mut self, directory: Option<slib::TestDirectory>) -> Self {
@@ -124,7 +131,10 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         let support = slib::LirLinkSupportSectionV1::from_string_descriptor(descriptor)
             .map_err(Error::LinkSupport)?;
         let code = slib::compute_cross_cone_layout_code_fingerprint_v1(
-            finalized.projection.with_optimization(optimization),
+            finalized
+                .projection
+                .with_optimization(optimization)
+                .with_instrumentation(self.instrumentation),
             native,
             defined,
             undefined,
@@ -152,6 +162,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
                 finalized.members,
             )
             .with_test_directory(self.test_directory)
+            .with_instrumentation(self.instrumentation)
             .with_dependencies(self.dependencies),
         )
         .map_err(|error| Error::Assembly(Box::new(error)))?;

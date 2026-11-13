@@ -11,6 +11,39 @@ pub enum CompilerInputV1 {
     Environment(EnvironmentInputV1),
     File(FileInputV1),
     Directory(DirectoryInputV1),
+    BuildFile(BuildFileInputV1),
+}
+
+/// An explicit compiler input, independent of language-level include scope.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct BuildFileInputV1 {
+    pub path: HostPathCarrier,
+    pub length: u64,
+    pub modified: (bool, u64, u32),
+}
+
+impl WireEncode for BuildFileInputV1 {
+    fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        e.array(5)?;
+        self.path.encode(e)?;
+        e.unsigned(self.length)?;
+        e.unsigned(u64::from(self.modified.0))?;
+        e.unsigned(self.modified.1)?;
+        e.unsigned(u64::from(self.modified.2))
+    }
+}
+
+impl WireDecode for BuildFileInputV1 {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
+        if d.array()? != 5 {
+            return Err(invalid(d));
+        }
+        Ok(Self {
+            path: decode_path(d)?,
+            length: d.unsigned()?,
+            modified: decode_modified(d)?,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -39,6 +72,10 @@ impl WireEncode for CompilerInputV1 {
                 e.unsigned(3)?;
                 input.encode(e)
             }
+            Self::BuildFile(input) => {
+                e.unsigned(4)?;
+                input.encode(e)
+            }
         }
     }
 }
@@ -53,6 +90,7 @@ impl WireDecode for CompilerInputV1 {
             1 => EnvironmentInputV1::decode(d).map(Self::Environment),
             2 => FileInputV1::decode(d).map(Self::File),
             3 => DirectoryInputV1::decode(d).map(Self::Directory),
+            4 => BuildFileInputV1::decode(d).map(Self::BuildFile),
             _ => Err(invalid(d)),
         }
     }

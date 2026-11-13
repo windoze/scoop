@@ -26,6 +26,9 @@ pub(super) fn apply(
     auxiliary_locals: &[mir::LocalId],
 ) -> Expansion {
     let caller_ancestry = ancestry[index(choice.block)].clone();
+    let profile_site =
+        mir::profile_call_before(&caller.body.blocks[choice.block], choice.statement).cloned();
+    let profile_copy = u32::try_from(caller.body.blocks.len()).expect("MIR block indices fit u32");
     let (statement, tail, terminator, terminator_origin, unwind) = {
         let block = &mut caller.body.blocks[choice.block];
         let tail = block.statements.split_off(choice.statement + 1);
@@ -189,6 +192,9 @@ pub(super) fn apply(
         for statement in &mut block.statements {
             statement.debug_origin = debug_records.inlined(&statement.debug_origin, &inline_site);
             match &mut statement.kind {
+                mir::StatementKind::ProfileCounter(marker) => {
+                    marker.inline_at(profile_site.as_ref(), profile_copy)
+                }
                 mir::StatementKind::ValDecl { local: id, .. }
                 | mir::StatementKind::Assign { local: id, .. }
                 | mir::StatementKind::Call(mir::CallEffect::Value {

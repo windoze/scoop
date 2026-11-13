@@ -16,7 +16,7 @@ pub(super) fn replace(input: &[u8], map: &[u8]) -> Result<Vec<u8>, CompactGcMapE
     )?
     .to_vec();
     let mut gc = None;
-    for (index, header) in headers.chunks_exact(64).enumerate() {
+    for (index, header) in headers.as_chunks::<64>().0.iter().enumerate() {
         let offset = u32_at(header, 0)? as usize;
         let tail = strings
             .get(offset..)
@@ -33,7 +33,7 @@ pub(super) fn replace(input: &[u8], map: &[u8]) -> Result<Vec<u8>, CompactGcMapE
     // relocated pointers and belongs in read-only data.
     let flags = u64_at(&headers, gc * 64 + 8)? & !u64::from(elf::SHF_WRITE);
     put(&mut headers, gc * 64 + 8, flags.to_le_bytes())?;
-    for header in headers.chunks_exact_mut(64) {
+    for header in headers.as_chunks_mut::<64>().0.iter_mut() {
         if matches!(u32_at(header, 4)?, elf::SHT_RELA | elf::SHT_REL)
             && u32_at(header, 44)? as usize == gc
         {
@@ -46,7 +46,7 @@ pub(super) fn replace(input: &[u8], map: &[u8]) -> Result<Vec<u8>, CompactGcMapE
         }
     }
     let mut output = span(input, 0, 64)?.to_vec();
-    for (index, header) in headers.chunks_exact_mut(64).enumerate() {
+    for (index, header) in headers.as_chunks_mut::<64>().0.iter_mut().enumerate() {
         let kind = u32_at(header, 4)?;
         if kind == elf::SHT_NULL || kind == elf::SHT_NOBITS {
             continue;
@@ -62,7 +62,7 @@ pub(super) fn replace(input: &[u8], map: &[u8]) -> Result<Vec<u8>, CompactGcMapE
             span(input, u64_at(header, 24)?, u64_at(header, 32)?)?.to_vec()
         };
         if kind == elf::SHT_SYMTAB {
-            for symbol in data.chunks_exact_mut(24) {
+            for symbol in data.as_chunks_mut::<24>().0.iter_mut() {
                 if u16_at(symbol, 6)? as usize == gc {
                     let value = boundary_value(u64_at(symbol, 8)?, 0, old_size, map.len())?;
                     put(symbol, 8, value.to_le_bytes())?;

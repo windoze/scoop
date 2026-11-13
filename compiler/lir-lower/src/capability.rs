@@ -109,7 +109,7 @@ fn validate_statement(
             validate_expr(module, roots, dependencies, function, object)?;
             validate_expr(module, roots, dependencies, function, value)
         }
-        mir::StatementKind::Eh(_) => Ok(()),
+        mir::StatementKind::Eh(_) | mir::StatementKind::ProfileCounter(_) => Ok(()),
     }
 }
 

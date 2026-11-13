@@ -65,15 +65,15 @@ impl HirLocalBindingIdentities {
             .try_reserve_exact(identities.len())
             .map_err(|_| HirLocalBindingIdentityError::Allocation)?;
         for identity in identities {
-            if let Some(previous) = canonical.last() {
-                if previous.record.id() == identity.record.id() {
-                    if previous.record != identity.record {
-                        return Err(HirLocalBindingIdentityError::Collision(
-                            identity.record.id(),
-                        ));
-                    }
-                    continue;
+            if let Some(previous) = canonical.last()
+                && previous.record.id() == identity.record.id()
+            {
+                if previous.record != identity.record {
+                    return Err(HirLocalBindingIdentityError::Collision(
+                        identity.record.id(),
+                    ));
                 }
+                continue;
             }
             canonical.push(identity);
         }

@@ -29,8 +29,8 @@ enum Owner {
 pub(in crate::production) struct GenericInitializationProducer<'a> {
     export: &'a ExportHir,
     entities: DefaultEntityProjector<'a>,
-    pending: VecDeque<(scoop_identity::PersistentGenericTypeId, Owner)>,
-    scheduled: BTreeSet<scoop_identity::PersistentGenericTypeId>,
+    pending: VecDeque<(SourceNominalId, Owner)>,
+    scheduled: BTreeSet<SourceNominalId>,
 }
 
 impl<'a> GenericInitializationProducer<'a> {
@@ -79,16 +79,19 @@ impl<'a> GenericInitializationProducer<'a> {
     }
 
     fn schedule(&mut self, identity: &HirNominalIdentity, local: Owner, roots: &SharedSourceRoots) {
-        let HirNominalIdentity::Source(HirSourceNominalIdentity::Generic(record)) = identity else {
-            return;
+        let owner = match identity {
+            HirNominalIdentity::Source(HirSourceNominalIdentity::Generic(record)) => {
+                SourceNominalId::GenericTemplate(record.id())
+            }
+            HirNominalIdentity::Source(HirSourceNominalIdentity::Concrete(record))
+                if self.export.ir_template_export == crate::IrTemplateExport::Full =>
+            {
+                SourceNominalId::Concrete(record.id())
+            }
+            _ => return,
         };
-        if roots
-            .nominals
-            .values()
-            .contains(&SourceNominalId::GenericTemplate(record.id()))
-            && self.scheduled.insert(record.id())
-        {
-            self.pending.push_back((record.id(), local));
+        if roots.nominals.values().contains(&owner) && self.scheduled.insert(owner) {
+            self.pending.push_back((owner, local));
         }
     }
 

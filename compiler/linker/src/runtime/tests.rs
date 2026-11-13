@@ -27,7 +27,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         assert!(unwind.join("unwind.h").is_file());
         let mut definitions = BTreeMap::new();
         let mut objects = Vec::new();
-        for (index, source) in profile.runtime_sources().iter().enumerate() {
+        for (index, source) in profile.runtime_sources(false).iter().enumerate() {
             let path = directory.path().join(format!("runtime-{index}.o"));
             let input = source
                 .strip_prefix("vendor/")
@@ -101,6 +101,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
             RuntimeBuildConfiguration {
                 enable_gc_stress: false,
                 enable_startup_stats: false,
+                enable_profiling: false,
                 input_key: sha256(b"runtime index integration"),
                 compiler_inputs: sha256(b"selected runtime test compiler"),
                 flags: profile
@@ -111,6 +112,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
             },
             objects.clone(),
             &directory.path().join("index"),
+            None,
         )
         .unwrap();
         common_tests::check_archive_and_inputs(&runtime, &objects, invocation.profile());

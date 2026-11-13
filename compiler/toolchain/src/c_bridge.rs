@@ -257,7 +257,9 @@ fn parse_probe_tools(
         )));
     }
     command[24..]
-        .chunks_exact(8)
+        .as_chunks::<8>()
+        .0
+        .iter()
         .enumerate()
         .map(|(index, record)| {
             let tool = u32::from_le_bytes([record[0], record[1], record[2], record[3]]);

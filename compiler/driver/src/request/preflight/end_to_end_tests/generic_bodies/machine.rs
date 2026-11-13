@@ -81,7 +81,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
             .unwrap();
         let mir = hir
             .machine_input()
-            .lower_selected_mir(selected, Default::default(), None)
+            .lower_selected_mir(selected, Default::default(), None, Default::default())
             .unwrap();
         assert!(
             mir.strong

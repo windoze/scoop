@@ -9,7 +9,8 @@ mod dump;
 pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
 mod compiler_inputs;
 pub use compiler_inputs::{
-    CompilerInputV1, DirectoryEntryInputV1, DirectoryEntryStateV1, DirectoryInputV1, FileInputV1,
+    BuildFileInputV1, CompilerInputV1, DirectoryEntryInputV1, DirectoryEntryStateV1,
+    DirectoryInputV1, FileInputV1,
 };
 mod environment;
 pub use environment::EnvironmentInputV1;
@@ -21,7 +22,9 @@ mod path;
 mod purpose;
 pub use purpose::CompilationPurpose;
 mod request;
+pub use scoop_hir::IrTemplateExport;
 pub use scoop_lir::{DebugInfoLevel, OptimizationMode};
+pub use scoop_profile::Instrumentation;
 mod response;
 #[cfg(test)]
 mod test_support;
@@ -46,7 +49,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 31;
+pub const PROTOCOL_VERSION: u32 = 34;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = StageDumpKindV1::ALL.len();
 

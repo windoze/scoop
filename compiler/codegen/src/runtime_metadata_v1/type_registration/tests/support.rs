@@ -247,6 +247,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
             entry: LocalFunctionRef::Managed(functions.alloc_managed()),
         },
         meta: LirMeta {
+            profile_bodies: Vec::new(),
             debug_types: Default::default(),
             debug_globals: Default::default(),
             exact_types: Vec::new(),

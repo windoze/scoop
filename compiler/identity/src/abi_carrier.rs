@@ -109,7 +109,7 @@ impl AbiPart {
             || extent == 0
             || extent > carrier.byte_size()
             || !alignment.is_power_of_two()
-            || byte_offset % alignment != 0
+            || !byte_offset.is_multiple_of(alignment)
         {
             return Err(AbiCoercionError);
         }

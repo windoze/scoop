@@ -40,6 +40,7 @@ fn fixture_named(name: &str) -> (Vec<u8>, CompileBuildRecordV1) {
             warnings: Vec::new(),
             used_generators: Vec::new(),
             compiler_inputs: Vec::new(),
+            profile_use: None,
         },
     )
 }
@@ -147,4 +148,31 @@ fn concurrent_builds_produce_one_result_under_the_key_lock() {
         assert!(paths.windows(2).all(|pair| pair[0] == pair[1]));
     });
     assert_eq!(produced.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn profiling_mapping_is_a_required_cached_output() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = store(temp.path());
+    let lock = store.acquire_exclusive(key(b"profiling-output")).unwrap();
+    let (bytes, mut record) = fixture();
+    record.summary = record
+        .summary
+        .with_instrumentation(scoop_profile::Instrumentation::Generate);
+    let output = temp.path().join("output.slib");
+    let mapping = scoop_toolchain::profile_map_path(&output);
+    std::fs::write(&output, bytes).unwrap();
+    std::fs::write(&mapping, b"{}").unwrap();
+    let result = store.publish(&lock, &output, record).unwrap();
+    let published_map = scoop_toolchain::profile_map_path(&result.artifact);
+    assert!(published_map.is_file());
+    assert!(matches!(
+        store.lookup(&lock).unwrap(),
+        CompileCacheLookupV1::Hit(_)
+    ));
+    std::fs::remove_file(published_map).unwrap();
+    assert!(matches!(
+        store.lookup(&lock).unwrap(),
+        CompileCacheLookupV1::Miss
+    ));
 }

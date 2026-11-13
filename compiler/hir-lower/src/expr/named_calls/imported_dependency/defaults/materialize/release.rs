@@ -15,7 +15,9 @@ impl Lowerer {
         let source = self
             .dependencies
             .as_ref()
-            .and_then(|dependencies| dependencies.nominal_initialization(generic))
+            .and_then(|dependencies| {
+                dependencies.nominal_initialization(hir::SourceNominalId::GenericTemplate(generic))
+            })
             .ok_or_else(|| {
                 ImportedDefaultMaterializationError::Plan(
                     "generic release owner has no execution template".into(),

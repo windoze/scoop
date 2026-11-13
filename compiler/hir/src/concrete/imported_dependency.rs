@@ -11,6 +11,7 @@ pub struct ImportedDependencyCallableUse {
     reference: crate::ImportedDependencyCallableRef,
     dispatch: crate::ImportedDependencyDispatch,
     effect: scoop_identity::Effect,
+    requires_provider_entry: bool,
 }
 
 impl ImportedDependencyCallableUse {
@@ -19,7 +20,12 @@ impl ImportedDependencyCallableUse {
             reference: source.reference(),
             dispatch: source.dispatch(),
             effect: source.effect(),
+            requires_provider_entry: source.requires_provider_entry(),
         }
+    }
+
+    pub const fn requires_provider_entry(self) -> bool {
+        self.requires_provider_entry
     }
 
     pub const fn effect(self) -> scoop_identity::Effect {

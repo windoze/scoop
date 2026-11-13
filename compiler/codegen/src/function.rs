@@ -15,6 +15,10 @@ mod thread_address;
 /// needs, bundled to keep signatures small.
 struct FnEmitter<'a, 'ctx> {
     profile: ValidatedBackendProfile,
+    profile_counters: Option<(
+        scoop_profile::Record,
+        crate::profiling::LlvmProfileRecord<'ctx>,
+    )>,
     debug: Option<std::cell::RefCell<crate::debug::FunctionDebug<'a, 'ctx>>>,
     context: &'ctx Context,
     managed_address_space: ManagedAddressSpace,
@@ -226,6 +230,22 @@ pub(super) fn emit_function<'ctx>(
     let llvm_function = llvm
         .get_function(function.symbol())
         .expect("function declared in the first pass");
+    let profile_counters = module_ctx
+        .profiling
+        .then(|| crate::profiling::record(function))
+        .flatten()
+        .map(|record| {
+            let counters = u32::try_from(record.counters.len())
+                .map_err(|_| CodegenError("too many physical profile counters".into()))?;
+            let llvm_record = crate::profiling::LlvmProfileRecord::new(
+                llvm,
+                llvm_function,
+                record.hash,
+                counters,
+            )?;
+            Ok::<_, CodegenError>((record, llvm_record))
+        })
+        .transpose()?;
     let mut debug = module_ctx
         .debug
         .and_then(|debug| debug.function(function, llvm_function));
@@ -305,6 +325,7 @@ pub(super) fn emit_function<'ctx>(
 
     let mut emitter = FnEmitter {
         profile: module_ctx.profile,
+        profile_counters,
         debug: debug.map(std::cell::RefCell::new),
         context,
         managed_address_space: module_ctx.managed_address_space,

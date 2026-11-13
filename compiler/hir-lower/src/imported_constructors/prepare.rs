@@ -22,7 +22,7 @@ impl Lowerer {
             .cloned()
             .ok_or("constructor owner is missing")?;
         let initialization = dependencies
-            .nominal_initialization(owner)
+            .nominal_initialization(hir::SourceNominalId::GenericTemplate(owner))
             .map(|source| Arc::clone(source.initialization()))
             .ok_or("constructor owner has no initialization template")?;
         let constructor = initialization

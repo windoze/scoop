@@ -150,11 +150,23 @@ impl fmt::Display for DependencyLocatorError {
                 coordinate,
                 target,
                 path,
-            } => write!(
-                formatter,
-                "sysroot artifact {coordinate} for {target} was not found at {}",
-                path.display()
-            ),
+            } => {
+                write!(
+                    formatter,
+                    "sysroot artifact {coordinate} for {target} was not found at {}",
+                    path.display()
+                )?;
+                if path.parent().is_some_and(|parent| {
+                    parent.ends_with("profiling/instrumented")
+                        || parent.ends_with("profiling/release")
+                }) {
+                    write!(
+                        formatter,
+                        "; install lib-profiling-{target} with `scoop-install component add profiling --target {target}`"
+                    )?;
+                }
+                Ok(())
+            }
             Self::AmbiguousArtifact {
                 coordinate,
                 candidates,

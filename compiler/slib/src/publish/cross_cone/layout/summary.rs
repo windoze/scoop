@@ -18,7 +18,8 @@ impl CrossConeArtifactSummary {
                 semantic,
                 manifest.artifact_fingerprint(),
                 test_directory,
-            ),
+            )
+            .with_instrumentation(manifest.instrumentation()),
         }
     }
 }

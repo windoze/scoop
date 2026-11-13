@@ -18,7 +18,7 @@ impl WireDecode for DecodedNominalInitialization {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
-            owner: decoder.field(1, DecodedPersistentId::decode)?,
+            owner: decoder.field(1, DecodedSourceNominalId::decode)?,
             common: decoder.field(2, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedCommonStep::decode(decoder))
             })?,

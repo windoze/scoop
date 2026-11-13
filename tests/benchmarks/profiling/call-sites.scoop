@@ -1,0 +1,48 @@
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "scoop_scalar_phases", name = "bench_end") fun end()
+
+public fun mix(input: ULong): ULong {
+    var value = input
+    value = value * 6364136223846793005uL + 1442695040888963407uL
+    value = value.xor(value.shr(29L))
+    value = value * 2862933555777941757uL + input
+    value = value.xor(value.shr(31L))
+    value = value * 3202034522624059733uL + 3037000493uL
+    value = value.xor(value.shr(27L))
+    value = value * 3935559000370003845uL + input
+    value = value.xor(value.shr(33L))
+    value = value * 6364136223846793005uL + 1442695040888963407uL
+    value = value.xor(value.shr(29L))
+    value = value * 2862933555777941757uL + input
+    value = value.xor(value.shr(31L))
+    value = value * 3202034522624059733uL + 3037000493uL
+    value = value.xor(value.shr(27L))
+    value = value * 3935559000370003845uL + input
+    return value.xor(value.shr(33L))
+}
+
+public fun exercise(iterations: Int, enableCold: Boolean): ULong {
+    var value = 42uL
+    var index = 0
+    while (index < iterations) {
+        if (enableCold && index.and(1023) == 0) {
+            value = mix(value + 17uL)
+        }
+        value = mix(value)
+        index += 1
+    }
+    return value
+}
+
+fun main() {
+    @Unsafe {
+        val iterations = count()
+        val enableCold = kind() != 0
+        begin()
+        val result = exercise(iterations, enableCold)
+        end()
+        println(result)
+    }
+}

@@ -17,6 +17,7 @@ mod document;
 mod graph;
 mod locator;
 mod materialize;
+pub mod options;
 mod program_link;
 mod request;
 mod runtime_build;

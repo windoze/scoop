@@ -21,6 +21,7 @@ mod harness_nominals;
 mod operators;
 mod optimization;
 mod overloads;
+mod profiling;
 mod reference_types;
 mod singletons;
 mod snapshots;
@@ -90,6 +91,7 @@ fn lower_test_input(module: &hir::ExportHirOutput, prepare_snapshots: bool) -> m
             HashMap::new(),
             Vec::new(),
             &[],
+            false,
             false,
         )
         .0

@@ -332,7 +332,7 @@ fn push_location(bytes: &mut Vec<u8>, kind: u8, size: u16, register: u16, offset
 }
 
 fn align_zero(bytes: &mut Vec<u8>, alignment: usize) {
-    while bytes.len() % alignment != 0 {
+    while !bytes.len().is_multiple_of(alignment) {
         bytes.push(0);
     }
 }

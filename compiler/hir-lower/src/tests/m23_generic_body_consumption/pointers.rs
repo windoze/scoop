@@ -55,6 +55,7 @@ fn imported_pointer_intrinsics_use_source_places_and_typed_templates() {
                     dependencies,
                     Default::default(),
                     None,
+                    Default::default(),
                 )
                 .unwrap();
             },

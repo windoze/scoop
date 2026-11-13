@@ -148,10 +148,9 @@ impl Concretizer<'_> {
                     .structs
                     .iter()
                     .find(|(_, value)| value.canonical_type == receiver)
+                    && !value.interface_implementations.is_empty()
                 {
-                    if !value.interface_implementations.is_empty() {
-                        return value.interface_implementations.clone();
-                    }
+                    return value.interface_implementations.clone();
                 }
                 if let Some((_, class)) = self
                     .classes

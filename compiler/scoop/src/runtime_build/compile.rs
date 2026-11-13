@@ -52,6 +52,7 @@ pub(super) fn compile(
         run(&mut compile, source)?;
         objects.push(object);
     }
+    observed.extend(request.profile_runtime.map(Path::to_owned));
     Ok((objects, dependencies::Dependencies::collect(observed)?))
 }
 

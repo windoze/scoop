@@ -46,6 +46,7 @@ fn request_requires_supported_version_absolute_cwd_and_nonempty_selection() {
         purpose: CompilationPurpose::Production,
         target: "aarch64-apple-darwin".into(),
         sysroot: cwd,
+        system_library_root: None,
         artifact_roots: Vec::new(),
         package_cache: None,
         lockfile: None,

@@ -1,0 +1,12 @@
+[package]
+name = "scoop-profile"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-identity.workspace = true
+scoop-wire.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

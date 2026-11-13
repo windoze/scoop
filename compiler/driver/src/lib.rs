@@ -3,6 +3,7 @@
 mod artifact_production;
 mod generated_c;
 mod generation;
+pub mod profiling;
 pub use generation::{
     GeneratorBatch, GeneratorBinding, GeneratorMethod, GeneratorTask, plan_generators,
 };

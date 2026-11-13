@@ -238,7 +238,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
                     collect_expr(object, &mut out);
                     collect_expr(value, &mut out);
                 }
-                mir::StatementKind::Eh(_) => {}
+                mir::StatementKind::Eh(_) | mir::StatementKind::ProfileCounter(_) => {}
             }
         }
         match &block.terminator {

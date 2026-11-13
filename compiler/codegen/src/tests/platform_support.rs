@@ -11,7 +11,7 @@ pub(crate) fn native_os_source() -> &'static str {
 
 pub(crate) fn native_platform_bundle_source() -> &'static str {
     native_runtime_profile()
-        .runtime_sources()
+        .runtime_sources(false)
         .into_iter()
         .find(|source| *source == "runtime/src/platform/bundle.c")
         .expect("the native runtime has a platform bundle")
@@ -53,7 +53,7 @@ pub(crate) fn native_trace_symbols(
         .arg("-I")
         .arg(workspace.join("sysroot/vendor/libbacktrace"));
     command.arg(workspace.join("runtime/src/stack_trace/symbolize.c"));
-    for source in profile.runtime_sources() {
+    for source in profile.runtime_sources(false) {
         if source.starts_with("vendor/libbacktrace/") {
             command.arg(workspace.join("sysroot").join(source));
         }

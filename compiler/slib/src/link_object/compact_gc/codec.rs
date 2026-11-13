@@ -53,7 +53,9 @@ pub(in crate::link_object) fn encode<'a>(
         }
         roots.extend(
             record.locations()[3 + deopt_count as usize..]
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|pair| {
                     let CanonicalStackmapLocationV1::Indirect {
                         dwarf_register,

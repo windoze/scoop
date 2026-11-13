@@ -176,6 +176,7 @@ impl PreparedBuildGraph {
                                 warnings: success.warnings().to_vec(),
                                 used_generators: success.used_generators().to_vec(),
                                 compiler_inputs: success.compiler_inputs().to_vec(),
+                                profile_use: success.profile_use().cloned(),
                             },
                         )
                         .map_err(Error::CacheStore)?;
@@ -287,7 +288,8 @@ impl PreparedBuildGraph {
             entry.artifact,
             entry.record.warnings,
         )
-        .with_compiler_inputs(entry.record.compiler_inputs))
+        .with_compiler_inputs(entry.record.compiler_inputs)
+        .with_profile_use(entry.record.profile_use))
     }
 }
 

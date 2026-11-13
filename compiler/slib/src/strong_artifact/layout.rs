@@ -46,10 +46,16 @@ pub struct CrossConeLayoutArtifactInputV1<'ir> {
     layout_code: CrossConeLayoutCodeDataV1,
     link_objects: Vec<UncompressedObjectMember>,
     test_directory: Option<crate::TestDirectory>,
+    instrumentation: scoop_profile::Instrumentation,
     dependencies: Option<&'ir crate::ValidatedCrossConeArtifactClosure>,
 }
 
 impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
+    pub fn with_instrumentation(mut self, mode: scoop_profile::Instrumentation) -> Self {
+        self.instrumentation = mode;
+        self
+    }
+
     pub fn with_test_directory(mut self, directory: Option<crate::TestDirectory>) -> Self {
         self.test_directory = directory;
         self
@@ -100,6 +106,7 @@ impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
             layout_code,
             link_objects,
             test_directory: None,
+            instrumentation: scoop_profile::Instrumentation::Off,
             dependencies: None,
         }
     }
@@ -134,6 +141,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             layout_code,
             mut link_objects,
             test_directory,
+            instrumentation,
             dependencies,
         } = input;
         let identity = cone.identity();
@@ -214,6 +222,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
             &members,
             semantic_fingerprints,
             manifest_sections,
+            instrumentation,
         )
         .map_err(CrossConeLayoutArtifactWriteError::Manifest)?;
         let summary = crate::CrossConeArtifactSummary::from_layout(

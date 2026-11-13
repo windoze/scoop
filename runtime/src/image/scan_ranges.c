@@ -91,7 +91,8 @@ void scoop_metadata_scan(ScoopImageRegistry *registry, const ScoopMetadataCheck 
     }
 }
 
-#if defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS
+#if (defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS) || \
+    (defined(SCOOP_ENABLE_PROFILING) && SCOOP_ENABLE_PROFILING)
 size_t scoop_image_scan_program_count(const ScoopImageRegistry *registry) {
     return registry->scan_ranges == NULL ? 0 : registry->scan_ranges->count;
 }

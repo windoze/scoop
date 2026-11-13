@@ -204,6 +204,7 @@ fn metadata() -> LirMeta {
         ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, string_type).unwrap(),
     );
     LirMeta {
+        profile_bodies: Vec::new(),
         debug_types: Default::default(),
         debug_globals: Default::default(),
         exact_types: Vec::new(),

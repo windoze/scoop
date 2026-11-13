@@ -59,7 +59,7 @@ pub enum CrossConeHirInternalClosureValidationError {
     DefaultTemplates(ExportDefaultTemplateSourceClosureValidationError),
     Constants(ExportConstValueClosureValidationError),
     DefinitionSources(ExportDefinitionSourceClosureValidationError),
-    ReleasePolicy(scoop_identity::PersistentGenericTypeId),
+    ReleasePolicy(crate::SourceNominalId),
 }
 
 impl fmt::Display for CrossConeHirInternalClosureValidationError {
@@ -75,7 +75,7 @@ impl fmt::Display for CrossConeHirInternalClosureValidationError {
             Self::ReleasePolicy(owner) => {
                 return write!(
                     formatter,
-                    "release policy and generic body disagree for {owner}"
+                    "release policy and initialization body disagree for {owner:?}"
                 );
             }
         };

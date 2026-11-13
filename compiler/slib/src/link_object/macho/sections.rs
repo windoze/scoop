@@ -26,6 +26,12 @@ pub fn read_builtin_object_sections_v1(
 
 fn classify_section(segment: &[u8], section: &[u8], flags: u32) -> BuiltinObjectSectionRoleV1 {
     use BuiltinObjectSectionRoleV1 as Role;
+    if matches!(
+        section,
+        b"__llvm_prf_cnts" | b"__llvm_prf_data" | b"__llvm_prf_names"
+    ) {
+        return Role::ProfilingSupport;
+    }
     match (segment, section) {
         (b"__LLVM_STACKMAPS", b"__llvm_stackmaps") => return Role::LlvmStackmaps,
         (b"__LD", b"__compact_unwind") => return Role::CompactUnwind,

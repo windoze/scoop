@@ -162,6 +162,7 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
         foreign_callback_bridges: Arena::new(),
         output: scoop_lir::LirOutput::Executable { entry },
         meta: LirMeta {
+            profile_bodies: Vec::new(),
             debug_types: Default::default(),
             debug_globals: Default::default(),
             exact_types: Vec::new(),

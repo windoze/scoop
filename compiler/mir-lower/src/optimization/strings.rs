@@ -2,7 +2,18 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::{allocation, graph, inline, mir};
+use super::{allocation, graph, inline, mir, observation::Observer};
+use mir::optimization_report::{InlineHeat, OptimizationDecision, OptimizationSite};
+
+struct FusionDecision {
+    statement: usize,
+    span: mir::SourceSpan,
+    heat: InlineHeat,
+    heat_used: bool,
+    fused: bool,
+    parts: usize,
+    concatenations: usize,
+}
 
 const MAX_PARTS: usize = 8;
 const MAX_LITERAL_BYTES: usize = 64;
@@ -49,8 +60,9 @@ impl Uses {
     }
 }
 
-pub(super) fn run(module: &mut mir::Module) {
-    for (_, function) in module.functions.iter_mut() {
+pub(super) fn run(module: &mut mir::Module, observer: Option<&Observer<'_>>) {
+    let mut used = Vec::new();
+    for (function_id, function) in module.functions.iter_mut() {
         if !function.body.blocks.iter().any(|(_, block)| block.statements.iter().any(|statement| {
             matches!(&statement.kind, mir::StatementKind::Call(mir::CallEffect::Value { call, .. })
                 if matches!(call.target, mir::CallTarget::Direct(mir::Callee::Runtime(mir::RuntimeFn::StringConcat))))
@@ -61,13 +73,50 @@ pub(super) fn run(module: &mut mir::Module) {
         let heat = inline::heats(&function.body);
         for (id, block) in function.body.blocks.iter_mut() {
             let site = heat[graph::index(id)];
-            fuse(
+            let decisions = fuse(
                 block,
                 &uses,
                 &module.immortals,
-                site.numerator > site.denominator,
+                site,
+                &module.meta.profiling,
+                observer.is_some(),
             );
+            for decision in decisions {
+                if decision.heat_used
+                    && let Some(profile) = decision.heat.profile
+                    && profile.frequency.is_ok()
+                    && let Some(location) = profile.location
+                {
+                    used.push(location);
+                }
+                if let Some(observer) = observer {
+                    observer.record(
+                        OptimizationSite {
+                            function: function_id,
+                            block: id,
+                            statement: decision.statement,
+                            span: decision.span,
+                            inline_path: Vec::new(),
+                        },
+                        OptimizationDecision::StringFusion {
+                            heat: decision.heat,
+                            fused: decision.fused,
+                            parts: decision.parts,
+                            concatenations: decision.concatenations,
+                        },
+                    );
+                }
+            }
         }
+    }
+    if !used.is_empty() {
+        module
+            .meta
+            .profiling
+            .used
+            .entry(scoop_profile::FeedbackConsumer::StringFusion)
+            .or_default()
+            .extend(used);
     }
 }
 
@@ -75,12 +124,22 @@ fn fuse(
     block: &mut mir::BasicBlock,
     uses: &Uses,
     strings: &la_arena::Arena<mir::ImmortalConst>,
-    hot: bool,
-) {
+    static_heat: InlineHeat,
+    profiling: &mir::MirProfiling,
+    observe: bool,
+) -> Vec<FusionDecision> {
+    let mut decisions = Vec::new();
+    let mut heat = inline::with_profile(static_heat, None, profiling);
     let mut origins: HashMap<mir::LocalId, Origin> = HashMap::new();
     let mut removed = HashSet::new();
     for index in 0..block.statements.len() {
         let statement = &block.statements[index];
+        if let mir::StatementKind::ProfileCounter(marker) = &statement.kind {
+            if marker.kind == scoop_profile::PositionKind::Block {
+                heat = inline::with_profile(static_heat, Some(marker), profiling);
+            }
+            continue;
+        }
         if let mir::StatementKind::Call(mir::CallEffect::Value { destination, call }) =
             &statement.kind
             && matches!(
@@ -100,13 +159,24 @@ fn fuse(
                 }
                 if chain.parts.len() <= MAX_PARTS {
                     let destination = *destination;
-                    if chain.concatenations > 1
-                        || hot
-                        || chain
+                    let heat_used = chain.concatenations == 1
+                        && !chain
                             .parts
                             .iter()
-                            .all(|part| matches!(part, mir::StringConcatPart::Literal(_)))
-                    {
+                            .all(|part| matches!(part, mir::StringConcatPart::Literal(_)));
+                    let fused = !heat_used || heat.numerator > heat.denominator;
+                    if observe || profiling.feedback {
+                        decisions.push(FusionDecision {
+                            statement: index,
+                            span: statement.span,
+                            heat,
+                            heat_used,
+                            fused,
+                            parts: chain.parts.len(),
+                            concatenations: chain.concatenations,
+                        });
+                    }
+                    if fused {
                         removed.extend(chain.removed.iter().copied());
                         block.statements[index].kind = mir::StatementKind::ValDecl {
                             local: destination,
@@ -141,6 +211,7 @@ fn fuse(
         index += 1;
         keep
     });
+    decisions
 }
 
 fn origin(

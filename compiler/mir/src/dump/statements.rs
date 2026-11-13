@@ -11,6 +11,12 @@ pub(super) fn dump_statements(
     for statement in statements {
         let pad = "  ".repeat(indent);
         match &statement.kind {
+            StatementKind::ProfileCounter(marker) => {
+                out.push_str(&format!(
+                    "{pad}profile {:?} {}:{}\n",
+                    marker.kind, marker.site.plan.0, marker.site.position
+                ));
+            }
             StatementKind::PublishReleaseReady { class, receiver } => {
                 out.push_str(&format!(
                     "{pad}publish_release_ready {}\n",

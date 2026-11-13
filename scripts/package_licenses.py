@@ -99,6 +99,7 @@ def collect_bin(root, repository, host):
             "scoop-linker",
             "scoop-lsp",
             "scoop-pm",
+            "scoop-pgo",
             "scoop-example",
             "scoop-bundle",
         }
@@ -123,6 +124,15 @@ def collect_bin(root, repository, host):
             for dependency in dependencies[identity]
             if any(kind["kind"] != "dev" for kind in dependency["dep_kinds"])
         )
+    collector.finish()
+
+
+def collect_profiling(root, source, target):
+    """The optional target component contains LLVM's profile runtime."""
+    collector = Collector(root, "profiling-" + target)
+    collector.add(
+        "compiler-rt", "Apache-2.0 WITH LLVM-exception", [source / "compiler-rt/LICENSE.TXT"]
+    )
     collector.finish()
 
 

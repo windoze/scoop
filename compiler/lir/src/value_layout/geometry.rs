@@ -20,7 +20,7 @@ impl StorageGeometryV1 {
     ) -> Result<Self, TypeInstanceShapeError> {
         let alignment = NonZeroPow2::new(alignment)?;
         require_target(target, size, alignment)?;
-        if size % alignment.get() != 0 {
+        if !size.is_multiple_of(alignment.get()) {
             return Err(TypeInstanceShapeError::UnalignedInlineSize);
         }
         Ok(Self {

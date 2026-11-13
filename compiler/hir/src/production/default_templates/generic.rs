@@ -72,14 +72,7 @@ impl<'a> GenericBodyProducer<'a> {
         for &function in self.index.values() {
             let export = self.export;
             if (export.functions[function].type_param_count() != 0
-                || (matches!(
-                    &export.function_identities[function],
-                    HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
-                        | HirFunctionIdentity::PropertyAccessor(_)
-                ) && crate::portable_inline_body(
-                    &export.functions[function].signature,
-                    &export.functions[function].kind,
-                )))
+                || ordinary_body(export, function))
                 && is_shared_root(export, function, roots)
                 && self.scheduled.insert(function)
             {
@@ -169,20 +162,32 @@ impl<'a> GenericBodyProducer<'a> {
             | HirFunctionIdentity::Initialization { .. }
             | HirFunctionIdentity::DerivedEquality(_) => false,
         };
-        let ordinary = matches!(
-            &export.function_identities[function],
-            HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
-                | HirFunctionIdentity::PropertyAccessor(_)
-        ) && crate::portable_inline_body(
-            &export.functions[function].signature,
-            &export.functions[function].kind,
-        );
+        let ordinary = ordinary_body(export, function);
         if (lexical || export.functions[function].type_param_count() != 0 || ordinary)
             && self.scheduled.insert(function)
         {
             self.pending.push_back(function);
         }
         Some(function)
+    }
+}
+
+fn ordinary_body(export: &ExportHir, function: FunctionId) -> bool {
+    match export.ir_template_export {
+        crate::IrTemplateExport::Off => false,
+        crate::IrTemplateExport::Default => {
+            matches!(
+                &export.function_identities[function],
+                HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Plain(_))
+                    | HirFunctionIdentity::PropertyAccessor(_)
+            ) && crate::portable_inline_body(
+                &export.functions[function].signature,
+                &export.functions[function].kind,
+            )
+        }
+        crate::IrTemplateExport::Full => {
+            matches!(export.functions[function].kind, FunctionKind::User(_))
+        }
     }
 }
 

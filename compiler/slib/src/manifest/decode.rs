@@ -24,7 +24,8 @@ use super::{
 use crate::{DecodedSlibMemberRecord, SlibMemberRoleValidationError};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const CURRENT_SCHEMA: u32 = 6;
+const MANIFEST_SCHEMA: u32 = 7;
+const CONTAINER_SCHEMA: u32 = 6;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedBootstrapManifest {
@@ -39,6 +40,7 @@ pub struct DecodedBootstrapManifest {
     semantic_fingerprints: DecodedSemanticFingerprintRecord,
     sections: Vec<DecodedManifestSection>,
     artifact_fingerprint: Digest256,
+    instrumentation: scoop_profile::Instrumentation,
 }
 
 impl DecodedBootstrapManifest {
@@ -132,6 +134,7 @@ impl DecodedBootstrapManifest {
                 members,
                 semantic_fingerprints,
                 sections,
+                instrumentation: self.instrumentation,
             },
             ArtifactFingerprint::from_array(*self.artifact_fingerprint.as_array()),
         )
@@ -141,7 +144,7 @@ impl DecodedBootstrapManifest {
 
 impl WireEncode for DecodedBootstrapManifest {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(12)?;
         encoder.field(1)?;
         encoder.bytes(&self.magic)?;
         encoder.field(2)?;
@@ -160,13 +163,15 @@ impl WireEncode for DecodedBootstrapManifest {
         self.semantic_fingerprints.encode(encoder)?;
         encode_array_field(encoder, 10, &self.sections)?;
         encoder.field(11)?;
-        self.artifact_fingerprint.encode(encoder)
+        self.artifact_fingerprint.encode(encoder)?;
+        encoder.field(12)?;
+        self.instrumentation.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedBootstrapManifest {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(11)?;
+        decoder.expect_map(12)?;
         Ok(Self {
             magic: decoder.field(1, Decoder::owned_bytes)?,
             manifest_schema: decoder.field(2, Decoder::u32)?,
@@ -185,6 +190,7 @@ impl WireDecode for DecodedBootstrapManifest {
                 decoder.decode_array(|decoder, _| DecodedManifestSection::decode(decoder))
             })?,
             artifact_fingerprint: decoder.field(11, Digest256::decode)?,
+            instrumentation: decoder.field(12, scoop_profile::Instrumentation::decode)?,
         })
     }
 }
@@ -276,9 +282,13 @@ impl fmt::Display for BootstrapManifestValidationError {
         match self {
             Self::BadMagic => formatter.write_str("manifest magic must be SCOOPSLIB"),
             Self::UnsupportedSchema { kind, actual } => {
+                let expected = match kind {
+                    SchemaKind::Manifest => MANIFEST_SCHEMA,
+                    SchemaKind::Container => CONTAINER_SCHEMA,
+                };
                 write!(
                     formatter,
-                    "{kind} schema must be {CURRENT_SCHEMA}, found {actual}"
+                    "{kind} schema must be {expected}, found {actual}"
                 )
             }
             Self::Producer(error) => error.fmt(formatter),
@@ -333,7 +343,11 @@ fn require_initial_schema(
     kind: SchemaKind,
     actual: u32,
 ) -> Result<(), BootstrapManifestValidationError> {
-    if actual == CURRENT_SCHEMA {
+    let expected = match kind {
+        SchemaKind::Manifest => MANIFEST_SCHEMA,
+        SchemaKind::Container => CONTAINER_SCHEMA,
+    };
+    if actual == expected {
         Ok(())
     } else {
         Err(BootstrapManifestValidationError::UnsupportedSchema { kind, actual })

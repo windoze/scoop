@@ -32,7 +32,7 @@ pub fn visit_statement_exprs_mut(statement: &mut Statement, visitor: &mut impl F
             visit_expr_mut(object, visitor);
             visit_expr_mut(value, visitor);
         }
-        StatementKind::Eh(_) => {}
+        StatementKind::Eh(_) | StatementKind::ProfileCounter(_) => {}
     }
 }
 

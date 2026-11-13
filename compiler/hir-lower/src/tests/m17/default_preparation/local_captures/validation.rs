@@ -18,6 +18,7 @@ fn inputs<'a>(
         source_contexts: &output.export.source_context_identities,
         callable_applications: &module.callable_applications,
         functions,
+        imported_inline_bodies: &module.imported_inline_bodies,
         lambdas: &module.lambdas,
         anonymous_functions: &module.anonymous_functions,
         lexical_local_values: &[],

@@ -29,6 +29,7 @@ pub(super) fn module(
         foreign_callback_bridges: Arena::new(),
         output: LirOutput::Library,
         meta: LirMeta {
+            profile_bodies: Vec::new(),
             debug_types: Default::default(),
             debug_globals: Default::default(),
             exact_types: Vec::new(),

@@ -3,7 +3,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 impl WireEncode for RuntimeBuildConfiguration {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(5)?;
+        e.map(6)?;
         e.field(1)?;
         self.input_key.encode(e)?;
         e.field(2)?;
@@ -17,18 +17,21 @@ impl WireEncode for RuntimeBuildConfiguration {
         e.unsigned(u64::from(self.enable_gc_stress))?;
         e.field(5)?;
         e.unsigned(u64::from(self.enable_startup_stats))?;
+        e.field(6)?;
+        e.unsigned(u64::from(self.enable_profiling))?;
         Ok(())
     }
 }
 impl WireDecode for RuntimeBuildConfiguration {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
-        d.expect_map(5)?;
+        d.expect_map(6)?;
         Ok(Self {
             input_key: d.field(1, Digest256::decode)?,
             compiler_inputs: d.field(2, Digest256::decode)?,
             flags: d.field(3, |d| d.decode_array(|d, _| Ok(d.text()?.to_owned())))?,
             enable_gc_stress: d.field(4, decode_flag)?,
             enable_startup_stats: d.field(5, decode_flag)?,
+            enable_profiling: d.field(6, decode_flag)?,
         })
     }
 }

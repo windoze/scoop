@@ -64,7 +64,10 @@ pub(super) fn materialize(
                 DefinitionAtomRole::Primary => Some((primary_section, primary_start, primary_end)),
                 role @ (DefinitionAtomRole::Stackmap
                 | DefinitionAtomRole::Lsda
-                | DefinitionAtomRole::EhFrame) => {
+                | DefinitionAtomRole::EhFrame
+                | DefinitionAtomRole::ProfileCounters
+                | DefinitionAtomRole::ProfileData
+                | DefinitionAtomRole::ProfileNames) => {
                     let sections = output
                         .file
                         .sections()
@@ -124,6 +127,9 @@ pub(super) fn materialize(
 
 fn backend_role(name: &str) -> Option<DefinitionAtomRole> {
     match name {
+        "__llvm_prf_cnts" => Some(DefinitionAtomRole::ProfileCounters),
+        "__llvm_prf_data" => Some(DefinitionAtomRole::ProfileData),
+        "__llvm_prf_names" => Some(DefinitionAtomRole::ProfileNames),
         ".llvm_stackmaps" => Some(DefinitionAtomRole::Stackmap),
         ".eh_frame" => Some(DefinitionAtomRole::EhFrame),
         ".data.DW.ref.scoop_eh_personality" => Some(DefinitionAtomRole::AddressTakenConstant),

@@ -16,7 +16,7 @@ pub(in crate::production::default_templates) use constructor::project as project
 pub(super) fn project(
     export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
-    owner: scoop_identity::PersistentGenericTypeId,
+    owner: SourceNominalId,
     class: crate::ClassId,
 ) -> Result<ExportGenericNominalInitializationV1, Error> {
     let declaration = &export.classes[class];

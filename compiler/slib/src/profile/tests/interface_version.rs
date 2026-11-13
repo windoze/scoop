@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v94_requires_root_coroutine_handshakes() {
+fn source_interface_v95_carries_ir_export_mode_and_concrete_initialization() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        94,
+        95,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

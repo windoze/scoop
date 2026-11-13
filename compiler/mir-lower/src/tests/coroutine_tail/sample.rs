@@ -17,6 +17,7 @@ pub(in crate::tests) fn lower_tail(source: &hir::ExportHirOutput, enabled: bool)
         Vec::new(),
         &[],
         enabled,
+        false,
     )
     .0
 }

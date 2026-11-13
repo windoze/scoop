@@ -47,10 +47,16 @@ pub(super) fn materialize(
                 )),
                 DefinitionAtomRole::Stackmap
                 | DefinitionAtomRole::WindowsUnwindTable
-                | DefinitionAtomRole::WindowsUnwindInfo => {
+                | DefinitionAtomRole::WindowsUnwindInfo
+                | DefinitionAtomRole::ProfileCounters
+                | DefinitionAtomRole::ProfileData
+                | DefinitionAtomRole::ProfileNames => {
                     let name = match boundary.atom_role() {
                         DefinitionAtomRole::Stackmap => ".llvm_stackmaps",
                         DefinitionAtomRole::WindowsUnwindTable => ".pdata",
+                        DefinitionAtomRole::ProfileCounters => ".lprfc",
+                        DefinitionAtomRole::ProfileData => ".lprfd",
+                        DefinitionAtomRole::ProfileNames => ".lprfn",
                         _ => ".xdata",
                     };
                     let section = unique_section(&output, name)?;

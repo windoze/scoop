@@ -71,6 +71,7 @@ pub(super) fn get(request: Request<'_>) -> BuildResult<Executable> {
         request.vendor_root,
         request.enable_gc_stress,
         request.enable_startup_stats,
+        request.profile == crate::BuildProfile::Profiling,
     )?;
     let directory = tempfile::Builder::new()
         .prefix("program-")

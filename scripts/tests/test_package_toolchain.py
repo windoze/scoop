@@ -30,6 +30,69 @@ from target_catalog import WINDOWS_TARGETS, host_definition
 
 
 class ComponentArchiveTests(unittest.TestCase):
+    def test_profiling_component_contains_both_complete_cone_sets_and_runtime(self):
+        for target in ("aarch64-apple-darwin", "x86_64-pc-windows-msvc-ucrt"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as temporary:
+                work = Path(temporary)
+                sysroot = work / "prepared"
+                source = sysroot / "lib" / target / "profiling"
+                expected = set()
+                cones = ["scoop.core", "scoop.window"]
+                for variant in ("instrumented", "release"):
+                    for cone in cones:
+                        names = [f"{cone}.slib"]
+                        if variant == "instrumented":
+                            names.append(f"{cone}.slib.profile.json")
+                        for name in names:
+                            expected.add(f"{variant}/{name}")
+                runtime = "runtime.lib" if target in WINDOWS_TARGETS else "runtime.a"
+                for variant in (
+                    "runtime",
+                    "runtime-stress",
+                    "runtime-startup-stats",
+                    "runtime-stress-startup-stats",
+                ):
+                    expected.update(
+                        f"{variant}/{name}" for name in (runtime, "profile.a", "index.cbor")
+                    )
+                for relative in [
+                    *expected,
+                    "runtime/unused.o",
+                    "instrumented/old.profraw",
+                    "libSkia.a",
+                ]:
+                    path = source / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(relative)
+                license = work / "llvm/compiler-rt/LICENSE.TXT"
+                license.parent.mkdir(parents=True)
+                license.write_text("LLVM profile license")
+                args = SimpleNamespace(prepared_sysroot=sysroot, llvm_source=work / "llvm")
+                staged = work / "staged"
+                package_toolchain.assemble_profiling_libraries(staged, target, args, cones)
+                output = work / "component.tar.xz"
+                archive(staged, output)
+                with tarfile.open(output) as package:
+                    prefix = f"lib/{target}/profiling/"
+                    files = {
+                        member.name.removeprefix("./")
+                        for member in package.getmembers()
+                        if member.isfile()
+                    }
+                    self.assertEqual(
+                        {name.removeprefix(prefix) for name in files if name.startswith(prefix)},
+                        expected,
+                    )
+                    self.assertIn(
+                        f"share/licenses/profiling-{target}/compiler-rt/LICENSE.TXT", files
+                    )
+                # Missing required maps fail component assembly; normal build inputs remain.
+                (source / "instrumented/scoop.core.slib.profile.json").unlink()
+                with self.assertRaises(FileNotFoundError):
+                    package_toolchain.assemble_profiling_libraries(
+                        work / "incomplete", target, args, cones
+                    )
+
     def test_component_packages_are_assembled_and_archived(self):
         release = tomllib.loads(package_toolchain.RELEASE_CONFIG.read_text())
         hosts = ("x86_64-pc-windows-gnullvm", "aarch64-apple-darwin", "x86_64-unknown-linux-gnu")
@@ -163,7 +226,7 @@ class ComponentArchiveTests(unittest.TestCase):
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(relative)
                 if populated:
-                    for name in ("scoop-example", "scoop-bundle", "scoop-api"):
+                    for name in ("scoop-example", "scoop-bundle", "scoop-api", "scoop-pgo"):
                         command = sysroot / f"commands/{name}{suffix}"
                         command.write_text("#!/bin/sh\nexit 37\n")
                         command.chmod(0o755)
@@ -352,7 +415,7 @@ class ComponentArchiveTests(unittest.TestCase):
                 self.assertTrue(commands.is_dir())
                 self.assertFalse((commands / ".gitkeep").exists())
                 if populated:
-                    for name in ("scoop-example", "scoop-bundle", "scoop-api"):
+                    for name in ("scoop-example", "scoop-bundle", "scoop-api", "scoop-pgo"):
                         command = sysroot / f"commands/{name}{suffix}"
                         self.assertEqual(
                             (commands / command.name).read_bytes(), command.read_bytes()
@@ -486,8 +549,12 @@ class ComponentArchiveTests(unittest.TestCase):
                 scripts = [call.args[0] for call in run.call_args_list]
                 self.assertIn("build_openssl.py", scripts)
                 self.assertIn("build_text_backends.py", scripts)
+                self.assertIn("build_profile_runtime.py", scripts)
+                self.assertEqual(scripts.count("prepare_sysroot.py"), 2)
                 self.assertEqual(scripts[-1], "prepare_sysroot.py")
                 arguments = run.call_args.args[1]
+                self.assertIn("--profiling", arguments)
+                self.assertIn("--profile-runtime", arguments)
                 self.assertNotIn("--runtime-only", arguments)
                 self.assertEqual(arguments[arguments.index("--scoop") + 1], binaries[0])
                 self.assertEqual(

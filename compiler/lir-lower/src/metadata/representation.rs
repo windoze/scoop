@@ -188,16 +188,16 @@ pub(crate) fn compute_repr(
             .iter()
             .enumerate()
             .find(|(_, variant)| !variant.fields.is_empty());
-        if let (true, Some((payload_index, payload_variant))) = (has_unit, payload) {
-            if payload_variant.fields.len() == 1 && is_niche_payload(&payload_variant.fields[0].ty)
-            {
-                reprs[index] = Some(lir::EnumRepr::Niche {
-                    kind: niche_pointer_kind(&payload_variant.fields[0].ty),
-                    payload_variant: payload_index as u32,
-                });
-                visiting.remove(&id);
-                return Ok(());
-            }
+        if let (true, Some((payload_index, payload_variant))) = (has_unit, payload)
+            && payload_variant.fields.len() == 1
+            && is_niche_payload(&payload_variant.fields[0].ty)
+        {
+            reprs[index] = Some(lir::EnumRepr::Niche {
+                kind: niche_pointer_kind(&payload_variant.fields[0].ty),
+                payload_variant: payload_index as u32,
+            });
+            visiting.remove(&id);
+            return Ok(());
         }
     }
 

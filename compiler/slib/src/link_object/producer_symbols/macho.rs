@@ -68,7 +68,7 @@ pub(super) fn strip(bytes: &[u8], selection: Selection) -> Result<Vec<u8>> {
     let mut prefix = vec![0u32];
     let mut strings = vec![0];
     let mut kept = Vec::new();
-    for (index, symbol) in symbols.chunks_exact(16).enumerate() {
+    for (index, symbol) in symbols.as_chunks::<16>().0.iter().enumerate() {
         let symbol_name = name(old_strings, u32_at(symbol, 0)?)?;
         let remove = match selection {
             Selection::ProductionEnds => is_end(symbol_name),

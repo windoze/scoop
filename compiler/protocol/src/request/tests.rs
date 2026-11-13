@@ -3,6 +3,7 @@ use std::path::Path;
 use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
+use crate::Instrumentation;
 
 mod check;
 mod documentation;
@@ -38,6 +39,29 @@ fn path(value: &str) -> HostPathCarrier {
 
 fn target() -> TargetSelectionRequestV1 {
     TargetSelectionRequestV1::new("aarch64-apple-darwin".to_owned()).unwrap()
+}
+
+#[test]
+fn feedback_input_path_round_trips_without_becoming_a_language_input() {
+    let build = ScoopcBuildRequestV1::new(
+        crate::test_support::manifest("library"),
+        vec![],
+        vec![],
+        TrustedCoreRequestV1::Bootstrap,
+        target(),
+        path("output.slib"),
+        DiagnosticOutputPolicyV1::Structured,
+        StageDumpPolicyV1::None,
+    )
+    .unwrap()
+    .with_optimization(OptimizationMode::Release)
+    .with_profile_use(Some(path("training 数据 %/profile.json")));
+    let request = ScoopcRequestEnvelopeV1::new(RequestCorrelationId::from_array([13; 16]), build);
+    let decoded = decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&encode(&request).unwrap())
+        .unwrap()
+        .validate()
+        .unwrap();
+    assert_eq!(decoded, request);
 }
 
 #[test]
@@ -78,11 +102,40 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
         .unwrap();
     assert_eq!(decoded.build().optimization(), OptimizationMode::Release);
     assert_eq!(decoded.build().target(), request.build().target());
-    let mut unknown = bytes;
-    let optimization = unknown.len() - 11;
-    assert_eq!(unknown[optimization], 2);
-    unknown[optimization] = 3;
-    assert!(decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&unknown).is_err());
+    assert!(decode_canonical::<OptimizationMode>(&[3]).is_err());
+
+    for mode in [Instrumentation::Off, Instrumentation::Generate] {
+        let request = ScoopcRequestEnvelopeV1::new(
+            request.request_id(),
+            request.build().clone().with_instrumentation(mode),
+        );
+        assert_eq!(
+            decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&encode(&request).unwrap())
+                .unwrap()
+                .validate()
+                .unwrap(),
+            request,
+        );
+    }
+
+    for mode in [
+        IrTemplateExport::Off,
+        IrTemplateExport::Default,
+        IrTemplateExport::Full,
+    ] {
+        let exporting = ScoopcRequestEnvelopeV1::new(
+            request.request_id(),
+            request.build().clone().with_export_ir(mode),
+        );
+        let decoded =
+            decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&encode(&exporting).unwrap())
+                .unwrap()
+                .validate()
+                .unwrap();
+        assert_eq!(decoded.build().export_ir(), mode);
+        assert_eq!(decoded.build().target(), request.build().target());
+        assert_eq!(decoded, exporting);
+    }
 
     let native = request
         .build()
@@ -111,16 +164,11 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
             .unwrap(),
         test
     );
-    let mut unknown_purpose = bytes;
-    let purpose = unknown_purpose.len() - 7;
-    assert_eq!(unknown_purpose[purpose], 2);
-    unknown_purpose[purpose] = 3;
-    assert!(decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&unknown_purpose).is_err());
+    assert!(decode_canonical::<crate::CompilationPurpose>(&[3]).is_err());
     let mut missing = encode(request.build()).unwrap();
-    let purpose = missing.len() - 6;
-    assert_eq!(&missing[purpose..], &[11, 1, 12, 0x80, 13, 0]);
-    missing.drain(purpose..purpose + 2);
-    missing[0] = 0xac;
+    assert_eq!(&missing[missing.len() - 2..], &[16, 0x80]);
+    missing.truncate(missing.len() - 2);
+    missing[0] = 0xaf;
     assert!(decode_canonical::<super::decode::DecodedScoopcBuildRequestV1>(&missing).is_err());
 }
 

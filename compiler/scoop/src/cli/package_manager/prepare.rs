@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use clap::Args;
 use scoop::{BuildContext, BuildResult, BuildRootInput, ResolvedBuildGraph};
 use scoop_process::CommandExt;
 use scoop_protocol::package::{PACKAGE_PROTOCOL_VERSION, PrepareRequestV1, PreparedWorkspaceV1};
@@ -9,31 +8,7 @@ use scoop_protocol::{CompilationPurpose, HostPathCarrier};
 
 use crate::cli::commands::{absolute, config};
 
-#[derive(Args, Clone, Default)]
-pub(in crate::cli) struct PackageOptions {
-    #[command(flatten)]
-    members: super::MemberOptions,
-    #[arg(long)]
-    lockfile: Option<PathBuf>,
-    /// Require an existing dependency selection without changing Cone.lock.
-    #[arg(long)]
-    locked: bool,
-    /// Do not access the network.
-    #[arg(long)]
-    offline: bool,
-    /// Require both --locked and --offline.
-    #[arg(long)]
-    frozen: bool,
-    /// Shared Git and registry source cache; defaults to ~/.scoop/packages.
-    #[arg(long)]
-    package_cache: Option<PathBuf>,
-}
-
-impl PackageOptions {
-    pub fn selects_members(&self) -> bool {
-        self.members.explicit()
-    }
-}
+pub(in crate::cli) use scoop::options::PackageOptions;
 
 pub(in crate::cli) struct PrepareInput<'a> {
     pub cwd: &'a Path,
@@ -43,6 +18,7 @@ pub(in crate::cli) struct PrepareInput<'a> {
     pub purpose: CompilationPurpose,
     pub target: &'a str,
     pub sysroot: &'a Path,
+    pub system_library_root: Option<&'a Path>,
     pub search: &'a [PathBuf],
 }
 
@@ -107,6 +83,7 @@ pub(in crate::cli) fn prepare(input: PrepareInput<'_>) -> BuildResult<Inputs> {
         purpose: input.purpose,
         target: input.target.into(),
         sysroot: path(input.sysroot)?,
+        system_library_root: input.system_library_root.map(path).transpose()?,
         artifact_roots: input
             .search
             .iter()

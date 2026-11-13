@@ -1029,6 +1029,7 @@ dependencies = [
  "scoop-manifest",
  "scoop-parser",
  "scoop-process",
+ "scoop-profile",
  "scoop-protocol",
  "scoop-slib",
  "scoop-source",
@@ -1104,10 +1105,12 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-process",
+ "scoop-profile",
  "scoop-slib",
  "scoop-source",
  "scoop-target-data",
  "scoop-toolchain",
+ "scoop-wire",
  "tempfile",
 ]
 
@@ -1218,6 +1221,7 @@ version = "0.0.0"
 dependencies = [
  "la-arena",
  "scoop-identity",
+ "scoop-profile",
  "scoop-source",
  "scoop-wire",
 ]
@@ -1232,6 +1236,7 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-mir",
+ "scoop-profile",
  "scoop-target-data",
  "scoop-wire",
 ]
@@ -1283,6 +1288,7 @@ dependencies = [
  "la-arena",
  "scoop-hir",
  "scoop-identity",
+ "scoop-profile",
  "scoop-source",
  "scoop-wire",
 ]
@@ -1296,6 +1302,7 @@ dependencies = [
  "scoop-hir-lower",
  "scoop-identity",
  "scoop-mir",
+ "scoop-profile",
  "scoop-wire",
 ]
 
@@ -1308,6 +1315,22 @@ dependencies = [
  "scoop-source",
  "scoop-syntax",
  "unicode-ident",
+]
+
+[[package]]
+name = "scoop-pgo"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "fs4",
+ "scoop",
+ "scoop-process",
+ "scoop-profile",
+ "scoop-protocol",
+ "scoop-toolchain",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -1351,13 +1374,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop-profile"
+version = "0.0.0"
+dependencies = [
+ "scoop-identity",
+ "scoop-wire",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "scoop-protocol"
 version = "0.0.0"
 dependencies = [
  "base64",
+ "scoop-hir",
  "scoop-identity",
  "scoop-lir",
  "scoop-manifest",
+ "scoop-profile",
  "scoop-slib",
  "scoop-target-data",
  "scoop-wire",
@@ -1375,6 +1410,7 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-mir",
+ "scoop-profile",
  "scoop-target-data",
  "scoop-wire",
  "tempfile",
@@ -1465,6 +1501,7 @@ dependencies = [
  "scoop-mir-lower",
  "scoop-parser",
  "scoop-process",
+ "scoop-profile",
  "scoop-protocol",
  "scoop-slib",
  "scoop-source",

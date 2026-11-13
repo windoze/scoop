@@ -31,6 +31,12 @@ fn classify(name: &[u8], kind: u32, flags: u64) -> Role {
     if flags & u64::from(SHF_ALLOC) == 0 {
         return Role::ObjectMetadata;
     }
+    if matches!(
+        name,
+        b"__llvm_prf_cnts" | b"__llvm_prf_data" | b"__llvm_prf_names"
+    ) {
+        return Role::ProfilingSupport;
+    }
     match name {
         b".llvm_stackmaps" => return Role::LlvmStackmaps,
         b".eh_frame" => return Role::EhFrame,

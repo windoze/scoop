@@ -1,3 +1,4 @@
+#include "../profiling/gc.h"
 #include "internal.h"
 
 void scoop_thread_acknowledge_parked_locked(ScoopThreadState *state) {
@@ -207,6 +208,7 @@ bool scoop_thread_begin_collection(void) {
      * second mutex in the opposite order at collection end. */
     uint64_t epoch = atomic_fetch_add_explicit(&scoop_thread_gc_epoch, 1, memory_order_acq_rel) + 1;
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_STOPPING, memory_order_seq_cst);
+    scoop_profile_gc_stopping(epoch);
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_STOPPING);
     state->parked_from = requester_mode;
     atomic_store_explicit(&state->poll.observed_gc_epoch, epoch, memory_order_release);
@@ -223,6 +225,7 @@ bool scoop_thread_begin_collection(void) {
     atomic_store_explicit(&scoop_thread_last_gc_native_safe_count, native_safe_count,
                           memory_order_release);
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_COLLECTING, memory_order_release);
+    scoop_profile_gc_stopped();
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_STOPPED);
     scoop_thread_registry_unlock();
     return true;
@@ -244,6 +247,7 @@ void scoop_thread_end_collection(void) {
     atomic_store_explicit(&state->poll.mode, requester_mode, memory_order_release);
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_RESUMING);
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_RUNNING, memory_order_release);
+    scoop_profile_gc_resumed();
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_RUNNING);
     scoop_thread_world_broadcast();
     scoop_thread_registry_unlock();

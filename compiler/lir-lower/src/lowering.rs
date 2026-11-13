@@ -397,6 +397,13 @@ pub(super) fn lower_graph(
             },
         },
         meta: lir::LirMeta {
+            profile_bodies: if module.meta.profiling.instrumentation
+                == scoop_profile::Instrumentation::Generate
+            {
+                module.meta.profiling.plans.clone()
+            } else {
+                Vec::new()
+            },
             debug_types,
             debug_globals,
             exact_types: materialized_exact_types(input, &external_exact_types),

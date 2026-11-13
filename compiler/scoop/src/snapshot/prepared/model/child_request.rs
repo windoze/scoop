@@ -243,6 +243,15 @@ impl PreparedBuildGraph {
         .map_err(ChildRequestPlanError::Protocol)?
         .with_optimization(self.context.optimization)
         .with_debug_info(self.context.debug_info)
+        .with_export_ir(self.context.export_ir)
+        .with_instrumentation(self.context.instrumentation)
+        .with_profile_use(
+            self.context
+                .profile_use
+                .as_deref()
+                .map(path_carrier)
+                .transpose()?,
+        )
         .with_native_inputs(native_inputs)
         .with_purpose(self.compilation_purpose(identity))
         .map_err(ChildRequestPlanError::Protocol)?

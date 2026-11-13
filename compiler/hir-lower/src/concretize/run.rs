@@ -111,6 +111,7 @@ impl Concretizer<'_> {
                 source_contexts: &self.source.source_context_identities,
                 callable_applications: &identities.callable_applications,
                 functions: &functions,
+                imported_inline_bodies: &imported_inline_bodies,
                 lambdas: &self.lambdas,
                 anonymous_functions: &self.anonymous_functions,
                 lexical_local_values: &identities.lexical_local_values,

@@ -163,10 +163,10 @@ impl DynamicInputs {
             let provider = &self.providers[&id];
             for (index, edge) in provider.dependencies.iter().enumerate() {
                 let child = self.edges[&(id, index)];
-                if edge.name.starts_with("@rpath/") {
-                    if let Some(path) = locate::runpath(&self.providers[&child], roots, profile)? {
-                        self.rpaths.insert(path);
-                    }
+                if edge.name.starts_with("@rpath/")
+                    && let Some(path) = locate::runpath(&self.providers[&child], roots, profile)?
+                {
+                    self.rpaths.insert(path);
                 }
                 pending.insert(child);
             }

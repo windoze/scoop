@@ -110,20 +110,18 @@ pub(super) fn check(
             exported += 1;
             continue;
         }
-        if let Some(local) = local {
-            if let ExactTypeKey::Nominal(nominal) = local.identity_record().key() {
-                if public
-                    .nominal_interfaces()
-                    .declaration(hir::SourceNominalId::Concrete(*nominal))
-                    .is_none()
-                    && !matches!(local.ty(), mir::Type::Unit | mir::Type::Any)
-                {
-                    assert!(input.bridge.types().get(exact).is_none());
-                    assert!(result.descriptors().get(exact).is_none());
-                    local_only.push(mir::type_name(input.mir.module(), local.ty()));
-                    continue;
-                }
-            }
+        if let Some(local) = local
+            && let ExactTypeKey::Nominal(nominal) = local.identity_record().key()
+            && public
+                .nominal_interfaces()
+                .declaration(hir::SourceNominalId::Concrete(*nominal))
+                .is_none()
+            && !matches!(local.ty(), mir::Type::Unit | mir::Type::Any)
+        {
+            assert!(input.bridge.types().get(exact).is_none());
+            assert!(result.descriptors().get(exact).is_none());
+            local_only.push(mir::type_name(input.mir.module(), local.ty()));
+            continue;
         }
         let source_only = local.filter(|local| {
             let ExactTypeKey::Nominal(nominal) = local.identity_record().key() else {

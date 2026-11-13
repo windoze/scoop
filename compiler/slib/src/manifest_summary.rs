@@ -22,6 +22,7 @@ pub struct ArtifactManifestSummaryV1 {
     semantic_fingerprints: SemanticFingerprintRecord,
     artifact_fingerprint: ArtifactFingerprint,
     test_directory: Option<crate::TestDirectory>,
+    instrumentation: scoop_profile::Instrumentation,
 }
 
 mod read;
@@ -47,6 +48,7 @@ impl ArtifactManifestSummaryV1 {
             semantic_fingerprints,
             artifact_fingerprint,
             test_directory,
+            instrumentation: scoop_profile::Instrumentation::Off,
         }
     }
 
@@ -62,7 +64,17 @@ impl ArtifactManifestSummaryV1 {
             manifest.semantic_fingerprints(),
             manifest.artifact_fingerprint(),
             crate::TestDirectory::from_manifest(manifest)?,
-        ))
+        )
+        .with_instrumentation(manifest.instrumentation()))
+    }
+
+    pub fn with_instrumentation(mut self, mode: scoop_profile::Instrumentation) -> Self {
+        self.instrumentation = mode;
+        self
+    }
+
+    pub const fn instrumentation(&self) -> scoop_profile::Instrumentation {
+        self.instrumentation
     }
 
     pub fn test_directory(&self) -> Option<&crate::TestDirectory> {

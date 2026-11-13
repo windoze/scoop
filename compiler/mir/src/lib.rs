@@ -32,6 +32,9 @@ pub use integer::*;
 
 pub mod optimization_report;
 
+mod profiling;
+pub use profiling::*;
+
 mod data_borrow;
 pub use data_borrow::*;
 

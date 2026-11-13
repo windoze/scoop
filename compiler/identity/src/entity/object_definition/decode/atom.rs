@@ -41,6 +41,9 @@ impl WireDecode for DefinitionAtomRole {
             9 => Ok(Self::ContextKeyTable),
             10 => Ok(Self::WindowsUnwindTable),
             11 => Ok(Self::WindowsUnwindInfo),
+            12 => Ok(Self::ProfileCounters),
+            13 => Ok(Self::ProfileData),
+            14 => Ok(Self::ProfileNames),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }

@@ -111,6 +111,7 @@ pub(super) fn execute(
                 purpose: scoop_protocol::CompilationPurpose::Production,
                 target: selection.target().contract().canonical_triple(),
                 sysroot: &sysroot,
+                system_library_root: None,
                 search: &search,
             },
         )?);
@@ -131,12 +132,16 @@ pub(super) fn execute(
             .collect::<Result<_, _>>()
             .map_err(config)?,
         cache_root: cache.clone(),
+        system_library_root: scoop_toolchain::target_library_root(&sysroot, selection.target()),
         sysroot: TrustedSysrootRoot::new(sysroot).map_err(config)?,
         target: GraphTarget::requested(target.clone()).map_err(config)?,
         compiler: compiler.clone(),
         diagnostics: reporter.diagnostics_policy(),
         optimization: Default::default(),
         debug_info: scoop_lir::DebugInfoLevel::None,
+        export_ir: scoop_protocol::IrTemplateExport::Default,
+        instrumentation: scoop_profile::Instrumentation::Off,
+        profile_use: None,
         purpose: scoop_protocol::CompilationPurpose::Production,
         jobs: args.jobs.unwrap_or_else(|| {
             std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN)

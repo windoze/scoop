@@ -25,7 +25,7 @@ struct ExpectedComponents {
 
 fn assert_components(target: LirTargetProfile, expected: ExpectedComponents) {
     let profile = ValidatedRuntimeBuildProfile::for_target(target).unwrap();
-    let sources = profile.runtime_sources();
+    let sources = profile.runtime_sources(false);
     let unique_sources: BTreeSet<_> = sources.iter().copied().collect();
     assert_eq!(unique_sources.len(), sources.len());
     for expected_source in [
@@ -204,7 +204,10 @@ fn libc_environment_does_not_change_runtime_component_selection() {
         ValidatedRuntimeBuildProfile::for_target(scoop_target_data::LINUX_X86_64_GNU).unwrap();
     let linux_musl =
         ValidatedRuntimeBuildProfile::for_target(scoop_target_data::LINUX_X86_64_MUSL).unwrap();
-    assert_eq!(linux_gnu.runtime_sources(), linux_musl.runtime_sources());
+    assert_eq!(
+        linux_gnu.runtime_sources(false),
+        linux_musl.runtime_sources(false)
+    );
     assert_eq!(linux_gnu.runtime_c_flags(), linux_musl.runtime_c_flags());
 
     let windows_targets = [
@@ -215,7 +218,10 @@ fn libc_environment_does_not_change_runtime_component_selection() {
     let baseline = ValidatedRuntimeBuildProfile::for_target(windows_targets[0]).unwrap();
     for target in windows_targets.into_iter().skip(1) {
         let candidate = ValidatedRuntimeBuildProfile::for_target(target).unwrap();
-        assert_eq!(baseline.runtime_sources(), candidate.runtime_sources());
+        assert_eq!(
+            baseline.runtime_sources(false),
+            candidate.runtime_sources(false)
+        );
         assert_eq!(baseline.runtime_c_flags(), candidate.runtime_c_flags());
     }
 }

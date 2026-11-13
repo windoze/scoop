@@ -174,11 +174,24 @@ impl Catalog<'_> {
             }
         }
         if result.is_empty() && requirement.key.group() == "scoop" {
-            let path = scoop_toolchain::target_library_root(
-                &self.options.sysroot,
-                self.options.target.target(),
-            )
-            .join(format!("{}.slib", requirement.key.name()));
+            let library_root = self.options.system_library_root.clone().unwrap_or_else(|| {
+                scoop_toolchain::target_library_root(
+                    &self.options.sysroot,
+                    self.options.target.target(),
+                )
+            });
+            let path = library_root.join(format!("{}.slib", requirement.key.name()));
+            if (library_root.ends_with("profiling/instrumented")
+                || library_root.ends_with("profiling/release"))
+                && matches!(path.try_exists(), Ok(false))
+            {
+                let target = self.options.target.target().contract().canonical_triple();
+                return Err(PmError::new(format!(
+                    "profiling system library {} is missing at {}; install lib-profiling-{target} with `scoop-install component add profiling --target {target}`",
+                    requirement.key,
+                    path.display()
+                )));
+            }
             result.push(self.artifact(
                 &path,
                 LockedSource::Sysroot {

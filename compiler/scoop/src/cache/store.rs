@@ -92,6 +92,14 @@ impl CompileCacheStoreV1 {
         })? {
             return Ok(CompileCacheLookupV1::Miss);
         }
+        if record.summary.instrumentation() == scoop_profile::Instrumentation::Generate {
+            let map = scoop_toolchain::profile_map_path(&artifact);
+            if !map.try_exists().map_err(|source| {
+                CompileCacheStoreError::io(CacheIoOperation::Inspect, &map, source)
+            })? {
+                return Ok(CompileCacheLookupV1::Miss);
+            }
+        }
         Ok(CompileCacheLookupV1::Hit(Box::new(CompileCacheEntryV1 {
             artifact,
             record,
@@ -124,6 +132,12 @@ impl CompileCacheStoreV1 {
         std::fs::rename(output, &artifact).map_err(|source| {
             CompileCacheStoreError::io(CacheIoOperation::Publish, &artifact, source)
         })?;
+        if record.summary.instrumentation() == scoop_profile::Instrumentation::Generate {
+            let map = scoop_toolchain::profile_map_path(&artifact);
+            std::fs::rename(scoop_toolchain::profile_map_path(output), &map).map_err(|source| {
+                CompileCacheStoreError::io(CacheIoOperation::Publish, &map, source)
+            })?;
+        }
         let path = entry.join(RECORD_FILE);
         temporary.persist(&path).map_err(|error| {
             CompileCacheStoreError::io(CacheIoOperation::Publish, path, error.error)

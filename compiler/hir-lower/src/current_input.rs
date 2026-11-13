@@ -24,6 +24,7 @@ pub struct CurrentConeSources<'input, 'world> {
     world: &'world hir::ImportedSemanticWorld<'input>,
     source_names: BTreeMap<ConeIdentity, String>,
     test_dependencies: BTreeSet<ConeIdentity>,
+    ir_template_export: hir::IrTemplateExport,
     documentation: Option<Vec<ast::SourceDocumentation>>,
     compile_time_inputs: Option<std::sync::Arc<dyn hir::CompileTimeInputHost>>,
 }
@@ -42,9 +43,20 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
             world,
             source_names: BTreeMap::new(),
             test_dependencies: BTreeSet::new(),
+            ir_template_export: hir::IrTemplateExport::Default,
             documentation: None,
             compile_time_inputs: None,
         })
+    }
+
+    /// Select additional optimization templates without changing source semantics.
+    pub fn with_ir_template_export(mut self, mode: hir::IrTemplateExport) -> Self {
+        self.ir_template_export = mode;
+        self
+    }
+
+    pub(crate) const fn ir_template_export(&self) -> hir::IrTemplateExport {
+        self.ir_template_export
     }
 
     /// Cone coordinate labels used to display canonical semantic source paths.

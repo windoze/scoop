@@ -392,7 +392,7 @@ pub(crate) fn tagged_ty<'ctx>(
     align: u64,
     scan: &RefScan,
 ) -> Result<inkwell::types::StructType<'ctx>, CodegenError> {
-    if size < 8 || align < 8 || !align.is_power_of_two() || size % align != 0 {
+    if size < 8 || align < 8 || !align.is_power_of_two() || !size.is_multiple_of(align) {
         return Err(CodegenError(format!(
             "invalid tagged enum size/alignment {size}/{align}"
         )));

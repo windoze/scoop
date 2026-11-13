@@ -32,8 +32,10 @@ pub(super) fn load(
         target.c_bridge_toolchain().profile(),
     )
     .map_err(error)?;
-    if !objects.archive_path().try_exists().map_err(error)? {
-        return Ok(None);
+    for output in objects.input_paths() {
+        if !output.try_exists().map_err(error)? {
+            return Ok(None);
+        }
     }
     Ok(Some(RuntimeBuildOutput {
         objects,

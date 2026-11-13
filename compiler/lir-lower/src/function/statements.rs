@@ -32,6 +32,15 @@ impl<'a> FunctionLowerer<'a> {
         interface_check: Option<lir::LocalId>,
     ) -> StorageResult<()> {
         match &statement.kind {
+            mir::StatementKind::ProfileCounter(marker) => {
+                if self.module.meta.profiling.instrumentation
+                    == scoop_profile::Instrumentation::Generate
+                {
+                    self.push(lir::Instruction::ProfileCounter(
+                        marker.resolve(&self.module.meta.profiling),
+                    ));
+                }
+            }
             mir::StatementKind::Expr(expr) => {
                 self.lower_expr(expr)?;
             }

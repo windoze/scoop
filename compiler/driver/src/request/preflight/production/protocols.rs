@@ -9,6 +9,13 @@ impl ValidatedCompilerProtocols {
     }
 }
 
+pub(super) struct MachineProduct {
+    pub artifact: scoop_slib::AssembledCrossConeLayoutArtifactV1,
+    pub profile_map: Option<scoop_profile::ProfileMap>,
+    pub profile_use: Option<scoop_profile::UseSummary>,
+    pub compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
+}
+
 pub(super) fn lower_machine(
     hir: current_hir::CurrentConeHirArtifacts,
     request: &ValidatedSingleConeBuildRequest<'_>,
@@ -16,10 +23,7 @@ pub(super) fn lower_machine(
     temporary_parent: &Path,
     dump: &mut Vec<EmittedStageDump>,
     stop_after: Option<StageDumpKind>,
-) -> Result<
-    ControlFlow<(), scoop_slib::AssembledCrossConeLayoutArtifactV1>,
-    CurrentConeProductionFailure,
-> {
+) -> Result<ControlFlow<(), MachineProduct>, CurrentConeProductionFailure> {
     let dependencies = request
         .dependencies()
         .read_machine_dependencies(hir.machine_dependency_providers())

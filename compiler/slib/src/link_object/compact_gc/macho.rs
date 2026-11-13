@@ -110,7 +110,7 @@ pub(super) fn replace(input: &[u8], map: &[u8]) -> Result<Vec<u8>, CompactGcMapE
     }
     let count = u32_at(input, symtab + 12)? as usize;
     let mut symbols = span(input, u32_at(input, symtab + 8)? as u64, count as u64 * 16)?.to_vec();
-    for symbol in symbols.chunks_exact_mut(16) {
+    for symbol in symbols.as_chunks_mut::<16>().0.iter_mut() {
         if symbol[4] & macho::N_TYPE == macho::N_SECT && symbol[5] as usize == gc + 1 {
             let value = boundary_value(u64_at(symbol, 8)?, gc_start, gc_size, map.len())?;
             put(symbol, 8, value.to_le_bytes())?;

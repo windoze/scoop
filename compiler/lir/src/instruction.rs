@@ -60,6 +60,8 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    /// Native atomic counter update; no managed allocation or safepoint.
+    ProfileCounter(scoop_profile::Counter),
     /// Read the active task context from the current thread's native root slot.
     TaskContextLoad {
         out: TempId,

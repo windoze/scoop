@@ -18,6 +18,7 @@ LLVM_TOOLS = (
     "llvm-symbolizer",
     "llvm-nm",
     "llvm-readobj",
+    "llvm-profdata",
 )
 
 

@@ -24,6 +24,7 @@ pub struct ResolveRequest {
     pub purpose: Purpose,
     pub target: String,
     pub sysroot: PathBuf,
+    pub system_library_root: Option<PathBuf>,
     pub artifact_roots: Vec<PathBuf>,
     pub package_cache: Option<PathBuf>,
     pub lockfile: Option<PathBuf>,
@@ -123,6 +124,9 @@ pub(crate) fn resolve_with_overlays(
         lock_directory: lockfile.parent().expect("lock path has parent").to_owned(),
         target,
         sysroot: request.cwd.join(&request.sysroot),
+        system_library_root: request
+            .system_library_root
+            .map(|root| request.cwd.join(root)),
         artifact_roots: request
             .artifact_roots
             .iter()

@@ -6,6 +6,9 @@ impl PrepareRequestV1 {
     pub fn validate(&self) -> Result<(), String> {
         version(self.version)?;
         absolute(&self.cwd)?;
+        if let Some(root) = &self.system_library_root {
+            absolute(root)?;
+        }
         crate::TargetSelectionRequestV1::new(self.target.clone())
             .map_err(|error| error.to_string())?;
         if matches!(&self.members, PackageMemberSelectionV1::Packages { keys } if keys.is_empty()) {

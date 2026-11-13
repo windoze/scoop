@@ -47,6 +47,7 @@ impl CurrentConeHirArtifacts {
             world,
             source_names,
             false,
+            scoop_hir::IrTemplateExport::Default,
             &scoop_toolchain::GeneratorPrograms::default(),
             std::sync::Arc::new(scoop_toolchain::CompileTimeInputs::default()),
         )?;

@@ -327,6 +327,21 @@ pub(super) fn callable_body_associated_atoms(
             crate::CallableConstantKind::ReadOnly.subkey(),
         ));
     }
+    if function.blocks.iter().any(|(_, block)| {
+        block
+            .instructions
+            .iter()
+            .any(|instruction| matches!(instruction, crate::Instruction::ProfileCounter(_)))
+    }) {
+        associated.extend(
+            [
+                DefinitionAtomRole::ProfileCounters,
+                DefinitionAtomRole::ProfileData,
+                DefinitionAtomRole::ProfileNames,
+            ]
+            .map(|role| (role, subkey())),
+        );
+    }
     let context_keys = crate::function_context_keys(function);
     if !context_keys.is_empty() {
         associated.push((

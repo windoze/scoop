@@ -24,8 +24,10 @@ pub(super) fn strip(bytes: &[u8]) -> Result<Vec<u8>> {
             .checked_mul(64)
             .ok_or_else(|| error("section count overflow"))?,
     )?
-    .chunks_exact(64)
-    .map(<[u8]>::to_vec)
+    .as_chunks::<64>()
+    .0
+    .iter()
+    .map(|header| header.to_vec())
     .collect::<Vec<_>>();
     let mut sections = headers
         .iter()
@@ -63,7 +65,7 @@ pub(super) fn strip(bytes: &[u8]) -> Result<Vec<u8>> {
     let mut strings = vec![0];
     let local_count = u32_at(&headers[symtab], 44)? as usize;
     let mut new_local_count = 0;
-    for (index, symbol) in sections[symtab].chunks_exact(24).enumerate() {
+    for (index, symbol) in sections[symtab].as_chunks::<24>().0.iter().enumerate() {
         let symbol_name = name(old_strings, u32_at(symbol, 0)?)?;
         if is_end(symbol_name) {
             indices.push(None);
@@ -126,7 +128,9 @@ pub(super) fn strip(bytes: &[u8]) -> Result<Vec<u8>> {
                     return Err(error("invalid ELF extended symbol indices"));
                 }
                 *data = data
-                    .chunks_exact(4)
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
                     .zip(&indices)
                     .filter(|(_, index)| index.is_some())
                     .flat_map(|(entry, _)| entry.iter().copied())

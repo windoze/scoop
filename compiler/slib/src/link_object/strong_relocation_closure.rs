@@ -322,18 +322,16 @@ fn index_strong_definitions(
             }
             if let PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { definition, .. } =
                 symbol.role()
-            {
-                if primaries
+                && primaries
                     .insert((member.member(), definition), indexed)
                     .is_some()
-                {
-                    return Err(
-                        StrongRelocationClosureValidationError::DuplicateDefinitionPrimary {
-                            member: member.member(),
-                            definition,
-                        },
-                    );
-                }
+            {
+                return Err(
+                    StrongRelocationClosureValidationError::DuplicateDefinitionPrimary {
+                        member: member.member(),
+                        definition,
+                    },
+                );
             }
         }
     }

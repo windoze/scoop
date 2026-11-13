@@ -112,7 +112,19 @@ PCRE2 的三个 Windows target 在 Windows 构建，使用原生 Ninja；Microso
 
 发行组件布局和 Windows native 资源拆分见[分发设计](../docs/distribution/DESIGN.md)。宿主 bin 已合并 LLVM／LLDB 运行资源，开发 SDK 仅留在维护 prefix；目标库只分发链接产物，两个 MinGW SDK 的目标数据由 native 包提供。
 
-开发与发行 sysroot 均准备 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats` 四组目标 runtime，每组包含 `index.cbor`。默认构建使用 `runtime`，不编入 GC stress 或启动统计支持；`scoop --enable-gc-stress build/run/test/link` 选择 stress 配置，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。`--enable-startup-stats` 独立选择启动统计配置，编入后每次启动直接向 stderr 输出记录；未传时预处理完全排除计时和报告代码。两个开关可以组合，独立 `scoop-link` 同样支持。普通 fixtures 不传这些开关，相关专测显式选择。旧 schema 6 runtime 索引需要重新准备，`.slib` 和 runtime ABI 不变。
+开发与发行 sysroot 均准备 `runtime`、`runtime-stress`、`runtime-startup-stats`、`runtime-stress-startup-stats` 四组目标 runtime，每组包含 `index.cbor`。默认构建使用 `runtime`，不编入 GC stress 或启动统计支持；`scoop --enable-gc-stress build/run/test/link` 选择 stress 配置，随后由 `SCOOP_GC_STRESS_MOVE` / `SCOOP_GC_STRESS_MINOR` 决定运行时是否开启。`--enable-startup-stats` 独立选择启动统计配置，编入后每次启动直接向 stderr 输出记录。两个开关可以组合，独立 `scoop-link` 同样支持。普通 fixtures 不传这些开关，相关专测显式选择。当前 runtime index schema 为 9，旧索引需要重新准备；`.slib` 的采集配置也需使用配套编译器重建。
+
+可选 profiling 系统库通过同一准备入口生产，显式传入目标对应的 LLVM 22.1 compiler-rt profile archive：
+
+```sh
+python3 scripts/prepare_sysroot.py \
+  --target aarch64-apple-darwin --scoop target/debug/scoop \
+  --profiling --profile-runtime /path/to/llvm/lib/clang/22/lib/darwin/libclang_rt.profile_osx.a
+```
+
+该模式在 `lib/<target>/profiling/instrumented/` 生成 Profiling/full 库，在 `profiling/release/` 生成 Release/full 库；覆盖目标支持的全部系统 Cone，包括 GUI。另在 `profiling/` 下准备四种 runtime 配置及其 `profile.a`。`--runtime-only` 可只准备所选普通或 profiling runtime。native、base、GUI 的第三方资源沿原准备步骤复用，脚本不下载工具或自动生产缺失的 native 依赖。
+
+`scoop build --profile profiling` 自动选择训练系统库和 profiling runtime，启动统计写入独立采集文件；显式 `--enable-startup-stats` 时仍向 stderr 输出原统计。维护生产可以用 `--system-library-root` 显式选择库目录。普通 release 链接拒绝含 Generate 机器码的 `.slib`，完整模板与是否采集是独立配置。`build_profile_runtime.py --target ... --source <LLVM 源码> --output <profile.a> --cc <目标 Clang>` 只构建目标 profile archive；musl 另需 `--musl-include`，Microsoft 目标沿 /MD 合同生产。完整打包自动调用该入口及 profiling 准备，再生成 `lib-profiling-<target>` 归档和 manifest 引用；复用 `--prepared-sysroot` 时须已有两套完整库、映射和 runtime。宿主提供 `scoop-llvm-profdata`，目标组件携带 compiler-rt 许可。安装与 PGO 命令的实施范围见 [profiling 记录](../docs/profiling/PROGRESS.md)。
 
 `package_toolchain.py` 是发行组件包的唯一入口：取得固定 LLVM 输入、按 lockfile 构建 VS Code 扩展、构建 LLVM、五个 release 宿主命令与独立的 scoop-example、scoop-bundle、scoop-api，准备该宿主支持的全部 native／runtime 资源，并用本次编译器为各发行目标构建系统库 `.slib`，随包复制内置 Cone 源码、vendor、Scoop 编程 skill 和 post-install 脚本，最后按宿主／目标／全局维度生成下述组件归档。打包不生成 API 文档；文档由安装后的配套工具现场生成。无需事先逐个执行其他准备或扩展打包脚本。默认工作位置为 `tmp/package/<host>`，全部归档集中于以版本命名的 `tmp/dist/scoop-<version>/`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
@@ -210,6 +222,8 @@ post-install 使用配套 `scoop`／`scoopc`，显式选择上述目标清单，
 ## 独立示例命令
 
 `python3 scripts/build_scoop_api.py` 构建无 LLVM 执行依赖的 `scoop-api` 并安装到开发 sysroot 的 `commands/`；使用 workspace lockfile，可指定 `--sysroot` 与 `--target-dir`。完整发行流程也包含该命令。API 数据由原有 `scoop doc`／post-install 随同页面生成，查询不触发生成。用法和格式见 [API 查询](../docs/scoop-doc/API.md)。
+
+`python3 scripts/build_scoop_pgo.py` 构建并安装独立 `scoop-pgo`，同样使用 workspace lockfile，接受 `--sysroot` 与 `--target-dir`。正式入口为 `scoop pgo instrument/optimize`，默认自动选择 profiling 组件中的训练或反馈库；训练数据与普通构建缓存分开。开发时可用 `--llvm-profdata` 指向配套 LLVM 22.1，完整发行流程会安装该工具。使用方式见 [PGO 命令](../tooling/scoop-pgo/README.md)。
 
 `python3 scripts/build_scoop_example.py` 仅构建 `tooling/scoop-example` 并将命令安装到开发 sysroot，不调用编译器。它使用独立 Cargo lockfile；新增示例与正文位于 `sysroot/share/scoop/examples`，已有库示例保持原文件。可用 `--sysroot` 安装到另一份配套工具链，用 `--target-dir` 指定构建缓存。完整打包入口自动完成这一步，并复制所有主题材料。内容维护和独立测试见[阅读器说明](../tooling/scoop-example/README.md)。
 

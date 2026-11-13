@@ -1,5 +1,9 @@
 # 安装包布局与编辑器扩展
 
+新增 `scoop pgo instrument/optimize`：训练使用 profiling/full，反馈构建复用实际项目与参数，生成无探针的 release binary。支持追加及外部训练、独立数据目录和优化决策报告；需要所选目标的 profiling 组件。
+
+新增按目标独立安装的 `lib-profiling-<target>` 组件，包含全部系统 Cone 的 Profiling/full 和 Release/full 两套 `.slib`、训练位置映射以及采集 runtime。通过 `scoop-install component add profiling --target <target>` 追加，普通构建继续选择原系统库；使用 GUI 时仍安装同目标 gui 组件以提供 native 资源。宿主包提供 `scoop-llvm-profdata`，训练 raw 数据由配套 LLVM 工具合并。PGO 命令与反馈优化的可用范围见所用版本的命令帮助及实施记录。
+
 宿主工具统一由 `scoop-<version>-bin-<host>.tar.xz` 提供，包括 Scoop 命令、外部命令、所需 LLVM／LLDB 工具、Python 与实际动态依赖。停止生成独立的 llvm 宿主包；LLVM SDK 开发头、静态库、CMake exports、llvm-config 和 llc 留在维护构建目录。Windows 在同一 bin 归档内以硬链接共享相同 DLL，保留加载所需的相邻文件名。base／GUI 包只保留 .slib、对象、链接库、runtime 索引和许可，移除第三方开发头。Windows 的两个 MinGW 目标分别新增 native 包，保存 CRT 配置、启动对象、导入库、C++ 库和 compiler-rt；公共工具和头文件随 bin 共享。全局 sources 只保留自有 Cone、胶水、头、资源与示例，上游源码及补丁改由按需的 vendor 组件交付；系统库预编译，post-install 只生成已安装目标的 API 文档。
 
 版本 tag 通过 GitHub Release workflow 构建 macOS AArch64、Windows x64、Linux GNU x64 的宿主组件包与各目标 lib 包。官网提供 `curl -fsSL https://scoop-lang.org/install.sh | sh`，完成组件包下载、解压、post-install 和 shell PATH 配置。

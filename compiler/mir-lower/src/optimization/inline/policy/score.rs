@@ -30,9 +30,9 @@ impl Growth {
     }
 
     pub(in crate::optimization::inline) fn region_remaining(&self, heat: InlineHeat) -> usize {
-        let factor = if heat.numerator >= 16 * heat.denominator {
+        let factor = if heat.numerator as u128 >= 16 * heat.denominator as u128 {
             4
-        } else if heat.numerator >= 4 * heat.denominator {
+        } else if heat.numerator as u128 >= 4 * heat.denominator as u128 {
             2
         } else {
             1
@@ -74,10 +74,11 @@ pub(in crate::optimization::inline) fn assess(
     let size_penalty = (net_growth + 3 * hot_growth).div_ceil(4);
     let penalty = size_penalty + 2 * complexity + net_growth * site.caller_size / 512;
     let weighted_benefit =
-        (benefit.call + benefit.abi + benefit.simplification + benefit.projection)
+        ((benefit.call + benefit.abi + benefit.simplification + benefit.projection) as u128
             * 4
-            * site.heat.numerator
-            / site.heat.denominator;
+            * site.heat.numerator as u128
+            / site.heat.denominator as u128)
+            .min(usize::MAX as u128) as usize;
     InlineCost {
         execution: cost.execution,
         size: cost.size,

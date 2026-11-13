@@ -51,10 +51,15 @@ pub(super) fn render(
     let events = report.events.iter().map(|event| {
         let site = &event.site;
         let mut value = match &event.decision {
-            OptimizationDecision::Inline { target, outcome, estimate } => json!({
+            OptimizationDecision::Inline { target, outcome, estimate, heat } => json!({
                 "pass": "inline", "outcome": decisions::inline(*outcome),
                 "target": target_info(module, target),
                 "estimate": estimate.as_deref().map(decisions::estimate),
+                "heat": decisions::heat(*heat),
+            }),
+            OptimizationDecision::StringFusion { heat, fused, parts, concatenations } => json!({
+                "pass": "string-fusion", "fused": fused, "parts": parts,
+                "concatenations": concatenations, "heat": decisions::heat(*heat),
             }),
             OptimizationDecision::Allocation { kind, ty, outcome } => json!({
                 "pass": "allocation-elision", "kind": decisions::allocation_kind(*kind),
@@ -75,6 +80,7 @@ pub(super) fn render(
         "schema": 2, "cone": module.cone.to_string(),
         "passes": {"inline": report.inlining, "allocation-elision": report.allocation_elision},
         "rounds": report.rounds, "converged": report.converged,
+        "profile_use": module.meta.profiling.use_summary(),
         "functions": functions, "external_callables": externals,
         "native_callables": native, "events": events,
     });

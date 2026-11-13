@@ -965,6 +965,7 @@ pub(super) fn string_metadata_for(target: scoop_lir::LirTargetProfile) -> LirMet
         itables: Vec::new(),
     });
     LirMeta {
+        profile_bodies: Vec::new(),
         debug_types: Default::default(),
         debug_globals: Default::default(),
         exact_types: Vec::new(),

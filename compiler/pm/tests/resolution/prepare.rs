@@ -42,6 +42,7 @@ pub(super) fn request(root: &Path, input: &Path) -> PrepareRequestV1 {
         purpose: CompilationPurpose::Production,
         target: "aarch64-apple-darwin".into(),
         sysroot: host(&root.join("sysroot")),
+        system_library_root: None,
         artifact_roots: Vec::new(),
         package_cache: Some(host(&root.join("cache"))),
         lockfile: None,

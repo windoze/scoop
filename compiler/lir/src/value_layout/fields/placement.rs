@@ -18,7 +18,7 @@ impl FieldStorageV1 {
             return Err(StorageReplayError::TargetMismatch);
         }
         let alignment = value.storage().alignment();
-        if alignment > container.alignment() || offset % alignment.get() != 0 {
+        if alignment > container.alignment() || !offset.is_multiple_of(alignment.get()) {
             return Err(StorageReplayError::InvalidFieldPlacement);
         }
         match value.nonzero_ref() {

@@ -26,6 +26,7 @@ TOOLS = (
     "llvm-objcopy",
     "llvm-strip",
     "llvm-symbolizer",
+    "llvm-profdata",
     "dsymutil",
 )
 WINDOWS_TOOLS = ("llvm-rc", "llvm-windres", "llvm-cvtres")

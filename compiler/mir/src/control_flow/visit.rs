@@ -401,7 +401,7 @@ pub fn visit_statement_exprs(statement: &Statement, visitor: &mut impl FnMut(&Ex
             visit_expr(object, visitor);
             visit_expr(value, visitor);
         }
-        StatementKind::Eh(_) => {}
+        StatementKind::Eh(_) | StatementKind::ProfileCounter(_) => {}
     }
 }
 

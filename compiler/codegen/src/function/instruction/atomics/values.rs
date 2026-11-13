@@ -7,7 +7,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     ) -> Result<PointerValue<'ctx>, CodegenError> {
         if self.function.value_ty(self.globals_arena, location.object) != scoop_lir::MANAGED_PTR
             || location.offset < 16
-            || location.offset % u64::from(location.kind.bytes()) != 0
+            || !location
+                .offset
+                .is_multiple_of(u64::from(location.kind.bytes()))
         {
             return Err(CodegenError(
                 "atomic access requires an aligned managed object field".into(),

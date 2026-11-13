@@ -112,7 +112,12 @@ pub(super) fn strip(bytes: &[u8], big: bool) -> Result<Vec<u8>> {
         }
         if relocation_count != 0 {
             let mut relocations = slice(bytes, relocation_offset, relocation_count * 10)?.to_vec();
-            for relocation in relocations.chunks_exact_mut(10).skip(usize::from(overflow)) {
+            for relocation in relocations
+                .as_chunks_mut::<10>()
+                .0
+                .iter_mut()
+                .skip(usize::from(overflow))
+            {
                 remap_field(relocation, 4, &indices, false)?;
             }
             let offset = append_aligned(&mut output, &relocations, 4)?;
@@ -122,7 +127,7 @@ pub(super) fn strip(bytes: &[u8], big: bool) -> Result<Vec<u8>> {
         if line_count != 0 {
             let old_offset = u32_at(bytes, header + 28)? as usize;
             let mut lines = slice(bytes, old_offset, line_count * 6)?.to_vec();
-            for line in lines.chunks_exact_mut(6) {
+            for line in lines.as_chunks_mut::<6>().0.iter_mut() {
                 if u16_at(line, 4)? == 0 {
                     remap_field(line, 0, &indices, false)?;
                 }

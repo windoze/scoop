@@ -8,6 +8,7 @@ mod layout;
 mod layout_references;
 mod layout_selection;
 mod native;
+mod profiling;
 mod protocols;
 pub use errors::{CurrentConeProductionError, CurrentConeProductionFailure};
 pub use layout::LayoutProductionError;
@@ -100,7 +101,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             CurrentConeProductionError::after_hir(CurrentConeProductionFailure::Hir(e), warnings)
         })?;
         let used_generators = std::mem::take(&mut hir.used_generators);
-        let compiler_inputs = std::mem::take(&mut hir.compiler_inputs);
+        let mut compiler_inputs = std::mem::take(&mut hir.compiler_inputs);
         let mut source_warnings = packages::single_file_warnings(&self.sources);
         source_warnings.extend(hir.hir.output().warnings.clone());
         source_warnings.extend(hir.generator_warnings.clone());
@@ -188,6 +189,8 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 },
             ));
         }
+        let mut profile_map = None;
+        let mut profile_use = None;
         let artifact = (|| {
             let ControlFlow::Continue(artifact) = protocols::lower_machine(
                 hir,
@@ -200,7 +203,24 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             else {
                 return Ok(ControlFlow::Break(()));
             };
+            profile_use = artifact.profile_use;
+            compiler_inputs.extend(artifact.compiler_inputs);
+            profile_map = artifact
+                .profile_map
+                .map(|map| {
+                    profiling::publish_map(
+                        &map,
+                        self.request
+                            .output()
+                            .artifact()
+                            .expect("machine artifact output")
+                            .as_path(),
+                    )
+                })
+                .transpose()
+                .map_err(CurrentConeProductionFailure::Profiling)?;
             artifact
+                .artifact
                 .publish(
                     self.request
                         .output()
@@ -234,6 +254,8 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                     compiler_inputs,
                 );
                 success.documentation = documentation;
+                success.profile_map = profile_map;
+                success.profile_use = profile_use;
                 Ok(SingleConeCompilation::Published(Box::new(success)))
             }
             Err(cause) => Err(CurrentConeProductionError::after_hir(cause, warnings)),
@@ -307,6 +329,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 world,
                 source_names,
                 test_dependencies,
+                self.request.export_ir(),
                 self.request.generators(),
                 inputs,
             );
@@ -318,6 +341,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             world,
             source_names,
             self.request.output().documentation().is_some(),
+            self.request.export_ir(),
             self.request.generators(),
             inputs,
         )

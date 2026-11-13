@@ -110,6 +110,16 @@ fn transform_function(
             std::mem::replace(&mut function.body, mir::Body::unreachable(Arena::new())),
         )
     };
+    // Logical entry counts invocation of the source callable, before frame
+    // allocation. Resuming the generated driver must not increment it again.
+    let profile_entry = body.blocks[body.entry]
+        .statements
+        .iter()
+        .position(|statement| {
+            matches!(&statement.kind, mir::StatementKind::ProfileCounter(marker)
+            if marker.kind == scoop_profile::PositionKind::Entry && marker.inlined_at.is_empty())
+        })
+        .map(|index| body.blocks[body.entry].statements.remove(index));
     let completion = old_params
         .last()
         .expect("hidden coroutine ABI always has a completion parameter");
@@ -314,6 +324,10 @@ fn transform_function(
         driver,
         &step_ty,
     );
+    if let Some(entry) = profile_entry {
+        let body = &mut lowerer.functions[function_id].body;
+        body.blocks[body.entry].statements.insert(0, entry);
+    }
     lowerer.coroutines.functions[coroutine].lowering = mir::CoroutineLowering::StateMachine {
         frame,
         driver,

@@ -13,6 +13,9 @@ pub use structs::*;
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
 #[derive(Debug)]
 pub struct LirMeta {
+    /// Logical layouts retained by an instrumented compilation, including
+    /// positions that no longer have a physical increment.
+    pub profile_bodies: Vec<scoop_profile::BodyLayout>,
     /// Not serialized into LIR metadata; native objects carry their own DWARF.
     pub debug_types: DebugTypes,
     pub debug_globals: std::collections::BTreeMap<GlobalId, DebugGlobal>,

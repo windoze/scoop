@@ -221,20 +221,18 @@ impl MirTypeBridgeAuthority<'_> {
         self.validate_members(record)?;
         if let MirClassReleasePolicyV1::SynchronousGcFree { owner } =
             record.representation().release_policy()
-        {
-            if owner != record.exact()
+            && (owner != record.exact()
                 || !matches!(
                     record.representation(),
                     MirTypeRepresentationV1::Class {
                         kind: MirClassKindV1::Final,
                         ..
                     }
-                )
-            {
-                return Err(MirTypeBridgeError::ReleaseOwner {
-                    exact: record.exact(),
-                });
-            }
+                ))
+        {
+            return Err(MirTypeBridgeError::ReleaseOwner {
+                exact: record.exact(),
+            });
         }
         self.validate_facts(record)?;
         self.validate_bases(record)

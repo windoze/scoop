@@ -31,6 +31,7 @@ pub(super) fn check_archive_and_inputs(
         runtime.configuration().clone(),
         paths.iter().rev().cloned().collect(),
         &directory.path().join("reordered"),
+        None,
     )
     .unwrap();
     assert_eq!(runtime.fingerprint(), reordered.fingerprint());
@@ -58,6 +59,7 @@ pub(super) fn check_archive_and_inputs(
             runtime.configuration().clone(),
             missing_entry,
             &directory.path().join("missing-entry"),
+            None,
         )
         .unwrap_err()
         .to_string()
@@ -72,6 +74,7 @@ pub(super) fn check_archive_and_inputs(
             runtime.configuration().clone(),
             duplicate,
             &directory.path().join("duplicate"),
+            None,
         )
         .unwrap_err()
         .to_string()

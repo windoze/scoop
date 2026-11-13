@@ -16,9 +16,10 @@ import tomllib
 from pathlib import Path
 from urllib.parse import quote
 
-import build_scoop_bundle
 import build_scoop_api
+import build_scoop_bundle
 import build_scoop_example
+import build_scoop_pgo
 import package_debugger
 import package_licenses
 import package_llvm
@@ -191,6 +192,56 @@ def prepare_targets(args, targets, binaries, environment):
             ],
             environment,
         )
+        profile_archive = args.work_dir / "profile-runtime" / target / "profile.a"
+        profile_cc = (
+            package_windows.compiler(args, target)
+            if facts["os"] == "windows"
+            else args.unwind_cc
+            if facts["os"] == "linux"
+            else "clang"
+        )
+        profile_options = ["--cc", profile_cc]
+        if facts["env"] == "musl":
+            profile_options += ["--musl-include", args.musl_include]
+        run_script(
+            "build_profile_runtime.py",
+            [
+                "--target",
+                target,
+                "--source",
+                args.llvm_source,
+                "--build-dir",
+                profile_archive.parent,
+                "--output",
+                profile_archive,
+                "--jobs",
+                args.jobs,
+                *profile_options,
+            ],
+            environment,
+        )
+        run_script(
+            "prepare_sysroot.py",
+            [
+                "--target",
+                target,
+                "--scoop",
+                binaries[0],
+                "--sysroot",
+                sysroot,
+                "--work-dir",
+                args.work_dir / "sysroot-profiling" / target,
+                "--cache-dir",
+                args.work_dir / "cache",
+                "--jobs",
+                args.jobs,
+                "--profiling",
+                "--profile-runtime",
+                profile_archive,
+                *native,
+            ],
+            environment,
+        )
 
 
 def relocate_markdown_links(root, revision):
@@ -247,7 +298,7 @@ def stage_commands(root, args):
     suffix = ".exe" if host_definition(args.host)["system"] == "Windows" else ""
     return {
         (sysroot / "commands" / (name + suffix)).resolve(): root / "commands" / (name + suffix)
-        for name in ("scoop-example", "scoop-bundle", "scoop-api")
+        for name in ("scoop-example", "scoop-bundle", "scoop-api", "scoop-pgo")
     }
 
 
@@ -363,6 +414,32 @@ def assemble_base_libraries(root, target, args, cones):
         for name in libraries:
             shutil.copy2(source / component / "lib" / name, destination / component / "lib" / name)
     package_licenses.collect_base_libraries(root, sysroot, target)
+
+
+def assemble_profiling_libraries(root, target, args, cones):
+    """Stage both full-template library sets without duplicating native resources."""
+    sysroot = args.prepared_sysroot or ROOT / "sysroot"
+    source = sysroot / "lib" / target / "profiling"
+    destination = root / "lib" / target / "profiling"
+    for variant in ("instrumented", "release"):
+        (destination / variant).mkdir(parents=True)
+        for cone in cones:
+            names = [f"{cone}.slib"]
+            if variant == "instrumented":
+                names.append(f"{cone}.slib.profile.json")
+            for name in names:
+                shutil.copy2(source / variant / name, destination / variant / name)
+    archive = "runtime.lib" if TARGETS[target]["os"] == "windows" else "runtime.a"
+    for variant in (
+        "runtime",
+        "runtime-stress",
+        "runtime-startup-stats",
+        "runtime-stress-startup-stats",
+    ):
+        (destination / variant).mkdir()
+        for name in ("index.cbor", archive, "profile.a"):
+            shutil.copy2(source / variant / name, destination / variant / name)
+    package_licenses.collect_profiling(root, args.llvm_source, target)
 
 
 def assemble_gui_libraries(root, target, args, cones):
@@ -700,6 +777,8 @@ def main():
             "scoop-pm",
             "-p",
             "scoop-api",
+            "-p",
+            "scoop-pgo",
             "--bins",
             "-j",
             str(args.jobs),
@@ -717,6 +796,7 @@ def main():
     example = build_scoop_example.build(args.work_dir / "scoop-example", example_environment)
     build_scoop_example.install(example, sysroot)
     build_scoop_api.install(cargo_output / "release" / ("scoop-api" + suffix), sysroot)
+    build_scoop_pgo.install(cargo_output / "release" / ("scoop-pgo" + suffix), sysroot)
     bundle = build_scoop_bundle.build(args.work_dir / "scoop-bundle", example_environment)
     build_scoop_bundle.install(bundle, sysroot)
     targets = list(host_definition(args.host)["distribution_targets"])
@@ -790,6 +870,9 @@ def main():
                 gui_root = base / f"lib-gui-{target}"
                 assemble_gui_libraries(gui_root, target, args, gui_cones)
                 publish(f"lib-gui-{target}", gui_root)
+            profiling_root = base / f"lib-profiling-{target}"
+            assemble_profiling_libraries(profiling_root, target, args, orders[target])
+            publish(f"lib-profiling-{target}", profiling_root)
             if windows and package_windows.mingw_prefix(args, target) is not None:
                 native_root = base / f"native-{target}"
                 package_windows.stage_target_sdk(native_root, target, args)

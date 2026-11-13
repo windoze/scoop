@@ -160,6 +160,7 @@ pub(in crate::optimization::inline) fn statement_cost(
         mir::StatementKind::ValDecl { init, .. }
         | mir::StatementKind::Assign { value: init, .. } => assignment_cost(structs, &init.ty),
         mir::StatementKind::Eh(_) => 8,
+        mir::StatementKind::ProfileCounter(_) => 0,
         _ => 2,
     }
 }

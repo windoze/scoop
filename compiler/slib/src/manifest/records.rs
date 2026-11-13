@@ -10,7 +10,8 @@ use super::{
 use crate::{CompatibilityRecord, MemberPurposeSet, SlibMember, SlibMemberId, SlibMemberRecord};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const CURRENT_SCHEMA: u64 = 6;
+const MANIFEST_SCHEMA: u64 = 7;
+const CONTAINER_SCHEMA: u64 = 6;
 const ARTIFACT_FINGERPRINT_DOMAIN: &[u8] = b"scoop-artifact-v1";
 const MAX_PRODUCER_BYTES: usize = 255;
 
@@ -500,6 +501,7 @@ pub struct BootstrapManifest {
     members: Vec<SlibMemberRecord>,
     semantic_fingerprints: SemanticFingerprintRecord,
     sections: Vec<ManifestSection>,
+    instrumentation: scoop_profile::Instrumentation,
     artifact_fingerprint: ArtifactFingerprint,
 }
 
@@ -511,9 +513,11 @@ pub(super) struct CanonicalManifestRecords {
     pub(super) members: Vec<SlibMemberRecord>,
     pub(super) semantic_fingerprints: SemanticFingerprintRecord,
     pub(super) sections: Vec<ManifestSection>,
+    pub(super) instrumentation: scoop_profile::Instrumentation,
 }
 
 impl BootstrapManifest {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         producer: ProducerRecord,
         compatibility: CompatibilityRecord,
@@ -522,6 +526,7 @@ impl BootstrapManifest {
         members: &[SlibMember],
         semantic_fingerprints: SemanticFingerprintRecord,
         mut sections: Vec<ManifestSection>,
+        instrumentation: scoop_profile::Instrumentation,
     ) -> Result<Self, BootstrapManifestError> {
         direct_dependencies.sort_unstable_by_key(DependencyRecord::identity);
         let mut member_records = members
@@ -543,6 +548,7 @@ impl BootstrapManifest {
             members: member_records,
             semantic_fingerprints,
             sections,
+            instrumentation,
         })
     }
 
@@ -563,6 +569,7 @@ impl BootstrapManifest {
             members: &records.members,
             semantic_fingerprints: &records.semantic_fingerprints,
             sections: &records.sections,
+            instrumentation: records.instrumentation,
         };
         let artifact_fingerprint = calculate_artifact_fingerprint(&input, &records.members)?;
         Ok(Self::from_records(records, artifact_fingerprint))
@@ -580,6 +587,7 @@ impl BootstrapManifest {
             members: records.members,
             semantic_fingerprints: records.semantic_fingerprints,
             sections: records.sections,
+            instrumentation: records.instrumentation,
             artifact_fingerprint,
         }
     }
@@ -600,6 +608,10 @@ impl BootstrapManifest {
         &self.members
     }
 
+    pub const fn instrumentation(&self) -> scoop_profile::Instrumentation {
+        self.instrumentation
+    }
+
     pub fn sections(&self) -> &[ManifestSection] {
         &self.sections
     }
@@ -615,7 +627,7 @@ impl BootstrapManifest {
 
 impl WireEncode for BootstrapManifest {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(12)?;
         ArtifactManifestInput {
             producer: &self.producer,
             compatibility: &self.compatibility,
@@ -624,10 +636,13 @@ impl WireEncode for BootstrapManifest {
             members: &self.members,
             semantic_fingerprints: &self.semantic_fingerprints,
             sections: &self.sections,
+            instrumentation: self.instrumentation,
         }
         .encode_fields(encoder)?;
         encoder.field(11)?;
-        self.artifact_fingerprint.encode(encoder)
+        self.artifact_fingerprint.encode(encoder)?;
+        encoder.field(12)?;
+        self.instrumentation.encode(encoder)
     }
 }
 
@@ -697,12 +712,15 @@ struct ArtifactManifestInput<'manifest> {
     members: &'manifest [SlibMemberRecord],
     semantic_fingerprints: &'manifest SemanticFingerprintRecord,
     sections: &'manifest [ManifestSection],
+    instrumentation: scoop_profile::Instrumentation,
 }
 
 impl WireEncode for ArtifactManifestInput<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
-        self.encode_fields(encoder)
+        encoder.map(11)?;
+        self.encode_fields(encoder)?;
+        encoder.field(12)?;
+        self.instrumentation.encode(encoder)
     }
 }
 
@@ -711,9 +729,9 @@ impl ArtifactManifestInput<'_> {
         encoder.field(1)?;
         encoder.bytes(MANIFEST_MAGIC)?;
         encoder.field(2)?;
-        encoder.unsigned(CURRENT_SCHEMA)?;
+        encoder.unsigned(MANIFEST_SCHEMA)?;
         encoder.field(3)?;
-        encoder.unsigned(CURRENT_SCHEMA)?;
+        encoder.unsigned(CONTAINER_SCHEMA)?;
         encoder.field(4)?;
         self.producer.encode(encoder)?;
         encoder.field(5)?;

@@ -71,6 +71,7 @@ fn manifest(members: &[SlibMember]) -> BootstrapManifest {
         members,
         fingerprints(0x11),
         Vec::new(),
+        Default::default(),
     )
     .unwrap()
 }
@@ -112,6 +113,7 @@ fn metadata_roles_are_unique_even_for_distinct_member_ids() {
             &members,
             fingerprints(0x11),
             Vec::new(),
+            Default::default(),
         );
         assert!(
             matches!(result, Err(BootstrapManifestError::DuplicateMetadata { kind: actual }) if actual == kind)
@@ -150,6 +152,7 @@ fn object_dictionary_is_optional_and_unique() {
             &members,
             fingerprints(0x11),
             Vec::new(),
+            Default::default(),
         ),
         Err(BootstrapManifestError::DuplicateObjectDictionary)
     );
@@ -170,7 +173,7 @@ fn manifest_sorts_the_directory_and_is_byte_reproducible() {
             .all(|pair| pair[0].id() < pair[1].id())
     );
     assert_eq!(first.artifact_fingerprint(), second.artifact_fingerprint());
-    assert_eq!(encode(&first).unwrap()[0], 0xab);
+    assert_eq!(encode(&first).unwrap()[0], 0xac);
 }
 
 #[test]
@@ -257,6 +260,7 @@ fn manifest_rejects_missing_metadata_and_duplicate_semantic_members() {
             &members,
             fingerprints(1),
             Vec::new(),
+            Default::default(),
         ),
         Err(BootstrapManifestError::DuplicateMember { .. })
     ));
@@ -272,6 +276,7 @@ fn manifest_rejects_missing_metadata_and_duplicate_semantic_members() {
             &members,
             fingerprints(1),
             Vec::new(),
+            Default::default(),
         ),
         Err(BootstrapManifestError::MissingMetadata {
             kind: MetadataKind::Mir,
@@ -332,4 +337,34 @@ fn producer_cone_and_section_boundaries_are_closed() {
         ),
         Err(ManifestSectionError::KnownCapabilityWrongPurpose { .. })
     ));
+}
+
+#[test]
+fn instrumentation_is_part_of_manifest_identity_and_round_trips() {
+    let members = metadata_members();
+    let ordinary = manifest(&members);
+    let instrumented = BootstrapManifest::new(
+        ProducerRecord::new("dev").unwrap(),
+        ordinary.compatibility().clone(),
+        cone(),
+        Vec::new(),
+        &members,
+        fingerprints(0x11),
+        Vec::new(),
+        scoop_profile::Instrumentation::Generate,
+    )
+    .unwrap();
+    assert_ne!(
+        ordinary.artifact_fingerprint(),
+        instrumented.artifact_fingerprint()
+    );
+    let decoded: super::decode::DecodedBootstrapManifest =
+        scoop_wire::decode_canonical(&encode(&instrumented).unwrap()).unwrap();
+    assert_eq!(
+        decoded
+            .validate(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+            .unwrap()
+            .instrumentation(),
+        scoop_profile::Instrumentation::Generate
+    );
 }

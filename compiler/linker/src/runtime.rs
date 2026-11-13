@@ -12,7 +12,7 @@ use scoop_wire::{Digest256, domain_separated_cbor_hash, encode, sha256};
 
 use crate::{LinkError, NativeObjectInfo, NativeSymbolKind, error};
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86_64", any(target_os = "linux", windows)))]
 mod common_tests;
 mod deployment;
 mod fingerprint;
@@ -51,6 +51,7 @@ pub struct RuntimeBuildConfiguration {
     pub flags: Vec<String>,
     pub enable_gc_stress: bool,
     pub enable_startup_stats: bool,
+    pub enable_profiling: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -80,7 +81,7 @@ pub struct RuntimeObjectSet {
     objects: Vec<RuntimeObject>,
     merged: NativeObjectInfo,
     fingerprint: RuntimeArtifactFingerprint,
-    input_paths: [PathBuf; 2],
+    input_paths: Vec<PathBuf>,
 }
 
 impl RuntimeObjectSet {
@@ -90,6 +91,7 @@ impl RuntimeObjectSet {
         configuration: RuntimeBuildConfiguration,
         objects: Vec<PathBuf>,
         directory: &Path,
+        profile_runtime: Option<&Path>,
     ) -> Result<Self, LinkError> {
         if objects.is_empty() {
             return Err(error("runtime requires a nonempty object collection"));
@@ -123,10 +125,18 @@ impl RuntimeObjectSet {
         let (objects, bytes): (Vec<_>, Vec<_>) = inputs.into_iter().unzip();
         let directory = std::path::absolute(directory).map_err(error)?;
         let (kind, extension) = crate::native_archive::format(target);
-        let paths = [
+        let mut paths = vec![
             directory.join("index.cbor"),
             directory.join(format!("runtime.{extension}")),
         ];
+        if configuration.enable_profiling != profile_runtime.is_some() {
+            return Err(error(
+                "profiling runtime requires its compiler-rt profile archive",
+            ));
+        }
+        if profile_runtime.is_some() {
+            paths.push(directory.join("profile.a"));
+        }
         let runtime = Self::assemble(target, toolchain, configuration, objects, paths)?;
         let members: Vec<_> = bytes
             .iter()
@@ -136,6 +146,13 @@ impl RuntimeObjectSet {
             })
             .collect();
         std::fs::create_dir_all(directory).map_err(error)?;
+        if let Some(source) = profile_runtime {
+            std::fs::copy(
+                source,
+                runtime.profile_runtime().expect("profile archive output"),
+            )
+            .map_err(error)?;
+        }
         crate::native_archive::write(runtime.archive_path(), kind, &members)?;
         runtime.write_index()?;
         Ok(runtime)
@@ -146,7 +163,7 @@ impl RuntimeObjectSet {
         toolchain: &CBridgeToolchainProfileV1,
         configuration: RuntimeBuildConfiguration,
         objects: Vec<RuntimeObject>,
-        input_paths: [PathBuf; 2],
+        input_paths: Vec<PathBuf>,
     ) -> Result<Self, LinkError> {
         let deployment = deployment::RuntimeDeployment::for_toolchain(toolchain);
         let toolchain = encode(toolchain.contract()).map_err(error)?;
@@ -246,6 +263,20 @@ impl RuntimeObjectSet {
     pub fn archive_path(&self) -> &Path {
         &self.input_paths[1]
     }
+    pub fn profile_runtime(&self) -> Option<&Path> {
+        self.input_paths.get(2).map(PathBuf::as_path)
+    }
+
+    pub fn require_profiling(&self, enabled: bool) -> Result<(), LinkError> {
+        if self.configuration.enable_profiling != enabled {
+            return Err(error(format!(
+                "runtime profiling support is {}, but build instrumentation is {}",
+                self.configuration.enable_profiling, enabled
+            )));
+        }
+        Ok(())
+    }
+
     pub fn configuration(&self) -> &RuntimeBuildConfiguration {
         &self.configuration
     }

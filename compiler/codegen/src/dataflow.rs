@@ -186,7 +186,8 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
         | Instruction::ManagedPoll { .. }
         | Instruction::LandingPad { .. }
         | Instruction::CleanupPad { .. }
-        | Instruction::EndCatch => Vec::new(),
+        | Instruction::EndCatch
+        | Instruction::ProfileCounter(_) => Vec::new(),
     }
 }
 
@@ -292,7 +293,8 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::EndCatch
         | Instruction::Throw { .. }
         | Instruction::ByteCopy { .. }
-        | Instruction::StringByteStore { .. } => None,
+        | Instruction::StringByteStore { .. }
+        | Instruction::ProfileCounter(_) => None,
     };
     out.map_or_else(Vec::new, |out| vec![LiveValue::Temp(out)])
 }

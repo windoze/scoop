@@ -142,6 +142,8 @@ mod lowering_support;
 mod members;
 mod nominals;
 mod optimization;
+mod profiling;
+pub use profiling::ProfilingInput;
 mod throwable;
 pub use optimization::MirOptimizationOptions;
 mod immortals;
@@ -186,8 +188,16 @@ pub fn lower(
     let hir::ConcreteCoreProtocols::Defined(_) = &output.module().core_protocols else {
         return Err(DefinedCoreMirLoweringError::ImportedProtocols);
     };
-    let mut module =
-        lower_with_dependencies(output, Arena::new(), HashMap::new(), Vec::new(), &[], false).0;
+    let mut module = lower_with_dependencies(
+        output,
+        Arena::new(),
+        HashMap::new(),
+        Vec::new(),
+        &[],
+        false,
+        false,
+    )
+    .0;
     throwable::prepare(&mut module, output.module());
     Ok(module)
 }
@@ -205,6 +215,7 @@ fn lower_with_dependencies(
     imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
     external_signature_types: &[hir::TypeId],
     coroutine_elision: bool,
+    profiling: bool,
 ) -> (mir::Module, imported_bodies::ImportedBodies) {
     let module = output.module();
     let shape_support = output.materialization().roots();
@@ -221,6 +232,7 @@ fn lower_with_dependencies(
         output,
         debug_records: mir::DebugRecords::default(),
         coroutine_elision,
+        profiling,
         core_protocols: module.core_protocols.clone(),
         functions: Arena::new(),
         extern_functions: Arena::new(),
@@ -378,6 +390,7 @@ struct Lowerer {
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     coroutines: CoroutineRegistry,
     coroutine_elision: bool,
+    profiling: bool,
     suspend_sources: Vec<SuspendSource>,
     closure_classes: Arena<mir::ClosureClass>,
     closure_invokes: Arena<mir::ClosureInvokeFunction>,

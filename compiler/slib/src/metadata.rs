@@ -226,13 +226,8 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
         }
 
         let id_table = self.id_table;
-        let entries = id_table.chunks_exact(32);
-        if !entries.remainder().is_empty()
-            || entries
-                .clone()
-                .zip(entries.skip(1))
-                .any(|(left, right)| left >= right)
-        {
+        let (entries, remainder) = id_table.as_chunks::<32>();
+        if !remainder.is_empty() || entries.windows(2).any(|pair| pair[0] >= pair[1]) {
             return Err(MetadataReadError::InvalidIdTable);
         }
 

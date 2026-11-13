@@ -21,6 +21,7 @@ class ManifestTests(unittest.TestCase):
         components = ["sources", "vendor", "bin-" + host]
         for target in targets:
             components.append("lib-base-" + target)
+            components.append("lib-profiling-" + target)
             if "musl" not in target:
                 components.append("lib-gui-" + target)
             if "llvm-mingw" in target:
@@ -62,6 +63,8 @@ class ManifestTests(unittest.TestCase):
             self.assertEqual(set(actual["hosts"]), set(hosts))
             self.assertEqual(len(actual["targets"]), 7)
             self.assertNotIn("gui", actual["targets"]["x86_64-unknown-linux-musl"])
+            for target, selection in actual["targets"].items():
+                self.assertEqual(selection["profiling"], "lib-profiling-" + target)
             for crt in ("ucrt", "msvcrt"):
                 target = f"x86_64-w64-windows-llvm-mingw-{crt}"
                 self.assertEqual(actual["targets"][target]["native"], "native-" + target)
@@ -85,6 +88,16 @@ class ManifestTests(unittest.TestCase):
             package_manifest.write(shared, content)
             with self.assertRaisesRegex(ValueError, "Release identity differs"):
                 package_manifest.merge([root / "host" / f"manifest-{host}.toml", shared])
+
+    def test_profiling_reference_requires_archive_but_is_optional(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = self.produce(Path(temporary) / "host", "aarch64-apple-darwin")
+            target = "aarch64-apple-darwin"
+            del manifest["archives"][manifest["targets"][target]["profiling"]]
+            with self.assertRaisesRegex(ValueError, "Missing component.*lib-profiling"):
+                package_manifest.validate(manifest)
+            del manifest["targets"][target]["profiling"]
+            package_manifest.validate(manifest)
 
 
 if __name__ == "__main__":

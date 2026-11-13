@@ -33,6 +33,8 @@ pub(super) fn execute(args: &[OsString], sysroot: Option<PathBuf>) -> BuildResul
     }
     Command::new(&executable)
         .args(args)
+        .env("SCOOP_DRIVER", std::env::current_exe().map_err(config)?)
+        .env("SCOOP_SYSROOT", &sysroot)
         .scoop_spawn()
         .and_then(|mut child| child.wait())
         .map_err(|error| {
@@ -45,4 +47,39 @@ pub(super) fn execute(args: &[OsString], sysroot: Option<PathBuf>) -> BuildResul
                 ),
             )
         })
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn external_command_receives_the_selected_driver_and_sysroot() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("selected root");
+        std::fs::create_dir_all(root.join("commands")).unwrap();
+        let command = root.join("commands/scoop-probe");
+        std::fs::write(
+            &command,
+            b"#!/bin/sh\nprintf '%s\\n' \"$SCOOP_DRIVER\" \"$SCOOP_SYSROOT\" > \"$1\"\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&command, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let output = temporary.path().join("environment");
+        let result = execute(
+            &["probe".into(), output.as_os_str().to_owned()],
+            Some(root.clone()),
+        )
+        .unwrap();
+        assert!(result.success());
+        assert_eq!(
+            std::fs::read_to_string(output).unwrap(),
+            format!(
+                "{}\n{}\n",
+                std::env::current_exe().unwrap().display(),
+                root.display()
+            )
+        );
+    }
 }

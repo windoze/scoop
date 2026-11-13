@@ -20,10 +20,10 @@ pub(super) fn from_required<'a>(
             continue;
         }
         found += 1;
-        if let Some(owner) = source.concrete_id() {
-            if !materialization.contains(owner) {
-                continue;
-            }
+        if let Some(owner) = source.concrete_id()
+            && !materialization.contains(owner)
+        {
+            continue;
         }
         if let Some(nominal) = concrete(export, local, local_id, source)? {
             scoop_wire::allocation::try_reserve(&mut nominals, 1, &WirePath::root())

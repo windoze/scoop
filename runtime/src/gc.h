@@ -12,7 +12,9 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 void scoop_gc_check_unbox(const void *object, const ScoopTypeDescriptor *expected,
                           uint32_t storage_kind);
 void scoop_gc_shutdown(void);
+#include <stdio.h>
 void scoop_gc_report_metrics(void);
+void scoop_gc_write_metrics(FILE *output);
 void scoop_gc_adjust_pressure(int64_t delta);
 
 /* Complete NoGC heap copy, retaining the existing single range barrier. */

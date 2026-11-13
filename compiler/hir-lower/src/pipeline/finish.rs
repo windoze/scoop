@@ -303,6 +303,7 @@ impl Lowerer {
             enum_member_identities,
         );
         let module = hir::Module {
+            ir_template_export: hir::IrTemplateExport::Default,
             cone: current_cone,
             nominal_identities: self
                 .nominal_identities

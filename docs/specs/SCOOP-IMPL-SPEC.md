@@ -561,6 +561,10 @@ LIR metadata 保存完整 value/instance/element layout、Scoop/C ABI、scan、T
 
 ### 2.5 Codegen 与对象合同
 
+**Profiling 的 LLVM 边界。** 运行计数沿 [Profiling / PGO 设计](../profiling/DESIGN.md)分批实现；具体可用范围以[实施记录](../profiling/PROGRESS.md)为准。Codegen 将已确定的逻辑位置发射为 `llvm.instrprof.increment`，每个实际发射的 callable 持有自己的物理记录及计数布局。使用 LLVM 22.1 的 `InstrProfilingLoweringPass`，显式打开 `InstrProfOptions::Atomic`，不使用测试用全局命令行开关，不启用采样或 counter promotion。计数是 64 位原子更新，不创建托管根或 safepoint；记录与正文服从相同的 Strong/ODR 选择及死代码裁剪。布局 hash 只解释对应记录的 counter index，不替代 Scoop 的逻辑位置与正文匹配。反馈读取通过配套 LLVM 的 indexed InstrProf reader 取得 name、hash 和完整计数向量，保留零值；格式错误是输入错误，不解析 `llvm-profdata show` 的人类输出，也不把 Scoop 布局交给 LLVM 的 IR-PGO use pass。LLVM 读取适配仅由已依赖 LLVM 的编译器边界调用，HIR/MIR/LIR 数据 crate 不依赖该 reader。
+
+**Profiling 的位置通道。** `scoop-profile` 保存各阶段共享的采集配置、逻辑位置、物理计数映射和已解码频次，不依赖 stage 实现或 LLVM。逻辑 callable 使用既有 `CallableBodyKey` 派生的正文身份；正文 fingerprint 覆盖优化前规范化 CFG、操作数、常量和 typed 引用，排除 arena 分配顺序、显示名称及源码坐标。位置按 entry、block、call 分类并在同一正文内编号。MIR 以显式无 GC 的计数标记携带位置，内联复制标记并记录来源；它们不计入语言操作成本。首次可选 suspend 内联之前保存并标记原正文，语义变换中新形成的 callable 在进入普通 MIR 优化前补齐自己的计划；编译期临时编号不得直接写入持久映射。未发射或无法维护的位置与已训练零计数分开，不能作为动态零值使用。LIR 接收完整的 typed 位置，Codegen 只决定同一实际机器正文中的物理 counter index，不重建上游逻辑身份。
+
 GC 代码生成模块集中实现分配、完整托管写操作、发布与 poll 的快／慢路径。字段与数组 store、含引用聚合复制、数组构造／拼接、clone 及原子引用写入必须把实际写入和对应屏障放在同一操作中；通用发射器交付实际地址、值、类型／scan、内存序和必要的 safepoint 数据，不单独拼接写后屏障。后续 LLVM 优化可按 2.19 合并完整有界内层中的等价 card store，仍须在下一次可能 GC 或发布前完成。批量构造／复制保留整段范围屏障，失败 CAS 不标脏，GC-free 写入不增加屏障。runtime 执行的 clone／boxing 等完整操作沿既有入口调用，内部写入遵守运行时规范 3.6。
 
 分配、单槽写入与 poll 的既有快路径仍静态内联，不为模块隔离增加外部热路调用或重复 TLS 查询；保持原内存序，地址计算、写入与屏障之间无 safepoint。根活跃度、statepoint relocation、异常控制流与调用 ABI 继续由原有模块负责。纯内部职责重组不改变共享布局、runtime ABI 或产物格式。
@@ -786,7 +790,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | 无必需 section；按需保存 `test-directory/1` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/11`、`core-bootstrap-interface/23`、`cross-cone-interface/94`、`cross-cone-type-semantics/32` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/11`、`core-bootstrap-interface/23`、`cross-cone-interface/95`、`cross-cone-type-semantics/32` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/10`、`core-bootstrap-bridge/4`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/21` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/15`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/20`、`cone-production/18`、`link-identity-closure/22`、`link-support/1` |
 
@@ -945,6 +949,8 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 ### 2.7 `scoop` 与 single-Cone `scoopc`
 
+**IR template 导出。** 源码构建接受 `--export-ir off|default|full`，默认 `default`，同一构建图中实际生产的源码 Cone 使用选定模式；预编译依赖保持其已有正文。该配置与 build profile、优化模式和 debug info 独立，进入编译请求、正常构建更新输入和产物生产配置，不改变 Cone/实体身份、源码可见性或目标 ABI。`off` 不额外导出普通优化正文，但保留泛型单态化、默认实参及其所需局部 callable/初始化模板；因此不承诺禁止所有跨 Cone 展开。`default` 沿用当前完整可移植普通正文及 helper 依赖闭包，不按尺寸预先裁剪。`full` 导出本 Cone 所有具有 Scoop 正文的函数、方法、构造器和访问器，以及其所需 private/internal 支持声明、局部函数、闭包、Context、协程和异常结构；无正文的 extern/抽象声明不制造模板。导出及完整导入不以当前内联器的处理能力筛掉 full 正文，实际使用处仍由 MIR 的合法性、递归及 cost 规则决定是否展开。未使用模板不强制具体化，不复制 provider 的普通 Strong 定义，也不增加运行时 roots 或使未使用机器成员保活。cross-cone-interface/95 的 field 15 保存实际 IrTemplateExport（off=1、default=2、full=3）。初始化模板的 owner 使用 SourceNominalId 区分 Concrete 与 GenericTemplate；full 的非泛型构造器与泛型构造器共用完整初始化结构，普通 Strong 仍归 provider。compiler protocol 32 的 build request field 14 传递相同导出模式。完整设计与实施状态见 [Profiling / PGO 设计](../profiling/DESIGN.md)及[实施记录](../profiling/PROGRESS.md)。
+
 `scoop` 负责精确依赖图的构建顺序、全局构建缓存、runtime 构建和程序链接；`scoopc` 一次只编译指定的一个 Cone，不跟随上游 manifest locator 或读取上游源码。
 
 常规 human 输出在每次实际调用 `scoopc` 前向 stderr 写一行进度：机器产物为 `Compiling <coordinate>`，根前端检查为 `Checking <coordinate>`，仅文档请求为 `Documenting <coordinate>`。本次调用结束后写 `Finished <coordinate> in <seconds>s` 或 `Failed <coordinate> in <seconds>s`，使用单调时钟测量该编译器调用的墙钟耗时，秒数保留两位小数。状态右对齐，每条信息完整成行；独立 Cone 并发时不要求固定完成顺序。预编译库和缓存命中没有实际编译调用，不输出编译起止信息。状态不替代原始诊断和最终 build/check/doc 摘要，单 Cone 的 `Finished` 不表示后续最终链接已完成。JSON 模式继续输出既有结构化诊断与结果，不混入 human 进度文本；进度和耗时不进入编译请求、产物或缓存键。
@@ -959,7 +965,7 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 归档输出至 `tmp/dist/scoop-<version>/` 或显式输出目录，全部成功后写入 `packages-<host>.list`；发布侧只从该清单选取本次附件。安装根继续包含 `bin`、`commands`、`lib/<target>`、`include`、`src`、`vendor`、`native`、`libexec`、`share`、`tooling` 和 post-install 入口。commands 按原内容和 executable 权限复制，空目录仍进入包，`.gitkeep` 不进入包。VSIX 按 npm lockfile 构建，源码 revision、版本与宿主写入纯文本 VERSION 和说明性 toolchain.toml；docs 由安装后生成。默认 LLVM 输入缺失时由维护脚本取得固定上游归档，显式输入失败照常报错。宿主／目标集合不变，Darwin AArch64 同时发行两个 Darwin 目标，Linux GNU 同时发行 GNU／musl。
 
-Windows 默认工具选择分别保存实际宿主安装根与所选 Scoop sysroot：Clang／LLD、Clang builtin headers 和 MinGW 公共头取自宿主安装根，目标 SDK 取自 `<sysroot>/lib/<target>/toolchain`。generated-C、native C/C++、RC 预处理和最终链接消费同一次解析结果；目标配置头优先于公共头，C++ 另加配置与公共 libc++ 目录，Clang resource-dir 指向目标 compiler-rt，并显式保留宿主 builtin include。最终 driver／linker 不从目标数据包寻找。显式完整外部 native prefix 仍使用自身的头、库与工具，不混入随包公共头。Scoop sysroot 加入 target request 的 field 3；compiler protocol 为 31，按同一请求传递实际调用配置，删除原调用配置中的工具输入指纹，不保存 native 工具巡检记录，不改 `.slib` 或 runtime ABI。
+Windows 默认工具选择分别保存实际宿主安装根与所选 Scoop sysroot：Clang／LLD、Clang builtin headers 和 MinGW 公共头取自宿主安装根，目标 SDK 取自 `<sysroot>/lib/<target>/toolchain`。generated-C、native C/C++、RC 预处理和最终链接消费同一次解析结果；目标配置头优先于公共头，C++ 另加配置与公共 libc++ 目录，Clang resource-dir 指向目标 compiler-rt，并显式保留宿主 builtin include。最终 driver／linker 不从目标数据包寻找。显式完整外部 native prefix 仍使用自身的头、库与工具，不混入随包公共头。Scoop sysroot 加入 target request 的 field 3；compiler protocol 为 32，按同一请求传递实际调用配置，删除原调用配置中的工具输入指纹，不保存 native 工具巡检记录，不改 `.slib` 或 runtime ABI。
 
 发行组件索引使用 schema 1 TOML。每个固定 release 的 `manifest.toml` 记录 release／version／revision、sources／vendor 引用、宿主默认 target 与可用 target、各 target 的 base／可选 GUI／native 引用和平台要求；每个归档记录相对 path、压缩 size 和 SHA-256。索引仅来自本次成功组装的归档。各宿主生成独立片段，全局 sources／vendor 仅选一个生产宿主的片段；发布作业合并为完整索引，再更新 `latest.toml` 指向它。普通命令与已安装组件复用不读取归档做摘要检查。具体字段见[发行索引格式](../distribution/MANIFEST.md)。
 
@@ -1113,7 +1119,27 @@ native 预处理同时取得实际 include 名称及其所在文件，按该次 
 
 生产用途的 library 不要求 main；executable 必须恰有一个本 Cone 顶层 ordinary、非泛型、非 suspend 的 main，接受无参数或单个 `Array<String>` 参数，返回 Unit 或 Int，具体规则见语言规范 12.4.4。依赖的同名函数不参与入口选择，manifest 与 single-file mode 使用相同规则。测试用途仅适用于 manifest Cone，由前端选择本 Cone 的 generated TestEntry；其测试 `.slib` 是 executable root。请求机器产物时，scoopc 的正式产物是当前 `.slib`；仅文档请求按前述合同返回渲染输入。scoopc 不构建 runtime、不解析 native library 搜索目录、不调用最终 linker。
 
-build/run 接受 `--profile debug|release`，默认 debug；`--release` 为 release 简写，与显式 profile 同时出现为参数错误。实际优化合同见 2.19。
+build/run/test 与 scoopc 接受 `--profile debug|release|profiling`，默认 debug；`--release` 为 release 简写，与显式 profile 同时出现为参数错误。profiling 使用 Release 优化、Generate 采集和默认 line-tables 调试信息；debug/release 默认关闭采集。显式 debug-info 覆盖默认值。采集配置独立于 OptimizationMode，经编译请求、缓存键及 MIR/LIR 正常数据通道传递；计数位置与反馈合同见 [profiling 设计](../profiling/DESIGN.md)。实际优化合同见 2.19。
+
+`scoopc profile-summary <profile.json> --message-format json` 只读 Scoop 数据索引、位置映射及 LLVM indexed profile，沿同一 reader 返回逻辑正文和位置计数。零、缺失、部分覆盖分别表达，错误输入退出非零；human 输出为可读摘要，JSON 写 stdout，诊断写 stderr。Generate 的 `.slib` 保存机器码带探针这一事实：bootstrap manifest schema 为 7，字段 12 为采集模式（Off=1、Generate=2）；container schema 保持 6。manifest summary 同步携带该字段，供最终链接和更新记录使用；该配置不进入语言实体身份或 ABI。compiler protocol 为 34，build request 字段 15 携带采集模式。Generate 同时产出 `<artifact>.profile.json` 位置映射，作为成功响应中的正常编译结果及缓存要求的输出。映射解释逻辑正文、内联副本与物理计数记录，不从显示名或 symbols 观察重建；缓存命中仅判断输入更新与所需结果存在，不读取映射或 `.slib` 复核内容。
+
+full 导出的普通访问器若直接操作 provider 全局存储或初始化门，消费方保留原入口并报告 unsupported-body。模板仍完整保存在产物中；当前外来正文的 HIR 存储模型没有对应实体时，不能把合法程序变成编译错误，也不能把 GlobalRead 改写为对同一访问器的递归展开。
+
+普通模板正文对 provider 全局属性的读写通过原 getter/setter 入口实现，保留初始化和 ThreadLocal 语义；native 全局继续经既有地址/指针读写合同。数组赋值沿 typed array/index 引用还原。导入正文中派生相等性等必要物化使用原定义的源码身份，不将外来源码编号索引到消费方源码表，也不重新按消费方可见性解释已解析的模板引用。
+
+LLVM InstrProf 的计数、记录与名字段属于随 callable 对象保存的原生辅助数据，沿对象格式的 section/COMDAT 规则选择和裁剪。每个 callable 完成 LLVM 优化之后，ELF ODR 计数与正文统一归入该 callable 的 COMDAT；不保留 LLVM 为通用跨函数内联临时建立的独立计数组。产物以 callable 的三个关联对象 atom（ProfileCounters、ProfileData、ProfileNames）保存这些段及原生重定位，使代码 fingerprint 与 ODR 选择涵盖实际计数布局；不解析或重建 LLVM 记录内部格式，不增加 GC roots 或语言 ABI。正文对这些本对象数据的引用按关联 atom 边界解析。该规则不放宽 Scoop callable、runtime record 或 GC metadata 的检查。
+
+ELF compiler-rt 引用的 `__ehdr_start` 是最终 linker 提供的 image header 符号，和该格式的 profiling section 起止标记一样交给最终链接解析，不要求普通 native 库提供定义。
+
+`--profile-use <Scoop index>` 只与 release 构建组合，选择配套 Release/full 系统库并在普通机器降低入口一次读取索引、indexed counts 和映射；损坏或目标不符报告输入错误，局部正文不匹配按成本合同回退。`--profile-use-required` 要求提供索引，并在最终输出链接／发布之前要求本次源码构建至少一个优化实际消费反馈；源码依赖与根 Cone 的正常完成记录共同提供判断，不能逐个要求无候选的依赖使用反馈。直接 scoopc 构建的 required 作用于其单个 Cone。
+
+Compiler protocol 34 的 build field 16 保存可选反馈索引路径，success field 8 保存可选 UseSummary。普通编译更新记录保存该摘要及索引、计数、映射文件的路径／长度／修改时间；这些是构建输入，不受语言 include 文件的源码目录规则限制。缓存命中只比较已记录的输入状态，复用原摘要，不重新读取索引或调用 LLVM。反馈索引的选择进入 compile key，文件内容更新通过正常 compiler input 判断；profile 数据和 UseSummary 不写入共享 HIR、`.slib` 语义指纹或 runtime ABI。
+
+独立 `scoop-pgo` 安装到 host commands，通过 `scoop pgo instrument/optimize` 调用。外部命令分发只对子进程设置绝对 `SCOOP_DRIVER` 和解析后的 `SCOOP_SYSROOT`。PGO 复用主驱动公开的 build 参数声明；正常 build 成功 JSON 的 `invocation` 保存原 cwd、实际选择的根输入、canonical target、配套 compiler/sysroot/package manager 和解析后的选项。路径使用原生路径编码，相对输入在首次调用的 cwd 解析；未显式覆盖的阶段默认值分别按 Profiling 与 Release 选择。该记录服务命令复用，不进入编译缓存或 `.slib`。
+
+PGO 数据目录缺省为调用 cwd 下的 `target/pgo`，独立于 `--target-dir`。instrument 固定 Profiling、缺省 full，构建成功后保存映射，再运行原生进程；optimize 固定 Release/Use|required，不运行结果。同一目录使用普通文件锁协调；允许源码修改与重复训练，不混合根项目、target、导出策略或不同语义选项。已保存的 root 在后续省略输入时直接复用，工具和无探针资源位置、jobs、缓存、输出与诊断设置可覆盖。原始 argv 包括空字符串以原生编码保存，标准流与业务退出状态保持原样。`--no-run` 生成外部运行目录；后续 optimize 收集其实际计数。合并保留全零记录，输入更新先于读取和工具调用；新增或变化的输入经配套 LLVM merge 及同一 Scoop reader 成功后发布索引与摘要。损坏或缺失输入停止，不回退到旧合并结果。
+
+维护生产可用 `--system-library-root` 显式选择一套目标系统库目录，沿相同依赖通道传递，不改变 native sysroot。PM protocol 为 8，prepare request 的 `system_library_root` 传递上层已选路径；PM 沿正常依赖规则消费该路径，不决定采集或反馈模式。系统库在依赖解析之前选择：profiling 使用 `<sysroot>/lib/<target>/profiling/instrumented`，Release 反馈构建使用配套的 `profiling/release`，普通构建使用原 target 根。两套库由可选组件 `lib-profiling-<target>` 提供，所有系统 Cone 使用 full 导出。缺失组件时报告所需组件和安装方式，不隐式下载或回退到普通库；显式低层依赖及 core bootstrap 仍能生产该组件。native/GUI 资源沿原组件复用，runtime 选择独立带采集能力的对象索引和目标对应的 compiler-rt profile archive。程序输出目录与 `SCOOP_PROFILE_DIR` 不作为源码编译输入。
 
 `scoop --enable-gc-stress` 是可放在子命令前后的全局构建选项，对 build/run/test/link 的最终 runtime 选择生效，独立于 debug/release；低层 scoop-link 提供同名选项。默认选择不含 stress 支持的 runtime，启用后选择含 stress 能力的版本，再由运行时环境变量控制开关（运行时规范第 3 章）。该选择不改变 Scoop 源码编译或普通库 `.slib` 的身份、profile 和缓存；只影响 runtime 对象及最终链接结果。显式 `--runtime-objects` 的能力必须与请求相符。
 
@@ -1191,7 +1217,7 @@ PM的全局源码/解析缓存与编译缓存职责分离，默认布局和覆�
 
 输入缺失是普通源码构建错误，输出缺失只生成该输出。manifest 仅测试配置变化不使生产节点失效；未选中源码、程序 argv、测试过滤及显示方式不使编译失效。编译器与 native 工具变化不触发自动失效。尚未使用的 generator 配置不影响构建；实际执行的 generator 作为生成源码的输入，仍按普通文件更新规则记录。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 31（展开 native.cxx 保存目标条件；展开 native.include 保存普通路径或 target sysroot 路径；已解析 Linux C 工具记录加入 compiler family；展开 native 配置加入 `objc_flags`；合并 full 静态变量调试级别、Windows C++ 工具 locator 与编译期环境、文件及目录输入；展开配置保留原 Cone 根定位；当前 Cone 采用已展开配置，已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。build request field 13 为 DebugInfoLevel（none=0、line-tables=1、full=2）；和 field 9 的优化模式独立，生产级别进入源码 Cone 的编译更新键。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用数据保存实际目标／deployment 配置与 host locator，不保存工具状态巡检摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 32（展开 native.cxx 保存目标条件；展开 native.include 保存普通路径或 target sysroot 路径；已解析 Linux C 工具记录加入 compiler family；展开 native 配置加入 `objc_flags`；合并 full 静态变量调试级别、Windows C++ 工具 locator 与编译期环境、文件及目录输入；展开配置保留原 Cone 根定位；当前 Cone 采用已展开配置，已有 Check、观察、生成器配置、工具输入和片段诊断原文保持），stdout 只含协议 frame。build request field 6 为输出选择：Artifact、Documentation、ArtifactWithDocumentation，保存各自实际输出 locator；Check 使用新 tag 4 的单字段 map，只保存 tag、不含 locator；成功 response 的 field 2 使用对应 product 选择，Artifact 与 ArtifactWithDocumentation 变体携带 artifact summary，文档输出保存渲染输入 locator 和独立文档 warning；Check product 同样使用 tag 4 的单字段 map，warning 与实际 generator 输入沿共有成功字段保存。Check 拒绝 dump、observation-only 与非空 native 对象输入。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的已编译 native 对象 locator 数组，机器生产时数量必须与 manifest 的实际 target 选择一致；没有 native 源码或仅文档时为空。field 11 为当前 Cone 的 CompilationPurpose（Production=1、Test=2）；field 12 为按名称排序且唯一的 generator 注册数组，保存名称与已按接收 CLI cwd 解析的绝对宿主程序路径，未使用的注册不探测程序。build request field 13 为 DebugInfoLevel（none=0、line-tables=1、full=2）；和 field 9 的优化模式独立，生产级别进入源码 Cone 的编译更新键。target request 保存 canonical triple，以及待解析的 C driver／native sysroot 选择或已解析的 C 工具调用记录。parent 将已得到的记录直接交给 child，child 解码后用于实际编译，不重复执行探测；独立 scoopc 请求仍执行正常工具发现。调用数据保存实际目标／deployment 配置与 host locator，不保存工具状态巡检摘要，不是产物验证资格，host locator 不进入 artifact identity。旧或不匹配协议拒绝。request envelope field 5 为 observation-only 标志（unsigned 0／1）；为 true 时必须请求非空 dump 集合，沿同一编译实现执行到最后一个所需阶段，不发布机器对象或 `.slib`。观察成功使用 response tag 3，携带 warning 和 dump 描述，不伪造产物摘要。
 
 成功响应直接携带生产时得到的产物摘要：Cone、直接依赖、target、产物 profile、各语义指纹、artifact fingerprint 及测试目录，并携带 warning 和 dump 描述。parent 将该摘要与产物实际位置保存为普通构建记录，不重新打开 child 产物、重读摘要或逐字段核对响应与归档。摘要是后续编译、链接及测试列举需要的数据，不是验证资格；不得包含无人消费的归档长度或成员数来支持复核。protocol 8 用此摘要替换原独立的七个指纹字段。
 
@@ -1309,7 +1335,9 @@ post-install 在所选目标的组件包（含预编译系统 `.slib` 的 `lib-b
 
 Linux 和 Windows 的最终链接直接使用所选 Scoop sysroot 的 `lib/<target>/unwind/lib/libunwind.a`，显式 `--unwind-prefix` 选择该 prefix 的 `lib/libunwind.a`；不为最终链接读取 `unwind.h` 或编译探测程序。实际链接需要时才选择 archive，最终程序命中时跳过链接准备。runtime 源码构建仍使用维护 prefix 的头文件与 archive，不要求先组装发行目录，并按普通更新规则跟踪自身实际源码与头文件输入。随包公共 unwind 头继续供实际源码编译使用，不构成工具资格检查。
 
-runtime 构建使用 `runtime-v11` 普通记录，按实际源码根、选中源码、include／unwind 配置、flags 与目标定位，不将工具或 SDK 状态作为更新输入。命中前只查询上次实际源码、depfile 头文件及 include 候选的路径／mtime／大小；不读取源码、扫描并复制整棵头文件树或重读 compiler 内容。更新时直接从原始源码预处理并编译，观察实际 include 名称；C 编译产生的独立对象只保存在本次临时目录，Darwin 先完成下述空代码标签清理，再读取成员摘要并执行普通对象／ABI 检查，按原排序打成一份 runtime 归档。全部成功后只保留归档、index 与记录，临时对象随构建结束回收。准备脚本复制这两个已知输出，不改写索引或重新提取对象信息。各次结果采用稳定且互不覆盖的位置；所需 index／归档缺失时补产，真实输入缺失照常报错，失败不发布新记录或替换已有结果。本机 metadata 不改变 runtime ABI。
+profiling runtime 的对象 index schema 为 9，生产配置显式保存采集开关。启用时 index 同目录的 `profile.a` 是目标 compiler-rt profile archive，作为普通 native 输入参与符号选择、链接与更新判断；关闭时没有该输入。采集开关及所选 archive 路径进入 runtime 更新输入，实际 archive 更新触发重新生产；不扫描工具文件。最终链接只允许带采集能力的 runtime 消费 Generate `.slib`，普通 Release 及反馈产物不得混入探针。
+
+runtime 构建使用 `runtime-v12` 普通记录，按实际源码根、选中源码、include／unwind 配置、flags 与目标定位，不将工具或 SDK 状态作为更新输入。命中前只查询上次实际源码、depfile 头文件及 include 候选的路径／mtime／大小；不读取源码、扫描并复制整棵头文件树或重读 compiler 内容。更新时直接从原始源码预处理并编译，观察实际 include 名称；C 编译产生的独立对象只保存在本次临时目录，Darwin 先完成下述空代码标签清理，再读取成员摘要并执行普通对象／ABI 检查，按原排序打成一份 runtime 归档。全部成功后只保留归档、index 与记录，临时对象随构建结束回收。准备脚本复制这两个已知输出，不改写索引或重新提取对象信息。各次结果采用稳定且互不覆盖的位置；所需 index／归档缺失时补产，真实输入缺失照常报错，失败不发布新记录或替换已有结果。本机 metadata 不改变 runtime ABI。
 
 Darwin 最终 executable 将 Scoop 保留的持久符号命名空间（`_scoop$1$*`，包含 callable、类型／派发表、注册记录和 bridge）设为 private external，移出动态导出。跨 Cone 的 Strong／ODR 选择与全部引用在静态链接闭包中完成；选中的 weak 定义不再供 dyld 再绑定，直接调用可由 native linker 绑定到同一镜像中的实际入口。对象和 `.slib` 仍保留原定义与 ODR 合并规则，exact 类型／接口身份、别名地址及 GC／EH 元数据引用不变。源码 public 可见性不等于 native 动态导出；普通 native／runtime C 符号、系统库导入和通过地址传递的 callback 保持原合同。该配置对全部 profile 生效，进入既有 final-link 指纹；消费旧的相容预编译对象时同样适用，不按其他宽泛前缀隐藏 native 符号，也不增加产物格式或 runtime ABI 版本。
 
@@ -1842,11 +1870,17 @@ MIR 中每个 native 异常捕获状态使用正文内独立、类型化的 Exce
 
 调用点使用当前 CFG 的自然循环深度、只通向异常／trap 的冷出口、实参常量、exact receiver、结果用途和 caller 当前规模，估计保留调用会留下的可消除工作。普通静态频次为 1，循环逐层提高频次并在固定深度饱和，冷出口降低频次；同 header 的多个回边只计一层，不可归约环保守计至少一层。热度放大可消除的调用／ABI 适配、已经按实参证明可折叠的运算与检查、可解析的动态分派及已有分配替换证明支持的收益。已经在独立正文中能够消除的操作不重复计收益；被常量条件排除的整块正文只降低预计体积，不能把原本不执行的分支全部计作运行收益。不把 callee 的全部执行成本、未知逃逸或未证明可省略的 GC roots、保存／重载及 safepoint 当作收益。
 
-尺寸惩罚以实际化简后保留正文相对被替换调用的预计净增长为基础，控制流复杂度和 caller 当前规模增加惩罚。收益与惩罚使用简单的 MIR 权重，不代表机器周期或保证发生的复制次数。静态热度越高，可接受的净增长及复杂度越大；热度本身不省略冷分支的代码体积。普通内联按热度优先、同级原 block／statement 顺序选择，随后仍按原位置展开，保持求值次序。
+尺寸惩罚以实际化简后保留正文相对被替换调用的预计净增长为基础，控制流复杂度和 caller 当前规模增加惩罚。收益与惩罚使用简单的 MIR 权重，不代表机器周期或保证发生的复制次数。热度越高，可接受的净增长及复杂度越大；热度本身不省略冷分支的代码体积。普通内联按热度优先、同级原 block／statement 顺序选择，随后仍按原位置展开，保持求值次序。
+
+Release/Use 在与 Generate 相同的优化前边界固定逻辑位置，并消费 driver 经 LLVM reader 一次解码的 typed 反馈。内联先完成与相同源码、目标、语义选项及模板范围的普通 release 一致的静态选择和迭代，再对剩余调用及新暴露的调用点追加反馈选择。默认已完成的内联不因反馈频率降低而撤销，也不能被反馈新增候选抢先占用增长额度。两阶段在同一优化会话中复用稳定模板、函数摘要、展开祖先及 caller／区域累计增长，不重建基线或重置增长记录；各阶段至多执行既有三轮，进入反馈阶段时重新考虑各函数的剩余调用，之后只重新分析实际改变的函数。普通静态化简仍可消除已展开的纯计算或不可达路径。
+
+追加内联的调用点和字符串所在原基本块分别以其实际计数除以同一物理内联范围配对的原函数入口计数，汇总整数后使用比例。动态热度截断至 [1/8, 32]，仅替换该次收益、候选排序和既有增长档位中的静态频次；自然循环身份与全部合法性检查保留。零调用且入口非零是有效冷点；入口为零、缺失位置、正文变化或不一致计数使用原静态热度。部分覆盖只使用已配对的范围并明确标记，不从其他副本借用分母，不据此删除合法路径。字符串融合保持既有独立反馈规则，状态机生成前的 suspend 合并继续使用静态频次。
+
+优化报告的 heat 同时保留逻辑位置、原始计数、覆盖状态、实际使用比例和回退原因；无正文等原有拒绝理由仍独立报告。默认内联阶段没有 profile heat，也不计作反馈消费者；追加阶段的实测或回退信息沿已有 heat 字段报告。round 在两阶段连续计数，仅当各已执行阶段均观察到无改写轮次时报告收敛。字符串融合报告实际位置及是否采用融合。普通构建只在显式请求时保存详细事件；Use 的正常结果另保存匹配正文／位置、缺失／变化位置及实际使用反馈的优化种类和位置数，供构建摘要与发布前的 required 检查复用。读取到数据但没有任何优化实际消费它，不能报告 PGO 完成。
 
 增长按调用点所在的最内层自然循环累计；同 header 的多个回边属于同一区域，循环之外及没有自然 header 的不可归约环使用共享区域。复用现有支配与自然循环分析，区域由当前 caller 的 block 身份区分，不依赖源码或函数名称。内联新暴露的循环保有独立额度，循环包装本身的完整增长仍计入其原调用区域。各区域以原始 caller 大小为基准，并按调用点热度使用有限上限；整个 caller 另有累计总上限，防止不断暴露的新区域造成无界膨胀。区域与总增长均跨轮保留，重新分析、化简及删除代码不返还额度；克隆只追加 block，原 header 身份与累计记录保持。递归祖先与六层展开限制保持。这些限制只控制优化膨胀，不决定程序是否合法或 ABI；具体参数记录于性能文档，统一用于本 Cone、泛型及跨 Cone 正文。状态机生成前的 suspend 合并复用静态热度、区域累计与整个 caller 上限，按被复制完整正文计算净增长，保留独立的基础增长常数 96；它以消除独立 frame／adapter 边界为选择理由，不使用普通同步调用的收益评分。
 
-内联产生新调用点或改变常量、类型及控制流后，重新评估当前 caller 的相关调用点；稳定模板摘要仍复用。普通 release 默认启用上述低成本分析，不依赖 PGO，不新增试内联或多套策略框架。`--emit optimizations` 的调用点记录包含热度及来源、实参事实、结果用途、预计可消除工作、净增长、复杂度、caller 规模和接受／拒绝理由；增长估价同时记录区域 header、区域剩余与整个 caller 剩余，实际可用量为两者较小值。先判断调用目标、正文可用性与递归约束，再报告额度耗尽，不能用增长理由遮住没有正文或尚未解析的动态调用。未请求时不保存事件，任何诊断代码都不进入程序或库的机器产物。诊断格式可随模型更新，不进入 MIR／LIR 持久格式或 ABI。未来 profile 可以向同一收益模型提供频次事实。
+内联产生新调用点或改变常量、类型及控制流后，重新评估当前 caller 的相关调用点；稳定模板摘要仍复用。普通 release 默认启用上述低成本分析，不依赖 PGO，不新增试内联或多套策略框架。`--emit optimizations` 的调用点记录包含热度及来源、实参事实、结果用途、预计可消除工作、净增长、复杂度、caller 规模和接受／拒绝理由；增长估价同时记录区域 header、区域剩余与整个 caller 剩余，实际可用量为两者较小值。先判断调用目标、正文可用性与递归约束，再报告额度耗尽，不能用增长理由遮住没有正文或尚未解析的动态调用。未请求时不保存事件，任何诊断代码都不进入程序或库的机器产物。诊断格式可随模型更新，不进入 MIR／LIR 持久格式或 ABI。profile 反馈沿上述同一收益模型提供频次事实。
 
 已知同步闭包可以优先暴露实际执行正文：直接目标必须是该 closure class 的 typed invoke；包装函数中的对应形参则只能经纯局部别名作为同步调用的 receiver 使用，不能被返回、存储、取址或传给其他调用。闭包身份来自现有实参数据流，挂起性与 invoke 身份来自 typed MIR，不按名称选择。这类调用仍按完整保留正文扣减原有区域和 caller 累计增长，遵守递归、六层展开与 ABI／异常合法性限制；诊断以独立的已知闭包理由记录，不虚记尚未发生的分配或根消除收益。最终环境和字段消除继续由普通局部分配替换决定，debug 不采用此优先规则。
 

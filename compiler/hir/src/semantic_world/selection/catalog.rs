@@ -83,7 +83,7 @@ pub(super) struct DependencyCatalog {
         ),
     >,
     pub(super) initializations:
-        BTreeMap<scoop_identity::PersistentGenericTypeId, super::ImportedNominalInitialization>,
+        BTreeMap<crate::SourceNominalId, super::ImportedNominalInitialization>,
     pub(super) delegates: BTreeMap<
         scoop_identity::PersistentExtensionPropertyId,
         Arc<crate::ExportGenericDelegateTemplateV1>,

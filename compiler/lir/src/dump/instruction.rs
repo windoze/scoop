@@ -7,6 +7,10 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::ProfileCounter(counter) => buf.push_str(&format!(
+            "    profile {}:{}\n",
+            counter.location.body.body, counter.location.position,
+        )),
         Instruction::TaskContextLoad { out } => {
             buf.push_str(&format!("    t{} = task_context_load\n", out.into_raw()))
         }

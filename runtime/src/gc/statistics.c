@@ -66,10 +66,7 @@ void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result) {
     scoop_gc_unlock_mutators();
 }
 
-void scoop_gc_report_metrics(void) {
-    if (!scoop_gc_heap_state.print_metrics) {
-        return;
-    }
+void scoop_gc_write_metrics(FILE *output) {
     ScoopGcMetrics result;
     uint64_t buckets[8];
     scoop_gc_lock_mutators();
@@ -82,7 +79,7 @@ void scoop_gc_report_metrics(void) {
     unlock_heap();
     scoop_gc_unlock_mutators();
     fprintf(
-        stderr,
+        output,
         "{\"scoop_gc\":1,\"minor_collections\":%" PRIu64 ",\"full_collections\":%" PRIu64
         ",\"promotion_fallbacks\":%" PRIu64 ",\"allocated_bytes\":%" PRIu64
         ",\"nursery_allocated_bytes\":%" PRIu64 ",\"promoted_bytes\":%" PRIu64
@@ -106,7 +103,7 @@ void scoop_gc_report_metrics(void) {
         result.unmapped_bytes, result.current_rss_bytes, result.peak_rss_bytes, buckets[0],
         buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7]);
     fprintf(
-        stderr,
+        output,
         ",\"stop_wait_ns\":%" PRIu64 ",\"root_scan_ns\":%" PRIu64 ",\"remembered_scan_ns\":%" PRIu64
         ",\"mark_ns\":%" PRIu64 ",\"plan_ns\":%" PRIu64 ",\"copy_ns\":%" PRIu64
         ",\"update_ns\":%" PRIu64 ",\"reclaim_ns\":%" PRIu64 ",\"vm_return_ns\":%" PRIu64
@@ -117,18 +114,22 @@ void scoop_gc_report_metrics(void) {
         result.plan_ns, result.copy_ns, result.update_ns, result.reclaim_ns, result.vm_return_ns,
         result.last_mark_workers, result.parallel_collections, result.worker_creation_failures,
         result.mark_reference_slots, result.mark_tasks, result.array_tasks, result.stolen_tasks);
-    fputs(",\"worker_cpu_ns\":[", stderr);
+    fputs(",\"worker_cpu_ns\":[", output);
     for (size_t index = 0; index < SCOOP_GC_MAX_WORKERS; index++) {
-        fprintf(stderr, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_cpu_ns[index]);
+        fprintf(output, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_cpu_ns[index]);
     }
-    fputs("],\"worker_marked_objects\":[", stderr);
+    fputs("],\"worker_marked_objects\":[", output);
     for (size_t index = 0; index < SCOOP_GC_MAX_WORKERS; index++) {
-        fprintf(stderr, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_marked_objects[index]);
+        fprintf(output, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_marked_objects[index]);
     }
-    fprintf(stderr,
+    fprintf(output,
             "],\"region_mappings\":%" PRIu64 ",\"empty_region_count\":%" PRIu64
             ",\"last_full_source_regions\":%" PRIu64 ",\"last_full_target_regions\":%" PRIu64
             ",\"last_full_pin_blocked_regions\":%" PRIu64 "}\n",
             result.region_mappings, result.empty_region_count, result.last_full_source_regions,
             result.last_full_target_regions, result.last_full_pin_blocked_regions);
+}
+
+void scoop_gc_report_metrics(void) {
+    if (scoop_gc_heap_state.print_metrics) scoop_gc_write_metrics(stderr);
 }

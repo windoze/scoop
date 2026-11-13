@@ -25,7 +25,7 @@ fn trace_symbols_preserve_source_names_paths_and_reject_changed_loader_indices()
     };
     let profile = scoop_toolchain::ValidatedRuntimeBuildProfile::for_target(target).unwrap();
     let mut sources = profile
-        .runtime_sources()
+        .runtime_sources(false)
         .into_iter()
         .filter(|source| source.starts_with("vendor/libbacktrace/"))
         .map(|source| workspace.join("sysroot").join(source))

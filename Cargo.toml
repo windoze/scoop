@@ -5,6 +5,7 @@ members = [
     "compiler/process",
     "compiler/identity",
     "compiler/source",
+    "compiler/profile",
     "compiler/syntax",
     "compiler/fmt",
     "compiler/analysis",
@@ -31,6 +32,7 @@ members = [
     "compiler/target-data",
     "compiler/slib",
     "compiler/driver",
+    "tooling/scoop-pgo",
 ]
 # One-off technical spikes (docs/ROADMAP.md M0) carry their own
 # `[workspace]` table and are intentionally not members.
@@ -84,6 +86,7 @@ scoop-wire = { path = "compiler/wire" }
 scoop-process = { path = "compiler/process" }
 scoop-identity = { path = "compiler/identity" }
 scoop-source = { path = "compiler/source" }
+scoop-profile = { path = "compiler/profile" }
 scoop-syntax = { path = "compiler/syntax" }
 scoop-fmt = { path = "compiler/fmt" }
 scoop-analysis = { path = "compiler/analysis" }

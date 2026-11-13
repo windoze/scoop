@@ -208,7 +208,7 @@ fn object_definition_decoders_reject_unknown_tags() {
     assert_unknown::<StrongDefinitionRole>(b"\x18\xff", 255);
     assert_unknown::<StrongDefinitionRole>(b"\x0a", 10);
     assert_unknown::<ObjectDefinitionPlanRole>(b"\xa1\x00\x03", 3);
-    assert_unknown::<DefinitionAtomRole>(b"\x0c", 12);
+    assert_unknown::<DefinitionAtomRole>(b"\x0f", 15);
     assert_unknown::<ConeImageSupportRole>(b"\x0d", 13);
     assert_unknown::<DecodedDefinitionAtomSubkey>(b"\xa1\x00\x0b", 11);
 }

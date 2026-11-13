@@ -224,6 +224,7 @@ fn metadata() -> LirMeta {
         itables: Vec::new(),
     });
     LirMeta {
+        profile_bodies: Vec::new(),
         debug_types: Default::default(),
         debug_globals: Default::default(),
         exact_types: Vec::new(),

@@ -5,6 +5,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LLVM_SYS_221_PREFIX");
     println!("cargo:rerun-if-changed=src/debug/records.cpp");
     println!("cargo:rerun-if-changed=src/emission/metadata_object.cpp");
+    println!("cargo:rerun-if-changed=src/profiling/llvm.cpp");
     let config = std::env::var_os("LLVM_SYS_221_PREFIX")
         .map(|prefix| PathBuf::from(prefix).join("bin/llvm-config"))
         .unwrap_or_else(|| PathBuf::from("llvm-config"));
@@ -29,5 +30,6 @@ fn main() {
         .flag(include.trim())
         .file("src/debug/records.cpp")
         .file("src/emission/metadata_object.cpp")
+        .file("src/profiling/llvm.cpp")
         .compile("scoop_llvm_bindings");
 }

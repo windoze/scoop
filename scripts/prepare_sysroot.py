@@ -165,6 +165,8 @@ def runtime(args, work, environment, native, enable_gc_stress=False, enable_star
         str(args.cache_dir),
         *native,
     ]
+    if args.profiling:
+        command.extend(["--profile-runtime", str(args.profile_runtime)])
     if enable_gc_stress:
         command.append("--enable-gc-stress")
     if enable_startup_stats:
@@ -178,15 +180,34 @@ def runtime(args, work, environment, native, enable_gc_stress=False, enable_star
         variant += "-stress"
     if enable_startup_stats:
         variant += "-startup-stats"
+    library_root = args.sysroot / "lib" / args.target
+    if args.profiling:
+        library_root /= "profiling"
     publish_files(
         source,
-        args.sysroot / "lib" / args.target / variant,
+        library_root / variant,
         files,
         work / f"{variant}.json",
     )
 
 
-def build_cones(sysroot, target, names, binaries, work, cache, jobs, environment, *, native=()):
+def build_cones(
+    sysroot,
+    target,
+    names,
+    binaries,
+    work,
+    cache,
+    jobs,
+    environment,
+    *,
+    native=(),
+    profile="release",
+    export_ir="default",
+    library_root=None,
+):
+    library_root = library_root or sysroot / "lib" / target
+    library_root.mkdir(parents=True, exist_ok=True)
     for name in names:
         print(f"Building {name} for {target}", flush=True)
         subprocess.run(
@@ -194,7 +215,12 @@ def build_cones(sysroot, target, names, binaries, work, cache, jobs, environment
                 binaries[0],
                 "build",
                 sysroot / "src" / name,
-                "--release",
+                "--profile",
+                profile,
+                "--export-ir",
+                export_ir,
+                "--system-library-root",
+                library_root,
                 "--jobs",
                 str(jobs),
                 "--target",
@@ -210,7 +236,7 @@ def build_cones(sysroot, target, names, binaries, work, cache, jobs, environment
                 "--lockfile",
                 work / "locks" / f"{name}.lock",
                 "-o",
-                sysroot / "lib" / target / f"{name}.slib",
+                library_root / f"{name}.slib",
                 *native,
             ],
             env=environment,
@@ -236,7 +262,21 @@ def main():
         action="store_true",
         help="Prepare runtime and public headers without building Cones",
     )
+    parser.add_argument(
+        "--profiling",
+        action="store_true",
+        help="Prepare the optional component: instrumented/full and release/full system libraries and profiling runtime",
+    )
+    parser.add_argument(
+        "--profile-runtime",
+        type=Path,
+        help="Target compiler-rt profile archive from the selected LLVM toolchain; required with --profiling",
+    )
     args = parser.parse_args()
+    if args.profiling != (args.profile_runtime is not None):
+        parser.error("--profiling and --profile-runtime must be used together")
+    if args.profile_runtime is not None:
+        args.profile_runtime = args.profile_runtime.resolve()
     if args.jobs < 1:
         parser.error("--jobs must be positive")
     if not args.runtime_only and args.scoop is None:
@@ -266,17 +306,35 @@ def main():
         scoopc = (
             args.scoopc or scoop.with_name("scoopc.exe" if os.name == "nt" else "scoopc")
         ).resolve()
-        build_cones(
-            args.sysroot,
-            args.target,
-            cone_order(args.sysroot, work, args.target),
-            [scoop, scoopc],
-            work,
-            args.cache_dir,
-            args.jobs,
-            environment,
-            native=native,
-        )
+        names = cone_order(args.sysroot, work, args.target)
+        if args.profiling:
+            for variant, profile in (("instrumented", "profiling"), ("release", "release")):
+                build_cones(
+                    args.sysroot,
+                    args.target,
+                    names,
+                    [scoop, scoopc],
+                    work / variant,
+                    args.cache_dir,
+                    args.jobs,
+                    environment,
+                    native=native,
+                    profile=profile,
+                    export_ir="full",
+                    library_root=args.sysroot / "lib" / args.target / "profiling" / variant,
+                )
+        else:
+            build_cones(
+                args.sysroot,
+                args.target,
+                names,
+                [scoop, scoopc],
+                work,
+                args.cache_dir,
+                args.jobs,
+                environment,
+                native=native,
+            )
     for enable_gc_stress in (False, True):
         for enable_startup_stats in (False, True):
             runtime(args, work, environment, native, enable_gc_stress, enable_startup_stats)

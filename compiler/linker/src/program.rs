@@ -79,6 +79,18 @@ impl<'a> ProgramInputs<'a> {
         let (declarations, libraries) = native::declarations::read(closure)?;
         let mut native = NativeInputs::read(libraries, library_paths, profile)?;
         native.include_embedded(closure, profile)?;
+        if let Some(archive) = runtime.profile_runtime() {
+            native.include_profile_runtime(archive, profile)?;
+        }
+        if !runtime.configuration().enable_profiling
+            && closure.artifacts().any(|(artifact, _)| {
+                artifact.manifest().instrumentation() == scoop_protocol::Instrumentation::Generate
+            })
+        {
+            return Err(error(
+                "instrumented slib requires a profiling runtime; rebuild dependencies without instrumentation for release/PGO use",
+            ));
+        }
         let namespace =
             crate::namespace::NativeNamespace::read(&mut native, library_paths, profile)?;
         // These indexes were already read for native symbol selection. Candidate
@@ -292,6 +304,17 @@ impl<'a> ProgramInputs<'a> {
             || symbol == self.symbol("__dso_handle")
             || (self.target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64
                 && matches!(symbol, "_GLOBAL_OFFSET_TABLE_" | "__ehdr_start"))
+            || (self.target.native_object_format() == scoop_lir::NativeObjectFormat::MachO64
+                && symbol.strip_prefix("section$").is_some_and(|rest| {
+                    let parts: Vec<_> = rest.split('$').collect();
+                    matches!(parts.as_slice(), ["start" | "end", segment, section]
+                        if !segment.is_empty() && !section.is_empty())
+                }))
+            || (self.target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64
+                && symbol
+                    .strip_prefix("__start_")
+                    .or_else(|| symbol.strip_prefix("__stop_"))
+                    .is_some_and(|section| section.starts_with("__llvm_prf_")))
     }
 }
 

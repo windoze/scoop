@@ -102,6 +102,10 @@ pub struct LoadedSingleConeBuildRequest {
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
     debug_info: scoop_lir::DebugInfoLevel,
+    export_ir: scoop_hir::IrTemplateExport,
+    instrumentation: scoop_profile::Instrumentation,
+    profile_use: Option<std::path::PathBuf>,
+    profile_use_required: bool,
     purpose: CompilationPurpose,
     native_inputs: super::NativeInputOrigin,
     generators: scoop_toolchain::GeneratorPrograms,
@@ -372,6 +376,7 @@ impl std::error::Error for CurrentConeSourceStageError {
 
 #[derive(Debug)]
 pub enum SingleConePreflightError {
+    Profile(String),
     SingleFile(Box<SingleFileInputError>),
     ExplicitDependencyLoad(Box<ExplicitDependencyLoadError>),
     Dependencies(Box<ExplicitDependencyValidationError>),
@@ -382,6 +387,7 @@ pub enum SingleConePreflightError {
 impl fmt::Display for SingleConePreflightError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Profile(message) => formatter.write_str(message),
             Self::SingleFile(source) => source.fmt(formatter),
             Self::ExplicitDependencyLoad(source) => source.fmt(formatter),
             Self::Dependencies(source) => source.fmt(formatter),
@@ -394,6 +400,7 @@ impl fmt::Display for SingleConePreflightError {
 impl std::error::Error for SingleConePreflightError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Profile(_) => None,
             Self::SingleFile(source) => Some(source.as_ref()),
             Self::ExplicitDependencyLoad(source) => Some(source.as_ref()),
             Self::Dependencies(source) => Some(source.as_ref()),

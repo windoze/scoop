@@ -165,10 +165,10 @@ pub(super) fn execute(
                     }),
                     _ => Err(config("test did not produce an executable")),
                 }?;
-                if let CommandOutcome::Child(status) = outcome {
-                    if !status.success() {
-                        return Ok(CommandOutcome::Child(status));
-                    }
+                if let CommandOutcome::Child(status) = outcome
+                    && !status.success()
+                {
+                    return Ok(CommandOutcome::Child(status));
                 }
             }
             Ok(CommandOutcome::Complete(true))

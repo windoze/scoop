@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "../gc_binding/object.h"
+#include "../profiling/gc.h"
 #include "copy_metadata.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
@@ -484,7 +485,9 @@ bool scoop_gc_heap_plan_moving_locked(bool minor, ScoopGcSurvivors *survivors) {
     }
     uint64_t copy_started = scoop_gc_monotonic_ns();
     copy_plan(&plan);
-    scoop_gc_heap_state.metrics.copy_ns += scoop_gc_monotonic_ns() - copy_started;
+    uint64_t copy_ended = scoop_gc_monotonic_ns();
+    scoop_gc_heap_state.metrics.copy_ns += copy_ended - copy_started;
+    scoop_profile_gc_phase(SCOOP_PROFILE_GC_COPY, copy_started, copy_ended);
     *survivors = plan.survivors;
     return true;
 }

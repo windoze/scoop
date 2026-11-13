@@ -199,6 +199,7 @@ impl CrossConeHirInterfaceSectionV1 {
             generic_delegates.clone(),
         );
         section.set_annotations(annotations);
+        section.set_ir_template_export(export.ir_template_export);
         Ok(section)
     }
 }

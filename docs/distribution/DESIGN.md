@@ -53,11 +53,14 @@ Windows LLVM 包内，`libLLVM-22.dll` 的 5 份内容相同，每份约 85.1 Mi
 | `bin-<host>` | 每宿主 | Scoop 命令、外部命令、所需 LLVM 工具及动态库、LLDB／Python、编译器资源、tooling、安装入口、发行说明和对应许可 |
 | `lib-base-<target>` | 每目标 | 非 GUI 系统 `.slib`、native 链接库、四种 runtime 配置各一份 `.a`／`.lib` 与 `index.cbor`、对应许可 |
 | `lib-gui-<target>` | 有 GUI 的目标 | GUI `.slib`、Skia 及其他 GUI 链接输入、对应许可；依赖同目标 base |
+| `lib-profiling-<target>` | 每目标，可选 | 全部系统 Cone 的 Profiling/full 与 Release/full 两套 `.slib`、位置映射、profiling runtime 及 compiler-rt profile archive；依赖同目标 base/native，GUI native 输入复用 gui |
 | `native-<target>` | 两个 MinGW 目标 | CRT 配置头、启动对象、Windows／CRT 导入库、C++ 目标库及必要 compiler-rt；通过同版本 Windows bin 取得公共工具和头文件 |
 | `sources` | 全局 | 内置 Cone 源码、清单、自有 C／C++／Rust 胶水、资源、公开 Scoop FFI 头和示例 |
 | `vendor` | 全局 | 全部上游源码、说明、构建补丁与许可，含 LLVM／LLDB；按需安装 |
 
-`bin`、`lib-base`、`lib-gui`、`native`、`sources` 和 `vendor` 归档顶层都是安装根内容，合并解压后可直接使用。`vendor` 保持维护归档用途，不通过安装它补足运行工具的资源。
+`bin`、`lib-base`、`lib-gui`、`lib-profiling`、`native`、`sources` 和 `vendor` 归档顶层都是安装根内容，合并解压后可直接使用。`vendor` 保持维护归档用途，不通过安装它补足运行工具的资源。
+
+profiling 组件单独下载、安装及移除，保存到 `lib/<target>/profiling/`，不改变普通构建的库选择。宿主工具包提供配套 `llvm-profdata`；compiler-rt 只为实际目标构建 profile runtime，随该目标 profiling 组件发布。完整采集与反馈合同见 [profiling 设计](../profiling/DESIGN.md)。
 
 默认安装组合为宿主 `bin`、全局 `sources` 和默认目标 `lib-base`；需要 GUI 时追加同目标 `lib-gui`。Windows 默认 MSVC UCRT 仍由本机 Build Tools／Windows SDK 提供 native SDK，不新增空的 `native-msvc` 包。选择任一 MinGW 目标时，同时安装该目标的 base 与 native；追加 GUI 不重新安装 native 资源。
 

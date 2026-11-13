@@ -2,6 +2,61 @@ use super::*;
 use scoop_identity::{CallableTemplateOrigin, PersistentPropertyId, PropertyOwner};
 
 impl Lowerer {
+    pub(super) fn materialize_imported_global_write(
+        &mut self,
+        property: PersistentPropertyId,
+        value: hir::Expr,
+        span: Span,
+        origin: hir::ExpressionOrigin,
+    ) -> Result<hir::Expr, ImportedDefaultMaterializationError> {
+        let kind = if self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.property_native_contract(property))
+            .is_some()
+        {
+            let place = self
+                .external_global_place(property)
+                .map_err(ImportedDefaultMaterializationError::Plan)?;
+            let pointer = hir::Expr {
+                kind: hir::ExprKind::AddressOf(place),
+                ty: self.intern_type(hir::Type::Ptr(value.ty)),
+                span,
+                origin,
+            };
+            hir::ExprKind::PtrStore {
+                pointer: Box::new(pointer),
+                offset: None,
+                value: Box::new(value),
+            }
+        } else {
+            let setter = self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| {
+                    dependencies.property_declaration(PropertyOwner::Property(property))
+                })
+                .and_then(|declaration| declaration.accessors().setter())
+                .ok_or_else(|| {
+                    ImportedDefaultMaterializationError::Plan(format!(
+                        "dependency global assignment {property} has no setter"
+                    ))
+                })?;
+            self.imported_default_call_kind(
+                CallableTemplateOrigin::Accessor(setter),
+                vec![value],
+                hir::SourceCallReceiver::NoReceiver,
+                MemberCallKind::Ordinary,
+            )?
+        };
+        Ok(hir::Expr {
+            kind,
+            ty: self.unit,
+            span,
+            origin,
+        })
+    }
+
     pub(super) fn materialize_imported_global_read(
         &mut self,
         property: PersistentPropertyId,

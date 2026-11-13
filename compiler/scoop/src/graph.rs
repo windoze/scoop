@@ -39,6 +39,20 @@ impl DiscoveredBuildGraph {
 }
 
 impl ResolvedBuildGraph {
+    /// Actual selected source root, after workspace and member selection.
+    pub fn root_source_path(&self) -> Option<&std::path::Path> {
+        self.single_file_source()
+            .map(|source| source.resolved_path())
+            .or_else(|| {
+                self.source_manifest(self.root)
+                    .map(|manifest| manifest.manifest_path())
+            })
+    }
+
+    pub fn profile_use(&self) -> Option<&std::path::Path> {
+        self.context.profile_use.as_deref()
+    }
+
     pub(crate) fn single_file_source(&self) -> Option<&scoop_manifest::SingleFileLocator> {
         match self.nodes.get(&self.root) {
             Some(GraphNode::SingleFile(source)) => Some(source),

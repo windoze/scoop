@@ -18,7 +18,10 @@ pub(super) fn ranges(definition: &ObjectDefinitionV1) -> Vec<DefinitionAtomRange
             | DefinitionAtomRole::AddressTakenConstant
             | DefinitionAtomRole::ContextKeyCell
             | DefinitionAtomRole::ContextKeyTable
-            | DefinitionAtomRole::RuntimeRecord => true,
+            | DefinitionAtomRole::RuntimeRecord
+            | DefinitionAtomRole::ProfileCounters
+            | DefinitionAtomRole::ProfileData
+            | DefinitionAtomRole::ProfileNames => true,
             DefinitionAtomRole::Primary => false,
         })
         .copied()

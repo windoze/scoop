@@ -5,6 +5,7 @@ use super::*;
 pub struct ImportedInlineBody {
     pub callable: ImportedDependencyCallableUseId,
     pub materialization: CallableMaterialization,
+    pub is_suspend: bool,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub body: Body,

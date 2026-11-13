@@ -7,7 +7,7 @@ use crate::{
 pub(super) fn project(
     export: &ExportHir,
     entities: &DefaultEntityProjector<'_>,
-    owner: scoop_identity::PersistentGenericTypeId,
+    owner: SourceNominalId,
     structure: crate::StructId,
 ) -> Result<ExportGenericNominalInitializationV1, Error> {
     let constructors = export.structs[structure]

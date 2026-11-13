@@ -104,6 +104,10 @@ pub struct SingleConeBuildRequest {
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
     debug_info: scoop_lir::DebugInfoLevel,
+    export_ir: scoop_hir::IrTemplateExport,
+    instrumentation: scoop_profile::Instrumentation,
+    profile_use: Option<PathBuf>,
+    profile_use_required: bool,
     purpose: CompilationPurpose,
     native_inputs: NativeInputOrigin,
     generators: scoop_toolchain::GeneratorPrograms,
@@ -160,6 +164,10 @@ impl SingleConeBuildRequest {
             emit,
             optimization: scoop_lir::OptimizationMode::Debug,
             debug_info: scoop_lir::DebugInfoLevel::None,
+            export_ir: scoop_hir::IrTemplateExport::Default,
+            instrumentation: scoop_profile::Instrumentation::Off,
+            profile_use: None,
+            profile_use_required: false,
             purpose: CompilationPurpose::Production,
             native_inputs: NativeInputOrigin::Source { sysroot: None },
             generators: scoop_toolchain::GeneratorPrograms::default(),
@@ -179,6 +187,22 @@ impl SingleConeBuildRequest {
 
     pub fn with_debug_info(mut self, level: scoop_lir::DebugInfoLevel) -> Self {
         self.debug_info = level;
+        self
+    }
+
+    pub fn with_instrumentation(mut self, mode: scoop_profile::Instrumentation) -> Self {
+        self.instrumentation = mode;
+        self
+    }
+
+    pub fn with_profile_use(mut self, path: Option<PathBuf>, required: bool) -> Self {
+        self.profile_use = path;
+        self.profile_use_required = required;
+        self
+    }
+
+    pub fn with_export_ir(mut self, mode: scoop_hir::IrTemplateExport) -> Self {
+        self.export_ir = mode;
         self
     }
 

@@ -17,12 +17,14 @@ impl CurrentConeHir {
         world: &scoop_hir::ImportedSemanticWorld<'_>,
         source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
         documentation: bool,
+        export_ir: scoop_hir::IrTemplateExport,
         programs: &scoop_toolchain::GeneratorPrograms,
         inputs: std::sync::Arc<scoop_toolchain::CompileTimeInputs>,
     ) -> Result<Self, CurrentConeHirStageError> {
         let mut sources = scoop_hir_lower::CurrentConeSources::try_new(parsed, protocols, world)
             .map_err(CurrentConeHirStageError::Input)?
             .with_source_names(source_names)
+            .with_ir_template_export(export_ir)
             .with_compile_time_inputs(inputs.clone());
         if documentation {
             sources = sources
@@ -53,12 +55,14 @@ impl CurrentConeHir {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn lower_tests(
         sources: &scoop_ast::CurrentConeParsedSources,
         protocols: scoop_hir_lower::CoreProtocolInput,
         world: &scoop_hir::ImportedSemanticWorld<'_>,
         source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
         test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
+        export_ir: scoop_hir::IrTemplateExport,
         programs: &scoop_toolchain::GeneratorPrograms,
         inputs: std::sync::Arc<scoop_toolchain::CompileTimeInputs>,
     ) -> Result<Self, CurrentConeHirStageError> {
@@ -66,6 +70,7 @@ impl CurrentConeHir {
         let sources = scoop_hir_lower::CurrentConeSources::try_new(sources, protocols, world)
             .map_err(CurrentConeHirStageError::Input)?
             .with_source_names(source_names)
+            .with_ir_template_export(export_ir)
             .with_compile_time_inputs(inputs.clone())
             .with_test_dependencies(test_dependencies)
             .map_err(CurrentConeHirStageError::Input)?;

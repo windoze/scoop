@@ -3,6 +3,20 @@ use std::ffi::OsString;
 use std::process::Command;
 
 #[test]
+fn explicit_build_files_participate_in_normal_update_checks() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("training 数据 %.json");
+    std::fs::write(&path, b"first input").unwrap();
+    let input = scoop_protocol::CompilerInputV1::BuildFile(build_file_input(&path).unwrap());
+    assert!(compiler_inputs_current(std::slice::from_ref(&input)));
+    std::fs::write(&path, b"updated training input").unwrap();
+    assert!(!compiler_inputs_current(&[input]));
+    assert!(compiler_inputs_current(&[
+        scoop_protocol::CompilerInputV1::BuildFile(build_file_input(&path).unwrap())
+    ]));
+}
+
+#[test]
 fn compile_env_host_values_and_cache_updates() {
     const NAME: &str = "SCOOP_COMPILE_ENV_TEST_VALUE";
     const CASE: &str = "SCOOP_COMPILE_ENV_TEST_CASE";

@@ -5,7 +5,7 @@ use scoop_wire::{Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError,
 
 impl WireEncode for ArtifactManifestSummaryV1 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(7)?;
+        e.map(8)?;
         e.field(1)?;
         self.cone.encode(e)?;
         e.field(2)?;
@@ -26,13 +26,14 @@ impl WireEncode for ArtifactManifestSummaryV1 {
         if let Some(directory) = &self.test_directory {
             directory.encode(e)?;
         }
-        Ok(())
+        e.field(8)?;
+        self.instrumentation.encode(e)
     }
 }
 
 impl WireDecode for ArtifactManifestSummaryV1 {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
-        d.expect_map(7)?;
+        d.expect_map(8)?;
         let cone = d.field(1, |d| {
             crate::DecodedConeRecord::decode(d)?
                 .validate()
@@ -78,7 +79,8 @@ impl WireDecode for ArtifactManifestSummaryV1 {
             semantic_fingerprints,
             artifact_fingerprint,
             test_directory,
-        ))
+        )
+        .with_instrumentation(d.field(8, scoop_profile::Instrumentation::decode)?))
     }
 }
 

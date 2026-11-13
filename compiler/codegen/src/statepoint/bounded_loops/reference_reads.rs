@@ -7,7 +7,10 @@ use super::{InstructionOpcode, PointerValue, operations, region::Region};
 pub(super) const FACTOR: u64 = 4;
 
 pub(super) fn selected(region: &Region<'_>) -> bool {
-    if region.blocks.len() > 4 || region.iterations < FACTOR || region.iterations % FACTOR != 0 {
+    if region.blocks.len() > 4
+        || region.iterations < FACTOR
+        || !region.iterations.is_multiple_of(FACTOR)
+    {
         return false;
     }
     let mut reference_read = false;

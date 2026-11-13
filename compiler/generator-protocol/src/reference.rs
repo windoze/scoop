@@ -38,7 +38,10 @@ impl<I: PersistentId> FromStr for Reference<I> {
             return Err(ReferenceFormatError);
         }
         let mut bytes = [0; 32];
-        for (output, pair) in bytes.iter_mut().zip(text.as_bytes().chunks_exact(2)) {
+        for (output, pair) in bytes
+            .iter_mut()
+            .zip(text.as_bytes().as_chunks::<2>().0.iter())
+        {
             *output = (digit(pair[0])? << 4) | digit(pair[1])?;
         }
         Ok(Self {

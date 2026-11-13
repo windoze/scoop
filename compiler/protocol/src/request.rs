@@ -12,7 +12,7 @@ pub use output::ScoopcOutputRequestV1;
 use target::DecodedTargetSelectionRequestV1;
 pub use target::TargetSelectionRequestV1;
 
-use crate::{DebugInfoLevel, OptimizationMode};
+use crate::{DebugInfoLevel, IrTemplateExport, OptimizationMode};
 mod documentation;
 use documentation::validate_documentation;
 
@@ -121,6 +121,9 @@ pub struct ScoopcBuildRequestV1 {
     emit: StageDumpPolicyV1,
     optimization: OptimizationMode,
     debug_info: DebugInfoLevel,
+    export_ir: IrTemplateExport,
+    instrumentation: scoop_profile::Instrumentation,
+    profile_use: Option<HostPathCarrier>,
     purpose: crate::CompilationPurpose,
     native_inputs: Vec<HostPathCarrier>,
     generators: Vec<crate::GeneratorRegistrationV1>,
@@ -157,6 +160,9 @@ impl ScoopcBuildRequestV1 {
             emit,
             optimization: OptimizationMode::Debug,
             debug_info: DebugInfoLevel::None,
+            export_ir: IrTemplateExport::Default,
+            instrumentation: scoop_profile::Instrumentation::Off,
+            profile_use: None,
             purpose: crate::CompilationPurpose::Production,
             native_inputs: Vec::new(),
             generators: Vec::new(),
@@ -175,6 +181,33 @@ impl ScoopcBuildRequestV1 {
 
     pub const fn debug_info(&self) -> DebugInfoLevel {
         self.debug_info
+    }
+
+    pub fn with_instrumentation(mut self, mode: scoop_profile::Instrumentation) -> Self {
+        self.instrumentation = mode;
+        self
+    }
+
+    pub fn with_profile_use(mut self, path: Option<HostPathCarrier>) -> Self {
+        self.profile_use = path;
+        self
+    }
+
+    pub fn profile_use(&self) -> Option<&HostPathCarrier> {
+        self.profile_use.as_ref()
+    }
+
+    pub fn with_export_ir(mut self, mode: IrTemplateExport) -> Self {
+        self.export_ir = mode;
+        self
+    }
+
+    pub const fn instrumentation(&self) -> scoop_profile::Instrumentation {
+        self.instrumentation
+    }
+
+    pub const fn export_ir(&self) -> IrTemplateExport {
+        self.export_ir
     }
 
     pub fn with_purpose(
@@ -265,7 +298,7 @@ impl ScoopcBuildRequestV1 {
 
 impl WireEncode for ScoopcBuildRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(13)?;
+        encoder.map(16)?;
         encoder.field(1)?;
         self.current.encode(encoder)?;
         encoder.field(2)?;
@@ -294,7 +327,17 @@ impl WireEncode for ScoopcBuildRequestV1 {
             generator.encode(encoder)?;
         }
         encoder.field(13)?;
-        self.debug_info.encode(encoder)
+        self.debug_info.encode(encoder)?;
+        encoder.field(14)?;
+        self.export_ir.encode(encoder)?;
+        encoder.field(15)?;
+        self.instrumentation.encode(encoder)?;
+        encoder.field(16)?;
+        encoder.array(u64::from(self.profile_use.is_some()))?;
+        if let Some(path) = &self.profile_use {
+            path.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 

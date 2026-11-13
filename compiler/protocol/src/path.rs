@@ -128,7 +128,9 @@ impl HostPathCarrier {
         }
         let words = self
             .bytes
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|bytes| u16::from_le_bytes([bytes[0], bytes[1]]))
             .collect::<Vec<_>>();
         Ok(PathBuf::from(std::ffi::OsString::from_wide(&words)))
@@ -233,13 +235,11 @@ fn validate_path_bytes(encoding: HostPathEncoding, bytes: &[u8]) -> Result<(), H
             }
         }
         HostPathEncoding::WindowsWtf16Le => {
-            if !bytes.chunks_exact(2).remainder().is_empty() {
+            let (words, remainder) = bytes.as_chunks::<2>();
+            if !remainder.is_empty() {
                 return Err(HostPathError::InvalidWindowsByteLength);
             }
-            if bytes
-                .chunks_exact(2)
-                .any(|bytes| u16::from_le_bytes([bytes[0], bytes[1]]) == 0)
-            {
+            if words.iter().any(|word| u16::from_le_bytes(*word) == 0) {
                 return Err(HostPathError::ContainsNul);
             }
         }

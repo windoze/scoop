@@ -83,6 +83,7 @@ mod objects;
 mod platform;
 pub(crate) mod platform_support;
 mod pointers;
+mod profiling;
 mod runtime_scans;
 mod scoop_abi;
 mod smoke;

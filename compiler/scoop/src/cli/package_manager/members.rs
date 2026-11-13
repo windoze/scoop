@@ -1,41 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use clap::Args;
 use scoop::BuildResult;
-use scoop_manifest::DependencyCoordinateKey;
 use scoop_process::CommandExt;
-use scoop_protocol::package::{PackageMemberSelectionV1, PackageMembersV1};
+use scoop_protocol::package::PackageMembersV1;
 
 use crate::cli::commands::{absolute, config};
 
-#[derive(Args, Clone, Default)]
-pub(in crate::cli) struct MemberOptions {
-    /// Select all members of the workspace.
-    #[arg(long, conflicts_with = "package")]
-    pub workspace: bool,
-    /// Select a workspace member; may be repeated.
-    #[arg(short = 'p', long = "package", value_name = "GROUP:NAME")]
-    pub package: Vec<DependencyCoordinateKey>,
-}
-
-impl MemberOptions {
-    pub fn explicit(&self) -> bool {
-        self.workspace || !self.package.is_empty()
-    }
-
-    pub fn selection(&self) -> PackageMemberSelectionV1 {
-        if self.workspace {
-            PackageMemberSelectionV1::All
-        } else if self.package.is_empty() {
-            PackageMemberSelectionV1::Default
-        } else {
-            PackageMemberSelectionV1::Packages {
-                keys: self.package.clone(),
-            }
-        }
-    }
-}
+pub(in crate::cli) use scoop::options::MemberOptions;
 
 pub(in crate::cli) fn members(
     cwd: &Path,

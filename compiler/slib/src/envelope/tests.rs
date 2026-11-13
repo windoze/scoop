@@ -61,6 +61,7 @@ fn manifest(members: &[SlibMember]) -> BootstrapManifest {
             )),
         ),
         Vec::new(),
+        Default::default(),
     )
     .unwrap()
 }

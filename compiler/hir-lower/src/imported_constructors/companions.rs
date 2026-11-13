@@ -61,7 +61,7 @@ impl Lowerer {
         names.push(declaration.name().to_owned());
         let display_name = format!("companion:{}", names.join("."));
         let initialization = dependencies
-            .nominal_initialization(owner)
+            .nominal_initialization(hir::SourceNominalId::GenericTemplate(owner))
             .ok_or("companion initialization template is missing")?;
         let [constructor] = initialization.initialization().constructors() else {
             return Err("companion requires one hidden initializer".into());

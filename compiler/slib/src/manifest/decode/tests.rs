@@ -60,6 +60,7 @@ fn manifest(sections: Vec<ManifestSection>) -> BootstrapManifest {
             )),
         ),
         sections,
+        Default::default(),
     )
     .unwrap()
 }
@@ -86,7 +87,7 @@ fn manifest_round_trips_through_untrusted_validation() {
 #[test]
 fn manifest_rejects_other_schemas_and_checks_identity_compatibility() {
     let encoded = encode(&manifest(Vec::new())).unwrap();
-    for manifest_schema in [1, 2, 3, 4, 5, 7] {
+    for manifest_schema in [1, 2, 3, 4, 5, 6, 8] {
         let mut decoded = decode_canonical::<DecodedBootstrapManifest>(&encoded).unwrap();
         decoded.manifest_schema = manifest_schema;
         assert_eq!(

@@ -162,7 +162,19 @@ fn success_response(
             let result = ScoopcSuccessV1::new(product, warnings, dumps)
                 .map_err(ChildProtocolError::ConstructResponse)?
                 .with_used_generators(success.used_generators().to_vec())
-                .with_compiler_inputs(success.compiler_inputs().to_vec());
+                .with_compiler_inputs(success.compiler_inputs().to_vec())
+                .with_profile_use(success.profile_use().cloned())
+                .with_profile_map(
+                    success
+                        .profile_map()
+                        .map(scoop_protocol::HostPathCarrier::from_path)
+                        .transpose()
+                        .map_err(|error| {
+                            ChildProtocolError::ConstructResponse(
+                                ProtocolValidationError::HostPath(error),
+                            )
+                        })?,
+                );
             Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
         }
         scoopc::SingleConeCompilation::Documented(success) => {

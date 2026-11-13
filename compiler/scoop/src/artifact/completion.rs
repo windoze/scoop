@@ -29,9 +29,19 @@ pub struct CompletedNode {
     artifact_locator: PathBuf,
     warnings: Vec<StructuredDiagnosticV1>,
     compiler_inputs: Vec<scoop_protocol::CompilerInputV1>,
+    profile_use: Option<scoop_profile::UseSummary>,
 }
 
 impl CompletedNode {
+    pub(crate) fn with_profile_use(mut self, summary: Option<scoop_profile::UseSummary>) -> Self {
+        self.profile_use = summary;
+        self
+    }
+
+    pub fn profile_use(&self) -> Option<&scoop_profile::UseSummary> {
+        self.profile_use.as_ref()
+    }
+
     pub(crate) fn with_compiler_inputs(
         mut self,
         inputs: Vec<scoop_protocol::CompilerInputV1>,
@@ -89,6 +99,7 @@ impl CompletedNode {
             artifact_locator,
             warnings,
             compiler_inputs: Vec::new(),
+            profile_use: None,
         }
     }
 }
@@ -255,5 +266,6 @@ pub(crate) fn complete_prebuilt_candidates(
         artifact_locator: selected.source_locator,
         warnings: Vec::new(),
         compiler_inputs: Vec::new(),
+        profile_use: None,
     })
 }

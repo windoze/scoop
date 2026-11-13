@@ -28,7 +28,7 @@ fn generic_initializations_preserve_source_execution_and_roundtrip_shared_nodes(
                     .iter()
                     .find(|(_, declaration)| declaration.name == name)
                     .unwrap();
-                let identity = export.nominal_identities[id].generic_type_id().unwrap();
+                let identity = export.nominal_identities[id].declaration_id();
                 table.get(identity).unwrap()
             };
             if case == "standalone" {
@@ -81,7 +81,7 @@ fn generic_initializations_preserve_source_execution_and_roundtrip_shared_nodes(
                     .unwrap();
                 assert!(
                     table
-                        .get(export.nominal_identities[unused].generic_type_id().unwrap())
+                        .get(export.nominal_identities[unused].declaration_id())
                         .is_none()
                 );
             } else {

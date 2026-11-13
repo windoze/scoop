@@ -47,6 +47,7 @@ fn shared_constructor_initialization_lowers_captures_in_each_executable_body() {
                     dependencies,
                     Default::default(),
                     None,
+                    Default::default(),
                 )
                 .expect("each shared initializer retains its actual capture expressions");
             },

@@ -31,7 +31,7 @@ impl RuntimeObjectSet {
             ))
         })?;
         let index: Index = decode_canonical(&bytes).map_err(error)?;
-        if index.schema != 8
+        if index.schema != 9
             || index.target != encode(&target.wire_id()).map_err(error)?
             || index.abi.as_array() != RuntimeAbiContract.fingerprint().map_err(error)?.as_array()
             || toolchain.contract().target() != &target.wire_id()
@@ -45,6 +45,12 @@ impl RuntimeObjectSet {
             .parent()
             .ok_or_else(|| error("runtime index has no parent"))?;
         let archive = directory.join(archive_path(&index.archive)?);
+        let profile_runtime = index
+            .configuration
+            .enable_profiling
+            .then(|| directory.join("profile.a"));
+        let mut input_paths = vec![path, archive];
+        input_paths.extend(profile_runtime);
         Ok(Self {
             target,
             toolchain: index.toolchain,
@@ -53,13 +59,13 @@ impl RuntimeObjectSet {
             objects: index.objects,
             merged: index.merged,
             fingerprint: RuntimeArtifactFingerprint(index.fingerprint),
-            input_paths: [path, archive],
+            input_paths,
         })
     }
 
     pub(super) fn write_index(&self) -> Result<(), LinkError> {
         let index = Index {
-            schema: 8,
+            schema: 9,
             target: encode(&self.target.wire_id()).map_err(error)?,
             toolchain: self.toolchain.clone(),
             configuration: self.configuration.clone(),

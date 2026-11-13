@@ -30,8 +30,10 @@ impl ElfObject<'_> {
             return Err(CodegenError("ELF ODR section group is malformed".into()));
         }
         let mut members = data[4..]
-            .chunks_exact(4)
-            .map(|entry| u32::from_le_bytes(entry.try_into().expect("group entry")) as usize)
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|entry| u32::from_le_bytes(*entry) as usize)
             .collect::<BTreeSet<_>>();
         let mut additions = sections
             .iter()

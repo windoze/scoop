@@ -1,0 +1,70 @@
+package test.pgo.consumer
+
+import test.pgo.exports.*
+
+class Gate: SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) {
+        waiter = Some(continuation)
+    }
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class Completion: Continuation<Int> {
+    var calls: Int = 0
+    var value: Int = 0
+    var failures: Int = 0
+    public override fun resume(value: Int) {
+        this.value = value;
+        calls += 1
+    }
+    public override fun resumeWithException(error: Throwable) {
+        failures += 1;
+        calls += 1
+    }
+}
+
+fun main(): Int {
+    if (stored != 8 || imageValue != 13) return 8
+    stored += 1
+    if (stored != 9) return 9
+    if (changeStored(12) != 12 || changeThreadValue(17) != 17) return 10
+    val values: MutableArray<Int> = [0]
+    writeFirst(values, 42)
+    if (values[0L] != 42) return 11
+
+    if (generic(defaulted()) != 7 || ordinary(41) != 42)
+        return 1
+    val read = make(7)
+    gcCollect()
+    if (read() != 14)
+        return 2
+    if (handled(0) != 19 || handled(2) != 23)
+        return 3
+    val scoped =
+        context(Request(41)) {
+            current()
+        }
+    if (scoped != 42)
+        return 4
+    try {
+        current();
+        return 5
+    }
+    catch (error: MissingContextException) {}
+    val gate = Gate()
+    val done = Completion()
+    startCoroutine(suspend { delayed(gate) }, done)
+    if (done.calls != 0)
+        return 6
+    gcCollect()
+    gate.complete(2)
+    if (done.calls != 1 || done.value != 23 || done.failures != 0)
+        return 7
+    println("export IR semantics")
+    return 0
+}

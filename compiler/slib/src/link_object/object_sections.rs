@@ -5,6 +5,8 @@ use super::ValidatedObjectEnvelopeV1;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum BuiltinObjectSectionRoleV1 {
     ObjectMetadata,
+    /// LLVM-owned counter records retained with their callable object.
+    ProfilingSupport,
     Text,
     ReadOnlyData,
     CString,

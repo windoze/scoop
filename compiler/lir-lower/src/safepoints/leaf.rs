@@ -54,7 +54,8 @@ fn bounded_instruction(instruction: &lir::Instruction) -> bool {
     use lir::Instruction as I;
     matches!(
         instruction,
-        I::BinOp { .. }
+        I::ProfileCounter(_)
+            | I::BinOp { .. }
             | I::UnaryOp { .. }
             | I::IntegerUnary { .. }
             | I::IntegerBinary { .. }

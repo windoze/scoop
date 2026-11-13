@@ -98,6 +98,7 @@ fn encode_section_role(
         BuiltinObjectSectionRoleV1::ObjectMetadata => 13,
         BuiltinObjectSectionRoleV1::WindowsUnwindTable => 14,
         BuiltinObjectSectionRoleV1::WindowsUnwindInfo => 15,
+        BuiltinObjectSectionRoleV1::ProfilingSupport => 16,
     })
 }
 

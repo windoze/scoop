@@ -5,6 +5,7 @@ use super::*;
 pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) debug: Option<&'a crate::debug::DebugContext<'a, 'ctx>>,
     pub(crate) profile: ValidatedBackendProfile,
+    pub(crate) profiling: bool,
     pub(crate) reuse_interface_values: bool,
     pub(crate) optimize_allocations: bool,
     pub(crate) optimize_reference_writes: bool,
@@ -182,7 +183,8 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::Throw { .. }
         | Instruction::ArraySet { .. }
         | Instruction::ByteCopy { .. }
-        | Instruction::StringByteStore { .. } => None,
+        | Instruction::StringByteStore { .. }
+        | Instruction::ProfileCounter(_) => None,
     };
     let second = match instruction {
         Instruction::LandingPad { raw, .. } | Instruction::CleanupPad { raw, .. } => Some(*raw),

@@ -67,13 +67,13 @@ pub(super) fn validate_plan(
     let mut image = None;
     for node in nodes {
         validate_owner(node, foundation)?;
-        if node.kind() == DigestKind::RuntimeImage {
-            if let Some(first) = image.replace(node.id()) {
-                return Err(DigestPlanError::MultipleRuntimeImages {
-                    first,
-                    second: node.id(),
-                });
-            }
+        if node.kind() == DigestKind::RuntimeImage
+            && let Some(first) = image.replace(node.id())
+        {
+            return Err(DigestPlanError::MultipleRuntimeImages {
+                first,
+                second: node.id(),
+            });
         }
         if let Some(input) = first_duplicate_input(&node.direct_inputs) {
             return Err(DigestPlanError::DuplicateInput {

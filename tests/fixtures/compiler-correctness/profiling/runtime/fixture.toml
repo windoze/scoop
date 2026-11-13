@@ -1,0 +1,86 @@
+schema = 1
+name = "profiling-runtime"
+inputs = ["program.scoop", "probe.py", "probe_use.py", "probe_pgo.py", "../../../language/callback/native.c", "../../../language/callback/threading.h"]
+tools = ["scoop", "scoopc", "scoop-pgo", "python", "llvm-profdata", "cc", "ar"]
+tags = ["profiling", "runtime", "compiler-correctness"]
+
+[[steps]]
+name = "threads"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/../../../language/callback/native.c", "-o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libprofiling_threads.a", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "instrumented"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "profiling", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "-o", "${work}/program", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${instrumented.result.profile}", equals = "profiling"}, {actual = "${instrumented.result.profiling.missing_maps.length}", equals = 0}, {actual = "${instrumented.result.profiling.uninstrumented_cones.length}", equals = 0}]
+
+[[steps]]
+name = "reused"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "profiling", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "-o", "${work}/program", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${reused.result.root.artifact_fingerprint}", equals = "${instrumented.result.root.artifact_fingerprint}"}, {actual = "${reused.result.observations.child_invocations.length}", equals = 0}, {actual = "${reused.result.profiling.maps}", equals = "${instrumented.result.profiling.maps}"}]
+
+[[steps]]
+name = "release"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "release", "--system-library-root", "${sysroot}/lib/${target}/profiling/release", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "-o", "${work}/ordinary", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${release.result.root.artifact_fingerprint}", not_equals = "${instrumented.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "previous"
+files = [{write = {path = "${work}/rejected", data = "previous executable"}}]
+
+[[steps]]
+name = "reject_generate"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--root-slib", "${instrumented.result.root.path}", {each = "${instrumented.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${release.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--library-path", "${work}", "-o", "${work}/rejected", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+checks = [{actual = "${reject_generate.diagnostics.0.message}", contains = "instrumented slib requires a profiling runtime"}, {file = "${work}/rejected", equals = "previous executable"}]
+
+[[steps]]
+name = "counts"
+argv = ["${python}", "${fixture}/probe.py", "${scoopc}", "${llvm-profdata}", "${target}", "${work}", "${instrumented.result.output}", "${release.result.output}", {each = "${instrumented.result.profiling.maps}"}]
+timeout = 180
+exit = 0
+stdout = "profiling runtime passed\n"
+stderr = ""
+
+[[steps]]
+name = "feedback"
+argv = ["${python}", "${fixture}/probe_use.py", "${scoop}", "${llvm-profdata}", "${fixture}/program.scoop", "${work}", "${cache}", "${sysroot}", {each = "${link_args}"}]
+timeout = 300
+exit = 0
+stdout = "profiling feedback passed\n"
+stderr = ""
+
+[[steps]]
+name = "pgo"
+argv = ["${python}", "${fixture}/probe_pgo.py", "${scoop}", "${scoop-pgo}", "${llvm-profdata}", "${fixture}/program.scoop", "${work}", "${cache}", "${sysroot}", {each = "${link_args}"}]
+timeout = 600
+exit = 0
+stdout = "profiling command passed\n"
+stderr = ""

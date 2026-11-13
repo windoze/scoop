@@ -199,6 +199,7 @@ fn lower_current_export_inner<C>(
     };
     let (mut module, mut warnings, completion) =
         lowerer.run_with_dependencies(&files, world, generator, check)?;
+    module.ir_template_export = input.ir_template_export();
     for file in &mut module.source_files {
         if let Some(path) = input
             .sources()

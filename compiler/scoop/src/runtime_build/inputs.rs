@@ -28,7 +28,7 @@ impl Inputs {
         let sources = request
             .target
             .runtime_build()
-            .runtime_sources()
+            .runtime_sources(request.profile_runtime.is_some())
             .into_iter()
             .map(|path| {
                 path.strip_prefix("runtime/")
@@ -70,6 +70,11 @@ impl Inputs {
             } else {
                 "-DSCOOP_ENABLE_STARTUP_STATS=0"
             }])
+            .chain([if request.profile_runtime.is_some() {
+                "-DSCOOP_ENABLE_PROFILING=1"
+            } else {
+                "-DSCOOP_ENABLE_PROFILING=0"
+            }])
             .chain([
                 "-funwind-tables",
                 "-fasynchronous-unwind-tables",
@@ -81,6 +86,7 @@ impl Inputs {
         let key = serde_json::to_vec(&(
             path(&root)?,
             path(&vendor)?,
+            request.profile_runtime.map(path).transpose()?,
             sources
                 .iter()
                 .map(|p| path(p))

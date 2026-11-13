@@ -15,7 +15,10 @@ pub(super) use prepare::{PackageOptions, PrepareInput, prepare};
 mod members;
 pub(super) use members::{MemberOptions, members};
 
-fn executable(cwd: &std::path::Path, explicit: Option<PathBuf>) -> BuildResult<PathBuf> {
+pub(in crate::cli) fn executable(
+    cwd: &std::path::Path,
+    explicit: Option<PathBuf>,
+) -> BuildResult<PathBuf> {
     match explicit {
         Some(path) => super::commands::absolute(cwd, path),
         None => std::env::current_exe()

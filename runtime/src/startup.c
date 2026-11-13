@@ -7,6 +7,7 @@
 #include "eh_internal.h"
 #include "floating.h"
 #include "gc.h"
+#include "profiling.h"
 #include "gc_binding/internal.h"
 #include "stack_trace.h"
 #include "startup/internal.h"
@@ -20,7 +21,8 @@ static ScoopPlatformMetadataImages loaded;
 static int32_t program_argc;
 static const char *const *program_argv;
 
-#if defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS
+#if (defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS) || \
+    (defined(SCOOP_ENABLE_PROFILING) && SCOOP_ENABLE_PROFILING)
 typedef enum StartupPhase {
     STARTUP_LOADED_IMAGES,
     STARTUP_COLLECT_RECORDS,
@@ -58,8 +60,8 @@ static void startup_measure(StartupMetrics *metrics, StartupPhase phase) {
     metrics->previous = now;
 }
 
-static void startup_report(const StartupMetrics *metrics, const ScoopImageRegistry *registry) {
-    fprintf(stderr,
+static void startup_write(FILE *output, const StartupMetrics *metrics, const ScoopImageRegistry *registry) {
+    fprintf(output,
             "{\"scoop_startup\":1,\"total_ns\":%" PRIu64 ",\"phases_ns\":{"
             "\"loaded_images\":%" PRIu64 ",\"collect_records\":%" PRIu64
             ",\"code_and_types\":%" PRIu64 ",\"storage_and_units\":%" PRIu64
@@ -82,6 +84,14 @@ static void startup_report(const StartupMetrics *metrics, const ScoopImageRegist
             registry->tables[SCOOP_RECORD_IMMORTAL].count,
             registry->tables[SCOOP_RECORD_UNIT].count, registry->eager_unit_count,
             registry->context_key_count);
+}
+
+static void startup_report(const StartupMetrics *metrics, const ScoopImageRegistry *registry) {
+#if defined(SCOOP_ENABLE_STARTUP_STATS) && SCOOP_ENABLE_STARTUP_STATS
+    startup_write(stderr, metrics, registry);
+#endif
+    FILE *output = scoop_profile_metrics_file();
+    if (output != NULL) startup_write(output, metrics, registry);
 }
 
 #define STARTUP_BEGIN() StartupMetrics metrics = startup_metrics_begin()
@@ -140,6 +150,7 @@ static StartupResult initialize(const ScoopImageDescriptorV1 *const *images,
     if (entry.kind == STARTUP_NATIVE_APP)
         scoop_trace_use_native_host();
 #endif
+    scoop_profile_initialize();
     STARTUP_BEGIN();
     const ScoopPlatformBundle *platform = require_platform();
     ScoopPlatformError error = {0};
@@ -167,6 +178,7 @@ static StartupResult initialize(const ScoopImageDescriptorV1 *const *images,
     scoop_thread_runtime_init();
     scoop_callback_runtime_init();
     scoop_rt_gc_init(registry);
+    scoop_profile_runtime_ready();
     bool owned_attachment = false;
     if (entry.kind == STARTUP_PROGRAM)
         scoop_thread_attach_main();
@@ -213,6 +225,7 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t i
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();
     scoop_gc_report_metrics();
+    scoop_profile_finish("return", exit_code);
     scoop_image_unpublish();
     scoop_image_registry_dispose(registry);
     scoop_platform_bundle()->metadata_images->dispose_images(&loaded);

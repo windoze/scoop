@@ -61,6 +61,7 @@ fn subsystem_changes_artifact_fingerprint_and_rejects_unknown_wire_values() {
             &members,
             fingerprints(1),
             Vec::new(),
+            Default::default(),
         )
         .unwrap()
     };

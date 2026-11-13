@@ -371,6 +371,9 @@ pub enum DefinitionAtomRole {
     AddressTakenConstant,
     WindowsUnwindTable,
     WindowsUnwindInfo,
+    ProfileCounters,
+    ProfileData,
+    ProfileNames,
 }
 
 impl WireEncode for DefinitionAtomRole {
@@ -387,6 +390,9 @@ impl WireEncode for DefinitionAtomRole {
             Self::ContextKeyTable => 9,
             Self::WindowsUnwindTable => 10,
             Self::WindowsUnwindInfo => 11,
+            Self::ProfileCounters => 12,
+            Self::ProfileData => 13,
+            Self::ProfileNames => 14,
         })
     }
 }

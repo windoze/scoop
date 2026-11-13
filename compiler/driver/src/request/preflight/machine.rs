@@ -21,12 +21,14 @@ impl CurrentConeMachineHir<'_> {
         selected_callables: scoop_mir::SelectedExternalMirSet,
         optimization: scoop_mir_lower::MirOptimizationOptions,
         report: Option<&mut scoop_mir::optimization_report::OptimizationReport>,
+        profiling: scoop_mir_lower::ProfilingInput<'_>,
     ) -> Result<CurrentConeMirArtifacts, CurrentConeMirStageError> {
         let mir = scoop_mir_lower::lower_current_cone(
             self.output,
             selected_callables,
             optimization,
             report,
+            profiling,
         )
         .map_err(CurrentConeMirStageError::Lowering)?;
         let foundation = mir.foundation();

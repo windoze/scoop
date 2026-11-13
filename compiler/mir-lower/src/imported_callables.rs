@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Clone)]
 pub(super) struct ImportedCallableTarget {
+    pub(super) has_constructor_template: bool,
     pub(super) entry: ImportedCallableEntry,
     pub(super) lowering_role: mir::MirCallableLoweringRoleV1,
     pub(super) signature: scoop_identity::ExactCallableSignature,

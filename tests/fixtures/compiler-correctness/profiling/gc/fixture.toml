@@ -1,0 +1,36 @@
+schema = 1
+name = "profiling-gc-timeline"
+inputs = ["program.scoop", "native.c", "probe.py"]
+tools = ["scoop", "python", "cc", "ar"]
+tags = ["profiling", "runtime", "compiler-correctness"]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/native.c", "-o", "${work}/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libprofiling_gc.a", "${work}/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "instrumented"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program.scoop", "--profile", "profiling", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "-o", "${work}/program", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "timeline"
+argv = ["${python}", "${fixture}/probe.py", "${instrumented.result.output}", "${work}"]
+timeout = 180
+exit = 0
+stdout = "profiling GC timeline passed\n"
+stderr = ""

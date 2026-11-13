@@ -15,12 +15,6 @@ impl Concretizer<'_> {
                 ),
                 _ => continue,
             };
-            if !export::portable_inline_body(
-                &template.signature.signature,
-                &template.implementation,
-            ) {
-                continue;
-            }
             let Some((callable, _)) =
                 self.imported_dependency_callables.iter().find(|(_, use_)| {
                     use_.reference().declaration() == declaration
@@ -45,6 +39,7 @@ impl Concretizer<'_> {
             let return_ty = self.lower_type(template.return_ty, &[]);
             bodies.alloc(concrete::ImportedInlineBody {
                 callable,
+                is_suspend: template.is_suspend,
                 materialization: scoop_identity::CallableMaterialization::new(
                     owner,
                     scoop_identity::CallableMaterializationContext::NoSubstitution,

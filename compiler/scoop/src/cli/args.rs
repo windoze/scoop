@@ -2,8 +2,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use super::doc::DocArgs;
-use clap::{Args, Parser, Subcommand, ValueEnum};
-use scoop::BuildProfile;
+use clap::{Args, Parser, Subcommand};
 
 mod forwarding;
 pub(super) use forwarding::with_single_file_arguments;
@@ -68,54 +67,7 @@ pub(super) enum Command {
     External(Vec<OsString>),
 }
 
-#[derive(Clone, Copy, Default, ValueEnum)]
-pub(super) enum MessageFormat {
-    #[default]
-    Human,
-    Json,
-}
-
-#[derive(Args)]
-pub(super) struct BuildOptions {
-    #[command(flatten)]
-    pub packages: super::package_manager::PackageOptions,
-    /// Cone directory, Cone.toml, or one .scoop file; defaults to ./Cone.toml.
-    pub root_input: Option<PathBuf>,
-    #[arg(long)]
-    pub target: Option<String>,
-    #[command(flatten)]
-    pub native: NativeOptions,
-    /// Compiler optimization and output profile; release enables optimized code.
-    #[arg(long, conflicts_with = "release")]
-    pub profile: Option<BuildProfile>,
-    #[arg(long, conflicts_with = "profile")]
-    pub release: bool,
-    /// Native source debug information: none, line-tables or full; debug defaults to full.
-    #[arg(long)]
-    pub debug_info: Option<scoop_lir::DebugInfoLevel>,
-    #[arg(long)]
-    pub target_dir: Option<PathBuf>,
-    #[arg(long)]
-    pub scoopc: Option<PathBuf>,
-    /// Register a host method-body generator; may be repeated for distinct names.
-    #[arg(long = "generator", value_name = "NAME=PATH")]
-    pub generators: Vec<OsString>,
-    #[arg(long)]
-    pub cache_dir: Option<PathBuf>,
-    /// Maximum concurrent compiler workers across Cones and code generation; defaults to available CPUs.
-    #[arg(short = 'j', long)]
-    pub jobs: Option<std::num::NonZeroUsize>,
-    #[arg(long)]
-    pub cone_path: Vec<PathBuf>,
-    #[arg(long, conflicts_with = "runtime_objects")]
-    pub runtime_root: Option<PathBuf>,
-    #[arg(long, conflicts_with = "runtime_root")]
-    pub runtime_objects: Option<PathBuf>,
-    #[arg(long)]
-    pub library_path: Vec<PathBuf>,
-    #[arg(long, default_value = "human")]
-    pub message_format: MessageFormat,
-}
+pub(super) use scoop::options::{BuildOptions, DumpScope, Emit, MessageFormat, NativeOptions};
 
 #[derive(Args)]
 pub(super) struct BuildArgs {
@@ -135,37 +87,6 @@ pub(super) struct BuildArgs {
     pub dump_dir: Option<PathBuf>,
     #[arg(long, requires = "emit")]
     pub dump_scope: Option<DumpScope>,
-}
-
-#[derive(Clone, Copy, ValueEnum)]
-pub(super) enum Emit {
-    Ast,
-    Hir,
-    Mir,
-    Optimizations,
-    Lir,
-    Symbols,
-    All,
-}
-impl Emit {
-    pub fn stages(self) -> scoop_protocol::StageDumpSet {
-        use scoop_protocol::{StageDumpKindV1 as Stage, StageDumpSet as Set};
-        match self {
-            Self::Ast => Set::one(Stage::Ast),
-            Self::Hir => Set::one(Stage::Hir),
-            Self::Mir => Set::one(Stage::Mir),
-            Self::Optimizations => Set::one(Stage::Optimizations),
-            Self::Lir => Set::one(Stage::Lir),
-            Self::Symbols => Set::one(Stage::Symbols),
-            Self::All => Set::all(),
-        }
-    }
-}
-#[derive(Clone, Copy, Default, ValueEnum)]
-pub(super) enum DumpScope {
-    #[default]
-    Root,
-    Sources,
 }
 
 #[derive(Args)]
@@ -221,58 +142,6 @@ pub(super) struct LinkArgs {
     pub dump_plan: bool,
     #[arg(long, default_value = "human")]
     pub message_format: MessageFormat,
-}
-
-#[derive(Args)]
-pub(super) struct NativeOptions {
-    /// Native C compiler driver for the selected target.
-    #[arg(long)]
-    pub cc: Option<PathBuf>,
-    /// Native C++ compiler driver; otherwise use the paired driver.
-    #[arg(long)]
-    pub cxx: Option<PathBuf>,
-    /// Darwin LLD or Windows linker executable (lld-link, link.exe, or MinGW LLD).
-    #[arg(long)]
-    pub linker: Option<PathBuf>,
-    /// Target C development sysroot, separate from the Scoop sysroot.
-    #[arg(long)]
-    pub native_sysroot: Option<PathBuf>,
-    /// LLVM unwind headers and archive prefix for the selected target.
-    #[arg(long)]
-    pub unwind_prefix: Option<PathBuf>,
-    /// Executable link mode; Linux gnu defaults to dynamic and musl to static.
-    #[arg(long, value_enum)]
-    pub link_mode: Option<LinkMode>,
-    /// Darwin native-app install name.
-    #[arg(long)]
-    pub install_name: Option<String>,
-    /// ELF native-app SONAME.
-    #[arg(long)]
-    pub soname: Option<String>,
-    /// Keep ordinary executable symbols; debug builds already retain them.
-    #[arg(long)]
-    pub keep_symbols: bool,
-    /// Produce a .dSYM bundle or .debug file from existing object debug information.
-    #[arg(long)]
-    pub emit_debug_file: bool,
-    /// Capture exception/trap stacks; debug defaults to true, release and link to false.
-    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
-    pub enable_stack_trace: Option<bool>,
-}
-
-#[derive(Clone, Copy, ValueEnum)]
-pub(super) enum LinkMode {
-    Static,
-    Dynamic,
-}
-
-impl From<LinkMode> for scoop_toolchain::LinkMode {
-    fn from(value: LinkMode) -> Self {
-        match value {
-            LinkMode::Static => Self::Static,
-            LinkMode::Dynamic => Self::Dynamic,
-        }
-    }
 }
 
 impl Command {

@@ -199,6 +199,7 @@ pub(crate) fn build_artifact_for_profile_with_dependencies(
         &members,
         semantic,
         Vec::new(),
+        Default::default(),
     )
     .unwrap();
     CanonicalSlibArchive::write_bootstrap(&manifest, members)

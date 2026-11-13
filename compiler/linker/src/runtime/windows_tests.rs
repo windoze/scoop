@@ -47,7 +47,7 @@ fn windows_runtime_sources_define_and_link_the_complete_runtime_abi() {
             .unwrap()
             .unwrap();
         let mut objects = Vec::new();
-        for (index, source) in profile.runtime_sources().into_iter().enumerate() {
+        for (index, source) in profile.runtime_sources(false).into_iter().enumerate() {
             let object = directory.path().join(format!("runtime-{index}.obj"));
             let input = source
                 .strip_prefix("vendor/")
@@ -86,6 +86,7 @@ fn windows_runtime_sources_define_and_link_the_complete_runtime_abi() {
             RuntimeBuildConfiguration {
                 enable_gc_stress: true,
                 enable_startup_stats: true,
+                enable_profiling: false,
                 input_key: sha256(b"Windows complete runtime inputs"),
                 compiler_inputs: sha256(b"selected Windows runtime compiler"),
                 flags: profile
@@ -96,6 +97,7 @@ fn windows_runtime_sources_define_and_link_the_complete_runtime_abi() {
             },
             objects.clone(),
             &directory.path().join("index"),
+            None,
         )
         .unwrap();
         common_tests::check_archive_and_inputs(&runtime, &objects, invocation.profile());
@@ -123,6 +125,7 @@ fn windows_runtime_sources_define_and_link_the_complete_runtime_abi() {
                 runtime.configuration().clone(),
                 duplicate_paths,
                 &directory.path().join("duplicate-index"),
+                None,
             )
             .unwrap_err()
             .0

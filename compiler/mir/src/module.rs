@@ -692,6 +692,7 @@ pub enum MirAnnotationValue {
 /// Per-Cone MIR metadata (impl spec 2.3).
 #[derive(Debug, Default)]
 pub struct MirMeta {
+    pub profiling: MirProfiling,
     pub dispatch_tables: Vec<DispatchTable>,
     /// External calls share one typed arena regardless of provider or the
     /// selection path that resolved their implementation.

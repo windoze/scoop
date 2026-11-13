@@ -74,7 +74,10 @@ pub(crate) fn materialize_v1(
             role @ (DefinitionAtomRole::Stackmap
             | DefinitionAtomRole::Lsda
             | DefinitionAtomRole::EhFrame
-            | DefinitionAtomRole::CompactUnwind) => {
+            | DefinitionAtomRole::CompactUnwind
+            | DefinitionAtomRole::ProfileCounters
+            | DefinitionAtomRole::ProfileData
+            | DefinitionAtomRole::ProfileNames) => {
                 let (segment, section) = backend_section(role)?;
                 let physical = layout.require_section(segment, section)?;
                 additions.push(BoundaryDefinitionV1::new(
@@ -117,11 +120,14 @@ const BACKEND_SECTIONS: [(&[u8], &[u8]); 4] = [
 fn backend_section(
     role: DefinitionAtomRole,
 ) -> Result<(&'static [u8], &'static [u8]), CodegenError> {
-    let section = match role {
+    let section: (&[u8], &[u8]) = match role {
         DefinitionAtomRole::Stackmap => BACKEND_SECTIONS[0],
         DefinitionAtomRole::Lsda => BACKEND_SECTIONS[1],
         DefinitionAtomRole::EhFrame => BACKEND_SECTIONS[2],
         DefinitionAtomRole::CompactUnwind => BACKEND_SECTIONS[3],
+        DefinitionAtomRole::ProfileCounters => (b"__DATA", b"__llvm_prf_cnts"),
+        DefinitionAtomRole::ProfileData => (b"__DATA", b"__llvm_prf_data"),
+        DefinitionAtomRole::ProfileNames => (b"__DATA", b"__llvm_prf_names"),
         DefinitionAtomRole::Primary
         | DefinitionAtomRole::RuntimeRecord
         | DefinitionAtomRole::AddressTakenConstant

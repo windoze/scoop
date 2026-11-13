@@ -244,6 +244,8 @@ impl ImportedDependencyCallableRef {
 /// Complete HIR input for one selected dependency callable.
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyCallable {
+    pub(super) constructor_template:
+        Option<std::sync::Arc<crate::ExportGenericNominalInitializationV1>>,
     pub(super) native_contract:
         Option<std::sync::Arc<scoop_identity::SourceNativeExternalContractRecord>>,
     pub(super) provider: ConeIdentity,
@@ -254,6 +256,10 @@ pub struct SelectedImportedDependencyCallable {
 }
 
 impl SelectedImportedDependencyCallable {
+    pub fn constructor_template(&self) -> Option<&crate::ExportGenericNominalInitializationV1> {
+        self.constructor_template.as_deref()
+    }
+
     pub fn native_contract(&self) -> Option<&scoop_identity::SourceNativeExternalContractRecord> {
         self.native_contract.as_deref()
     }

@@ -399,7 +399,7 @@ pub(super) fn single_catch_body(
         unwind,
         vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
             cleanup: false,
-            state: state,
+            state,
         }))],
         mir::Terminator::Goto(dispatch),
         None,

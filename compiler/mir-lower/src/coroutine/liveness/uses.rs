@@ -59,7 +59,7 @@ pub(super) fn statement_use_def(
             expr_uses(object, &mut uses);
             expr_uses(value, &mut uses);
         }
-        mir::StatementKind::Eh(_) => {}
+        mir::StatementKind::Eh(_) | mir::StatementKind::ProfileCounter(_) => {}
     }
     (uses, defs)
 }

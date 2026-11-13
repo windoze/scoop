@@ -180,3 +180,9 @@ pub(super) const DARWIN_AARCH64_MACHO_ABI_SHIM: &[&str] =
     &["runtime/src/platform/abi/darwin_aarch64_macho_floating.S"];
 pub(super) const X86_64_TAGGED_FLOATING_ABI_SHIM: &[&str] =
     &["runtime/src/platform/abi/x86_64_tagged_floating.c"];
+
+pub(super) const PROFILING: &[&str] = &[
+    "runtime/src/profiling.c",
+    "runtime/src/profiling/path.c",
+    "runtime/src/profiling/gc.c",
+];

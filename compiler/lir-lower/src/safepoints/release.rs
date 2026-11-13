@@ -137,7 +137,8 @@ fn allowed_instruction(
                 && matches!(protocol, lir::NativeStorageProtocol::NoTransition)
         }
         I::ReleaseFieldLoad { offset, .. } => *offset >= 16,
-        I::BinOp { .. }
+        I::ProfileCounter(_)
+        | I::BinOp { .. }
         | I::UnaryOp { .. }
         | I::IntegerUnary { .. }
         | I::IntegerBinary { .. }

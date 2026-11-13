@@ -8,6 +8,7 @@ dunce.workspace = true
 scoop-target-data.workspace = true
 scoop-abi-plan.workspace = true
 scoop-process.workspace = true
+scoop-profile.workspace = true
 inkwell.workspace = true
 la-arena.workspace = true
 llvm-sys.workspace = true
@@ -17,6 +18,7 @@ scoop-source.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
+scoop-wire.workspace = true
 scoop-identity.workspace = true
 scoop-toolchain.workspace = true
 scoop-slib.workspace = true

@@ -22,10 +22,36 @@ fn exported_graphs_have_identical_direct_and_wire_consumers() {
 }
 
 pub(super) fn compare_consumers(label: &str, provider: &str, consumer: &str) {
+    compare_consumers_export_ir(
+        label,
+        provider,
+        consumer,
+        hir::IrTemplateExport::Default,
+        true,
+    )
+}
+
+pub(super) fn compare_consumers_export_ir(
+    label: &str,
+    provider: &str,
+    consumer: &str,
+    mode: hir::IrTemplateExport,
+    include_mir: bool,
+) {
     let mut core = trusted_core();
     let coordinate = ConeCoordinate::new("test", "generic-provider", "1.0.0").unwrap();
+    let parsed_provider = super::super::m23_ordinary_core_only::support::parsed_ordinary_text_at(
+        &coordinate,
+        provider,
+    );
     let (foundation, interface) =
-        project_dependency_text(&core, &coordinate, provider, &["Boolean"]);
+        super::super::m23_ordinary_dependencies::support::project_parsed_dependency_with_export_ir(
+            &core,
+            &parsed_provider,
+            &["Boolean"],
+            false,
+            mode,
+        );
     let mut indexed = interface.clone();
     let bytes = encode(&indexed.index_for_wire().unwrap()).unwrap();
     let decoded_interface: hir::DecodedCrossConeHirInterfaceSectionV1 =
@@ -116,16 +142,27 @@ pub(super) fn compare_consumers(label: &str, provider: &str, consumer: &str) {
         published
             .complete_cross_cone_interface_source_points(output.output().export.module(), &public)
             .unwrap();
-        let dependencies = select_library_callables(&output);
-        let mir =
-            scoop_mir_lower::lower_current_cone(&output, dependencies, Default::default(), None)
-                .unwrap_or_else(|errors| panic!("{label}: {errors:?}"));
+        let mir = include_mir.then(|| {
+            let dependencies = select_library_callables(&output);
+            let mir = scoop_mir_lower::lower_current_cone(
+                &output,
+                dependencies,
+                Default::default(),
+                None,
+                Default::default(),
+            )
+            .unwrap_or_else(|errors| panic!("{label}: {errors:?}"));
+            (
+                scoop_mir::dump(mir.module()),
+                encode(mir.foundation()).unwrap(),
+            )
+        });
         results.push((
             hir::dump(&output.output().export),
-            scoop_mir::dump(mir.module()),
+            mir.as_ref().map(|value| value.0.clone()),
             encode(&published).unwrap(),
             encode(&public.index_for_wire().unwrap()).unwrap(),
-            encode(mir.foundation()).unwrap(),
+            mir.map(|value| value.1),
         ));
     }
     assert_eq!(results[0].0, results[1].0, "{label}: selected HIR");

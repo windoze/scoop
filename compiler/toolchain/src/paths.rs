@@ -168,3 +168,48 @@ pub fn default_runtime_index(
         })
         .join("index.cbor")
 }
+
+/// Logical-to-physical counter mapping produced alongside an instrumented slib.
+pub fn profile_map_path(artifact: &Path) -> PathBuf {
+    let mut path = artifact.as_os_str().to_os_string();
+    path.push(".profile.json");
+    PathBuf::from(path)
+}
+
+pub fn default_profiling_runtime_index(
+    sysroot: &Path,
+    target: scoop_lir::LirTargetProfile,
+    stress: bool,
+    startup_stats: bool,
+) -> PathBuf {
+    let ordinary = default_runtime_index(sysroot, target, stress, startup_stats);
+    target_library_root(sysroot, target)
+        .join("profiling")
+        .join(
+            ordinary
+                .parent()
+                .expect("runtime directory")
+                .file_name()
+                .expect("runtime name"),
+        )
+        .join("index.cbor")
+}
+
+pub fn profiling_runtime_archive(sysroot: &Path, target: scoop_lir::LirTargetProfile) -> PathBuf {
+    target_library_root(sysroot, target).join("profiling/runtime/profile.a")
+}
+
+/// Select a single system library set before package and artifact resolution.
+pub fn system_library_root(
+    sysroot: &Path,
+    target: scoop_lir::LirTargetProfile,
+    instrumentation: scoop_protocol::Instrumentation,
+    feedback: bool,
+) -> PathBuf {
+    let root = target_library_root(sysroot, target);
+    match instrumentation {
+        scoop_protocol::Instrumentation::Off if feedback => root.join("profiling/release"),
+        scoop_protocol::Instrumentation::Off => root,
+        scoop_protocol::Instrumentation::Generate => root.join("profiling/instrumented"),
+    }
+}

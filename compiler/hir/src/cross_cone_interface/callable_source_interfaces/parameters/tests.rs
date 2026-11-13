@@ -162,7 +162,9 @@ fn hex(bytes: &[u8]) -> String {
 fn hex_bytes(value: &str) -> Vec<u8> {
     value
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|digits| {
             let digits = std::str::from_utf8(digits).unwrap();
             u8::from_str_radix(digits, 16).unwrap()

@@ -55,7 +55,7 @@ impl DiscoveryBuilder {
                 break;
             }
             let claim = crate::locator::locate_default_core(
-                self.context.sysroot.as_path(),
+                &self.context.system_library_root,
                 self.context.target.lir_target_selection(),
                 &self.context.cache_root,
             )
@@ -92,7 +92,7 @@ impl DiscoveryBuilder {
             let claim = match locate_build_dependency(
                 &pending.coordinate,
                 &self.context.artifact_search_roots,
-                self.context.sysroot.as_path(),
+                &self.context.system_library_root,
                 self.context.target.lir_target_selection(),
                 &self.context.cache_root,
             ) {

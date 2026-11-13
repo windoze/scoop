@@ -115,13 +115,12 @@ fn cone(value: Spanned<RawCone>) -> Result<ConeDeclaration, ManifestParseError> 
             ));
         }
     };
-    if let Some(value) = &raw.readme {
-        if path(value.get_ref())
+    if let Some(value) = &raw.readme
+        && path(value.get_ref())
             .map_err(|message| invalid(message, value.span()))?
             .is_absolute()
-        {
-            return Err(invalid("readme must be a relative path", value.span()));
-        }
+    {
+        return Err(invalid("readme must be a relative path", value.span()));
     }
     Ok(ConeDeclaration {
         span,

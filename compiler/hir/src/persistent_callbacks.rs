@@ -78,12 +78,12 @@ impl HirCallbackRegistrationIdentities {
                 }
             };
             let site = (result.key().parent(), result.key().path().clone());
-            if let Some(previous) = sites.insert(site, result.key().clone()) {
-                if previous != *result.key() {
-                    return Err(HirCallbackRegistrationIdentityError::conflicting_site(
-                        registration,
-                    ));
-                }
+            if let Some(previous) = sites.insert(site, result.key().clone())
+                && previous != *result.key()
+            {
+                return Err(HirCallbackRegistrationIdentityError::conflicting_site(
+                    registration,
+                ));
             }
             identities.push(result);
         }

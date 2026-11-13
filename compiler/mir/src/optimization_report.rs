@@ -34,6 +34,13 @@ pub enum OptimizationDecision {
         target: CallTarget<()>,
         outcome: InlineOutcome,
         estimate: Option<Box<InlineEstimate>>,
+        heat: InlineHeat,
+    },
+    StringFusion {
+        heat: InlineHeat,
+        fused: bool,
+        parts: usize,
+        concatenations: usize,
     },
     Allocation {
         kind: AllocationKind,
@@ -85,8 +92,15 @@ pub struct InlineHeat {
     pub source: InlineHeatSource,
     pub loop_depth: usize,
     pub loop_header: Option<BlockId>,
-    pub numerator: usize,
-    pub denominator: usize,
+    pub numerator: u64,
+    pub denominator: u64,
+    pub profile: Option<ProfileHeat>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ProfileHeat {
+    pub location: Option<scoop_profile::Location>,
+    pub frequency: Result<scoop_profile::Frequency, scoop_profile::MissingCount>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -94,6 +108,7 @@ pub enum InlineHeatSource {
     Ordinary,
     Loop,
     ColdExit,
+    Profile,
 }
 
 #[derive(Clone, Copy, Debug)]

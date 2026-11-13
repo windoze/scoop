@@ -66,6 +66,7 @@ TOOLS = (
     "llvm-objcopy",
     "llvm-strip",
     "llvm-symbolizer",
+    "llvm-profdata",
 )
 WINDOWS_RUNTIME_DLLS = ("libc++.dll", "libunwind.dll")
 SDK_LIBRARIES = ("LLVMDemangle", "LLVMSupport", "LLVMTableGen", "LLVMDebuginfod")
